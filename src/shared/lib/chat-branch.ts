@@ -320,6 +320,11 @@ function stampSnapshotOnCurrentBranchVersion(
   };
 }
 
+function clearBranchStreamingFlags(message: Message): Message {
+  if (!message.isStreaming && !message.isThinkingStreaming) return message;
+  return { ...message, isStreaming: false, isThinkingStreaming: false };
+}
+
 function rebuildChatWithoutSnapshot(
   chatMessages: Message[],
   messageId: string,
@@ -328,23 +333,18 @@ function rebuildChatWithoutSnapshot(
   const targetMessage = chatMessages.find((msg) => msg.id === messageId);
   if (!targetMessage) return chatMessages;
 
-  if (targetMessage.role === "user") {
-    const userIndex = chatMessages.findIndex((msg) => msg.id === messageId);
-    if (userIndex === -1) return chatMessages;
-    return chatMessages
-      .slice(0, userIndex + 1)
-      .map((msg) =>
-        msg.id === messageId
-          ? hydrateMessageFromActiveBranch(msg, nextBranchIndex)
-          : msg,
-      );
-  }
-
-  return chatMessages.map((msg) =>
-    msg.id === messageId
-      ? hydrateMessageFromActiveBranch(msg, nextBranchIndex)
-      : msg,
-  );
+  // No snapshot: the versions after this message belong to the previous
+  // branch and must hide. Both roles truncate the tail so a switch never
+  // mixes follow-ups from one version under another version's content.
+  const targetIndex = chatMessages.findIndex((msg) => msg.id === messageId);
+  if (targetIndex === -1) return chatMessages;
+  return chatMessages
+    .slice(0, targetIndex + 1)
+    .map((msg) =>
+      msg.id === messageId
+        ? hydrateMessageFromActiveBranch(msg, nextBranchIndex)
+        : clearBranchStreamingFlags(msg),
+    );
 }
 
 export function editMessageWithBranchHelper(
@@ -408,8 +408,11 @@ export function editMessageWithBranchHelper(
     hasThinking: false,
   };
 
+  // Forking hides the previous branch immediately: everything after the
+  // edited prompt (its old answer + all follow-ups) is truncated in the same
+  // synchronous update that paints the new streaming placeholder.
   const nextChat = [
-    ...existing.slice(0, targetIndex),
+    ...existing.slice(0, targetIndex).map(clearBranchStreamingFlags),
     updatedUserMessage,
     assistantMessage,
   ];
@@ -483,7 +486,13 @@ export function retryAssistantWithBranchHelper(
     activeBranchIndex: nextBranchIndex,
   };
 
-  const nextChat = [...existing.slice(0, assistantIndex), updatedAssistant];
+  // Regenerating hides the previous answer immediately: the tail after the
+  // retried response (follow-ups generated from the old content) is truncated
+  // in the same synchronous update that paints the fresh streaming shell.
+  const nextChat = [
+    ...existing.slice(0, assistantIndex).map(clearBranchStreamingFlags),
+    updatedAssistant,
+  ];
   return { nextChat, updatedAssistant, assistantIndex };
 }
 

@@ -7,16 +7,31 @@
  *   (no JS pin attributes required for docking offsets).
  * - While generating and near the bottom, always prefer the latest turn so
  *   streamed code/table headers dock under the current user bubble immediately.
+ * - The turn being edited always wins elevation so the editor never slides
+ *   under another turn's docked chrome.
  */
+
+export const STICKY_GAP_PX = 8;
 
 export function readHeaderHeightPx(from?: Element | null): number {
   const scope =
-    from?.closest(
-      "[data-chat-active], [data-chat-streaming]",
-    ) ?? document.documentElement;
-  const raw = getComputedStyle(scope).getPropertyValue("--header-height");
-  const parsed = parseFloat(raw);
-  return Number.isFinite(parsed) ? parsed : 35;
+    from?.closest("[data-chat-active], [data-chat-streaming]") ??
+    document.documentElement;
+  const styles = getComputedStyle(scope);
+  const candidates = [
+    styles.getPropertyValue("--chat-header-height"),
+    styles.getPropertyValue("--header-height"),
+  ];
+  for (const raw of candidates) {
+    const parsed = parseFloat(raw);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return 40;
+}
+
+/** Sticky top offset shared by CSS (`top: header + gap`) and stuck detection. */
+export function readStickyTopPx(from?: Element | null): number {
+  return readHeaderHeightPx(from) + STICKY_GAP_PX;
 }
 
 /** Distance-from-bottom under which we force the latest turn as sticky. */
@@ -38,6 +53,17 @@ export function shouldPinLatestStickyTurn(
   return maxTop > 48 && maxTop - scrollTop <= threshold;
 }
 
+function editingTurnIndex(viewport: HTMLElement): number | null {
+  const editor = viewport.querySelector<HTMLElement>(
+    "[data-user-message-editing]",
+  );
+  if (!editor) return null;
+  const turn = editor.closest<HTMLElement>("[data-conversation-turn]");
+  if (!turn) return null;
+  const index = Number(turn.dataset.turnIndex);
+  return Number.isNaN(index) ? null : index;
+}
+
 export function resolveActiveStickyTurnIndex(
   viewport: HTMLElement,
   turnCount: number,
@@ -45,8 +71,11 @@ export function resolveActiveStickyTurnIndex(
 ): number {
   if (turnCount <= 0) return 0;
 
+  const editingIndex = editingTurnIndex(viewport);
+  if (editingIndex !== null) return editingIndex;
+
   const stickyY =
-    viewport.getBoundingClientRect().top + readHeaderHeightPx(viewport);
+    viewport.getBoundingClientRect().top + readStickyTopPx(viewport);
   const turns = viewport.querySelectorAll<HTMLElement>(
     "[data-conversation-turn]",
   );
@@ -148,10 +177,11 @@ function syncTurnStuckState(
 
   const sentinelBottom = sentinel.getBoundingClientRect().bottom;
   const userTop = host.getBoundingClientRect().top;
-  // Slightly wider pin slop while editing — expanded host has more subpixel drift.
-  const pinSlop = host.dataset.userMsgEditing === "true" ? 4 : 2;
+  // Wider slop absorbs subpixel drift from the padded sticky host and the
+  // expanded editor without flickering at the dock boundary.
+  const pinSlop = host.dataset.userMsgEditing === "true" ? 6 : 3.5;
   const isPinned = Math.abs(userTop - stickyLineY) < pinSlop;
-  const shouldStuck = isPinned && sentinelBottom < stickyLineY;
+  const shouldStuck = isPinned && sentinelBottom < stickyLineY - 1;
 
   if (host.classList.contains("sticky-user-msg--stuck") !== shouldStuck) {
     host.classList.toggle("sticky-user-msg--stuck", shouldStuck);
@@ -171,7 +201,7 @@ export function syncStickyUserMessages(
     isGenerating,
   );
   const stickyLineY =
-    viewport.getBoundingClientRect().top + readHeaderHeightPx(viewport);
+    viewport.getBoundingClientRect().top + readStickyTopPx(viewport);
 
   const prevIndex = cache?.activeIndex ?? null;
   const turnsChanged = !cache || cache.turnCount !== turnCount;
@@ -199,6 +229,7 @@ export function syncStickyUserMessages(
       });
   }
 
-  setTurnStickyActive(turnElement(viewport, activeIndex), true);
-  syncTurnStuckState(turnElement(viewport, activeIndex), stickyLineY);
+  const activeTurn = turnElement(viewport, activeIndex);
+  setTurnStickyActive(activeTurn, true);
+  syncTurnStuckState(activeTurn, stickyLineY);
 }

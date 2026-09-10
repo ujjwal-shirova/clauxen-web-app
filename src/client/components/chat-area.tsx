@@ -297,10 +297,10 @@ function ChatAreaLayout({
 
   const handleRetryUserMessage = React.useCallback(
     async (messageId: string) => {
-      if (!activeChatId || isGenerating) return;
+      if (!activeChatId) return;
       await redoUserMessageWithBranch(activeChatId, messageId);
     },
-    [activeChatId, isGenerating, redoUserMessageWithBranch],
+    [activeChatId, redoUserMessageWithBranch],
   );
 
   const handleRetryAssistant = React.useCallback(

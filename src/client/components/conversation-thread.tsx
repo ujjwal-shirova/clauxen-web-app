@@ -5,8 +5,11 @@ import { createPortal } from "react-dom";
 import {
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   GitBranch,
   MoreHorizontal,
+  RotateCcw,
   Search,
   Sparkles,
   SquarePen,
@@ -158,6 +161,60 @@ const InfoIcon = () => (
   </svg>
 );
 
+function BranchSwitcher({
+  activeIndex,
+  total,
+  onPrev,
+  onNext,
+  disabled = false,
+}: {
+  activeIndex: number;
+  total: number;
+  onPrev: () => void;
+  onNext: () => void;
+  disabled?: boolean;
+}) {
+  const prevDisabled = disabled || activeIndex <= 0;
+  const nextDisabled = disabled || activeIndex >= total - 1;
+  return (
+    <div
+      data-branch-nav
+      role="group"
+      aria-label={`Version ${activeIndex + 1} of ${total}`}
+      className="flex shrink-0 items-center gap-0.5 rounded-lg border border-[var(--ui-border-subtle)] bg-[var(--ui-field-bg)] px-0.5 py-0.5 text-[var(--ui-fg-muted)]"
+    >
+      <HintTooltip content="Previous version" side="bottom">
+        <button
+          type="button"
+          aria-label="Previous version"
+          onClick={onPrev}
+          disabled={prevDisabled}
+          className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] disabled:pointer-events-none disabled:opacity-35"
+        >
+          <ChevronLeft className="size-4" strokeWidth={2} aria-hidden="true" />
+        </button>
+      </HintTooltip>
+      <span
+        aria-hidden="true"
+        className="min-w-[38px] select-none text-center text-[12px] font-medium tabular-nums"
+      >
+        {activeIndex + 1} / {total}
+      </span>
+      <HintTooltip content="Next version" side="bottom">
+        <button
+          type="button"
+          aria-label="Next version"
+          onClick={onNext}
+          disabled={nextDisabled}
+          className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] disabled:pointer-events-none disabled:opacity-35"
+        >
+          <ChevronRight className="size-4" strokeWidth={2} aria-hidden="true" />
+        </button>
+      </HintTooltip>
+    </div>
+  );
+}
+
 interface MessageRowProps {
   message: Message;
   editingMessageId: string | null;
@@ -305,7 +362,7 @@ const MessageRow = React.memo(
               />
             ) : (
               <div
-                className="user-message-card__body no-hover-overlay group/user-msg relative w-full rounded-xl px-3 py-2 pr-10 text-left transition-[border-color] duration-150"
+                className="user-message-card__body user-msg-bubble no-hover-overlay relative ml-auto w-fit max-w-full text-left"
                 data-user-expanded={userExpanded || undefined}
               >
                 {message.attachments && message.attachments.length > 0 ? (
@@ -334,7 +391,7 @@ const MessageRow = React.memo(
                     <p
                       ref={previewTextRef}
                       className={cn(
-                        "whitespace-pre-wrap text-[14px] leading-[21px] text-[var(--ui-fg)]",
+                        "user-msg-text whitespace-pre-wrap break-words text-[15px] leading-[1.6] text-[var(--ui-fg)]",
                         !userExpanded && "overflow-hidden",
                       )}
                       style={
@@ -362,7 +419,7 @@ const MessageRow = React.memo(
                     type="button"
                     onClick={() => setUserExpanded((prev) => !prev)}
                     aria-expanded={userExpanded}
-                    className="user-message-card__toggle no-hover-overlay mt-1 inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[12px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                    className="user-message-card__toggle user-msg-toggle no-hover-overlay mt-1.5 inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[12px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                   >
                     {userExpanded ? "Show less" : "Show more"}
                     <ChevronDown
@@ -374,18 +431,6 @@ const MessageRow = React.memo(
                     />
                   </button>
                 ) : null}
-                <div className="user-message-card__edit">
-                  <HintTooltip content="Edit message" side="bottom">
-                    <button
-                      type="button"
-                      aria-label="Edit message"
-                      onClick={() => onStartEdit(message)}
-                      className="user-message-card__edit-btn no-hover-overlay flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-[var(--ui-fg-muted)] shadow-sm hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                    >
-                      <SquarePen className="size-3.5" strokeWidth={1.75} />
-                    </button>
-                  </HintTooltip>
-                </div>
               </div>
             )}
             <AttachmentImageLightbox
@@ -403,84 +448,69 @@ const MessageRow = React.memo(
               onClose={() => setPreviewAttachment(null)}
             />
             {editingMessageId !== message.id ? (
-              <div className="user-message-actions flex h-8 items-center justify-end gap-1">
+              <div
+                className="user-message-actions"
+                data-has-branches={branchVersions > 1 || undefined}
+              >
                 {branchVersions > 1 ? (
-                  <div
-                    data-branch-nav
-                    className="mr-1 flex items-center gap-1 text-[var(--ui-fg-muted)]"
-                  >
-                    <HintTooltip content="Previous version" side="bottom">
-                      <button
-                        type="button"
-                        onClick={() => onSwitchBranch(message.id, "prev")}
-                        disabled={
-                          chatIsGenerating || activeBranchIndex <= 0
-                        }
-                        className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          aria-hidden="true"
-                        >
-                          <path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" />
-                        </svg>
-                      </button>
-                    </HintTooltip>
-                    <span className="min-w-[34px] text-center text-[12px] font-[430]">
-                      {activeBranchIndex + 1} / {branchVersions}
-                    </span>
-                    <HintTooltip content="Next version" side="bottom">
-                      <button
-                        type="button"
-                        onClick={() => onSwitchBranch(message.id, "next")}
-                        disabled={
-                          chatIsGenerating ||
-                          activeBranchIndex >= branchVersions - 1
-                        }
-                        className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          aria-hidden="true"
-                        >
-                          <path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" />
-                        </svg>
-                      </button>
-                    </HintTooltip>
-                  </div>
+                  <BranchSwitcher
+                    activeIndex={activeBranchIndex}
+                    total={branchVersions}
+                    onPrev={() => onSwitchBranch(message.id, "prev")}
+                    onNext={() => onSwitchBranch(message.id, "next")}
+                    disabled={chatIsGenerating}
+                  />
                 ) : null}
-                <button
-                  type="button"
-                  aria-label="Edit message"
-                  className="user-message-action-btn no-hover-overlay inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                  onClick={() => onStartEdit(message)}
-                >
-                  <SquarePen className="size-4" strokeWidth={1.75} />
-                  <span>Edit</span>
-                </button>
-                <HintTooltip content="Copy message" side="bottom">
-                  <button
-                    type="button"
-                    aria-label="Copy user message"
-                    className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                    onClick={() => onCopy(message.id, message.content)}
+                <div className="user-message-actions__buttons">
+                  <HintTooltip
+                    content="Retry with same input"
+                    side="bottom"
                   >
-                    {copiedId === message.id ? (
-                      <Check
-                        className="size-4 text-[hsl(var(--success))]"
-                        strokeWidth={2}
+                    <button
+                      type="button"
+                      aria-label="Retry with same input"
+                      onClick={() => onRetryUserMessage(message.id)}
+                      className="user-message-action-btn no-hover-overlay"
+                    >
+                      <RotateCcw
+                        className="size-4"
+                        strokeWidth={1.75}
+                        aria-hidden="true"
                       />
-                    ) : (
-                      <CustomCopyIcon />
-                    )}
-                  </button>
-                </HintTooltip>
+                    </button>
+                  </HintTooltip>
+                  <HintTooltip content="Edit message" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Edit message"
+                      onClick={() => onStartEdit(message)}
+                      className="user-message-action-btn no-hover-overlay"
+                    >
+                      <SquarePen
+                        className="size-4"
+                        strokeWidth={1.75}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </HintTooltip>
+                  <HintTooltip content="Copy message" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Copy user message"
+                      onClick={() => onCopy(message.id, message.content)}
+                      className="user-message-action-btn no-hover-overlay"
+                    >
+                      {copiedId === message.id ? (
+                        <Check
+                          className="size-4 text-[hsl(var(--success))]"
+                          strokeWidth={2}
+                        />
+                      ) : (
+                        <CustomCopyIcon />
+                      )}
+                    </button>
+                  </HintTooltip>
+                </div>
               </div>
             ) : null}
           </div>
@@ -683,53 +713,17 @@ const MessageRow = React.memo(
                     </HintTooltip>
                   ) : null}
                   {branchVersions > 1 ? (
-                    <div className="ml-0.5 flex items-center gap-1 text-[var(--ui-fg-muted)]">
-                      <HintTooltip content="Previous version" side="bottom">
-                        <button
-                          type="button"
-                          onClick={() => onSwitchBranch(message.id, "prev")}
-                          disabled={
-                            chatIsGenerating || activeBranchIndex <= 0
-                          }
-                          className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
-                        >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                            aria-hidden="true"
-                          >
-                            <path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" />
-                          </svg>
-                        </button>
-                      </HintTooltip>
-                      <span className="min-w-[34px] text-center text-[12px] font-[430]">
-                        {activeBranchIndex + 1} / {branchVersions}
-                      </span>
-                      <HintTooltip content="Next version" side="bottom">
-                        <button
-                          type="button"
-                          onClick={() => onSwitchBranch(message.id, "next")}
-                          disabled={
-                            chatIsGenerating ||
-                            activeBranchIndex >= branchVersions - 1
-                          }
-                          className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
-                        >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                            aria-hidden="true"
-                          >
-                            <path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" />
-                          </svg>
-                        </button>
-                      </HintTooltip>
+                    <div className="ml-0.5">
+                      <BranchSwitcher
+                        activeIndex={activeBranchIndex}
+                        total={branchVersions}
+                        onPrev={() => onSwitchBranch(message.id, "prev")}
+                        onNext={() => onSwitchBranch(message.id, "next")}
+                        disabled={chatIsGenerating}
+                      />
                     </div>
                   ) : null}
+
                 </div>
               </>
             ) : null}
@@ -820,17 +814,28 @@ const ConversationTurn = React.memo(
 
     const isEditingUser = !!userMessage && editingMessageId === userMessage.id;
 
-    // Measure user message height for code-header sticky offset (layout effect
-    // so --turn-user-msg-height is ready before first paint / sticky sync).
-    // Re-run when entering/leaving edit — editor height differs from preview.
+    // Measure the bubble/editor height for the code-header sticky offset.
+    // The actions row is excluded on purpose: it fades in/out on hover and
+    // becomes a floating pill when docked, so including it would shift every
+    // sticky code/table header at the hover/dock boundary.
     React.useLayoutEffect(() => {
       const turnEl = turnRootRef.current;
       const hostEl = userMsgHostRef.current;
       if (!turnEl || !hostEl || !userMessage) return;
 
+      const measured = () =>
+        hostEl.querySelector<HTMLElement>(
+          ".user-msg-bubble, .user-msg-editor",
+        ) ?? hostEl;
+
       const updateVar = () => {
-        const h = hostEl.offsetHeight || 0;
-        const next = `${h}px`;
+        const el = measured();
+        const styles = getComputedStyle(el);
+        const h =
+          (el.offsetHeight || 0) +
+          parseFloat(styles.marginTop || "0") +
+          parseFloat(styles.marginBottom || "0");
+        const next = `${Math.max(0, Math.round(h))}px`;
         if (turnEl.style.getPropertyValue("--turn-user-msg-height") !== next) {
           turnEl.style.setProperty("--turn-user-msg-height", next);
           turnEl.dispatchEvent(
@@ -843,6 +848,8 @@ const ConversationTurn = React.memo(
 
       const ro = new ResizeObserver(updateVar);
       ro.observe(hostEl);
+      const bubble = measured();
+      if (bubble !== hostEl) ro.observe(bubble);
 
       return () => {
         ro.disconnect();
@@ -1200,9 +1207,13 @@ export function ConversationThread({
     ) => {
       const trimmed = (contentOverride ?? editValue).trim();
       if (!trimmed && !(attachments && attachments.length > 0)) return;
-      await onSaveEditedMessage(messageId, trimmed, { attachments });
+      // Close the editor synchronously so the forked branch (edited prompt +
+      // fresh streaming placeholder) paints immediately. The branch fork
+      // truncates the previous answer in the same update; awaiting the full
+      // stream before closing would keep the editor over the new branch.
       setEditingMessageId(null);
       setEditValue("");
+      await onSaveEditedMessage(messageId, trimmed, { attachments });
     },
     [editValue, onSaveEditedMessage],
   );

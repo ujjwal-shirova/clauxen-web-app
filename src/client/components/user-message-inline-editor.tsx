@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LoaderCircle, Mic, Plus, X } from "lucide-react";
+import { Check, LoaderCircle, Mic, Paperclip, X } from "lucide-react";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { AttachmentChip } from "@/components/composer/attachment-chip";
 import { AttachmentImageLightbox } from "@/components/composer/attachment-image-lightbox";
@@ -15,8 +15,8 @@ import {
 } from "@/lib/composer-attachments";
 import { cn } from "@/lib/utils";
 
-const MAX_EDIT_LINES = 8;
-const EDIT_LINE_HEIGHT_PX = 22;
+const MAX_EDIT_LINES = 10;
+const EDIT_LINE_HEIGHT_PX = 24;
 
 function messageToComposerAttachments(
   attachments: MessageAttachment[] | undefined,
@@ -76,14 +76,18 @@ export function UserMessageInlineEditor({
   const chunksRef = React.useRef<Blob[]>([]);
 
   const maxHeightPx = MAX_EDIT_LINES * EDIT_LINE_HEIGHT_PX;
-  const canSubmit = Boolean(value.trim()) || attachments.length > 0;
+  const trimmed = value.trim();
+  const canSubmit =
+    (Boolean(trimmed) || attachments.length > 0) &&
+    !disabled &&
+    !isSubmitting;
 
   const resizeTextarea = React.useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
     const next = Math.min(
-      Math.max(textarea.scrollHeight, EDIT_LINE_HEIGHT_PX),
+      Math.max(textarea.scrollHeight, EDIT_LINE_HEIGHT_PX * 2),
       maxHeightPx,
     );
     textarea.style.height = `${next}px`;
@@ -98,51 +102,42 @@ export function UserMessageInlineEditor({
   React.useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    // preventScroll: focusing a sticky host must not fight chat scroll /
-    // sticky release (browser scrollIntoView keeps the edit box pinned).
     textarea.focus({ preventScroll: true });
     const len = textarea.value.length;
-    textarea.setSelectionRange(len, len);
+    try {
+      textarea.setSelectionRange(len, len);
+    } catch {
+      // noop
+    }
   }, [messageId]);
 
   React.useEffect(() => {
     return () => {
       for (const item of attachments) {
-        if (item.previewUrl?.startsWith("blob:")) {
+        if (item.previewUrl?.startsWith("blob:") && item.file) {
           URL.revokeObjectURL(item.previewUrl);
         }
       }
       streamRef.current?.getTracks().forEach((track) => track.stop());
       if (recorderRef.current?.state === "recording") {
-        recorderRef.current.stop();
+        try {
+          recorderRef.current.stop();
+        } catch {
+          // noop
+        }
       }
     };
     // Only on unmount — intentional.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const maybeCancelIfEmpty = React.useCallback(
-    (nextValue: string, nextAttachments: ComposerAttachment[]) => {
-      if (nextValue.trim() || nextAttachments.length > 0) return;
-      onCancel();
-    },
-    [onCancel],
-  );
-
-  const handleValueChange = (next: string) => {
-    onValueChange(next);
-    maybeCancelIfEmpty(next, attachments);
-  };
 
   const removeAttachment = (id: string) => {
     setAttachments((prev) => {
       const target = prev.find((item) => item.id === id);
-      if (target?.previewUrl?.startsWith("blob:") && !target.fileId) {
-        // Only revoke freshly added local blobs, not remote URLs.
-        if (target.file) URL.revokeObjectURL(target.previewUrl);
+      if (target?.previewUrl?.startsWith("blob:") && target.file) {
+        URL.revokeObjectURL(target.previewUrl);
       }
-      const next = prev.filter((item) => item.id !== id);
-      queueMicrotask(() => maybeCancelIfEmpty(value, next));
-      return next;
+      return prev.filter((item) => item.id !== id);
     });
   };
 
@@ -259,8 +254,8 @@ export function UserMessageInlineEditor({
     }
   };
 
-  const handleSubmit = async () => {
-    if (disabled || isSubmitting || !canSubmit) return;
+  const handleSubmit = React.useCallback(async () => {
+    if (!canSubmit) return;
     setIsSubmitting(true);
     try {
       await onSubmit(
@@ -270,21 +265,43 @@ export function UserMessageInlineEditor({
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [canSubmit, value, attachments, onSubmit]);
 
   return (
     <div
-      className="user-message-card__body user-message-card__body--editing no-hover-overlay w-full rounded-xl px-3 py-2.5 text-left sm:px-4 sm:py-3"
+      className="user-msg-editor no-hover-overlay w-full text-left"
       data-user-message-editing={messageId}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
+          event.stopPropagation();
           onCancel();
+        }
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          event.key === "Enter" &&
+          !event.shiftKey
+        ) {
+          event.preventDefault();
+          void handleSubmit();
         }
       }}
     >
+      <div className="user-msg-editor__label">
+        <span>Edit message</span>
+        <span
+          className={cn(
+            "user-msg-editor__rec",
+            isDictating && "user-msg-editor__rec--live",
+          )}
+          aria-hidden={!isDictating}
+        >
+          {isDictating ? "Recording…" : ""}
+        </span>
+      </div>
+
       {attachments.length > 0 ? (
-        <div className="mb-2 flex flex-wrap gap-2">
+        <div className="mb-2.5 flex flex-wrap gap-2">
           {attachments.map((attachment) => (
             <AttachmentChip
               key={attachment.id}
@@ -301,98 +318,103 @@ export function UserMessageInlineEditor({
         ref={textareaRef}
         value={value}
         disabled={disabled || isSubmitting}
-        onChange={(event) => handleValueChange(event.target.value)}
+        onChange={(event) => onValueChange(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.shiftKey) {
+          if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
             event.preventDefault();
             void handleSubmit();
           }
         }}
-        rows={1}
-        placeholder="Edit message…"
-        className={cn(
-          "w-full resize-none bg-transparent text-[13.5px] font-[430] leading-[1.55] text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)] sm:text-[14px] sm:leading-[1.58]",
-          "max-h-[176px]",
-        )}
-        style={{ lineHeight: `${EDIT_LINE_HEIGHT_PX}px` }}
+        rows={2}
+        placeholder="Edit your message…"
+        className="user-msg-editor__input w-full resize-none bg-transparent outline-none"
+        style={{
+          lineHeight: `${EDIT_LINE_HEIGHT_PX}px`,
+          maxHeight: `${maxHeightPx}px`,
+        }}
         aria-label="Edit user message"
       />
 
       {attachmentError ? (
-        <p className="mt-1 text-[11px] text-red-600">{attachmentError}</p>
+        <p className="mt-1.5 text-[12px] font-medium text-[var(--settings-danger)]">
+          {attachmentError}
+        </p>
       ) : null}
 
-      <div className="mt-2 flex items-center gap-1.5 px-1 pb-1">
-        <HintTooltip content="Add files">
+      <div className="user-msg-editor__footer">
+        <div className="flex items-center gap-1">
+          <HintTooltip content="Attach files" side="bottom">
+            <button
+              type="button"
+              aria-label="Attach files"
+              disabled={disabled || isSubmitting}
+              onClick={() => fileInputRef.current?.click()}
+              className="user-msg-editor__icon-btn"
+            >
+              <Paperclip className="h-4 w-4" strokeWidth={1.75} />
+            </button>
+          </HintTooltip>
+
+          {isDictating ? (
+            <HintTooltip content="Stop dictation" side="bottom">
+              <button
+                type="button"
+                onClick={() => void startDictation()}
+                aria-label="Stop dictation"
+                className="user-msg-editor__icon-btn user-msg-editor__icon-btn--active"
+              >
+                <X className="h-4 w-4" strokeWidth={2} />
+              </button>
+            </HintTooltip>
+          ) : (
+            <HintTooltip content="Dictate" side="bottom">
+              <button
+                type="button"
+                onClick={() => void startDictation()}
+                disabled={disabled || isSubmitting || isTranscribing}
+                aria-pressed={isDictating}
+                aria-label="Dictate"
+                className="user-msg-editor__icon-btn"
+              >
+                {isTranscribing ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Mic className="h-4 w-4" strokeWidth={1.75} />
+                )}
+              </button>
+            </HintTooltip>
+          )}
+          <span className="user-msg-editor__hint hidden sm:inline">
+            Enter to save · Shift+Enter for new line
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            aria-label="Add files"
+            onClick={onCancel}
             disabled={disabled || isSubmitting}
-            onClick={() => fileInputRef.current?.click()}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+            title="Cancel (Esc)"
+            className="user-msg-editor__cancel"
           >
-            <Plus className="h-4 w-4" strokeWidth={1.75} />
+            Cancel
           </button>
-        </HintTooltip>
-
-        {isDictating ? (
-          <HintTooltip content="Stop dictation">
-            <button
-              type="button"
-              onClick={() => void startDictation()}
-              aria-label="Stop dictation"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-hover-wash)] text-[var(--ui-fg)]"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </HintTooltip>
-        ) : (
-          <HintTooltip content="Dictate">
-            <button
-              type="button"
-              onClick={() => void startDictation()}
-              disabled={disabled || isSubmitting || isTranscribing}
-              aria-pressed={isDictating}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-            >
-              {isTranscribing ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-              ) : (
-                <Mic className="h-4 w-4 opacity-80" />
-              )}
-            </button>
-          </HintTooltip>
-        )}
-
-        <div className="min-w-0 flex-1" />
-
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={disabled || isSubmitting}
-          title="Cancel (Esc)"
-          className="no-hover-overlay inline-flex h-8 items-center justify-center rounded-xl px-3 text-[14px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] disabled:opacity-40"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => void handleSubmit()}
-          disabled={!canSubmit || disabled || isSubmitting}
-          title="Save (Enter)"
-          aria-label="Save edited message"
-          className={cn(
-            "no-hover-overlay inline-flex h-8 min-w-[58px] items-center justify-center rounded-xl bg-[var(--ui-fg)] px-3 text-[14px] font-medium text-[var(--app-panel-bg)] transition-colors hover:opacity-90",
-            (!canSubmit || disabled || isSubmitting) &&
-              "cursor-not-allowed opacity-40",
-          )}
-        >
-          {isSubmitting ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-          ) : (
-            "Save"
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={!canSubmit}
+            title="Save and regenerate (Enter)"
+            aria-label="Save edited message"
+            className="user-msg-editor__save"
+          >
+            {isSubmitting ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Check className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
+            )}
+            <span>Save &amp; send</span>
+          </button>
+        </div>
       </div>
 
       <input
