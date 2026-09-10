@@ -1696,22 +1696,20 @@ export function BillingCheckout({
         <button
           type="button"
           onClick={onBack}
-          className="ui-icon-button -ml-1.5 text-[var(--settings-fg)]"
+          className="ui-icon-button -ml-1.5 shrink-0 text-[var(--settings-fg)]"
           aria-label="Back"
         >
           <ArrowLeft className="size-[18px]" strokeWidth={1.75} />
         </button>
-        <span className="clauxen-wordmark min-w-0 truncate text-[17px] font-medium tracking-[-0.02em]">
-          Clauxen
-        </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="checkout-topbar__title">{checkoutTitle}</h1>
+          <p className="checkout-topbar__subtitle">{cycleDetailLabel}</p>
+        </div>
       </header>
 
       <div className="checkout-split">
         <main className="checkout-pay">
           <div className="checkout-pay__inner">
-            <div className="mb-5">
-              <h1 className="checkout-heading">{checkoutTitle}</h1>
-            </div>
             {payError && <CheckoutErrorBanner message={payError} />}
             <CheckoutForm
               paymentTab={paymentTab}

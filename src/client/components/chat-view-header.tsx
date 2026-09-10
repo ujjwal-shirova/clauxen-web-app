@@ -92,7 +92,7 @@ export function ChatViewHeader({
         <button
           type="button"
           aria-label="Chat options"
-          className="ui-icon-button rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] data-[state=open]:bg-[var(--ui-hover-wash)] data-[state=open]:text-[var(--ui-fg)]"
+          className="ui-icon-button shrink-0 rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] data-[state=open]:bg-[var(--ui-hover-wash)] data-[state=open]:text-[var(--ui-fg)]"
         >
           <MoreHorizontal className="size-[18px]" strokeWidth={1.8} />
         </button>
@@ -125,7 +125,7 @@ export function ChatViewHeader({
             className,
           )}
         >
-          <div className="pointer-events-auto flex h-full w-full min-w-0 items-center gap-1 px-2 sm:gap-1.5 sm:px-4">
+          <div className="pointer-events-auto flex h-full w-full min-w-0 items-center gap-1 px-2 sm:gap-1.5 sm:px-3">
             {showMobileMenu && onOpenMobileNav ? (
               <MobileMenuButton
                 onClick={onOpenMobileNav}
@@ -133,7 +133,7 @@ export function ChatViewHeader({
                 className="-ml-0.5 shrink-0"
               />
             ) : null}
-            <div className="flex min-w-0 flex-1 flex-nowrap items-center overflow-hidden">
+            <div className="flex h-full min-w-0 flex-1 flex-nowrap items-center gap-0.5 overflow-hidden sm:gap-1">
               {projectBreadcrumb ? (
                 <>
                   {projectBreadcrumb.href ? (
@@ -180,7 +180,7 @@ export function ChatViewHeader({
               <button
                 type="button"
                 onClick={() => setRenameDialogOpen(true)}
-                className="ui-chrome-text-btn group/title min-w-0 max-w-none flex-1 gap-1 overflow-hidden bg-transparent px-1.5 text-[14px] font-medium text-[var(--ui-fg)] hover:bg-[var(--ui-hover-wash)] sm:flex-none sm:max-w-[min(42vw,22rem)] sm:gap-1.5 sm:px-2"
+                className="ui-chrome-text-btn group/title min-w-0 max-w-[min(52vw,20rem)] flex-none gap-1 overflow-hidden bg-transparent px-1.5 text-[14px] font-medium text-[var(--ui-fg)] hover:bg-[var(--ui-hover-wash)] sm:max-w-[min(42vw,22rem)] sm:gap-1.5 sm:px-2"
                 aria-label={`${displayTitle}, rename chat`}
               >
                 <span className="truncate whitespace-nowrap">{displayTitle}</span>
@@ -193,7 +193,7 @@ export function ChatViewHeader({
               {!headerControlsLoading ? chatOptionsMenu : null}
             </div>
 
-            <div className="content-pane-top-bar__trailing-wrap ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+            <div className="content-pane-top-bar__trailing-wrap ml-auto flex h-full shrink-0 items-center gap-1">
               {headerControlsLoading ? null : (
                 <>
                   {onShareClick ? (
@@ -201,7 +201,7 @@ export function ChatViewHeader({
                       type="button"
                       onClick={onShareClick}
                       aria-label="Share chat"
-                      className="ui-icon-button rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] max-[400px]:hidden"
+                      className="ui-icon-button shrink-0 rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] max-[400px]:hidden"
                     >
                       <Share className="size-[17px]" strokeWidth={1.8} />
                     </button>

@@ -64,7 +64,7 @@ export function CheckoutPayWithSection({
 
   return (
     <section className="flex min-w-0 flex-col gap-4">
-      <h2 className={checkoutUi.sectionTitle}>Payment</h2>
+      <h2 className={checkoutUi.sectionTitle}>Payment Method</h2>
 
       {showExpressCheckout && (
         <>

@@ -11,14 +11,6 @@
     },
     "vercel": {
       "url": "https://mcp.vercel.com"
-    },
-    "razorpay": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "https://mcp.razorpay.com/mcp"
-      ]
     }
   }
 }

@@ -150,8 +150,8 @@
     --ui-field-focus-ring: var(--brand-soft);
     --ui-muted-surface: color-mix(in oklab, #14151a 4%, transparent);
 
-    --chat-header-height: 56px;
-    --chat-header-icon-btn: 32px;
+    --chat-header-height: 44px;
+    --chat-header-icon-btn: 28px;
     --chat-title-size: 14px;
     --chat-user-font-size: 15px;
     --chat-assistant-font-size: 16px;
@@ -2785,15 +2785,12 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .content-pane-top-bar button[aria-label="Share chat"] {
-  width: auto;
-  height: 28px;
-  min-height: 28px;
-  min-width: 52px;
-  padding-left: 10px;
-  padding-right: 10px;
+  width: var(--chat-header-icon-btn, 28px);
+  height: var(--chat-header-icon-btn, 28px);
+  min-height: var(--chat-header-icon-btn, 28px);
+  min-width: var(--chat-header-icon-btn, 28px);
+  padding: 5px;
   border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
 }
 
 .content-pane-top-bar .ui-chrome-text-btn {
@@ -5320,8 +5317,8 @@ button[data-speed-toggle][data-state="open"] {
 /* Mobile overrides must follow the 2026 desktop column/composer rules. */
 @media (max-width: 1023px) {
   :root {
-    --chat-header-height: 52px;
-    --chat-header-icon-btn: 36px;
+    --chat-header-height: 44px;
+    --chat-header-icon-btn: 28px;
   }
 
   .chat-column,
@@ -5825,10 +5822,10 @@ button[data-speed-toggle][data-state="open"] {
    Consolidated final block so the cascade stays reviewable. Every value
    below resolves through theme tokens — no hardcoded light/dark colors. */
 
-/* Chat header — hairline separation from scrolled content; the new-chat
-   landing variant stays borderless above the centered hero. */
+/* Chat header — borderless; no hairline separation from content. */
 .content-pane-top-bar {
-  border-bottom: 1px solid var(--ui-border-subtle) !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
 }
 
 .content-pane-top-bar--landing {
@@ -5967,9 +5964,31 @@ button.prompt-model-selector[aria-expanded="true"] {
   flex-shrink: 0;
   align-items: center;
   gap: 10px;
-  height: calc(56px + env(safe-area-inset-top, 0px));
-  padding: env(safe-area-inset-top, 0px) 12px 0;
+  min-height: calc(60px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 12px 8px;
   background: var(--app-panel-bg);
+  border-bottom: 1px solid var(--settings-hairline);
+}
+
+.checkout-topbar__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--settings-fg);
+}
+
+.checkout-topbar__subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--settings-fg-muted);
+  margin-top: 1px;
 }
 
 .checkout-split {
@@ -5986,7 +6005,7 @@ button.prompt-model-selector[aria-expanded="true"] {
 
 .checkout-pay {
   min-width: 0;
-  padding: 12px 16px 28px;
+  padding: 16px 16px 28px;
 }
 
 .checkout-rail {
@@ -6039,10 +6058,19 @@ button.prompt-model-selector[aria-expanded="true"] {
   gap: 22px;
 }
 
+.checkout-form__columns > section + section,
+.checkout-form__columns > section + div,
+.checkout-form__columns > div + section {
+  padding-top: 22px;
+  border-top: 1px solid var(--settings-hairline);
+}
+
 .checkout-form__footer {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--settings-hairline);
 }
 
 .checkout-form__business {
@@ -6252,7 +6280,7 @@ button.prompt-model-selector[aria-expanded="true"] {
   }
 
   .checkout-pay {
-    padding: 16px 24px 32px;
+    padding: 20px 24px 32px;
   }
 
   .checkout-rail__toggle,
@@ -6283,8 +6311,9 @@ button.prompt-model-selector[aria-expanded="true"] {
   .checkout-shell:has(.checkout-split) .checkout-topbar {
     grid-column: 1;
     grid-row: 1;
-    height: calc(56px + env(safe-area-inset-top, 0px));
-    padding: env(safe-area-inset-top, 0px) 28px 0 28px;
+    min-height: calc(68px + env(safe-area-inset-top, 0px));
+    height: auto;
+    padding: env(safe-area-inset-top, 0px) 32px 10px 32px;
   }
 
   .checkout-split {
@@ -6317,31 +6346,42 @@ button.prompt-model-selector[aria-expanded="true"] {
   .checkout-pay {
     grid-column: 1;
     grid-row: 2;
-    padding: 16px 28px 40px;
+    padding: 20px 32px 48px;
   }
 
   .checkout-pay__inner {
-    max-width: none;
-    margin: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .checkout-form {
+    gap: 28px;
   }
 
   .checkout-form__columns {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 28px 32px;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .checkout-form__columns > section + section,
+  .checkout-form__columns > section + div,
+  .checkout-form__columns > div + section {
+    padding-top: 28px;
+    border-top: 1px solid var(--settings-hairline);
   }
 
   .checkout-form__footer {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-    gap: 16px 32px;
-    align-items: start;
-    padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-top: 24px;
+    border-top: 1px solid var(--settings-hairline);
   }
 
   .checkout-form__business {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .checkout-rail {

@@ -21,7 +21,7 @@ export function ChatRightRailControls({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-end gap-0.5 sm:gap-1.5",
+        "flex h-full shrink-0 items-center justify-end gap-1",
         className,
       )}
     >
@@ -34,10 +34,10 @@ export function ChatRightRailControls({
             aria-label="Toggle right sidebar"
             aria-pressed={isArtifactsPanelOpen}
             className={cn(
-              "ui-icon-button rounded-lg border transition-all max-[360px]:hidden",
+              "ui-icon-button shrink-0 rounded-lg transition-colors",
               isArtifactsPanelOpen
-                ? "border-[var(--ui-border)] bg-[var(--brand-soft)] text-[var(--ui-fg)]"
-                : "border-transparent text-[var(--ui-fg-muted)] hover:border-[var(--ui-border-subtle)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
+                ? "bg-[var(--brand-soft)] text-[var(--ui-fg)]"
+                : "text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
             )}
           >
             <PanelRight className="size-[18px]" strokeWidth={1.8} />

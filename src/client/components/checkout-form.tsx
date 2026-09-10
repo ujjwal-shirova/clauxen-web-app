@@ -143,22 +143,6 @@ export function CheckoutForm({
           </span>
         </label>
 
-        <label className="checkout-check" htmlFor="checkout-accept-terms">
-          <input
-            id="checkout-accept-terms"
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => onAgreedChange(e.target.checked)}
-            className={cn(checkoutUi.checkbox, "mt-0.5")}
-          />
-          <span className={checkoutUi.labelFine}>
-            I accept Clauxen&apos;s{" "}
-            <LegalLink href="/legal/terms">Terms of Service</LegalLink> and{" "}
-            <LegalLink href="/legal/privacy">Privacy Policy</LegalLink>
-            {termsLabel ? `. ${termsLabel}.` : "."}
-          </span>
-        </label>
-
         {purchasingAsBusiness && (
           <div className="checkout-form__business">
             <div>
@@ -195,6 +179,22 @@ export function CheckoutForm({
             </div>
           </div>
         )}
+
+        <label className="checkout-check" htmlFor="checkout-accept-terms">
+          <input
+            id="checkout-accept-terms"
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => onAgreedChange(e.target.checked)}
+            className={cn(checkoutUi.checkbox, "mt-0.5")}
+          />
+          <span className={checkoutUi.labelFine}>
+            I accept Clauxen&apos;s{" "}
+            <LegalLink href="/legal/terms">Terms of Service</LegalLink> and{" "}
+            <LegalLink href="/legal/privacy">Privacy Policy</LegalLink>
+            {termsLabel ? `. ${termsLabel}.` : "."}
+          </span>
+        </label>
       </div>
     </form>
   );
