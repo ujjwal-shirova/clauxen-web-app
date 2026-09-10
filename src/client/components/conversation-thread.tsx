@@ -4,6 +4,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import {
   Check,
+  ChevronDown,
   GitBranch,
   MoreHorizontal,
   Search,
@@ -44,7 +45,10 @@ import { useAppPreferencesOptional } from "@/contexts/app-preferences-context";
 import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
 import { groupMessagesIntoTurns } from "@/lib/chat-turns";
 import type { ConversationTurnGroup } from "@/lib/chat-turns";
-import { syncStickyUserMessages } from "@/lib/chat-sticky";
+import {
+  createStickySyncCache,
+  syncStickyUserMessages,
+} from "@/lib/chat-sticky";
 import { hasCompletedAssistantOutput } from "@/lib/assistant-output-state";
 import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
 
@@ -203,6 +207,41 @@ const MessageRow = React.memo(
     const [previewAttachment, setPreviewAttachment] =
       React.useState<MessageAttachment | null>(null);
     const [userExpanded, setUserExpanded] = React.useState(false);
+    const previewTextRef = React.useRef<HTMLParagraphElement>(null);
+    const [previewOverflows, setPreviewOverflows] = React.useState(false);
+
+    // The collapsed preview clamps to two lines. Only offer an explicit
+    // Show more/less toggle when text actually overflows — measured live so
+    // short messages never get a dead control. Length/newline fallbacks cover
+    // long messages even if line-clamp metrics are unavailable.
+    React.useLayoutEffect(() => {
+      if (message.role !== "user") return;
+      const el = previewTextRef.current;
+      if (!el || !message.content.trim()) {
+        setPreviewOverflows(false);
+        return;
+      }
+      if (userExpanded) return;
+      const measure = () => {
+        setPreviewOverflows(el.scrollHeight > el.clientHeight + 2);
+      };
+      measure();
+      const observer = new ResizeObserver(measure);
+      observer.observe(el);
+      return () => observer.disconnect();
+    }, [message.role, message.content, userExpanded]);
+
+    const userNewlineCount =
+      message.role === "user"
+        ? (message.content.match(/\n/g) ?? []).length
+        : 0;
+    const showExpandToggle =
+      message.role === "user" &&
+      message.content.trim().length > 0 &&
+      (userExpanded ||
+        previewOverflows ||
+        message.content.length > 320 ||
+        userNewlineCount >= 2);
     // Structural markdown must keep one DOM tree. Downgrading a code block or
     // table to plain text off-screen changes its height and horizontal scroll,
     // which makes the chat jump when that message approaches the viewport.
@@ -266,20 +305,7 @@ const MessageRow = React.memo(
               />
             ) : (
               <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setUserExpanded((prev) => !prev)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setUserExpanded((prev) => !prev);
-                  }
-                }}
-                className="user-message-card__body no-hover-overlay group/user-msg relative w-full cursor-pointer rounded-xl px-3 py-2 pr-10 text-left transition-[border-color] duration-150"
-                aria-label={
-                  userExpanded ? "Collapse message" : "Expand message"
-                }
-                aria-expanded={userExpanded}
+                className="user-message-card__body no-hover-overlay group/user-msg relative w-full rounded-xl px-3 py-2 pr-10 text-left transition-[border-color] duration-150"
                 data-user-expanded={userExpanded || undefined}
               >
                 {message.attachments && message.attachments.length > 0 ? (
@@ -306,6 +332,7 @@ const MessageRow = React.memo(
                 {message.content.trim() ? (
                   <div className="user-message-card__preview relative">
                     <p
+                      ref={previewTextRef}
                       className={cn(
                         "whitespace-pre-wrap text-[14px] leading-[21px] text-[var(--ui-fg)]",
                         !userExpanded && "overflow-hidden",
@@ -322,7 +349,7 @@ const MessageRow = React.memo(
                     >
                       {message.content}
                     </p>
-                    {!userExpanded ? (
+                    {!userExpanded && showExpandToggle ? (
                       <div
                         className="user-message-card__preview-fade"
                         aria-hidden
@@ -330,6 +357,35 @@ const MessageRow = React.memo(
                     ) : null}
                   </div>
                 ) : null}
+                {showExpandToggle ? (
+                  <button
+                    type="button"
+                    onClick={() => setUserExpanded((prev) => !prev)}
+                    aria-expanded={userExpanded}
+                    className="user-message-card__toggle no-hover-overlay mt-1 inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[12px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                  >
+                    {userExpanded ? "Show less" : "Show more"}
+                    <ChevronDown
+                      className={cn(
+                        "size-3.5 transition-transform duration-150",
+                        userExpanded && "rotate-180",
+                      )}
+                      strokeWidth={2}
+                    />
+                  </button>
+                ) : null}
+                <div className="user-message-card__edit">
+                  <HintTooltip content="Edit message" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Edit message"
+                      onClick={() => onStartEdit(message)}
+                      className="user-message-card__edit-btn no-hover-overlay flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-[var(--ui-fg-muted)] shadow-sm hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                    >
+                      <SquarePen className="size-3.5" strokeWidth={1.75} />
+                    </button>
+                  </HintTooltip>
+                </div>
               </div>
             )}
             <AttachmentImageLightbox
@@ -391,16 +447,15 @@ const MessageRow = React.memo(
                     </HintTooltip>
                   </div>
                 ) : null}
-                <HintTooltip content="Edit message" side="bottom">
-                  <button
-                    type="button"
-                    aria-label="Edit message"
-                    className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                    onClick={() => onStartEdit(message)}
-                  >
-                    <SquarePen className="size-4" strokeWidth={1.75} />
-                  </button>
-                </HintTooltip>
+                <button
+                  type="button"
+                  aria-label="Edit message"
+                  className="user-message-action-btn no-hover-overlay inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                  onClick={() => onStartEdit(message)}
+                >
+                  <SquarePen className="size-4" strokeWidth={1.75} />
+                  <span>Edit</span>
+                </button>
                 <HintTooltip content="Copy message" side="bottom">
                   <button
                     type="button"
@@ -1120,42 +1175,9 @@ export function ConversationThread({
     setEditValue("");
   }, []);
 
-  // Click main chat surface (not sidebar) to collapse the inline editor.
-  React.useEffect(() => {
-    if (!editingMessageId) return;
-
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-
-      if (target.closest("[data-user-message-editing]")) return;
-      // Keep edit open when interacting with the sidebar / mobile nav.
-      if (
-        target.closest(
-          "#app-primary-nav, .sidebar-hover-area, [data-sidebar], [data-mobile-nav]",
-        )
-      ) {
-        return;
-      }
-      // Portaled overlays (attachment preview, menus) live outside the panel.
-      if (
-        target.closest(
-          '[role="dialog"], [data-radix-portal], [data-sonner-toaster]',
-        )
-      ) {
-        return;
-      }
-      // Only dismiss when the click is inside the main chat/agent panel.
-      if (!target.closest('[data-component="agent-panel"]')) return;
-
-      handleCancelEdit();
-    };
-
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
-    };
-  }, [editingMessageId, handleCancelEdit]);
+  // The inline editor only closes via Cancel, Escape, or Save. Dismissing on
+  // outside pointer-down silently discarded in-progress edits — a stray click
+  // while re-reading the thread must never lose the draft.
 
   const handleSaveEdit = React.useCallback(
     async (
@@ -1209,8 +1231,11 @@ export function ConversationThread({
   const turnCountRef = React.useRef(groups.length);
   turnCountRef.current = groups.length;
   const stickySyncRef = React.useRef<(() => void) | null>(null);
+  const stickyCacheRef = React.useRef(createStickySyncCache());
   const isGeneratingRef = React.useRef(isGeneratingProp);
   isGeneratingRef.current = isGeneratingProp;
+  const isFastScrollingRef = React.useRef(isFastScrollingProp);
+  isFastScrollingRef.current = isFastScrollingProp;
 
   const getScrollElement = React.useCallback(() => {
     if (scrollAreaRef?.current) {
@@ -1267,6 +1292,9 @@ export function ConversationThread({
     const viewport = getScrollElement();
     if (!viewport || groups.length === 0) return;
 
+    // New conversation (or turn-list reset) — force one full sticky pass.
+    stickyCacheRef.current = createStickySyncCache();
+
     let syncRaf = 0;
     let disposed = false;
     let scrollEndTimer = 0;
@@ -1278,6 +1306,7 @@ export function ConversationThread({
         viewport,
         turnCountRef.current,
         isGeneratingRef.current,
+        stickyCacheRef.current,
       );
     };
     stickySyncRef.current = runSync;
@@ -1293,7 +1322,9 @@ export function ConversationThread({
     const onTurnMetrics = () => scheduleSync();
 
     const onViewportScroll = () => {
-      scheduleSync();
+      // Fast flicks only need one settle pass at the end — per-frame rect
+      // reads during the fling itself are pure scroll jank.
+      if (!isFastScrollingRef.current) scheduleSync();
       window.clearTimeout(scrollEndTimer);
       scrollEndTimer = window.setTimeout(() => {
         runSync();
@@ -1373,7 +1404,12 @@ export function ConversationThread({
     if (!viewport) return;
 
     const run = () => {
-      syncStickyUserMessages(viewport, turnCountRef.current, false);
+      syncStickyUserMessages(
+        viewport,
+        turnCountRef.current,
+        false,
+        stickyCacheRef.current,
+      );
     };
 
     run();

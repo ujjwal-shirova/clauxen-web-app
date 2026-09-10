@@ -97,11 +97,73 @@ export function resolveActiveStickyTurnIndex(
   return next;
 }
 
+/** Carries the previously elevated turn across syncs so each pass only
+ * touches the turns that can actually change (previous + current). */
+export type StickySyncCache = {
+  activeIndex: number | null;
+  turnCount: number;
+};
+
+export function createStickySyncCache(): StickySyncCache {
+  return { activeIndex: null, turnCount: 0 };
+}
+
+function turnElement(
+  viewport: HTMLElement,
+  index: number,
+): HTMLElement | null {
+  return viewport.querySelector<HTMLElement>(
+    `[data-conversation-turn][data-turn-index="${index}"]`,
+  );
+}
+
+function setTurnStickyActive(turn: HTMLElement | null, active: boolean) {
+  if (!turn) return;
+  const nextAttr = active ? "true" : "false";
+  if (turn.dataset.stickyActive !== nextAttr) {
+    turn.dataset.stickyActive = nextAttr;
+  }
+}
+
+function removeStuck(turn: HTMLElement | null) {
+  const host = turn?.querySelector<HTMLElement>("[data-sticky-user-msg]");
+  if (host?.classList.contains("sticky-user-msg--stuck")) {
+    host.classList.remove("sticky-user-msg--stuck");
+  }
+}
+
+function syncTurnStuckState(
+  turn: HTMLElement | null,
+  stickyLineY: number,
+) {
+  const host = turn?.querySelector<HTMLElement>("[data-sticky-user-msg]");
+  if (!host) return;
+  const sentinel = turn?.querySelector<HTMLElement>(
+    ".sticky-user-msg-sentinel",
+  );
+  if (!sentinel) {
+    removeStuck(turn);
+    return;
+  }
+
+  const sentinelBottom = sentinel.getBoundingClientRect().bottom;
+  const userTop = host.getBoundingClientRect().top;
+  // Slightly wider pin slop while editing — expanded host has more subpixel drift.
+  const pinSlop = host.dataset.userMsgEditing === "true" ? 4 : 2;
+  const isPinned = Math.abs(userTop - stickyLineY) < pinSlop;
+  const shouldStuck = isPinned && sentinelBottom < stickyLineY;
+
+  if (host.classList.contains("sticky-user-msg--stuck") !== shouldStuck) {
+    host.classList.toggle("sticky-user-msg--stuck", shouldStuck);
+  }
+}
+
 /** Imperative sticky sync — never triggers React re-renders during scroll. */
 export function syncStickyUserMessages(
   viewport: HTMLElement,
   turnCount: number,
   isGenerating: boolean,
+  cache?: StickySyncCache,
 ) {
   const activeIndex = resolveActiveStickyTurnIndex(
     viewport,
@@ -111,53 +173,32 @@ export function syncStickyUserMessages(
   const stickyLineY =
     viewport.getBoundingClientRect().top + readHeaderHeightPx(viewport);
 
-  viewport
-    .querySelectorAll<HTMLElement>("[data-conversation-turn]")
-    .forEach((turn) => {
-      const index = Number(turn.dataset.turnIndex);
-      if (Number.isNaN(index)) return;
+  const prevIndex = cache?.activeIndex ?? null;
+  const turnsChanged = !cache || cache.turnCount !== turnCount;
 
-      const nextAttr = index === activeIndex ? "true" : "false";
-      if (turn.dataset.stickyActive !== nextAttr) {
-        turn.dataset.stickyActive = nextAttr;
-      }
-    });
+  if (cache) {
+    cache.activeIndex = activeIndex;
+    cache.turnCount = turnCount;
+  }
 
-  viewport
-    .querySelectorAll<HTMLElement>("[data-sticky-user-msg]")
-    .forEach((el) => {
-      const turn = el.closest<HTMLElement>("[data-conversation-turn]");
-      const index = Number(turn?.dataset.turnIndex);
-      if (Number.isNaN(index)) return;
+  // Only the previously active turn can hold stale elevation — every other
+  // turn is already inactive. When the turn list itself changed (new message,
+  // branch switch), fall back to a full pass so late-mounted turns settle.
+  if (!turnsChanged && prevIndex !== null && prevIndex !== activeIndex) {
+    const prevTurn = turnElement(viewport, prevIndex);
+    setTurnStickyActive(prevTurn, false);
+    removeStuck(prevTurn);
+  } else if (turnsChanged || prevIndex === null) {
+    viewport
+      .querySelectorAll<HTMLElement>("[data-conversation-turn]")
+      .forEach((turn) => {
+        const index = Number(turn.dataset.turnIndex);
+        if (Number.isNaN(index)) return;
+        setTurnStickyActive(turn, index === activeIndex);
+        if (index !== activeIndex) removeStuck(turn);
+      });
+  }
 
-      const isActive = index === activeIndex;
-
-      if (!isActive) {
-        if (el.classList.contains("sticky-user-msg--stuck")) {
-          el.classList.remove("sticky-user-msg--stuck");
-        }
-        return;
-      }
-
-      const sentinel = turn?.querySelector<HTMLElement>(
-        ".sticky-user-msg-sentinel",
-      );
-      if (!sentinel) {
-        if (el.classList.contains("sticky-user-msg--stuck")) {
-          el.classList.remove("sticky-user-msg--stuck");
-        }
-        return;
-      }
-
-      const sentinelBottom = sentinel.getBoundingClientRect().bottom;
-      const userTop = el.getBoundingClientRect().top;
-      // Slightly wider pin slop while editing — expanded host has more subpixel drift.
-      const pinSlop = el.dataset.userMsgEditing === "true" ? 4 : 2;
-      const isPinned = Math.abs(userTop - stickyLineY) < pinSlop;
-      const shouldStuck = isPinned && sentinelBottom < stickyLineY;
-
-      if (el.classList.contains("sticky-user-msg--stuck") !== shouldStuck) {
-        el.classList.toggle("sticky-user-msg--stuck", shouldStuck);
-      }
-    });
+  setTurnStickyActive(turnElement(viewport, activeIndex), true);
+  syncTurnStuckState(turnElement(viewport, activeIndex), stickyLineY);
 }

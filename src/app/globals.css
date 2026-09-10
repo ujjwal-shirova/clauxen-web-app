@@ -2464,6 +2464,7 @@ nav.sidebar-hover-area {
 .user-message-card__body {
   position: relative;
   z-index: 1;
+  touch-action: manipulation;
   background: var(--chat-user-card-bg, #ffffff) !important;
   border: 1px solid rgba(24, 24, 27, 0.08) !important;
   box-shadow: none !important;
@@ -2578,6 +2579,15 @@ button.user-message-card__body:not(:disabled):hover,
 .user-message-card__edit-btn:focus-visible {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* Touch devices have no hover — keep the shortcut edit control visible so
+   editing stays one tap. The bubble reserves right padding for it. */
+@media (hover: none) {
+  .user-message-card__edit-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* Muted secondary feedback and retry action buttons styling */
@@ -3205,6 +3215,19 @@ button.user-message-card__body:not(:disabled):hover,
   max-width: 100%;
 }
 
+/* Transcript containment: streaming growth at the bottom must not trigger
+   style/layout recalculation across already-settled turns above. `layout
+   style` (deliberately not `size`/`paint`/`content-visibility`) isolates the
+   recalc scope without changing rendering, intrinsic sizing, or sticky
+   positioning — so scrolling through code/table blocks stays flicker-free. */
+[data-conversation-turn],
+.assistant-message,
+.composer-message-codeblock,
+.composer-message-table,
+.user-message-card {
+  contain: layout style;
+}
+
 /* Source chip groups must not steal scroll anchoring (causes jump when scrolling up) */
 [data-agent-block="sources"],
 .assistant-message .overflow-anchor-none {
@@ -3237,8 +3260,12 @@ button.user-message-card__body:not(:disabled):hover,
   z-index: 32;
   isolation: isolate;
   background-color: var(--chat-canvas-bg, #f2f3f6);
+  /* Metric-identical to the resting host: any padding change here alters
+     offsetHeight, which feeds --turn-user-msg-height and visibly shifts every
+     sticky code/table header in the turn at the dock/undock boundary. The
+     ::after lid below already provides the visual separation. */
   padding-top: 8px;
-  padding-bottom: 6px;
+  padding-bottom: 0;
   margin-top: -8px;
   box-shadow: none;
 }

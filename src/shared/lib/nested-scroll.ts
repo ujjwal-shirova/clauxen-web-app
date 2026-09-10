@@ -174,6 +174,17 @@ export function resolveWheelScrollTarget(
         continue;
       }
       const candidate = viewportFor(node) ?? node;
+      // Cheap size precheck before the expensive getComputedStyle: an element
+      // with no scrollable overflow on either axis reports no axes regardless
+      // of its overflow style, so most ancestors skip style resolution
+      // entirely. This runs on every wheel tick, so it must stay cheap.
+      const hasScrollableSize =
+        candidate.scrollWidth > candidate.clientWidth + 1 ||
+        candidate.scrollHeight > candidate.clientHeight + 1;
+      if (!hasScrollableSize) {
+        node = node.parentElement;
+        continue;
+      }
       const axes = scrollHostAxes(candidate, getStyle(candidate));
       if (axes[axis]) {
         if (hostCanConsume(candidate, axis, delta)) {

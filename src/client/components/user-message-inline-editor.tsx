@@ -370,6 +370,7 @@ export function UserMessageInlineEditor({
           type="button"
           onClick={onCancel}
           disabled={disabled || isSubmitting}
+          title="Cancel (Esc)"
           className="no-hover-overlay inline-flex h-8 items-center justify-center rounded-xl px-3 text-[14px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] disabled:opacity-40"
         >
           Cancel
@@ -378,6 +379,7 @@ export function UserMessageInlineEditor({
           type="button"
           onClick={() => void handleSubmit()}
           disabled={!canSubmit || disabled || isSubmitting}
+          title="Save (Enter)"
           aria-label="Save edited message"
           className={cn(
             "no-hover-overlay inline-flex h-8 min-w-[58px] items-center justify-center rounded-xl bg-[var(--ui-fg)] px-3 text-[14px] font-medium text-[var(--app-panel-bg)] transition-colors hover:opacity-90",

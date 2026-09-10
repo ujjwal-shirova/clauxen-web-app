@@ -23,16 +23,24 @@ import {
  */
 
 function prepareScrollHost(el: HTMLElement) {
+  // Idempotent: preparation only depends on static overflow style, so hosts
+  // are prepared once. Without this guard every wheel tick re-resolved
+  // computed style and rewrote the same overscroll values, invalidating style
+  // on the scroll hot path.
+  if (el.dataset.scrollReady === "1") return;
   const axes = scrollHostAxes(el, window.getComputedStyle(el));
   markScrollHostPrepared(el);
   el.style.setProperty("-webkit-overflow-scrolling", "touch");
   el.style.setProperty("outline", "none");
   // Only trap the axis this host actually scrolls. Trapping both axes on an
-  // x-only host blocks vertical chaining to the transcript viewport.
-  el.style.setProperty("overscroll-behavior-x", axes.x ? "contain" : "auto");
-  el.style.setProperty("overscroll-behavior-y", axes.y ? "contain" : "auto");
+  // x-only host blocks vertical chaining to the transcript viewport. Never
+  // write an explicit `auto` — that would override stylesheet containment
+  // (e.g. overscroll-x-contain on code/table scrollers) with nothing.
+  if (axes.x) el.style.setProperty("overscroll-behavior-x", "contain");
   if (el.hasAttribute("data-chat-scroll-passthrough")) {
     el.style.setProperty("overscroll-behavior-y", "auto");
+  } else if (axes.y) {
+    el.style.setProperty("overscroll-behavior-y", "contain");
   }
 }
 
