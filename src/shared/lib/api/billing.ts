@@ -149,6 +149,7 @@ export async function createBillingOrder(input: {
       amount: number;
       currency: string;
       keyId?: string;
+      contact?: string;
     };
     pricing: {
       subtotalPaise: number;
@@ -376,6 +377,7 @@ export async function startPaymentMethodSetup(input: {
       customerId: string;
       maxAmountPaise: number;
       method: "card" | "upi";
+      contact?: string;
     };
   }>("/api/v1/billing/payment-methods/setup", {
     method: "POST",

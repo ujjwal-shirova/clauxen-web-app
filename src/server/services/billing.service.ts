@@ -25,6 +25,7 @@ import {
   resolveUpiQrIntent,
   verifyPaymentSignatureSecure,
 } from "@/server/billing/razorpay"; // payment gateway integration
+import { resolveRazorpayContactForUser } from "@/server/billing/resolve-razorpay-contact";
 import {
   fetchInvoicePdfFromWorker,
   generateInvoiceOnWorker,
@@ -334,13 +335,24 @@ export async function createUpiCheckoutPayment(input: {
     );
 
     const expireBySeconds = 20 * 60;
+    const resolvedContact =
+      input.customerContact ||
+      (
+        await resolveRazorpayContactForUser({
+          userId: input.userId,
+          email: input.userEmail,
+          name:
+            input.billingDetails.fullName || input.billingDetails.billToName,
+          preferred: input.customerContact,
+        })
+      ).contact;
     const link = await createRazorpayUpiPaymentLink({
       amountPaise: totalInrPaise,
       description: input.planName,
       customerName:
         input.billingDetails.fullName || input.billingDetails.billToName,
       customerEmail: input.userEmail,
-      customerContact: input.customerContact,
+      customerContact: resolvedContact ?? undefined,
       expireBySeconds,
       notes: {
         ...qrNotes,
@@ -485,11 +497,20 @@ export async function createGiftUpiCheckoutPayment(input: {
     if (!unavailable) throw err;
 
     const expireBySeconds = 20 * 60;
+    const resolvedContact =
+      input.customerContact ||
+      (
+        await resolveRazorpayContactForUser({
+          userId: input.userId,
+          email: input.userEmail,
+          preferred: input.customerContact,
+        })
+      ).contact;
     const link = await createRazorpayUpiPaymentLink({
       amountPaise: totalInrPaise,
       description: input.planName,
       customerEmail: input.userEmail,
-      customerContact: input.customerContact,
+      customerContact: resolvedContact ?? undefined,
       expireBySeconds,
       notes: {
         ...qrNotes,
@@ -721,6 +742,12 @@ export async function createCheckoutOrder(input: {
     },
   });
 
+  const checkoutParty = await resolveRazorpayContactForUser({
+    userId: input.userId,
+    email: input.userEmail,
+    name: input.billingDetails.fullName || input.billingDetails.billToName,
+  });
+
   const order = await billingRepo.createBillingOrder({
     id: orderId,
     razorpayOrderId: razorpay.id,
@@ -758,6 +785,7 @@ export async function createCheckoutOrder(input: {
       amount: razorpay.amount,
       currency: razorpay.currency,
       keyId: env.publicRazorpayKeyId || env.razorpayKeyId,
+      ...(checkoutParty.contact ? { contact: checkoutParty.contact } : {}),
     },
   };
 }

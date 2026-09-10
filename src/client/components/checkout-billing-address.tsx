@@ -70,11 +70,11 @@ export function CheckoutBillingAddress({
     value.pin.length > 0 && !/^\d{6}$/.test(value.pin.trim());
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex min-w-0 flex-col gap-3">
       <h2 className={checkoutUi.sectionTitle}>Billing address</h2>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="sm:col-span-2">
+      <div className="checkout-address-grid">
+        <div className="checkout-address-grid__wide">
           <label className={checkoutUi.fieldLabel} htmlFor="checkout-full-name">
             Full name
           </label>
@@ -88,7 +88,7 @@ export function CheckoutBillingAddress({
           />
         </div>
 
-        <div className="sm:col-span-2">
+        <div>
           <label className={checkoutUi.fieldLabel} htmlFor="checkout-address-1">
             Address
           </label>
@@ -103,16 +103,18 @@ export function CheckoutBillingAddress({
           />
         </div>
 
-        <div className="sm:col-span-2">
+        <div>
+          <label className={checkoutUi.fieldLabel} htmlFor="checkout-address-2">
+            Apartment
+          </label>
           <input
             id="checkout-address-2"
             type="text"
             autoComplete="address-line2"
-            placeholder="Apartment, suite (optional)"
+            placeholder="Suite (optional)"
             value={value.addressLine2}
             onChange={(e) => patch({ addressLine2: e.target.value })}
             className={checkoutUi.field}
-            aria-label="Address line 2"
           />
         </div>
 

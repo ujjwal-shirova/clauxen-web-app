@@ -85,8 +85,6 @@ export type RazorpayCustomNetbankingPaymentInput =
   RazorpayCustomBasePaymentInput & {
     /** Razorpay bank code from activated netbanking list (e.g. `CNRB`). */
     bank: string;
-    /** Indian mobile as +91XXXXXXXXXX — required for live netbanking. */
-    contact: string;
     /**
      * Absolute HTTPS callback URL (our `/api/v1/billing/orders/razorpay-callback`).
      * Required with `redirect: true` for same-tab bank navigation.
@@ -364,10 +362,9 @@ function buildCardCreatePaymentPayload(
   }
 
   // Live Custom Checkout rejects createPayment when contact is blank.
+  // Checkout no longer collects a mobile; the server resolves contact from
+  // the account / Razorpay customer and the Pay click passes it through.
   const contact = normalizeIndianMobileContact(input.contact ?? "");
-  if (!contact) {
-    throw new Error("Enter a valid 10-digit Indian mobile number.");
-  }
 
   if (input.saveInstrument && !input.customerId) {
     throw new Error("Customer id is required to save a payment method.");
@@ -378,7 +375,7 @@ function buildCardCreatePaymentPayload(
     currency: input.currency,
     order_id: input.orderId,
     email,
-    contact,
+    ...(contact ? { contact } : {}),
     ...(input.customerId ? { customer_id: input.customerId } : {}),
     // Only for mandate/setup — never on one-off plan checkout.
     ...(input.saveInstrument ? { save: 1 } : {}),
@@ -526,8 +523,8 @@ export function normalizeIndianMobileContact(raw: string): string | null {
  * Start netbanking via Custom Checkout **same-tab redirect** to the bank.
  *
  * Prefetch order + {@link warmRazorpayCustomCheckout} first; call this from the
- * Pay click with no awaits before it. Always pass valid `contact` + HTTPS
- * `callbackUrl`. Do not use popup/modal for netbanking — it hangs.
+ * Pay click with no awaits before it. Pass server-resolved `contact` when
+ * available, plus HTTPS `callbackUrl`. Do not use popup/modal for netbanking.
  *
  * @see https://razorpay.com/docs/payments/payment-gateway/web-integration/custom/build-integration/
  * @see https://razorpay.com/docs/payments/payment-gateway/callback-url/
@@ -542,10 +539,7 @@ export function startNetbankingWithRazorpayCustom(
     throw new Error("Select a supported bank to continue.");
   }
 
-  const contact = normalizeIndianMobileContact(input.contact);
-  if (!contact) {
-    throw new Error("Enter a valid 10-digit Indian mobile number.");
-  }
+  const contact = normalizeIndianMobileContact(input.contact ?? "");
 
   const email = input.email?.trim();
   if (!email) {
@@ -578,7 +572,7 @@ export function startNetbankingWithRazorpayCustom(
     currency: input.currency,
     order_id: input.orderId,
     email,
-    contact,
+    ...(contact ? { contact } : {}),
     method: "netbanking",
     bank,
     callback_url: callbackUrl,

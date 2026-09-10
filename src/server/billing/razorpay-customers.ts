@@ -46,6 +46,14 @@ export type RazorpayCustomer = {
   contact?: string;
 };
 
+export async function fetchRazorpayCustomer(
+  customerId: string,
+): Promise<RazorpayCustomer> {
+  return razorpayDirect<RazorpayCustomer>(
+    `/v1/customers/${encodeURIComponent(customerId)}`,
+  );
+}
+
 /** Create or reuse a Razorpay customer for the authenticated user. */
 export async function ensureRazorpayCustomer(input: {
   userId: string;

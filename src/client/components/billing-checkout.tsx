@@ -35,7 +35,6 @@ import { openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import {
   isRazorpayCustomScriptReady,
   loadRazorpayCustomScript,
-  normalizeIndianMobileContact,
   startCardWithRazorpayCustom,
   startNetbankingWithRazorpayCustom,
   warmRazorpayCustomCheckout,
@@ -241,18 +240,11 @@ export function BillingCheckout({
     cardCvc: "",
     isComplete: false,
   });
-  /** Shared Razorpay `contact` for card / netbanking / UPI (+91…). */
-  const [paymentMobile, setPaymentMobile] = useState("");
   const [netbankingFields, setNetbankingFields] =
     useState<CheckoutNetbankingFieldState>({
       bankCode: null,
-      mobile: "",
       isComplete: false,
     });
-  const paymentContact = useMemo(
-    () => normalizeIndianMobileContact(paymentMobile),
-    [paymentMobile],
-  );
   /**
    * Prefetched Razorpay order for card + netbanking so Pay can call
    * createPayment in the same click turn (required for 3DS / bank OTP).
@@ -263,6 +255,7 @@ export function BillingCheckout({
     orderId: string;
     amount: number;
     currency: string;
+    contact: string | null;
   } | null>(null);
   const [prefetchedOrderReady, setPrefetchedOrderReady] = useState(false);
   const [prefetchedOrderError, setPrefetchedOrderError] = useState<
@@ -735,6 +728,7 @@ export function BillingCheckout({
           orderId: checkout.razorpay.orderId,
           amount: checkout.razorpay.amount,
           currency: checkout.razorpay.currency,
+          contact: checkout.razorpay.contact ?? null,
         };
         setPrefetchedOrderReady(true);
         setPrefetchedOrderError(null);
@@ -995,7 +989,6 @@ export function BillingCheckout({
 
   const paymentFieldsValid =
     billingAddress.isComplete &&
-    Boolean(paymentContact) &&
     ((paymentTab === "upi" && billingAddress.isComplete) ||
       (paymentTab === "saved" && hasSavedPaymentMethod) ||
       (paymentTab === "netbanking" &&
@@ -1020,9 +1013,6 @@ export function BillingCheckout({
     if (!checkoutSessionId) return "Securing your checkout…";
     const addressReason = getCheckoutAddressIncompleteReason(billingAddress);
     if (addressReason) return addressReason;
-    if (!paymentContact) {
-      return "Enter a valid 10-digit mobile number.";
-    }
     if (paymentTab === "netbanking") {
       if (!netbankingFields.bankCode) {
         return "Select your bank to continue.";
@@ -1070,7 +1060,6 @@ export function BillingCheckout({
     checkoutSessionId,
     paymentTab,
     billingAddress,
-    paymentContact,
     netbankingFields.isComplete,
     netbankingFields.bankCode,
     prefetchedOrderReady,
@@ -1095,7 +1084,6 @@ export function BillingCheckout({
     const tab = paymentTabOverride ?? paymentTab;
     const fieldsValid =
       billingAddress.isComplete &&
-      Boolean(paymentContact) &&
       (options?.walletExpress ||
         tab === "upi" ||
         (tab === "saved" && hasSavedPaymentMethod) ||
@@ -1169,9 +1157,6 @@ export function BillingCheckout({
 
     try {
       if (tab === "upi") {
-        if (!paymentContact) {
-          throw new Error("Enter a valid 10-digit mobile number.");
-        }
         // Always use our custom QR modal — never Razorpay hosted Checkout.
         setUpiQrImageUrl(null);
         setUpiCloseBy(null);
@@ -1180,7 +1165,6 @@ export function BillingCheckout({
         const checkout = await createUpiBillingPayment({
           checkoutSessionId,
           billingDetails: minimalBillingDetails,
-          customerContact: paymentContact,
           ...(isTeamPlan ? { seatBreakdown: seatCounts } : {}),
           ...(isBusinessWorkspace
             ? { organizationSeatCount: bundleSeatCount }
@@ -1208,13 +1192,9 @@ export function BillingCheckout({
       if (tab === "netbanking") {
         const bank = netbankingFields.bankCode;
         const prefetched = prefetchedOrderRef.current;
-        const contact = paymentContact;
         const email = auth.user?.email?.trim();
         if (!bank || !isActivatedNetbankingBank(bank)) {
           throw new Error("Select a supported bank to continue.");
-        }
-        if (!contact) {
-          throw new Error("Enter a valid 10-digit mobile number.");
         }
         if (!email) {
           throw new Error("Email is required to complete netbanking payment.");
@@ -1249,7 +1229,9 @@ export function BillingCheckout({
           currency: orderSnapshot.currency,
           bank,
           email,
-          contact,
+          ...(orderSnapshot.contact
+            ? { contact: orderSnapshot.contact }
+            : {}),
           callbackUrl,
           description: details.name,
           onSuccess: () => undefined,
@@ -1322,9 +1304,6 @@ export function BillingCheckout({
       if (!email) {
         throw new Error("Email is required to complete card payment.");
       }
-      if (!paymentContact) {
-        throw new Error("Enter a valid 10-digit mobile number.");
-      }
 
       const orderSnapshot = prefetched;
       prefetchedOrderRef.current = null;
@@ -1337,7 +1316,7 @@ export function BillingCheckout({
         amount: orderSnapshot.amount,
         currency: orderSnapshot.currency,
         email,
-        contact: paymentContact,
+        ...(orderSnapshot.contact ? { contact: orderSnapshot.contact } : {}),
         description: details.name,
         card: {
           number: cardFields.cardNumber,
@@ -1699,10 +1678,10 @@ export function BillingCheckout({
       ? details.name
       : `Subscribe to ${details.name}`;
   const termsLabel = isGiftCheckout
-    ? "One-time gift. Does not auto-renew."
+    ? "This is a one-time gift and does not auto-renew"
     : isVariableCheckoutPlan
-      ? "I agree to be contacted about pricing."
-      : "Auto-renews until I cancel.";
+      ? "I agree to be contacted about pricing"
+      : "This plan auto-renews until I cancel";
   const renewalCopy = isGiftCheckout
     ? "Does not auto-renew."
     : isVariableCheckoutPlan
@@ -1713,7 +1692,7 @@ export function BillingCheckout({
 
   return (
     <div className="checkout-shell">
-      <header className="checkout-topbar pt-[max(0px,env(safe-area-inset-top))]">
+      <header className="checkout-topbar">
         <button
           type="button"
           onClick={onBack}
@@ -1730,7 +1709,7 @@ export function BillingCheckout({
       <div className="checkout-split">
         <main className="checkout-pay">
           <div className="checkout-pay__inner">
-            <div className="mb-6">
+            <div className="mb-5">
               <h1 className="checkout-heading">{checkoutTitle}</h1>
             </div>
             {payError && <CheckoutErrorBanner message={payError} />}
@@ -1758,16 +1737,8 @@ export function BillingCheckout({
               onBillToNameChange={setBillToName}
               agreed={agreed}
               onAgreedChange={setAgreed}
-              paying={paying}
-              payDisabled={payDisabled}
-              payDisabledReason={payDisabledReason}
-              payLabel={payLabel}
-              variablePlanNotice={variablePayNotice}
               termsLabel={termsLabel}
               onPay={() => void handleSubscribe()}
-              onPayPrepare={handlePayPrepare}
-              paymentMobile={paymentMobile}
-              onPaymentMobileChange={setPaymentMobile}
               onCardFieldsChange={handleCardFieldsChange}
               onNetbankingChange={handleNetbankingFieldsChange}
               billingAddress={billingAddress}
@@ -1788,11 +1759,11 @@ export function BillingCheckout({
         </main>
 
         <aside className="checkout-rail">
-          <div className="checkout-rail__inner flex h-full flex-col gap-5">
+          <div className="checkout-rail__inner flex h-full min-h-0 flex-col lg:gap-5">
             <button
               type="button"
               onClick={() => setOrderSummaryOpen((open) => !open)}
-              className="flex w-full items-center justify-between gap-3 py-1 text-left lg:hidden"
+              className="checkout-rail__toggle"
               aria-expanded={orderSummaryOpen}
             >
               <div className="min-w-0">
@@ -1814,7 +1785,12 @@ export function BillingCheckout({
               </div>
             </button>
 
-            <div className={cn("flex flex-col gap-5", !orderSummaryOpen && "max-lg:hidden")}>
+            <div
+              className={cn(
+                "checkout-rail__body flex flex-col gap-5",
+                !orderSummaryOpen && "is-collapsed",
+              )}
+            >
               <div className="hidden lg:block">
                 <h2 className="text-[20px] font-semibold tracking-[-0.03em]">
                   {details.name}
@@ -1896,6 +1872,17 @@ export function BillingCheckout({
             </div>
           </div>
         </aside>
+      </div>
+
+      <div className="checkout-pay-dock checkout-pay-dock--mobile">
+        <CheckoutPayCta
+          paying={paying}
+          payDisabled={payDisabled}
+          payLabel={payLabel}
+          payDisabledReason={payDisabledReason}
+          variablePlanNotice={variablePayNotice}
+          onPayPrepare={handlePayPrepare}
+        />
       </div>
 
       <CheckoutUpiQrModal

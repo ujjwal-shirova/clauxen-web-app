@@ -14,6 +14,7 @@ import {
   type CheckoutCurrency,
 } from "@/lib/checkout-currency";
 import { sendGiftNotificationEmail } from "@/server/billing/billing-email";
+import { resolveRazorpayContactForUser } from "@/server/billing/resolve-razorpay-contact";
 
 const GIFT_PLAN_ALIASES: Record<string, string> = {
   max5x: "max5x",
@@ -316,6 +317,11 @@ export async function getGiftCheckoutOrderForUser(
     throw new AppError("Order not found.", 404, "not_found");
   }
 
+  const checkoutParty = await resolveRazorpayContactForUser({
+    userId,
+    name: gift.sender_name,
+  });
+
   return {
     gift,
     order,
@@ -324,6 +330,7 @@ export async function getGiftCheckoutOrderForUser(
       amount: order.amount_paise,
       currency: order.currency,
       keyId: env.publicRazorpayKeyId || env.razorpayKeyId,
+      ...(checkoutParty.contact ? { contact: checkoutParty.contact } : {}),
     },
     pricing: {
       subtotalPaise: gift.subtotal_paise,

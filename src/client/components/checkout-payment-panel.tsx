@@ -44,63 +44,12 @@ export type CheckoutCardFieldState = {
 
 export type CheckoutNetbankingFieldState = {
   bankCode: string | null;
-  /** Digits as typed; normalized to +91… at charge time. */
-  mobile: string;
   isComplete: boolean;
 };
 
-function formatIndianMobileInput(raw: string): string {
-  return raw.replace(/\D/g, "").slice(0, 10);
-}
-
-export function CheckoutMobileField({
-  value,
-  onChange,
-  hint,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  hint?: string;
-}) {
-  return (
-    <div>
-      <label
-        className={checkoutUi.fieldLabel}
-        htmlFor="checkout-mobile-number"
-      >
-        Mobile number
-      </label>
-      <div className="relative">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-medium text-[var(--settings-fg-muted)]">
-          +91
-        </span>
-        <input
-          id="checkout-mobile-number"
-          type="tel"
-          inputMode="numeric"
-          autoComplete="tel-national"
-          value={value}
-          onChange={(e) => onChange(formatIndianMobileInput(e.target.value))}
-          className={checkoutUi.fieldWithPrefix}
-          aria-label="Mobile number"
-        />
-      </div>
-      {hint ? (
-        <p className="mt-1.5 px-0.5 text-[12px] leading-4 text-[var(--settings-fg-muted)]">
-          {hint}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 function NetbankingBankPanel({
-  paymentMobile,
-  onPaymentMobileChange,
   onNetbankingChange,
 }: {
-  paymentMobile: string;
-  onPaymentMobileChange?: (value: string) => void;
   onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
 }) {
   const [query, setQuery] = useState("");
@@ -115,13 +64,11 @@ function NetbankingBankPanel({
     : null;
 
   React.useEffect(() => {
-    const mobileOk = /^[6-9]\d{9}$/.test(paymentMobile);
     onNetbankingChange?.({
       bankCode: selectedCode,
-      mobile: paymentMobile,
-      isComplete: Boolean(selectedCode) && mobileOk,
+      isComplete: Boolean(selectedCode),
     });
-  }, [selectedCode, paymentMobile, onNetbankingChange]);
+  }, [selectedCode, onNetbankingChange]);
 
   // Dismiss the popup on outside interaction or page scroll so it never
   // detaches from its anchor.
@@ -159,11 +106,6 @@ function NetbankingBankPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <CheckoutMobileField
-        value={paymentMobile}
-        onChange={(value) => onPaymentMobileChange?.(value)}
-      />
-
       <div className="relative" ref={rootRef}>
         <Search
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
@@ -200,7 +142,7 @@ function NetbankingBankPanel({
         />
 
         {open && (
-          <div className="app-overlay-panel absolute inset-x-0 top-full z-50 mt-2 animate-in fade-in zoom-in-95 duration-150">
+          <div className="app-overlay-panel absolute inset-x-0 top-full z-50 mt-2 max-h-[min(20rem,50dvh)] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {!query.trim() && (
               <div
                 className="flex flex-wrap gap-2 p-3"
@@ -305,16 +247,11 @@ function NetbankingBankPanel({
 export function CheckoutPaymentPanel({
   tab,
   savedMethod,
-  paymentMobile = "",
-  onPaymentMobileChange,
   onCardFieldsChange,
   onNetbankingChange,
 }: {
   tab: CheckoutPaymentTab;
   savedMethod: SavedPaymentMethod | null;
-  /** Shared +91 mobile used by card, netbanking, and UPI (Razorpay requires contact). */
-  paymentMobile?: string;
-  onPaymentMobileChange?: (value: string) => void;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
   onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
 }) {
@@ -402,30 +339,19 @@ export function CheckoutPaymentPanel({
 
   if (tab === "upi") {
     return (
-      <CheckoutMobileField
-        value={paymentMobile}
-        onChange={(value) => onPaymentMobileChange?.(value)}
-      />
+      <div className={checkoutUi.panelMuted}>
+        Confirm the payment in your UPI app after you click Pay.
+      </div>
     );
   }
 
   if (tab === "netbanking") {
-    return (
-      <NetbankingBankPanel
-        paymentMobile={paymentMobile}
-        onPaymentMobileChange={onPaymentMobileChange}
-        onNetbankingChange={onNetbankingChange}
-      />
-    );
+    return <NetbankingBankPanel onNetbankingChange={onNetbankingChange} />;
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <CheckoutMobileField
-        value={paymentMobile}
-        onChange={(value) => onPaymentMobileChange?.(value)}
-      />
-      <div>
+    <div className="checkout-card-fields">
+      <div className="checkout-card-fields__number">
         <label className={checkoutUi.fieldLabel} htmlFor="checkout-card-number">
           Card number
         </label>
@@ -448,44 +374,42 @@ export function CheckoutPaymentPanel({
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={checkoutUi.fieldLabel} htmlFor="checkout-card-expiry">
-            Expiry
-          </label>
+      <div>
+        <label className={checkoutUi.fieldLabel} htmlFor="checkout-card-expiry">
+          Expiry
+        </label>
+        <input
+          id="checkout-card-expiry"
+          type="text"
+          inputMode="numeric"
+          autoComplete="cc-exp"
+          placeholder="MM / YY"
+          value={cardExpiry}
+          onChange={(e) => setCardExpiry(formatCardExpiry(e.target.value))}
+          className={checkoutUi.field}
+        />
+      </div>
+      <div>
+        <label className={checkoutUi.fieldLabel} htmlFor="checkout-card-cvc">
+          CVC
+        </label>
+        <div className="relative">
           <input
-            id="checkout-card-expiry"
+            id="checkout-card-cvc"
             type="text"
             inputMode="numeric"
-            autoComplete="cc-exp"
-            placeholder="MM / YY"
-            value={cardExpiry}
-            onChange={(e) => setCardExpiry(formatCardExpiry(e.target.value))}
-            className={checkoutUi.field}
+            autoComplete="cc-csc"
+            placeholder="123"
+            value={cardCvc}
+            onChange={(e) =>
+              setCardCvc(formatCardCvc(e.target.value, isAmex ? 4 : 3))
+            }
+            className={checkoutUi.fieldWithTrailingIcon}
           />
-        </div>
-        <div>
-          <label className={checkoutUi.fieldLabel} htmlFor="checkout-card-cvc">
-            CVC
-          </label>
-          <div className="relative">
-            <input
-              id="checkout-card-cvc"
-              type="text"
-              inputMode="numeric"
-              autoComplete="cc-csc"
-              placeholder="123"
-              value={cardCvc}
-              onChange={(e) =>
-                setCardCvc(formatCardCvc(e.target.value, isAmex ? 4 : 3))
-              }
-              className={checkoutUi.fieldWithTrailingIcon}
-            />
-            <CreditCard
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
-              strokeWidth={1.5}
-            />
-          </div>
+          <CreditCard
+            className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
+            strokeWidth={1.5}
+          />
         </div>
       </div>
     </div>

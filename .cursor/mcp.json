@@ -12,8 +12,13 @@
     "vercel": {
       "url": "https://mcp.vercel.com"
     },
-    "hf-mcp-server": {
-      "url": "https://huggingface.co/mcp?login"
+    "razorpay": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.razorpay.com/mcp"
+      ]
     }
   }
 }

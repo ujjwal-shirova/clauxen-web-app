@@ -145,7 +145,7 @@ export type RazorpayNetbankingCheckoutInput = {
   currency: string;
   bank: string;
   email: string;
-  contact: string;
+  contact?: string;
   name?: string;
   description?: string;
   onSuccess: (payload: {
@@ -241,10 +241,7 @@ export async function openRazorpayNetbankingCheckout(
     throw new Error("Select a supported bank to continue.");
   }
 
-  const contact = normalizeIndianMobileContact(input.contact);
-  if (!contact) {
-    throw new Error("Enter a valid 10-digit Indian mobile number.");
-  }
+  const contact = normalizeIndianMobileContact(input.contact ?? "");
 
   const email = input.email.trim();
   if (!email) {
@@ -270,7 +267,7 @@ export async function openRazorpayNetbankingCheckout(
       method: "netbanking",
       prefill: {
         email,
-        contact,
+        ...(contact ? { contact } : {}),
         method: "netbanking",
         bank,
       },

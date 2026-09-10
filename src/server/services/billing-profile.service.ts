@@ -15,6 +15,7 @@ import {
   ensureRazorpayCustomer,
   PAYMENT_METHOD_MANDATE_MAX_PAISE,
 } from "@/server/billing/razorpay-customers";
+import { resolveRazorpayContactForUser } from "@/server/billing/resolve-razorpay-contact";
 import { env } from "@/server/config/env";
 import * as profileRepo from "@/server/repositories/billing-profile.repository";
 import { sendBillingNotificationEmail } from "@/server/billing/billing-email";
@@ -255,11 +256,19 @@ export async function startPaymentMethodSetup(input: {
     );
   }
 
+  const resolved = await resolveRazorpayContactForUser({
+    userId: input.userId,
+    email: input.email,
+    name: input.name,
+    preferred: input.contact,
+  });
+  const contact = resolved.contact;
+
   const customer = await ensureRazorpayCustomer({
     userId: input.userId,
     email: input.email,
     name: input.name,
-    contact: input.contact,
+    contact,
   });
 
   const order = await createMandateSetupOrder({
@@ -286,6 +295,7 @@ export async function startPaymentMethodSetup(input: {
     customerId: customer.id,
     maxAmountPaise: PAYMENT_METHOD_MANDATE_MAX_PAISE,
     method: input.method,
+    ...(contact ? { contact } : {}),
   };
 }
 

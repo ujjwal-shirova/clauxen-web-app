@@ -45,8 +45,6 @@ export function CheckoutPayWithSection({
   savedMethod,
   showExpressCheckout,
   onExpressCheckout,
-  paymentMobile,
-  onPaymentMobileChange,
   onCardFieldsChange,
   onNetbankingChange,
   hideUpi = false,
@@ -59,15 +57,13 @@ export function CheckoutPayWithSection({
   hideUpi?: boolean;
   hideNetbanking?: boolean;
   onExpressCheckout?: () => void;
-  paymentMobile?: string;
-  onPaymentMobileChange?: (value: string) => void;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
   onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
 }) {
   const showSaved = Boolean(savedMethod);
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex min-w-0 flex-col gap-4">
       <h2 className={checkoutUi.sectionTitle}>Payment</h2>
 
       {showExpressCheckout && (
@@ -90,16 +86,16 @@ export function CheckoutPayWithSection({
             selected={paymentTab === "saved"}
             onClick={() => onPaymentTabChange("saved")}
           >
-            <Wallet className="h-4 w-4" strokeWidth={1.75} />
-            Saved
+            <Wallet className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+            <span className="min-w-0 truncate">Saved</span>
           </TabButton>
         )}
         <TabButton
           selected={paymentTab === "card"}
           onClick={() => onPaymentTabChange("card")}
         >
-          <CreditCard className="h-4 w-4" strokeWidth={1.75} />
-          Card
+          <CreditCard className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+          <span className="min-w-0 truncate">Card</span>
         </TabButton>
         {!hideUpi && (
           <TabButton
@@ -109,9 +105,9 @@ export function CheckoutPayWithSection({
             <CheckoutPaymentIcon
               src={CHECKOUT_UPI_ICON_URL}
               alt=""
-              className="h-4 w-7 rounded-[3px]"
+              className="h-4 w-7 shrink-0 rounded-[3px]"
             />
-            UPI
+            <span className="min-w-0 truncate">UPI</span>
           </TabButton>
         )}
         {!hideNetbanking && (
@@ -119,8 +115,8 @@ export function CheckoutPayWithSection({
             selected={paymentTab === "netbanking"}
             onClick={() => onPaymentTabChange("netbanking")}
           >
-            <Landmark className="h-4 w-4" strokeWidth={1.75} />
-            Netbanking
+            <Landmark className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+            <span className="min-w-0 truncate">Netbanking</span>
           </TabButton>
         )}
       </div>
@@ -128,8 +124,6 @@ export function CheckoutPayWithSection({
       <CheckoutPaymentPanel
         tab={paymentTab}
         savedMethod={savedMethod}
-        paymentMobile={paymentMobile}
-        onPaymentMobileChange={onPaymentMobileChange}
         onCardFieldsChange={onCardFieldsChange}
         onNetbankingChange={onNetbankingChange}
       />
