@@ -745,26 +745,130 @@ export async function replaceMessagesFromSnapshot(input: {
   return inserted;
 }
 
+type StaleStreamingRow = {
+  id: string;
+  content: string | null;
+  content_json: Record<string, unknown>;
+  created_at: string;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function asMs(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : null;
+}
+
+/**
+ * Settle an abandoned stream's persisted timeline so a reload renders the
+ * real "Worked for Ns" / tool history instead of a synthetic estimate.
+ * The end stamp is the latest honestly-observed progress (never wall-clock
+ * now, which would inflate to hours when a chat reopens much later).
+ */
+function settleAbandonedContentJson(
+  contentJson: Record<string, unknown>,
+  createdAtMs: number,
+  failed: boolean,
+): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...contentJson };
+  const agentUi = asRecord(next.agent_ui) ?? {};
+  const uiNext: Record<string, unknown> = { ...agentUi };
+  const segments = Array.isArray(uiNext.segments)
+    ? [...(uiNext.segments as unknown[])]
+    : [];
+  let latestEnd = 0;
+  const settledSegments = segments.map((raw) => {
+    const seg = asRecord(raw);
+    if (!seg) return raw;
+    const segNext: Record<string, unknown> = { ...seg };
+    const segEnd = asMs(segNext.completedAtMs);
+    if (segEnd) {
+      latestEnd = Math.max(latestEnd, segEnd);
+      return segNext;
+    }
+    // Live-at-abandon segments close at the best-known end below; running
+    // tools are honest failures, not completions.
+    if (segNext.type === "tool" && segNext.status === "running") {
+      segNext.status = failed ? "cancelled" : "error";
+    }
+    return segNext;
+  });
+  const uiStart = asMs(uiNext.startedAtMs) ?? createdAtMs;
+  const existingEnd = asMs(uiNext.completedAtMs);
+  const end =
+    existingEnd && existingEnd >= uiStart
+      ? existingEnd
+      : Math.max(latestEnd, uiStart, createdAtMs);
+  const finalSegments = settledSegments.map((raw) => {
+    const seg = asRecord(raw);
+    if (!seg) return raw;
+    const segNext: Record<string, unknown> = { ...seg };
+    if (!asMs(segNext.completedAtMs)) segNext.completedAtMs = end;
+    if (segNext.type === "thinking" && segNext.durationSeconds == null) {
+      const segStart = asMs(segNext.startedAtMs) ?? uiStart;
+      segNext.durationSeconds = Math.max(
+        1,
+        Math.round((end - segStart) / 1000),
+      );
+    }
+    return segNext;
+  });
+  if (finalSegments.length > 0) uiNext.segments = finalSegments;
+  if (!asMs(uiNext.startedAtMs)) uiNext.startedAtMs = createdAtMs;
+  uiNext.completedAtMs = end;
+  uiNext.status = failed ? "failed" : "complete";
+  next.agent_ui = uiNext;
+  return next;
+}
+
 /** Mark abandoned streaming rows so reloads don't show empty ghosts. */
 export async function finalizeStaleStreamingMessages(
   chatId: string,
   olderThanSeconds = 90,
 ): Promise<number> {
-  const rows = await query<{ id: string }>(
-    `with updated as (
-       update public.chat_messages
-       set status = case
-             when coalesce(trim(content), '') = '' then 'failed'
-             else 'complete'
-           end,
-           updated_at = now()
-       where chat_id = $1
-         and status = 'streaming'
-         and created_at < now() - make_interval(secs => $2)
-       returning id
-     )
-     select id from updated`,
+  const stale = await query<StaleStreamingRow>(
+    `select id, content, coalesce(content_json, '{}'::jsonb) as content_json,
+            created_at
+     from public.chat_messages
+     where chat_id = $1
+       and status = 'streaming'
+       and created_at < now() - make_interval(secs => $2)
+     limit 25`,
     [chatId, olderThanSeconds],
   );
-  return rows.length;
+  if (stale.length === 0) return 0;
+  let settled = 0;
+  for (const row of stale) {
+    const failed = (row.content ?? "").trim().length === 0;
+    const createdAtMs = Number.isNaN(new Date(row.created_at).getTime())
+      ? Date.now()
+      : new Date(row.created_at).getTime();
+    const contentJson = asRecord(row.content_json) ?? {};
+    try {
+      await query(
+        `update public.chat_messages
+         set status = $3,
+             content_json = $4::jsonb,
+             updated_at = now()
+         where id = $1 and chat_id = $2 and status = 'streaming'`,
+        [
+          row.id,
+          chatId,
+          failed ? "failed" : "complete",
+          JSON.stringify(
+            settleAbandonedContentJson(contentJson, createdAtMs, failed),
+          ),
+        ],
+      );
+      settled += 1;
+    } catch {
+      // Best-effort sweep — a concurrent finalize owns the row.
+    }
+  }
+  return settled;
 }

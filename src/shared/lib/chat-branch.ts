@@ -398,6 +398,9 @@ export function editMessageWithBranchHelper(
   // until it actually branches, at which point v1 materializes from the real
   // streamed content. (A placeholder empty v1 used to clobber the streamed
   // answer on the first retry of an edited turn.)
+  // The fork-time clock seeds the Working-for timer so it never snaps back
+  // when the stream's start event arrives after network RTT.
+  const forkedAtMs = Date.now();
   const assistantMessage: Message = {
     id: newAssistantId,
     role: "assistant",
@@ -406,6 +409,10 @@ export function editMessageWithBranchHelper(
     isStreaming: true,
     isThinkingStreaming: false,
     hasThinking: false,
+    createdAt: forkedAtMs,
+    agentMode: true,
+    agentFrameComplete: false,
+    agentTrace: { steps: [], startedAtMs: forkedAtMs },
   };
 
   // Forking hides the previous branch immediately: everything after the

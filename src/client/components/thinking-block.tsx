@@ -47,6 +47,19 @@ export function ThinkingBlock({
   const [elapsedSeconds, setElapsedSeconds] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
   const previousIsStreamingRef = useRef(isStreaming);
+  // Latch the earliest thinking start so a late-arriving stamp can never push
+  // the live "Thinking for Ns" clock forward mid-stream.
+  const latchedThinkingStartRef = useRef<number | undefined>(
+    thinkingStartedAtMs,
+  );
+  if (
+    thinkingStartedAtMs !== undefined &&
+    (latchedThinkingStartRef.current === undefined ||
+      thinkingStartedAtMs < latchedThinkingStartRef.current)
+  ) {
+    latchedThinkingStartRef.current = thinkingStartedAtMs;
+  }
+  const latchedThinkingStart = latchedThinkingStartRef.current;
 
   useEffect(() => {
     if (!isVisible) return;
@@ -74,7 +87,7 @@ export function ThinkingBlock({
         resolveThinkingDurationSeconds({
           isStreaming: false,
           thinkingDurationSeconds,
-          thinkingStartedAtMs,
+          thinkingStartedAtMs: latchedThinkingStart,
         }),
       );
       return;
@@ -85,7 +98,7 @@ export function ThinkingBlock({
         resolveThinkingDurationSeconds({
           isStreaming: true,
           thinkingDurationSeconds,
-          thinkingStartedAtMs,
+          thinkingStartedAtMs: latchedThinkingStart,
         }),
       );
     };
@@ -93,7 +106,7 @@ export function ThinkingBlock({
     tick();
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
-  }, [isStreaming, thinkingDurationSeconds, thinkingStartedAtMs]);
+  }, [isStreaming, thinkingDurationSeconds, latchedThinkingStart]);
 
   const hasContent = Boolean(content.trim());
   if (!hasContent && !isStreaming && !thinkingDurationSeconds) {

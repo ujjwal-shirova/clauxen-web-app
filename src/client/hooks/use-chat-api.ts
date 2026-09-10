@@ -130,23 +130,66 @@ function hasOptimisticTurn(messages: readonly Message[]): boolean {
 /** Never keep a streaming orb when this tab is not actively generating. */
 function clearIdleStreamingFlags(message: Message): Message {
   if (!message.isStreaming && !message.isThinkingStreaming) return message;
+  const now = Date.now();
+  // Settle live clocks into static durations so an aborted turn keeps its
+  // real "Worked for Ns" / "Thought for Ns" instead of losing them. Only live
+  // steps are touched — persisted (non-streaming) steps keep their stored
+  // stamps, and an already-stamped completion is never overwritten.
+  const trace = message.agentTrace;
+  let nextTrace = trace;
+  if (trace && trace.complete !== true) {
+    const steps = trace.steps.map((step) => {
+      if (step.kind === "tool" && step.status === "running") {
+        return { ...step, status: "done" as const, completedAtMs: now };
+      }
+      if (step.kind === "thinking" && step.isStreaming) {
+        return {
+          ...step,
+          isStreaming: false as const,
+          durationSeconds:
+            step.durationSeconds ??
+            (step.startedAtMs
+              ? Math.max(1, Math.round((now - step.startedAtMs) / 1000))
+              : 1),
+        };
+      }
+      if (step.kind === "narration" && step.isStreaming) {
+        return { ...step, isStreaming: false as const };
+      }
+      return step;
+    });
+    const latestStepEnd = steps.reduce(
+      (latest, step) =>
+        typeof step.completedAtMs === "number" &&
+        step.completedAtMs > latest
+          ? step.completedAtMs
+          : latest,
+      0,
+    );
+    nextTrace = {
+      ...trace,
+      steps,
+      complete: true,
+      completedAtMs:
+        trace.completedAtMs ?? (latestStepEnd > 0 ? latestStepEnd : now),
+    };
+  }
+  const thinkingDurationSeconds =
+    message.isThinkingStreaming &&
+    !(message.thinkingDurationSeconds && message.thinkingDurationSeconds > 0) &&
+    typeof message.thinkingStartedAtMs === "number"
+      ? Math.max(
+          1,
+          Math.round((now - message.thinkingStartedAtMs) / 1000),
+        )
+      : message.thinkingDurationSeconds;
   return {
     ...message,
     isStreaming: false,
     isThinkingStreaming: false,
+    thinkingDurationSeconds,
     agentFrameComplete: true,
-    agentTrace: message.agentTrace
-      ? {
-          ...message.agentTrace,
-          complete: true,
-          steps: message.agentTrace.steps.map((step) => ({
-            ...step,
-            ...(step.kind === "tool" && step.status === "running"
-              ? { status: "done" as const, completedAtMs: Date.now() }
-              : {}),
-          })),
-        }
-      : undefined,
+    agentTrace: nextTrace,
   };
 }
 
@@ -256,7 +299,9 @@ function abortInFlightGenerationForBranch(chatId: string) {
     const next = list.map((message) => {
       if (!message.isStreaming && !message.isThinkingStreaming) return message;
       changed = true;
-      return { ...message, isStreaming: false, isThinkingStreaming: false };
+      // Settle live clocks into static durations so the snapshotted branch
+      // keeps its real timings.
+      return clearIdleStreamingFlags(message);
     });
     if (!changed) return prev;
     return { ...prev, [chatId]: next };
@@ -1506,6 +1551,13 @@ export function useChatApi(
           isStreaming: true,
           agentMode: existing?.agentMode ?? true,
           agentFrameComplete: false,
+          // Forked turns (edit/redo/retry) reach the stream without an
+          // optimistic trace — seed one so the Working-for clock is stable
+          // from the first paint instead of starting at the `start` event.
+          agentTrace: existing?.agentTrace ?? {
+            steps: [],
+            startedAtMs: existing?.createdAt ?? Date.now(),
+          },
         });
       }
 
@@ -2305,6 +2357,9 @@ export function useChatApi(
         isStreaming: true,
         agentMode: true,
         agentFrameComplete: false,
+        // Seed the trace clock at send time so "Working for Ns" never snaps
+        // back when the stream's start event arrives after network RTT.
+        agentTrace: { steps: [], startedAtMs: now + 1 },
       };
 
       // Optimistic pending id — paint chat-view + sidebar immediately.

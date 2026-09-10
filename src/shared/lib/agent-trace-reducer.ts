@@ -107,18 +107,40 @@ export function applyAgentStreamEvent(
   event: StreamEvent,
 ): Message {
   switch (event.type) {
-    case "start":
+    case "start": {
+      if (event.agentMode !== true) {
+        return {
+          ...message,
+          generationFailed: false,
+          agentMode: false,
+          agentFrameComplete: false,
+          isStreaming: true,
+        };
+      }
+      // A retry reuses the message row: its completed trace must reset so the
+      // new run times from zero. A fresh turn keeps the optimistic start (the
+      // send-time stamp) — overwriting it with Date.now() here is what made
+      // "Working for 2s" snap back to "Working for 0s" when the stream opened.
+      const prev = message.agentTrace;
+      const isRetry =
+        prev?.complete === true && (prev.steps?.length ?? 0) > 0;
+      const startedAtMs = isRetry
+        ? Date.now()
+        : (prev?.startedAtMs ?? message.createdAt ?? Date.now());
       return {
         ...message,
         generationFailed: false,
-        agentMode: event.agentMode === true,
-        agentTrace:
-          event.agentMode === true
-            ? { steps: [], startedAtMs: Date.now() }
-            : message.agentTrace,
+        agentMode: true,
+        agentTrace: {
+          steps: isRetry ? [] : (prev?.steps ?? []),
+          complete: isRetry ? undefined : prev?.complete,
+          startedAtMs,
+          ...(isRetry ? {} : prev?.completedAtMs ? { completedAtMs: prev.completedAtMs } : {}),
+        },
         agentFrameComplete: false,
         isStreaming: true,
       };
+    }
 
     case "turn_ready":
       return message;
@@ -137,7 +159,7 @@ export function applyAgentStreamEvent(
         isThinkingStreaming: true,
         thinkingStartedAtMs: message.thinkingStartedAtMs ?? Date.now(),
         agentTrace: {
-          ...(message.agentTrace ?? { steps: [], startedAtMs: Date.now() }),
+          ...(message.agentTrace ?? { steps: [], startedAtMs: message.createdAt ?? Date.now() }),
           steps: upsertStep(steps, {
             kind: "thinking",
             id: existing?.id ?? segmentId,
@@ -177,7 +199,7 @@ export function applyAgentStreamEvent(
       return {
         ...next,
         agentTrace: {
-          ...(next.agentTrace ?? { steps: [], startedAtMs: Date.now() }),
+          ...(next.agentTrace ?? { steps: [], startedAtMs: next.createdAt ?? Date.now() }),
           steps: steps.map((step) =>
             step.kind === "thinking" && step.id === targetId
               ? { ...step, content: `${step.content ?? ""}${event.delta}` }
@@ -259,7 +281,7 @@ export function applyAgentStreamEvent(
         isThinkingStreaming: false,
         isStreaming: true,
         agentTrace: {
-          ...(message.agentTrace ?? { steps: [], startedAtMs: Date.now() }),
+          ...(message.agentTrace ?? { steps: [], startedAtMs: message.createdAt ?? Date.now() }),
           steps: nextSteps,
         },
       };
@@ -285,7 +307,7 @@ export function applyAgentStreamEvent(
             agentMode: true,
             isStreaming: true,
             agentTrace: {
-              ...(message.agentTrace ?? { steps: [], startedAtMs: Date.now() }),
+              ...(message.agentTrace ?? { steps: [], startedAtMs: message.createdAt ?? Date.now() }),
               steps: upsertStep(steps, {
                 kind: "narration",
                 id: event.segmentId,
@@ -406,7 +428,7 @@ export function applyAgentStreamEvent(
         isStreaming: true,
         agentFrameComplete: false,
         agentTrace: {
-          ...(message.agentTrace ?? { steps: [], startedAtMs: Date.now() }),
+          ...(message.agentTrace ?? { steps: [], startedAtMs: message.createdAt ?? Date.now() }),
           steps: upsertStep(steps, {
             kind: "tool",
             id: existing?.id ?? `tool-${event.toolCallId}`,

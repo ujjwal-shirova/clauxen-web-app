@@ -356,11 +356,25 @@ export function hydrateMessageFromContentJson(
         : hasThinking
           ? 1
           : undefined;
+  // Prefer the server-stamped completion; otherwise derive it from the
+  // latest persisted step so "Worked for Ns" matches the real turn length
+  // instead of a synthetic estimate.
+  const latestStepCompletedAtMs = [...modelSegments, ...tools].reduce(
+    (latest, segment) =>
+      typeof segment.completedAtMs === "number" &&
+      segment.completedAtMs >= stamp &&
+      segment.completedAtMs > latest
+        ? segment.completedAtMs
+        : latest,
+    0,
+  );
   const completedAtMs =
     typeof agentUi?.completedAtMs === "number" && agentUi.completedAtMs >= stamp
       ? agentUi.completedAtMs
-      : stamp +
-        Math.max(1000, (thinkingDuration ?? 1) * 1000 + (hasTools ? 2000 : 0));
+      : latestStepCompletedAtMs > 0
+        ? latestStepCompletedAtMs
+        : stamp +
+          Math.max(1000, (thinkingDuration ?? 1) * 1000 + (hasTools ? 2000 : 0));
 
   const legacySegments: AgentStep[] = [
     ...(hasThinking

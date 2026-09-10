@@ -120,8 +120,25 @@ function MorphingWorkIcon({ active = true }: { active?: boolean }) {
 }
 
 function elapsedLabel(startedAtMs?: number, endedAtMs = Date.now()): string {
-  if (!startedAtMs) return "0s";
-  return formatElapsedSeconds(Math.max(0, endedAtMs - startedAtMs));
+  if (!startedAtMs) return "1s";
+  return formatElapsedSeconds(Math.max(1000, endedAtMs - startedAtMs));
+}
+
+/**
+ * Latch the earliest start stamp seen across renders. Stream props arrive in
+ * stages (optimistic createdAt → trace.startedAtMs → step.startedAtMs) and a
+ * later stamp must never push the live clock forward — that forward jump is
+ * what made "Working for 2s" snap back to "Working for 0s".
+ */
+function useLatchedStartedAtMs(startedAtMs?: number): number | undefined {
+  const ref = useRef<number | undefined>(startedAtMs);
+  if (
+    startedAtMs !== undefined &&
+    (ref.current === undefined || startedAtMs < ref.current)
+  ) {
+    ref.current = startedAtMs;
+  }
+  return ref.current;
 }
 
 /** Live, layout-stable activity label shown from send until answer paint. */
@@ -135,6 +152,7 @@ export function AgentWorkingRow({
   className?: string;
 }) {
   const [now, setNow] = useState(() => Date.now());
+  const latchedStart = useLatchedStartedAtMs(startedAtMs);
 
   useEffect(() => {
     setNow(Date.now());
@@ -142,7 +160,7 @@ export function AgentWorkingRow({
     return () => window.clearInterval(timer);
   }, []);
 
-  const label = activeLabel ?? `Working for ${elapsedLabel(startedAtMs, now)}`;
+  const label = activeLabel ?? `Working for ${elapsedLabel(latchedStart, now)}`;
 
   return (
     <div
@@ -169,6 +187,7 @@ function ThinkingTraceRow({ step }: { step: AgentThinkingStep }) {
   const [now, setNow] = useState(() => Date.now());
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const content = step.content?.trim() ?? "";
+  const latchedStart = useLatchedStartedAtMs(step.startedAtMs);
 
   useEffect(() => {
     if (!step.isStreaming) return;
@@ -177,7 +196,7 @@ function ThinkingTraceRow({ step }: { step: AgentThinkingStep }) {
   }, [step.isStreaming]);
 
   const seconds = step.isStreaming
-    ? Math.max(1, Math.floor((now - (step.startedAtMs ?? now)) / 1000))
+    ? Math.max(1, Math.floor((now - (latchedStart ?? now)) / 1000))
     : Math.max(1, step.durationSeconds ?? 1);
 
   return (

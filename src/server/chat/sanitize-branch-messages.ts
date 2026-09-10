@@ -29,6 +29,7 @@ function sanitizeAgentStep(value: unknown): AgentStep | null {
     return {
       kind: "thinking",
       id,
+      content: asString(row.content),
       isStreaming: Boolean(row.isStreaming),
       durationSeconds:
         typeof row.durationSeconds === "number"
@@ -36,6 +37,8 @@ function sanitizeAgentStep(value: unknown): AgentStep | null {
           : undefined,
       startedAtMs:
         typeof row.startedAtMs === "number" ? row.startedAtMs : undefined,
+      completedAtMs:
+        typeof row.completedAtMs === "number" ? row.completedAtMs : undefined,
     };
   }
   if (kind === "narration") {
@@ -45,6 +48,10 @@ function sanitizeAgentStep(value: unknown): AgentStep | null {
       content: asString(row.content) ?? "",
       isStreaming: Boolean(row.isStreaming),
       ...(row.isFinal === true ? { isFinal: true as const } : {}),
+      startedAtMs:
+        typeof row.startedAtMs === "number" ? row.startedAtMs : undefined,
+      completedAtMs:
+        typeof row.completedAtMs === "number" ? row.completedAtMs : undefined,
     };
   }
   if (kind === "tool") {
@@ -128,15 +135,19 @@ function sanitizeAgentTrace(value: unknown): AgentTraceState | null {
           .map(sanitizeAgentStep)
           .filter((step): step is AgentStep => Boolean(step))
       : steps;
+    // Never stamp Date.now() for a missing start — a fresh stamp on a
+    // reloaded/completed trace would rewrite its "Worked for Ns" duration.
+    // The UI falls back to the message's createdAt when no start is stored.
     const startedAtMs =
       typeof row.startedAtMs === "number" && row.startedAtMs > 0
         ? row.startedAtMs
-        : Date.now();
+        : undefined;
     let completedAtMs =
       typeof row.completedAtMs === "number" ? row.completedAtMs : undefined;
     const MAX_MS = 2 * 60 * 60 * 1000;
     if (
       typeof completedAtMs === "number" &&
+      typeof startedAtMs === "number" &&
       completedAtMs - startedAtMs > MAX_MS
     ) {
       completedAtMs = startedAtMs;
@@ -144,7 +155,7 @@ function sanitizeAgentTrace(value: unknown): AgentTraceState | null {
     return {
       steps: source,
       complete: typeof row.complete === "boolean" ? row.complete : undefined,
-      startedAtMs,
+      ...(startedAtMs ? { startedAtMs } : {}),
       ...(completedAtMs ? { completedAtMs } : {}),
     };
   }
@@ -185,6 +196,12 @@ export function sanitizeBranchMessages(input: unknown): Message[] {
     }
     if (typeof row.thinkingDurationSeconds === "number") {
       message.thinkingDurationSeconds = row.thinkingDurationSeconds;
+    }
+    if (
+      typeof row.thinkingStartedAtMs === "number" &&
+      row.thinkingStartedAtMs > 0
+    ) {
+      message.thinkingStartedAtMs = row.thinkingStartedAtMs;
     }
     if (typeof row.agentMode === "boolean") message.agentMode = row.agentMode;
     if (typeof row.agentFrameComplete === "boolean") {
