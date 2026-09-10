@@ -12,7 +12,6 @@ import {
   type CheckoutAddressState,
 } from "@/components/checkout-billing-address";
 import { CheckoutBillingAddressSummary } from "@/components/checkout-billing-address-summary";
-import { CheckoutQrHint } from "@/components/checkout-qr-hint";
 import {
   CHECKOUT_FORM_ID,
   CheckoutPayCta,
@@ -56,6 +55,7 @@ export type CheckoutFormProps = {
   onBillingAddressChange: (state: CheckoutAddressState) => void;
   billingAddressCollapsed?: boolean;
   onEditBillingAddress?: () => void;
+  termsLabel?: string;
 };
 
 export function CheckoutForm({
@@ -91,14 +91,13 @@ export function CheckoutForm({
   onBillingAddressChange,
   billingAddressCollapsed = false,
   onEditBillingAddress,
+  termsLabel = "Auto-renews until I cancel.",
 }: CheckoutFormProps) {
-  const isUpi = paymentTab === "upi";
-
   return (
     <form
       id={CHECKOUT_FORM_ID}
       data-checkout-form=""
-      className="flex flex-col gap-8"
+      className="flex flex-col gap-7"
       onSubmit={(e) => {
         e.preventDefault();
         onPay();
@@ -119,7 +118,6 @@ export function CheckoutForm({
       />
 
       <div className="flex flex-col gap-3">
-        {isUpi && <CheckoutQrHint />}
         {billingAddressCollapsed && billingAddress.isComplete ? (
           <CheckoutBillingAddressSummary
             address={billingAddress}
@@ -160,7 +158,6 @@ export function CheckoutForm({
                 type="text"
                 value={billToName}
                 onChange={(e) => onBillToNameChange(e.target.value)}
-                placeholder="Business name"
                 className={checkoutUi.field}
               />
             </div>
@@ -191,10 +188,7 @@ export function CheckoutForm({
             onChange={(e) => onAgreedChange(e.target.checked)}
             className={cn(checkoutUi.checkbox, "mt-0.5")}
           />
-          <span className={checkoutUi.labelFine}>
-            I agree to automatic renewal until I cancel. I can cancel anytime
-            from Billing.
-          </span>
+          <span className={checkoutUi.labelFine}>{termsLabel}</span>
         </label>
       </div>
 

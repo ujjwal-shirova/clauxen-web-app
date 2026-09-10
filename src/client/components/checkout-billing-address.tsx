@@ -71,12 +71,7 @@ export function CheckoutBillingAddress({
 
   return (
     <section className="flex flex-col gap-3">
-      <div>
-        <h2 className={checkoutUi.sectionTitle}>Billing address</h2>
-        <p className={cn(checkoutUi.sectionHint, "mt-1")}>
-          Used for receipts and tax.
-        </p>
-      </div>
+      <h2 className={checkoutUi.sectionTitle}>Billing address</h2>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -87,7 +82,6 @@ export function CheckoutBillingAddress({
             id="checkout-full-name"
             type="text"
             autoComplete="name"
-            placeholder="Full name"
             value={value.fullName}
             onChange={(e) => patch({ fullName: e.target.value })}
             className={checkoutUi.field}
@@ -102,7 +96,7 @@ export function CheckoutBillingAddress({
             id="checkout-address-1"
             type="text"
             autoComplete="address-line1"
-            placeholder="Street address"
+            placeholder="Street and building"
             value={value.addressLine1}
             onChange={(e) => patch({ addressLine1: e.target.value })}
             className={checkoutUi.field}
@@ -130,7 +124,6 @@ export function CheckoutBillingAddress({
             id="checkout-city"
             type="text"
             autoComplete="address-level2"
-            placeholder="City"
             value={value.city}
             onChange={(e) => patch({ city: e.target.value })}
             className={checkoutUi.field}
@@ -146,7 +139,6 @@ export function CheckoutBillingAddress({
             type="text"
             inputMode="numeric"
             autoComplete="postal-code"
-            placeholder="PIN"
             value={value.pin}
             onChange={(e) =>
               patch({ pin: e.target.value.replace(/\D/g, "").slice(0, 6) })
@@ -189,24 +181,10 @@ export function CheckoutBillingAddress({
         </div>
 
         <div>
-          <label className={checkoutUi.fieldLabel} htmlFor="checkout-country">
-            Country
-          </label>
-          <div className="relative">
-            <select
-              id="checkout-country"
-              value={value.countryCode}
-              onChange={(e) => patch({ countryCode: e.target.value })}
-              className={cn(checkoutUi.fieldWithTrailingIcon, "appearance-none")}
-              aria-label="Country"
-            >
-              <option value="IN">India</option>
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
-              strokeWidth={1.75}
-            />
-          </div>
+          <p className={checkoutUi.fieldLabel}>Country</p>
+          <p className="flex h-9 items-center text-[14px] leading-5 text-[var(--settings-fg)]">
+            India
+          </p>
         </div>
       </div>
     </section>

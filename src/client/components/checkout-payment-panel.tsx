@@ -79,7 +79,6 @@ export function CheckoutMobileField({
           type="tel"
           inputMode="numeric"
           autoComplete="tel-national"
-          placeholder="10-digit mobile number"
           value={value}
           onChange={(e) => onChange(formatIndianMobileInput(e.target.value))}
           className={checkoutUi.fieldWithPrefix}
@@ -150,7 +149,7 @@ function NetbankingBankPanel({
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("scroll", onScroll, true);
     };
-  }, [open ]);
+  }, [open]);
 
   const selectBank = (code: string) => {
     setSelectedCode(code);
@@ -160,10 +159,6 @@ function NetbankingBankPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="px-0.5 text-[13px] leading-5 text-[var(--settings-fg-muted)]">
-        You sign in on your bank&apos;s page. We never see your password.
-      </p>
-
       <CheckoutMobileField
         value={paymentMobile}
         onChange={(value) => onPaymentMobileChange?.(value)}
@@ -208,7 +203,7 @@ function NetbankingBankPanel({
           <div className="app-overlay-panel absolute inset-x-0 top-full z-50 mt-2 animate-in fade-in zoom-in-95 duration-150">
             {!query.trim() && (
               <div
-                className="flex flex-wrap gap-2 border-b border-[var(--settings-hairline)] p-3"
+                className="flex flex-wrap gap-2 p-3"
                 role="radiogroup"
                 aria-label="Popular banks"
               >
@@ -222,10 +217,10 @@ function NetbankingBankPanel({
                       aria-checked={selected}
                       onClick={() => selectBank(bank.code)}
                       className={cn(
-                        "rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors duration-150",
+                        "rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors duration-150",
                         selected
-                          ? "border-[hsl(var(--brand))] bg-[var(--brand-soft)] text-[var(--settings-fg)]"
-                          : "border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:border-[var(--settings-input-focus)] hover:text-[var(--settings-fg)]",
+                          ? "bg-[var(--brand-soft)] text-[var(--settings-fg)]"
+                          : "bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]",
                       )}
                     >
                       {bank.name}
@@ -410,7 +405,6 @@ export function CheckoutPaymentPanel({
       <CheckoutMobileField
         value={paymentMobile}
         onChange={(value) => onPaymentMobileChange?.(value)}
-        hint="A QR code appears after you continue."
       />
     );
   }
@@ -480,7 +474,7 @@ export function CheckoutPaymentPanel({
               type="text"
               inputMode="numeric"
               autoComplete="cc-csc"
-              placeholder="CVC"
+              placeholder="123"
               value={cardCvc}
               onChange={(e) =>
                 setCardCvc(formatCardCvc(e.target.value, isAmex ? 4 : 3))

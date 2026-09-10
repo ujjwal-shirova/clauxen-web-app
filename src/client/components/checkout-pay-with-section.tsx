@@ -11,7 +11,6 @@ import {
 } from "@/components/checkout-payment-panel";
 import { CheckoutPaymentIcon } from "@/components/checkout-payment-icon";
 import { checkoutUi } from "@/lib/checkout-ui";
-import { cn } from "@/lib/utils";
 import { CHECKOUT_UPI_ICON_URL } from "@/lib/checkout-payment-icons";
 import type {
   CheckoutPaymentTab,
@@ -69,12 +68,7 @@ export function CheckoutPayWithSection({
 
   return (
     <section className="flex flex-col gap-4">
-      <div>
-        <h2 className={checkoutUi.sectionTitle}>Payment</h2>
-        <p className={cn(checkoutUi.sectionHint, "mt-1")}>
-          Encrypted and processed securely.
-        </p>
-      </div>
+      <h2 className={checkoutUi.sectionTitle}>Payment</h2>
 
       {showExpressCheckout && (
         <>

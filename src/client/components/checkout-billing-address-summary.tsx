@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { Pencil } from "lucide-react";
 import type { CheckoutAddressState } from "@/components/checkout-billing-address";
 
 export function CheckoutBillingAddressSummary({
@@ -18,28 +17,29 @@ export function CheckoutBillingAddressSummary({
   ].filter(Boolean);
 
   return (
-    <button
-      type="button"
-      onClick={onEdit}
-      className="flex h-auto min-h-[38px] w-full items-start justify-between gap-3 rounded-xl bg-[var(--settings-icon-bg)] p-3 text-left transition-colors hover:bg-[var(--ui-hover-wash)]"
-      aria-label="Edit billing address"
-    >
-      <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-medium leading-4 text-[var(--settings-fg-muted)]">
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-[15px] font-semibold leading-5 tracking-[-0.02em] text-[var(--settings-fg)]">
           Billing address
         </p>
-        <div className="mt-1 space-y-0.5">
+        <div className="mt-1.5 space-y-0.5">
           {lines.map((line) => (
             <p
               key={line}
-              className="truncate text-[13px] leading-[18px] text-[var(--settings-fg)]"
+              className="truncate text-[13px] leading-[18px] text-[var(--settings-fg-muted)]"
             >
               {line}
             </p>
           ))}
         </div>
       </div>
-      <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg-subtle)]" aria-hidden />
-    </button>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="shrink-0 pt-0.5 text-[13px] font-medium text-[var(--settings-fg)]"
+      >
+        Edit
+      </button>
+    </div>
   );
 }

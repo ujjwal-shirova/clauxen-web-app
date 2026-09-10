@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ChevronDown, Info, Minus, Plus } from "lucide-react";
+import { ArrowLeft, ChevronDown, Minus, Plus } from "lucide-react";
 import { appBtn } from "@/lib/app-buttons";
 import {
   createBillingOrder,
@@ -1081,12 +1081,6 @@ export function BillingCheckout({
     bundleSeatsValid,
   ]);
 
-  const cycleLabel = isMaxPlan
-    ? "/month"
-    : effectiveBillingCycle === "monthly"
-      ? "/month"
-      : "/year";
-
   const handleSeatChange = (seatId: SeatAssignablePlanId, delta: 1 | -1) => {
     setSeatCounts((prev) => {
       const next = { ...prev, [seatId]: Math.max(0, prev[seatId] + delta) };
@@ -1468,7 +1462,7 @@ export function BillingCheckout({
       <p className="text-[12px] leading-4 text-[var(--settings-fg-muted)]">
         {orgPlan.userRangeLabel} · min {minSeats} seats
       </p>
-      <div className="flex flex-col divide-y divide-[var(--settings-hairline)]">
+      <div className="flex flex-col gap-3">
         {SEAT_ASSIGNABLE_IDS.map((seatId) => {
           const seat = SEAT_ASSIGNABLE_PLANS[seatId];
           const count = seatCounts[seatId];
@@ -1481,7 +1475,7 @@ export function BillingCheckout({
           const canIncrement = totalSeats < maxSeats;
 
           return (
-            <div key={seatId} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+            <div key={seatId} className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <span className="text-[13px] font-medium leading-5 text-[var(--settings-fg)]">
                   {seat.label}
@@ -1582,15 +1576,19 @@ export function BillingCheckout({
 
   const cycleDetailLabel = isMaxPlan
     ? maxDetails.label
-    : isVariableCheckoutPlan
-      ? "Details confirmed at activation"
-      : isTeamPlan
-        ? `${totalSeats} seats · ${effectiveBillingCycle === "monthly" ? "Monthly" : "Annually"}`
-        : isBusinessWorkspace
-          ? `${bundleSeatCount} seats · ${effectiveBillingCycle === "monthly" ? "Monthly" : "Annually"}`
-          : effectiveBillingCycle === "monthly"
-            ? "Monthly"
-            : "Annually";
+    : isGiftCheckout
+      ? giftMonths === 1
+        ? "1 month"
+        : `${giftMonths ?? 0} months`
+      : isVariableCheckoutPlan
+        ? "Details confirmed at activation"
+        : isTeamPlan
+          ? `${totalSeats} seats · ${effectiveBillingCycle === "monthly" ? "Monthly" : "Annually"}`
+          : isBusinessWorkspace
+            ? `${bundleSeatCount} seats · ${effectiveBillingCycle === "monthly" ? "Monthly" : "Annually"}`
+            : effectiveBillingCycle === "monthly"
+              ? "Monthly"
+              : "Annually";
 
   const orderLineItems = useMemo(() => {
     if (isTeamPlan && orgPlan) {
@@ -1695,30 +1693,23 @@ export function BillingCheckout({
     }
   };
 
-  const renewalCopy = isGiftCheckout ? (
-    <>
-      Gift for{" "}
-      {giftMonths === 1 ? "1 month" : `${giftMonths ?? 0} months`} of{" "}
-      {details.name.replace(/ plan$/i, "")}. It will not auto-renew. You will be
-      charged {formatInr(total)} today
-      {taxResult.showTaxRow && !taxResult.isGstExempt
-        ? ", including tax"
-        : ""}
-      .
-    </>
-  ) : isVariableCheckoutPlan ? (
-    <>
-      No automatic charge until pricing is confirmed. Submit the form so we
-      can follow up.
-    </>
-  ) : (
-    <>
-      Renews on {renewalDate}. Charged {formatInr(total)} today
-      {taxResult.showTaxRow && !taxResult.isGstExempt ? ", including tax" : ""}{" "}
-      and {formatInr(subtotal)}
-      {cycleLabel} at renewal.
-    </>
-  );
+  const checkoutTitle = isGiftCheckout
+    ? `Gift ${details.name.replace(/ plan$/i, "")}`
+    : isVariableCheckoutPlan
+      ? details.name
+      : `Subscribe to ${details.name}`;
+  const termsLabel = isGiftCheckout
+    ? "One-time gift. Does not auto-renew."
+    : isVariableCheckoutPlan
+      ? "I agree to be contacted about pricing."
+      : "Auto-renews until I cancel.";
+  const renewalCopy = isGiftCheckout
+    ? "Does not auto-renew."
+    : isVariableCheckoutPlan
+      ? "No charge until pricing is confirmed."
+      : `Renews ${renewalDate}.`;
+  const showSeatLines = isTeamPlan || isBusinessWorkspace;
+  const showCycleSubtitle = !billingCycleToggle && !maxTierToggle;
 
   return (
     <div className="checkout-shell">
@@ -1740,7 +1731,7 @@ export function BillingCheckout({
         <main className="checkout-pay">
           <div className="checkout-pay__inner">
             <div className="mb-6">
-              <h1 className="checkout-heading">Subscribe to {details.name}</h1>
+              <h1 className="checkout-heading">{checkoutTitle}</h1>
             </div>
             {payError && <CheckoutErrorBanner message={payError} />}
             <CheckoutForm
@@ -1772,6 +1763,7 @@ export function BillingCheckout({
               payDisabledReason={payDisabledReason}
               payLabel={payLabel}
               variablePlanNotice={variablePayNotice}
+              termsLabel={termsLabel}
               onPay={() => void handleSubscribe()}
               onPayPrepare={handlePayPrepare}
               paymentMobile={paymentMobile}
@@ -1827,9 +1819,11 @@ export function BillingCheckout({
                 <h2 className="text-[20px] font-semibold tracking-[-0.03em]">
                   {details.name}
                 </h2>
-                <p className="mt-1 text-[13px] text-[var(--settings-fg-muted)]">
-                  {cycleDetailLabel}
-                </p>
+                {showCycleSubtitle ? (
+                  <p className="mt-1 text-[13px] text-[var(--settings-fg-muted)]">
+                    {cycleDetailLabel}
+                  </p>
+                ) : null}
               </div>
 
               {maxTierToggle}
@@ -1839,23 +1833,19 @@ export function BillingCheckout({
               {variablePlanNotice}
 
               <div className="checkout-totals">
-                {orderLineItems.map((item) => (
-                  <div key={item.key} className="checkout-totals__row">
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">{item.label}</div>
-                      <div className="text-[12px] text-[var(--settings-fg-muted)]">
-                        {item.sublabel}
-                      </div>
+                {showSeatLines &&
+                  orderLineItems.map((item) => (
+                    <div key={item.key} className="checkout-totals__row">
+                      <span className="min-w-0 truncate">{item.label}</span>
+                      <span className="shrink-0 tabular-nums">
+                        {isVariableCheckoutPlan
+                          ? isUsageCodePlan
+                            ? "Usage"
+                            : "Quote"
+                          : formatInr(item.amount)}
+                      </span>
                     </div>
-                    <span className="shrink-0 tabular-nums">
-                      {isVariableCheckoutPlan
-                        ? isUsageCodePlan
-                          ? "Usage"
-                          : "Quote"
-                        : formatInr(item.amount)}
-                    </span>
-                  </div>
-                ))}
+                  ))}
                 <div className="checkout-totals__row text-[var(--settings-fg-muted)]">
                   <span>Subtotal</span>
                   <span className="tabular-nums">
@@ -1889,9 +1879,8 @@ export function BillingCheckout({
                 </div>
               </div>
 
-              <p className="flex gap-2 text-[12px] leading-5 text-[var(--settings-fg-muted)]">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span>{renewalCopy}</span>
+              <p className="text-[12px] leading-5 text-[var(--settings-fg-muted)]">
+                {renewalCopy}
               </p>
             </div>
 
