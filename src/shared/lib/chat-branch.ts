@@ -5,12 +5,19 @@ const MAX_MESSAGE_CONTENT_CHARS = 256 * 1024;
 
 export const stripMessageForSnapshot = (message: Message): Message => ({
   id: message.id,
+  // Turn identity MUST survive the round-trip: the store sorts restored
+  // threads by turn, and without clientId/turnId/createdAt every restored
+  // message collapses to the same sort key and users group before assistants.
+  clientId: message.clientId,
+  turnId: message.turnId,
+  createdAt: message.createdAt,
   role: message.role,
   content: message.content,
   attachments: message.attachments,
   thinkingContent: message.thinkingContent,
   hasThinking: message.hasThinking,
   thinkingDurationSeconds: message.thinkingDurationSeconds,
+  generationFailed: message.generationFailed,
   agentMode: message.agentMode,
   agentFrameComplete: message.agentFrameComplete,
   agentTrace: message.agentTrace,
@@ -26,6 +33,7 @@ const stripNestedSnapshots = (
     thinkingContent: version.thinkingContent,
     hasThinking: version.hasThinking,
     thinkingDurationSeconds: version.thinkingDurationSeconds,
+    generationFailed: version.generationFailed,
     agentMode: version.agentMode,
     agentFrameComplete: version.agentFrameComplete,
     agentTrace: version.agentTrace,
@@ -61,6 +69,11 @@ export const compactMessageBranchData = (message: Message): Message => {
   return message;
 };
 
+const hasUsableVersions = (
+  versions: readonly MessageBranchVersion[] | undefined,
+): versions is readonly MessageBranchVersion[] =>
+  !!versions && versions.length > 1;
+
 export const mergeSnapshotWithBranchMeta = (
   snapshot: readonly Message[],
   currentMessages: readonly Message[],
@@ -79,26 +92,43 @@ export const mergeSnapshotWithBranchMeta = (
   );
 
   return snapshot.map((msg) => {
-    const snapshotMeta =
-      msg.branchVersions && msg.branchVersions.length > 1
-        ? {
-            branchVersions: msg.branchVersions,
-            activeBranchIndex: msg.activeBranchIndex,
-          }
-        : null;
+    // Only multi-version metadata counts. Stale singletons (e.g. a leftover
+    // placeholder version whose content never synced) must never override —
+    // treating them as absent also auto-heals legacy state.
+    const snapshotMeta = hasUsableVersions(msg.branchVersions)
+      ? {
+          branchVersions: msg.branchVersions,
+          activeBranchIndex: msg.activeBranchIndex,
+        }
+      : null;
     const currentMeta = currentMetaMap.get(msg.id);
-    const meta = snapshotMeta?.branchVersions?.length
-      ? snapshotMeta
-      : currentMeta?.branchVersions?.length
-        ? currentMeta
-        : null;
+    const usableCurrentMeta = hasUsableVersions(currentMeta?.branchVersions)
+      ? currentMeta
+      : null;
+    const meta = snapshotMeta ?? usableCurrentMeta;
 
-    if (!meta?.branchVersions?.length) return msg;
-    return {
+    if (!meta?.branchVersions) {
+      // Neither side truly branches: drop any stale singleton versions so
+      // content and version metadata can never disagree downstream.
+      if (!msg.branchVersions?.length) return msg;
+      const clean = { ...msg };
+      delete clean.branchVersions;
+      delete clean.activeBranchIndex;
+      return clean;
+    }
+    const mergedVersions = [...meta.branchVersions];
+    const merged: Message = {
       ...msg,
-      branchVersions: meta.branchVersions,
+      branchVersions: mergedVersions,
       activeBranchIndex: meta.activeBranchIndex,
     };
+    // The merged versions may come from the other side than the content —
+    // re-hydrate content from the merged active version so the visible text
+    // and the version index always agree.
+    return hydrateMessageFromActiveBranch(
+      merged,
+      merged.activeBranchIndex ?? mergedVersions.length - 1,
+    );
   });
 };
 
@@ -114,6 +144,7 @@ export const ensureBranchVersions = (
           thinkingContent: message.thinkingContent,
           hasThinking: message.hasThinking,
           thinkingDurationSeconds: message.thinkingDurationSeconds,
+          generationFailed: message.generationFailed,
           agentMode: message.agentMode,
           agentFrameComplete: message.agentFrameComplete,
           agentTrace: message.agentTrace,
@@ -136,6 +167,7 @@ export const hydrateMessageFromActiveBranch = (
     thinkingContent: active.thinkingContent,
     hasThinking: active.hasThinking,
     thinkingDurationSeconds: active.thinkingDurationSeconds,
+    generationFailed: active.generationFailed,
     agentMode: active.agentMode,
     agentFrameComplete: active.agentFrameComplete,
     agentTrace: active.agentTrace,
@@ -147,7 +179,63 @@ export const hydrateMessageFromActiveBranch = (
   };
 };
 
-export function captureSnapshotForActiveBranch(
+/**
+ * Write the live message fields back into its active version. Forking (edit /
+ * retry) calls this BEFORE appending the new version so the version being
+ * left behind always holds the exact content on screen — including content
+ * streamed after the version was created. No-op when the message never
+ * branched (versions materialize from live content on demand instead).
+ */
+export function syncActiveVersionFromLive(message: Message): Message {
+  const versions = message.branchVersions;
+  if (!versions?.length) return message;
+  const activeIndex = Math.max(
+    0,
+    Math.min(
+      message.activeBranchIndex ?? versions.length - 1,
+      versions.length - 1,
+    ),
+  );
+  const nextVersions = [...versions];
+  nextVersions[activeIndex] = {
+    ...nextVersions[activeIndex],
+    content: message.content,
+    attachments: message.attachments,
+    thinkingContent: message.thinkingContent,
+    hasThinking: message.hasThinking,
+    thinkingDurationSeconds: message.thinkingDurationSeconds,
+    generationFailed: message.generationFailed,
+    agentMode: message.agentMode,
+    agentFrameComplete: message.agentFrameComplete,
+    agentTrace: message.agentTrace,
+    agentArtifacts: message.agentArtifacts,
+  };
+  return {
+    ...message,
+    branchVersions: nextVersions,
+    activeBranchIndex: activeIndex,
+  };
+}
+
+/** Pure list-level variant for post-stream sync in mutation callbacks. */
+export function syncMessageActiveVersion(
+  messages: Message[],
+  messageId: string,
+): Message[] {
+  return messages.map((msg) =>
+    msg.id === messageId ? syncActiveVersionFromLive(msg) : msg,
+  );
+}
+
+/**
+ * Refresh the active version's snapshot to the current thread.
+ *
+ * UNIFORM RULE: a version's snapshot always reflects the thread as last seen
+ * on that version. Refreshing (overwrite) on every switch-away — instead of
+ * keeping the first snapshot forever — is what keeps messages sent on a
+ * restored branch (new turns, follow-ups) from being lost by the next switch.
+ */
+export function refreshSnapshotForActiveBranch(
   chatMessages: Message[],
   messageId: string,
 ): Message[] {
@@ -155,10 +243,13 @@ export function captureSnapshotForActiveBranch(
   if (!targetMessage) return chatMessages;
 
   const versions = ensureBranchVersions(targetMessage);
-  const activeIndex = targetMessage.activeBranchIndex ?? versions.length - 1;
-  if (versions[activeIndex]?.snapshot?.length) {
-    return chatMessages;
-  }
+  const activeIndex = Math.max(
+    0,
+    Math.min(
+      targetMessage.activeBranchIndex ?? versions.length - 1,
+      versions.length - 1,
+    ),
+  );
 
   const snapshot = createChatSnapshot(chatMessages);
   return chatMessages.map((msg) => {
@@ -168,7 +259,11 @@ export function captureSnapshotForActiveBranch(
       ...nextVersions[activeIndex],
       snapshot,
     };
-    return { ...msg, branchVersions: nextVersions };
+    return {
+      ...msg,
+      branchVersions: nextVersions,
+      activeBranchIndex: activeIndex,
+    };
   });
 }
 
@@ -180,33 +275,49 @@ export function attachSnapshotToBranchVersion(
   return messages.map((msg) => {
     if (msg.id !== branchMessageId) return msg;
     const versions = ensureBranchVersions(msg);
-    const active = msg.activeBranchIndex ?? versions.length - 1;
+    const active = Math.max(
+      0,
+      Math.min(
+        msg.activeBranchIndex ?? versions.length - 1,
+        versions.length - 1,
+      ),
+    );
     const nextVersions = [...versions];
     nextVersions[active] = {
       ...nextVersions[active],
       snapshot,
     };
-    return { ...msg, branchVersions: nextVersions };
+    return { ...msg, branchVersions: nextVersions, activeBranchIndex: active };
   });
 }
 
-function saveSnapshotOnCurrentBranchVersion(
+function stampSnapshotOnCurrentBranchVersion(
   message: Message,
   snapshot: Message[],
 ): Message {
   const versions = ensureBranchVersions(message);
   const normalizedVersions = [...versions];
-  const currentIndex =
-    message.activeBranchIndex ?? normalizedVersions.length - 1;
+  const currentIndex = Math.max(
+    0,
+    Math.min(
+      message.activeBranchIndex ?? normalizedVersions.length - 1,
+      normalizedVersions.length - 1,
+    ),
+  );
 
-  if (!normalizedVersions[currentIndex]?.snapshot?.length) {
-    normalizedVersions[currentIndex] = {
-      ...normalizedVersions[currentIndex],
-      snapshot,
-    };
-  }
+  // Overwrite, never keep-if-exists: the version being forked from must
+  // remember the pre-fork thread (including turns sent since the version was
+  // created or last restored), not the state from an earlier visit.
+  normalizedVersions[currentIndex] = {
+    ...normalizedVersions[currentIndex],
+    snapshot,
+  };
 
-  return { ...message, branchVersions: normalizedVersions };
+  return {
+    ...message,
+    branchVersions: normalizedVersions,
+    activeBranchIndex: currentIndex,
+  };
 }
 
 function rebuildChatWithoutSnapshot(
@@ -263,8 +374,10 @@ export function editMessageWithBranchHelper(
   const nextAttachments =
     attachments !== undefined ? attachments : targetMessage.attachments;
   const baseSnapshot = createChatSnapshot(existing);
-  const targetWithSnapshot = saveSnapshotOnCurrentBranchVersion(
-    targetMessage,
+  // Settle the live content into the version being left before forking, then
+  // stamp the pre-fork thread on it.
+  const targetWithSnapshot = stampSnapshotOnCurrentBranchVersion(
+    syncActiveVersionFromLive(targetMessage),
     baseSnapshot,
   );
   const targetVersions = ensureBranchVersions(targetWithSnapshot);
@@ -281,6 +394,10 @@ export function editMessageWithBranchHelper(
     activeBranchIndex: nextUserVersions.length - 1,
   };
 
+  // No placeholder versions: the fresh answer carries no branch metadata
+  // until it actually branches, at which point v1 materializes from the real
+  // streamed content. (A placeholder empty v1 used to clobber the streamed
+  // answer on the first retry of an edited turn.)
   const assistantMessage: Message = {
     id: newAssistantId,
     role: "assistant",
@@ -289,8 +406,6 @@ export function editMessageWithBranchHelper(
     isStreaming: true,
     isThinkingStreaming: false,
     hasThinking: false,
-    activeBranchIndex: 0,
-    branchVersions: [{ content: "", thinkingContent: "", hasThinking: false }],
   };
 
   const nextChat = [
@@ -337,8 +452,10 @@ export function retryAssistantWithBranchHelper(
 
   const assistantMessage = existing[assistantIndex];
   const baseSnapshot = createChatSnapshot(existing);
-  const assistantWithSnapshot = saveSnapshotOnCurrentBranchVersion(
-    assistantMessage,
+  // Settle the live answer into the version being regenerated from — without
+  // this the previous answer is lost the moment the new stream overwrites it.
+  const assistantWithSnapshot = stampSnapshotOnCurrentBranchVersion(
+    syncActiveVersionFromLive(assistantMessage),
     baseSnapshot,
   );
   const existingVersions = ensureBranchVersions(assistantWithSnapshot);
@@ -379,40 +496,53 @@ export function switchMessageBranchHelper(
   nextActiveIndex: number;
   totalVersions: number;
 } {
-  const messagesWithSnapshot = captureSnapshotForActiveBranch(
-    chatMessages,
-    messageId,
-  );
-  const targetMessage = messagesWithSnapshot.find(
-    (msg) => msg.id === messageId,
-  );
+  const targetMessage = chatMessages.find((msg) => msg.id === messageId);
   if (!targetMessage) {
     return { nextChat: chatMessages, nextActiveIndex: 0, totalVersions: 1 };
   }
 
   const versions = ensureBranchVersions(targetMessage);
-  if (versions.length <= 1) {
-    return {
-      nextChat: messagesWithSnapshot,
-      nextActiveIndex: 0,
-      totalVersions: versions.length,
-    };
-  }
-
-  const current = targetMessage.activeBranchIndex ?? versions.length - 1;
+  const current = Math.max(
+    0,
+    Math.min(
+      targetMessage.activeBranchIndex ?? versions.length - 1,
+      versions.length - 1,
+    ),
+  );
   const next = direction === "prev" ? current - 1 : current + 1;
-  if (next < 0 || next >= versions.length) {
+
+  // No-op switches return the input untouched — capturing a snapshot on a
+  // dead-end click would stamp misleading restore state for no reason.
+  if (versions.length <= 1 || next < 0 || next >= versions.length) {
     return {
-      nextChat: messagesWithSnapshot,
+      nextChat: chatMessages,
       nextActiveIndex: current,
       totalVersions: versions.length,
     };
   }
 
-  const nextVersion = versions[next];
-  const snapshot = nextVersion.snapshot;
+  // Real switch: refresh the version being left to the exact thread on
+  // screen (this is what preserves turns sent on a restored branch), settle
+  // live content into it, then restore the target.
+  const settledMessages = chatMessages.map((msg) =>
+    msg.id === messageId ? syncActiveVersionFromLive(msg) : msg,
+  );
+  const messagesWithSnapshot = refreshSnapshotForActiveBranch(
+    settledMessages,
+    messageId,
+  );
+  const refreshedTarget = messagesWithSnapshot.find(
+    (msg) => msg.id === messageId,
+  );
+  const refreshedVersions = refreshedTarget
+    ? ensureBranchVersions(refreshedTarget)
+    : versions;
+  const nextVersion = refreshedVersions[next];
+  const snapshot = nextVersion?.snapshot;
 
   if (snapshot && snapshot.length > 0) {
+    // mergeSnapshotWithBranchMeta re-hydrates every branched message from its
+    // merged active version; the switch target is then pinned to `next`.
     const snapshotWithMeta = mergeSnapshotWithBranchMeta(
       snapshot,
       messagesWithSnapshot,
@@ -423,7 +553,7 @@ export function switchMessageBranchHelper(
     return {
       nextChat: snapshotWithMeta,
       nextActiveIndex: next,
-      totalVersions: versions.length,
+      totalVersions: refreshedVersions.length,
     };
   }
 
@@ -436,6 +566,6 @@ export function switchMessageBranchHelper(
   return {
     nextChat,
     nextActiveIndex: next,
-    totalVersions: versions.length,
+    totalVersions: refreshedVersions.length,
   };
 }

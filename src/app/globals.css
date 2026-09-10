@@ -3320,6 +3320,15 @@ button.user-message-card__body:not(:disabled):hover,
   pointer-events: none;
 }
 
+/* Branched bubbles keep their version switcher visible while docked — the
+   arrows + count must stay reachable without hovering, especially on touch.
+   The floating panel styling below gives the row a solid surface. */
+.sticky-user-msg--stuck .user-message-actions:has([data-branch-nav]) {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .sticky-user-msg-sentinel {
   height: 1px;
   width: 100%;

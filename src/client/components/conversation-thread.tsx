@@ -405,12 +405,17 @@ const MessageRow = React.memo(
             {editingMessageId !== message.id ? (
               <div className="user-message-actions flex h-8 items-center justify-end gap-1">
                 {branchVersions > 1 ? (
-                  <div className="mr-1 flex items-center gap-1 text-[var(--ui-fg-muted)]">
+                  <div
+                    data-branch-nav
+                    className="mr-1 flex items-center gap-1 text-[var(--ui-fg-muted)]"
+                  >
                     <HintTooltip content="Previous version" side="bottom">
                       <button
                         type="button"
                         onClick={() => onSwitchBranch(message.id, "prev")}
-                        disabled={activeBranchIndex <= 0}
+                        disabled={
+                          chatIsGenerating || activeBranchIndex <= 0
+                        }
                         className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
                       >
                         <svg
@@ -431,7 +436,10 @@ const MessageRow = React.memo(
                       <button
                         type="button"
                         onClick={() => onSwitchBranch(message.id, "next")}
-                        disabled={activeBranchIndex >= branchVersions - 1}
+                        disabled={
+                          chatIsGenerating ||
+                          activeBranchIndex >= branchVersions - 1
+                        }
                         className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
                       >
                         <svg
@@ -680,7 +688,9 @@ const MessageRow = React.memo(
                         <button
                           type="button"
                           onClick={() => onSwitchBranch(message.id, "prev")}
-                          disabled={activeBranchIndex <= 0}
+                          disabled={
+                            chatIsGenerating || activeBranchIndex <= 0
+                          }
                           className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
                         >
                           <svg
@@ -701,7 +711,10 @@ const MessageRow = React.memo(
                         <button
                           type="button"
                           onClick={() => onSwitchBranch(message.id, "next")}
-                          disabled={activeBranchIndex >= branchVersions - 1}
+                          disabled={
+                            chatIsGenerating ||
+                            activeBranchIndex >= branchVersions - 1
+                          }
                           className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
                         >
                           <svg

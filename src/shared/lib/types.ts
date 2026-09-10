@@ -12,6 +12,7 @@ export type MessageBranchVersion = {
   readonly agentFrameComplete?: boolean;
   readonly agentTrace?: AgentTraceState;
   readonly agentArtifacts?: ChatArtifact[];
+  readonly generationFailed?: boolean;
   readonly snapshot?: readonly Message[];
 };
 

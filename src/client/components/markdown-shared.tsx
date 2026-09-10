@@ -65,6 +65,12 @@ export function CodeRenderer(props: {
 
   if (!inline && (language || String(children).includes("\n"))) {
     const content = String(children).replace(/\n$/, "");
+    // An empty fence (just opened while streaming, or settled with no code)
+    // must not paint a bordered frame, header, and divider around nothing —
+    // that bordered empty box is what reads as a stray "border" while
+    // scrolling past sticky code/table blocks. Render nothing until the
+    // first code token arrives (streaming) or when settled empty.
+    if (!content.trim()) return null;
     const resolvedLanguage = language || "text";
     const extension = extensionForLanguage(resolvedLanguage);
 

@@ -58,6 +58,7 @@ import {
   redoUserMessageWithBranchHelper,
   retryAssistantWithBranchHelper,
   switchMessageBranchHelper,
+  syncMessageActiveVersion,
 } from "@/lib/chat-branch";
 import {
   buildChatConversation,
@@ -2932,7 +2933,13 @@ export function useChatApi(
         const finalMessages = allChatsRef.current[chatId] || [];
         setAllChats((prev) => ({
           ...prev,
-          [chatId]: attachSnapshotToBranchVersion(finalMessages, messageId),
+          // Settle the streamed answer into its active version first so a
+          // later retry regenerates from real content, then stamp the
+          // post-stream thread on the edited version.
+          [chatId]: attachSnapshotToBranchVersion(
+            syncMessageActiveVersion(finalMessages, assistantMessageId),
+            messageId,
+          ),
         }));
         scheduleBranchPersist(chatId);
       }
@@ -2979,7 +2986,10 @@ export function useChatApi(
         const finalMessages = allChatsRef.current[chatId] || [];
         setAllChats((prev) => ({
           ...prev,
-          [chatId]: attachSnapshotToBranchVersion(finalMessages, messageId),
+          [chatId]: attachSnapshotToBranchVersion(
+            syncMessageActiveVersion(finalMessages, assistantMessageId),
+            messageId,
+          ),
         }));
         scheduleBranchPersist(chatId);
       }
@@ -3024,8 +3034,10 @@ export function useChatApi(
         const finalMessages = allChatsRef.current[chatId] || [];
         setAllChats((prev) => ({
           ...prev,
+          // The regenerated answer streams into a fresh empty version —
+          // settle the final text into it before stamping the snapshot.
           [chatId]: attachSnapshotToBranchVersion(
-            finalMessages,
+            syncMessageActiveVersion(finalMessages, assistantMessageId),
             assistantMessageId,
           ),
         }));
@@ -3037,6 +3049,9 @@ export function useChatApi(
 
   const switchMessageBranch = useCallback(
     (chatId: string, messageId: string, direction: "prev" | "next") => {
+      // Never switch mid-stream: the streaming turn owns the tail of the
+      // thread and a restore/truncate underneath it corrupts both.
+      if (isGenerating) return;
       let nextChat: Message[] = [];
       setAllChats((prev) => {
         const chatMessages = prev[chatId] || [];
@@ -3056,7 +3071,7 @@ export function useChatApi(
         if (nextChat.length) void persistBranches(chatId, nextChat);
       }, 100);
     },
-    [persistBranches],
+    [isGenerating, persistBranches],
   );
 
   const generatingChatIds = useChatStore(
