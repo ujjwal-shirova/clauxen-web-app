@@ -121,11 +121,11 @@ export function ChatViewHeader({
       <>
         <header
           className={cn(
-            "content-pane-top-bar pointer-events-none absolute inset-x-0 top-0 z-40 flex items-center bg-[var(--chat-canvas-bg,#f2f3f6)] font-sans",
+            "content-pane-top-bar pointer-events-none absolute inset-x-0 top-0 z-40 flex items-center font-sans",
             className,
           )}
         >
-          <div className="pointer-events-auto flex h-full w-full min-w-0 items-center gap-1 px-2 sm:gap-1.5 sm:px-3">
+          <div className="pointer-events-auto flex h-full w-full min-w-0 items-center gap-0.5 px-2 sm:gap-1 sm:px-2">
             {showMobileMenu && onOpenMobileNav ? (
               <MobileMenuButton
                 onClick={onOpenMobileNav}
@@ -133,7 +133,7 @@ export function ChatViewHeader({
                 className="-ml-0.5 shrink-0"
               />
             ) : null}
-            <div className="flex h-full min-w-0 flex-1 flex-nowrap items-center gap-0.5 overflow-hidden sm:gap-1">
+            <div className="flex h-full min-w-0 flex-1 flex-nowrap items-center gap-0 overflow-hidden">
               {projectBreadcrumb ? (
                 <>
                   {projectBreadcrumb.href ? (
@@ -180,7 +180,7 @@ export function ChatViewHeader({
               <button
                 type="button"
                 onClick={() => setRenameDialogOpen(true)}
-                className="ui-chrome-text-btn group/title min-w-0 max-w-[min(52vw,20rem)] flex-none gap-1 overflow-hidden bg-transparent px-1.5 text-[14px] font-medium text-[var(--ui-fg)] hover:bg-[var(--ui-hover-wash)] sm:max-w-[min(42vw,22rem)] sm:gap-1.5 sm:px-2"
+                className="ui-chrome-text-btn group/title min-w-0 max-w-[min(52vw,20rem)] flex-none gap-1 overflow-hidden bg-transparent px-1 text-[14px] font-medium text-[var(--ui-fg)] hover:bg-[var(--ui-hover-wash)] sm:max-w-[min(42vw,22rem)] sm:gap-1 sm:px-1.5"
                 aria-label={`${displayTitle}, rename chat`}
               >
                 <span className="truncate whitespace-nowrap">{displayTitle}</span>

@@ -4290,7 +4290,7 @@ button.user-message-card__body:not(:disabled):hover,
 .app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
   .content-pane-top-bar
   > div {
-  padding-left: 48px !important;
+  padding-left: 40px !important;
 }
 
 .content-pane-top-bar .ui-chrome-text-btn {
@@ -5741,7 +5741,6 @@ button[data-speed-toggle][data-state="open"] {
   border-color: var(--ui-border) !important;
 }
 
-.dark .content-pane-top-bar,
 .dark .sticky-user-msg-host,
 .dark .sticky-user-msg--stuck {
   background-color: var(--chat-canvas-bg) !important;
@@ -5822,10 +5821,44 @@ button[data-speed-toggle][data-state="open"] {
    Consolidated final block so the cascade stays reviewable. Every value
    below resolves through theme tokens — no hardcoded light/dark colors. */
 
-/* Chat header — borderless; no hairline separation from content. */
+/* Chat header — frosted cloudy wash; no hairline from content. */
 .content-pane-top-bar {
   border-bottom: 0 !important;
   box-shadow: none !important;
+  background: color-mix(
+    in oklab,
+    var(--app-panel-bg, #fcfcfb) 58%,
+    transparent
+  ) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.55);
+  backdrop-filter: blur(22px) saturate(1.55);
+}
+
+.dark .content-pane-top-bar {
+  background: color-mix(
+    in oklab,
+    var(--chat-canvas-bg, #18181b) 52%,
+    transparent
+  ) !important;
+}
+
+/* Sit the title next to the collapsed-sidebar trigger (32px at 10px). */
+.app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
+  .content-pane-top-bar {
+  padding-left: 0 !important;
+}
+
+.app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
+  .content-pane-top-bar
+  > div {
+  padding-left: 40px !important;
+}
+
+.app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
+  .content-pane-top-bar
+  .ui-chrome-text-btn {
+  padding-left: 4px;
+  padding-right: 8px;
 }
 
 .content-pane-top-bar--landing {
