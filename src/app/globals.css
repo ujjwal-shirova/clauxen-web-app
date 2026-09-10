@@ -6097,36 +6097,6 @@ button.prompt-model-selector[aria-expanded="true"] {
   text-decoration-color: var(--settings-fg);
 }
 
-.checkout-link-btn {
-  display: inline-flex;
-  width: 100%;
-  min-height: 48px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 12px;
-  background: #00d66f;
-  color: #03251a;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 20px;
-  cursor: pointer;
-}
-
-.checkout-link-btn:hover:not(:disabled) {
-  background: #00c464;
-}
-
-.checkout-link-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.checkout-link-btn__label {
-  font-weight: 600;
-}
-
 .checkout-heading {
   font-size: 20px;
   line-height: 26px;

@@ -1,5 +1,4 @@
 export type CheckoutPaymentTab =
-  | "link"
   | "saved"
   | "netbanking"
   | "card"

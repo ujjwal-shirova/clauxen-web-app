@@ -34,8 +34,6 @@ export type CheckoutFormProps = {
   agreed: boolean;
   onAgreedChange: (value: boolean) => void;
   onPay: () => void;
-  onLinkPay?: () => void;
-  linkPayDisabled?: boolean;
   showGstin?: boolean;
   showExpressCheckout?: boolean;
   hideUpi?: boolean;
@@ -85,8 +83,6 @@ export function CheckoutForm({
   agreed,
   onAgreedChange,
   onPay,
-  onLinkPay,
-  linkPayDisabled = false,
   showGstin = true,
   showExpressCheckout = false,
   hideUpi = false,
@@ -121,8 +117,6 @@ export function CheckoutForm({
           onExpressCheckout={onExpressCheckout}
           onCardFieldsChange={onCardFieldsChange}
           onNetbankingChange={onNetbankingChange}
-          onLinkPay={onLinkPay}
-          linkPayDisabled={linkPayDisabled}
         />
 
         {billingAddressCollapsed && billingAddress.isComplete ? (

@@ -1053,8 +1053,7 @@ export function BillingCheckout({
 
   const paymentFieldsValid =
     billingAddress.isComplete &&
-    (paymentTab === "link" ||
-      (paymentTab === "upi" && billingAddress.isComplete) ||
+    ((paymentTab === "upi" && billingAddress.isComplete) ||
       (paymentTab === "saved" && hasSavedPaymentMethod) ||
       (paymentTab === "netbanking" &&
         netbankingFields.isComplete &&
@@ -1078,9 +1077,6 @@ export function BillingCheckout({
     if (!checkoutSessionId) return "Securing your checkout…";
     const addressReason = getCheckoutAddressIncompleteReason(billingAddress);
     if (addressReason) return addressReason;
-    if (paymentTab === "link") {
-      return null;
-    }
     if (paymentTab === "netbanking") {
       if (!netbankingFields.bankCode) {
         return "Select your bank to continue.";
@@ -1153,7 +1149,6 @@ export function BillingCheckout({
     const fieldsValid =
       billingAddress.isComplete &&
       (options?.walletExpress ||
-        tab === "link" ||
         tab === "upi" ||
         (tab === "saved" && hasSavedPaymentMethod) ||
         (tab === "netbanking" &&
@@ -1304,56 +1299,6 @@ export function BillingCheckout({
           callbackUrl,
           description: details.name,
           onSuccess: () => undefined,
-        });
-        return;
-      }
-
-      if (tab === "link") {
-        const checkout = await createBillingOrder({
-          planId: resolveApiPlanId(activePlanId, maxTier),
-          planName: isMaxPlan ? maxDetails.checkoutName : details.name,
-          billingCycle: isMaxPlan ? "monthly" : effectiveBillingCycle,
-          billingDetails: minimalBillingDetails,
-          checkoutSessionId,
-          currency: checkoutCurrency,
-          maxTier: isMaxPlan ? maxTier : undefined,
-          ...(isTeamPlan ? { seatBreakdown: seatCounts } : {}),
-          ...(isBusinessWorkspace
-            ? { organizationSeatCount: bundleSeatCount }
-            : {}),
-        });
-        const keyId = checkout.razorpay.keyId;
-        if (!keyId) throw new Error("Razorpay is not configured for checkout.");
-        releasePayingInFinally = false;
-        await openRazorpayCheckout({
-          keyId,
-          orderId: checkout.razorpay.orderId,
-          amount: checkout.razorpay.amount,
-          currency: checkout.razorpay.currency,
-          name: "Clauxen",
-          description: details.name,
-          paymentMethod: "card",
-          rememberCustomer: true,
-          customerId: checkout.razorpay.customerId,
-          prefill: {
-            name: billingDetails.billToName ?? billingDetails.fullName,
-            email: auth.user?.email ?? undefined,
-          },
-          onSuccess: async (payment) => {
-            try {
-              await verifyAndActivate(payment);
-            } catch (error) {
-              const message =
-                error instanceof Error ? error.message : PAYMENT_FAILED_MESSAGE;
-              setPayError(message);
-            } finally {
-              setPaying(false);
-            }
-          },
-          onDismiss: () => {
-            setPayError(PAYMENT_FAILED_MESSAGE);
-            setPaying(false);
-          },
         });
         return;
       }
@@ -1856,14 +1801,6 @@ export function BillingCheckout({
               onAgreedChange={setAgreed}
               termsLabel={termsLabel}
               onPay={() => void handleSubscribe()}
-              onLinkPay={() => void handleSubscribe("link")}
-              linkPayDisabled={
-                !agreed ||
-                !billingAddress.isComplete ||
-                paying ||
-                isVariableCheckoutPlan ||
-                !checkoutSessionId
-              }
               showGstin={isIndiaCheckout}
               onCardFieldsChange={handleCardFieldsChange}
               onNetbankingChange={handleNetbankingFieldsChange}
