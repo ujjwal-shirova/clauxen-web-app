@@ -10,6 +10,8 @@ export type BillingInvoicePayload = {
   nextBillingAt?: string | null;
   currency: "INR" | "USD";
   status: "paid" | "open" | "draft";
+  invoiceKind?: "domestic_gst" | "export_lut" | "exempt_gstin";
+  lutNumber?: string | null;
   billedTo: {
     name: string;
     email?: string;
@@ -145,6 +147,75 @@ export async function generateInvoiceOnWorker(
     };
   } catch (err) {
     console.error("[billing] invoice generate error", err);
+    return null;
+  }
+}
+
+export type InvoiceFulfillResult = {
+  r2Key: string;
+  salesKey?: string;
+  invoiceNumber: string;
+  bytes: number;
+  razorpayDocumentId?: string | null;
+  razorpayDocumentPurpose?: string | null;
+  emailed: boolean;
+  emailError?: string | null;
+};
+
+/**
+ * Single-call invoice fulfillment on the Cloudflare billing Worker:
+ * PDF → R2 (+ sales copy) → Razorpay Documents → receipt email with PDF.
+ */
+export async function fulfillInvoiceOnWorker(
+  payload: BillingInvoicePayload & {
+    email: {
+      to: string;
+      billedToName?: string;
+      addressSummary?: string;
+      pdfDownloadUrl?: string;
+    };
+  },
+): Promise<InvoiceFulfillResult | null> {
+  if (!isBillingWorkerConfigured()) {
+    console.warn(
+      "[billing] BILLING_WORKER_URL not set — skipping Cloudflare invoice fulfill",
+    );
+    return null;
+  }
+
+  try {
+    const res = await billingWorkerFetch("/v1/invoices/fulfill", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      r2Key?: string;
+      salesKey?: string;
+      invoiceNumber?: string;
+      bytes?: number;
+      razorpayDocumentId?: string | null;
+      razorpayDocumentPurpose?: string | null;
+      emailed?: boolean;
+      emailError?: string | null;
+      error?: string;
+    };
+    if (!res.ok || !body.ok || !body.r2Key) {
+      console.error("[billing] invoice fulfill failed", body);
+      return null;
+    }
+    return {
+      r2Key: body.r2Key,
+      salesKey: body.salesKey,
+      invoiceNumber: body.invoiceNumber ?? payload.invoiceNumber,
+      bytes: body.bytes ?? 0,
+      razorpayDocumentId: body.razorpayDocumentId ?? null,
+      razorpayDocumentPurpose: body.razorpayDocumentPurpose ?? null,
+      emailed: body.emailed === true,
+      emailError: body.emailError ?? null,
+    };
+  } catch (err) {
+    console.error("[billing] invoice fulfill error", err);
     return null;
   }
 }

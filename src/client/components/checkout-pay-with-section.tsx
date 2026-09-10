@@ -4,6 +4,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import React from "react";
 import { CreditCard, Landmark, Wallet } from "lucide-react";
 import { CheckoutOrDivider } from "@/components/checkout-or-divider";
+import { CheckoutPayWithLinkButton } from "@/components/checkout-pay-with-link";
 import {
   CheckoutPaymentPanel,
   type CheckoutCardFieldState,
@@ -49,6 +50,8 @@ export function CheckoutPayWithSection({
   onNetbankingChange,
   hideUpi = false,
   hideNetbanking = false,
+  onLinkPay,
+  linkPayDisabled = false,
 }: {
   paymentTab: CheckoutPaymentTab;
   onPaymentTabChange: (tab: CheckoutPaymentTab) => void;
@@ -59,12 +62,23 @@ export function CheckoutPayWithSection({
   onExpressCheckout?: () => void;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
   onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
+  onLinkPay?: () => void;
+  linkPayDisabled?: boolean;
 }) {
   const showSaved = Boolean(savedMethod);
 
   return (
     <section className="flex min-w-0 flex-col gap-4">
       <h2 className={checkoutUi.sectionTitle}>Payment Method</h2>
+
+      <CheckoutPayWithLinkButton
+        onClick={() => {
+          onPaymentTabChange("link");
+          onLinkPay?.();
+        }}
+        disabled={linkPayDisabled}
+      />
+      <CheckoutOrDivider />
 
       {showExpressCheckout && (
         <>

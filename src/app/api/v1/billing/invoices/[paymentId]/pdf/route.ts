@@ -23,7 +23,7 @@ export const GET = withApiRouteParams<{ paymentId: string }>(
       status: 200,
       headers: {
         "content-type": "application/pdf",
-        "content-disposition": `inline; filename="shirova-invoice-${params.paymentId}.pdf"`,
+        "content-disposition": `inline; filename="clauxen-invoice-${params.paymentId}.pdf"`,
         "cache-control": "private, no-store",
       },
     });

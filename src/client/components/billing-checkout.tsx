@@ -71,6 +71,10 @@ import {
   type CheckoutBillingDetails,
 } from "@/lib/checkout-tax";
 import { isValidIndianGstin, normalizeGstin } from "@/lib/gstin";
+import {
+  defaultCurrencyForCountry,
+  effectiveCountryForCheckout,
+} from "@/lib/checkout-currency";
 
 export type { MaxTier };
 
@@ -206,7 +210,8 @@ export function BillingCheckout({
   isGiftCheckout = false,
 }: BillingCheckoutProps) {
   const auth = useAuth();
-  const { currency, formatInr, isUsd, ready } = useCheckoutCurrency();
+  const { formatInr, ready, setCurrency, currency: storedCurrency } =
+    useCheckoutCurrency();
   const [billingCycle, setBillingCycle] =
     useState<BillingCycle>(initialBillingCycle);
   const [maxTier, setMaxTier] = useState<MaxTier>(initialMaxTier);
@@ -274,6 +279,15 @@ export function BillingCheckout({
     state: "",
     isComplete: false,
   });
+  /** Edge geo-IP country. Unknown until /geo returns — treat as IN so GST cannot be skipped. */
+  const [ipCountry, setIpCountry] = useState("IN");
+  const effectiveCheckoutCountry = effectiveCountryForCheckout(
+    billingAddress.countryCode || "IN",
+    ipCountry,
+  );
+  const checkoutCurrency = defaultCurrencyForCountry(effectiveCheckoutCountry);
+  const isUsd = checkoutCurrency === "USD";
+  const isIndiaCheckout = effectiveCheckoutCountry === "IN";
   const [applePayAvailable, setApplePayAvailable] = useState(false);
   const [sessionReminted, setSessionReminted] = useState(!needsSessionRemint);
 
@@ -296,6 +310,34 @@ export function BillingCheckout({
 
   useEffect(() => {
     setApplePayAvailable(canUseApplePay());
+  }, []);
+
+  useEffect(() => {
+    if (storedCurrency !== checkoutCurrency) {
+      setCurrency(checkoutCurrency);
+    }
+  }, [checkoutCurrency, storedCurrency, setCurrency]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/v1/geo/checkout-default", { credentials: "same-origin" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { data?: { countryCode?: string } } | null) => {
+        if (cancelled) return;
+        const code = json?.data?.countryCode?.trim().toUpperCase();
+        if (!code || !/^[A-Z]{2}$/.test(code)) return;
+        setIpCountry(code);
+        setBillingAddress((prev) => {
+          if (prev.addressLine1.trim() || prev.pin.trim()) return prev;
+          const next = { ...prev, countryCode: code };
+          next.isComplete = isCheckoutAddressComplete(next);
+          return next;
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Load saved billing address + default card-on-file for returning customers.
@@ -409,6 +451,12 @@ export function BillingCheckout({
       setPaymentTab("card");
     }
   }, [hasSavedPaymentMethod, paymentTab]);
+
+  useEffect(() => {
+    if (isUsd && (paymentTab === "upi" || paymentTab === "netbanking")) {
+      setPaymentTab("card");
+    }
+  }, [isUsd, paymentTab]);
 
   useEffect(() => {
     if (auth.user?.displayName?.trim() && !billingAddress.fullName) {
@@ -582,7 +630,9 @@ export function BillingCheckout({
       JSON.stringify({
         plan: resolveApiPlanId(activePlanId, maxTier),
         cycle: isMaxPlan || isGiftCheckout ? "monthly" : effectiveBillingCycle,
-        currency,
+        currency: checkoutCurrency,
+        country: billingAddress.countryCode || "IN",
+        ipCountry,
         maxTier: isMaxPlan ? maxTier : null,
         seats: isTeamPlan ? seatCounts : null,
         bundle: isBusinessWorkspace ? bundleSeatCount : null,
@@ -595,7 +645,9 @@ export function BillingCheckout({
       isGiftCheckout,
       giftMonths,
       effectiveBillingCycle,
-      currency,
+      checkoutCurrency,
+      billingAddress.countryCode,
+      ipCountry,
       isTeamPlan,
       seatCounts,
       isBusinessWorkspace,
@@ -707,7 +759,7 @@ export function BillingCheckout({
           billingCycle: isMaxPlan ? "monthly" : effectiveBillingCycle,
           billingDetails: minimalBillingDetails,
           checkoutSessionId,
-          currency,
+          currency: checkoutCurrency,
           maxTier: isMaxPlan ? maxTier : undefined,
           ...(isTeamPlan ? { seatBreakdown: seatCounts } : {}),
           ...(isBusinessWorkspace
@@ -763,7 +815,7 @@ export function BillingCheckout({
     details.name,
     effectiveBillingCycle,
     minimalBillingDetails,
-    currency,
+    checkoutCurrency,
     isTeamPlan,
     seatCounts,
     isBusinessWorkspace,
@@ -807,7 +859,8 @@ export function BillingCheckout({
           planId: resolveApiPlanId(activePlanId, maxTier),
           planName: isMaxPlan ? maxDetails.checkoutName : details.name,
           billingCycle: isMaxPlan ? "monthly" : effectiveBillingCycle,
-          currency,
+          currency: checkoutCurrency,
+          countryCode: billingAddress.countryCode || "IN",
           maxTier: isMaxPlan ? maxTier : undefined,
           returnPath:
             returnPath ||
@@ -858,7 +911,7 @@ export function BillingCheckout({
     bundleSeatCount,
     details.name,
     maxDetails.checkoutName,
-    currency,
+    checkoutCurrency,
     returnPath,
     syncCheckoutUrl,
     auth.loading,
@@ -972,8 +1025,19 @@ export function BillingCheckout({
         taxNote: null as string | null,
       };
     }
-    return computeCheckoutTaxInr(subtotal, billingDetails);
-  }, [isVariableCheckoutPlan, isUsd, subtotal, billingDetails]);
+    return computeCheckoutTaxInr(subtotal, {
+      ...billingDetails,
+      countryCode: effectiveCheckoutCountry,
+      gstin: isIndiaCheckout ? billingDetails.gstin : undefined,
+    });
+  }, [
+    isVariableCheckoutPlan,
+    isUsd,
+    subtotal,
+    billingDetails,
+    effectiveCheckoutCountry,
+    isIndiaCheckout,
+  ]);
 
   const tax = taxResult.taxInr;
   const total = subtotal + tax;
@@ -989,7 +1053,8 @@ export function BillingCheckout({
 
   const paymentFieldsValid =
     billingAddress.isComplete &&
-    ((paymentTab === "upi" && billingAddress.isComplete) ||
+    (paymentTab === "link" ||
+      (paymentTab === "upi" && billingAddress.isComplete) ||
       (paymentTab === "saved" && hasSavedPaymentMethod) ||
       (paymentTab === "netbanking" &&
         netbankingFields.isComplete &&
@@ -1013,6 +1078,9 @@ export function BillingCheckout({
     if (!checkoutSessionId) return "Securing your checkout…";
     const addressReason = getCheckoutAddressIncompleteReason(billingAddress);
     if (addressReason) return addressReason;
+    if (paymentTab === "link") {
+      return null;
+    }
     if (paymentTab === "netbanking") {
       if (!netbankingFields.bankCode) {
         return "Select your bank to continue.";
@@ -1085,6 +1153,7 @@ export function BillingCheckout({
     const fieldsValid =
       billingAddress.isComplete &&
       (options?.walletExpress ||
+        tab === "link" ||
         tab === "upi" ||
         (tab === "saved" && hasSavedPaymentMethod) ||
         (tab === "netbanking" &&
@@ -1239,6 +1308,56 @@ export function BillingCheckout({
         return;
       }
 
+      if (tab === "link") {
+        const checkout = await createBillingOrder({
+          planId: resolveApiPlanId(activePlanId, maxTier),
+          planName: isMaxPlan ? maxDetails.checkoutName : details.name,
+          billingCycle: isMaxPlan ? "monthly" : effectiveBillingCycle,
+          billingDetails: minimalBillingDetails,
+          checkoutSessionId,
+          currency: checkoutCurrency,
+          maxTier: isMaxPlan ? maxTier : undefined,
+          ...(isTeamPlan ? { seatBreakdown: seatCounts } : {}),
+          ...(isBusinessWorkspace
+            ? { organizationSeatCount: bundleSeatCount }
+            : {}),
+        });
+        const keyId = checkout.razorpay.keyId;
+        if (!keyId) throw new Error("Razorpay is not configured for checkout.");
+        releasePayingInFinally = false;
+        await openRazorpayCheckout({
+          keyId,
+          orderId: checkout.razorpay.orderId,
+          amount: checkout.razorpay.amount,
+          currency: checkout.razorpay.currency,
+          name: "Clauxen",
+          description: details.name,
+          paymentMethod: "card",
+          rememberCustomer: true,
+          customerId: checkout.razorpay.customerId,
+          prefill: {
+            name: billingDetails.billToName ?? billingDetails.fullName,
+            email: auth.user?.email ?? undefined,
+          },
+          onSuccess: async (payment) => {
+            try {
+              await verifyAndActivate(payment);
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : PAYMENT_FAILED_MESSAGE;
+              setPayError(message);
+            } finally {
+              setPaying(false);
+            }
+          },
+          onDismiss: () => {
+            setPayError(PAYMENT_FAILED_MESSAGE);
+            setPaying(false);
+          },
+        });
+        return;
+      }
+
       if (tab === "saved") {
         throw new Error(
           "Saved payment methods will charge on the next update. Use Card or UPI to pay now.",
@@ -1253,7 +1372,7 @@ export function BillingCheckout({
           billingCycle: isMaxPlan ? "monthly" : effectiveBillingCycle,
           billingDetails: minimalBillingDetails,
           checkoutSessionId,
-          currency,
+          currency: checkoutCurrency,
           maxTier: isMaxPlan ? maxTier : undefined,
           ...(isTeamPlan ? { seatBreakdown: seatCounts } : {}),
           ...(isBusinessWorkspace
@@ -1737,6 +1856,15 @@ export function BillingCheckout({
               onAgreedChange={setAgreed}
               termsLabel={termsLabel}
               onPay={() => void handleSubscribe()}
+              onLinkPay={() => void handleSubscribe("link")}
+              linkPayDisabled={
+                !agreed ||
+                !billingAddress.isComplete ||
+                paying ||
+                isVariableCheckoutPlan ||
+                !checkoutSessionId
+              }
+              showGstin={isIndiaCheckout}
               onCardFieldsChange={handleCardFieldsChange}
               onNetbankingChange={handleNetbankingFieldsChange}
               billingAddress={billingAddress}

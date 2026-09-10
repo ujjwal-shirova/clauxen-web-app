@@ -129,6 +129,8 @@ export type RazorpayCheckoutInput = {
   /** Opens Razorpay with default blocks so Apple Pay is available when eligible. */
   expressCheckout?: "apple_pay";
   allowZeroAmount?: boolean;
+  rememberCustomer?: boolean;
+  customerId?: string;
   prefill?: { name?: string; email?: string; contact?: string };
   onSuccess: (payload: {
     razorpay_order_id: string;
@@ -178,6 +180,8 @@ export async function openRazorpayCheckout(input: RazorpayCheckoutInput) {
     name: input.name ?? "Shirova",
     description: input.description,
     order_id: input.orderId,
+    ...(input.customerId ? { customer_id: input.customerId } : {}),
+    remember_customer: input.rememberCustomer !== false,
     prefill,
     config: isApplePayExpress
       ? buildRazorpayConfigForExpressCheckout()

@@ -499,3 +499,122 @@ export async function fulfillPayment(input: {
   );
   return rows[0] ?? null;
 }
+
+export type BillingInvoiceKind =
+  | "domestic_gst"
+  | "export_lut"
+  | "exempt_gstin";
+
+/** Insert the invoice ledger row (idempotent per payment). */
+export async function createBillingInvoice(input: {
+  userId: string;
+  orderId: string;
+  paymentId: string;
+  invoiceNumber: string;
+  kind: BillingInvoiceKind;
+  currency: string;
+  subtotalPaise: number;
+  taxPaise: number;
+  totalPaise: number;
+  country: string;
+  r2Key: string;
+  r2Url: string;
+  razorpayDocumentId?: string | null;
+  evidence?: Record<string, unknown> | null;
+  emailedAt?: string | null;
+}) {
+  assertNonEmpty(input.userId, "user id");
+  assertNonEmpty(input.orderId, "order id");
+  assertNonEmpty(input.paymentId, "payment id");
+  assertNonEmpty(input.invoiceNumber, "invoice number");
+  assertNonNegativeInteger(input.subtotalPaise, "subtotalPaise");
+  assertNonNegativeInteger(input.taxPaise, "taxPaise");
+  assertPositiveInteger(input.totalPaise, "totalPaise");
+  assertNonEmpty(input.r2Key, "r2 key");
+  assertNonEmpty(input.r2Url, "r2 url");
+  return queryOne<{ id: string; invoice_number: string }>(
+    `insert into public.billing_invoices
+       (user_id, order_id, payment_id, invoice_number, kind, currency,
+        subtotal_paise, tax_paise, total_paise, country, r2_key, r2_url,
+        razorpay_document_id, evidence, emailed_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15)
+     on conflict (payment_id) do update set
+       r2_key = excluded.r2_key,
+       r2_url = excluded.r2_url,
+       razorpay_document_id = coalesce(excluded.razorpay_document_id, public.billing_invoices.razorpay_document_id),
+       emailed_at = coalesce(excluded.emailed_at, public.billing_invoices.emailed_at),
+       updated_at = now()
+     returning id, invoice_number`,
+    [
+      input.userId,
+      input.orderId,
+      input.paymentId,
+      input.invoiceNumber,
+      input.kind,
+      input.currency,
+      input.subtotalPaise,
+      input.taxPaise,
+      input.totalPaise,
+      input.country,
+      input.r2Key,
+      input.r2Url,
+      input.razorpayDocumentId ?? null,
+      JSON.stringify(input.evidence ?? {}),
+      input.emailedAt ?? null,
+    ],
+  );
+}
+
+export async function getBillingInvoiceByPaymentId(paymentId: string) {
+  assertNonEmpty(paymentId, "payment id");
+  return queryOne<{
+    id: string;
+    user_id: string;
+    order_id: string;
+    payment_id: string;
+    invoice_number: string;
+    kind: string;
+    currency: string;
+    subtotal_paise: number;
+    tax_paise: number;
+    total_paise: number;
+    country: string;
+    r2_key: string;
+    r2_url: string;
+    emailed_at: string | null;
+  }>(
+    `select id, user_id, order_id, payment_id, invoice_number, kind, currency,
+            subtotal_paise, tax_paise, total_paise, country, r2_key, r2_url,
+            emailed_at
+     from public.billing_invoices
+     where payment_id = $1
+     limit 1`,
+    [paymentId],
+  );
+}
+
+/** Express Pay idempotency — find an order already minted for this key. */
+export async function getBillingOrderByIdempotencyKey(
+  userId: string,
+  idempotencyKey: string,
+) {
+  assertNonEmpty(userId, "user id");
+  assertNonEmpty(idempotencyKey, "idempotency key");
+  return queryOne<{
+    id: string;
+    user_id: string;
+    razorpay_order_id: string;
+    amount_paise: number;
+    currency: string;
+    status: string;
+    metadata: Record<string, unknown> | null;
+  }>(
+    `select id, user_id, razorpay_order_id, amount_paise, currency, status, metadata
+     from public.billing_orders
+     where user_id = $1
+       and metadata->>'idempotencyKey' = $2
+     order by created_at desc
+     limit 1`,
+    [userId, idempotencyKey],
+  );
+}

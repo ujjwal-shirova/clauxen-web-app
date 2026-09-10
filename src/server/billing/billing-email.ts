@@ -20,6 +20,7 @@ type InvoiceEmailPayload = {
   billedToName?: string;
   addressSummary?: string;
   pdfAvailable?: boolean;
+  pdfDownloadUrl?: string;
 };
 
 type AddressEmailPayload = {

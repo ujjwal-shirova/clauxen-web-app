@@ -3,6 +3,7 @@ import { jsonData } from "@/server/http/api-response";
 import { requireSession } from "@/server/auth/require-session";
 import {
   buildCheckoutBillingDetailsForUser,
+  billingDetailsForTax,
   parseMinimalCheckoutBillingInput,
   resolveCheckoutTaxPaiseForCurrency,
 } from "@/server/billing/checkout-billing";
@@ -10,6 +11,11 @@ import {
   assertCheckoutClaimsMatchClientInput,
   resolveCheckoutSubtotalPaise,
 } from "@/server/billing/checkout-pricing";
+import {
+  resolveIpCountry,
+  resolveOrderTimeLocation,
+} from "@/server/billing/checkout-location";
+import { ensureRazorpayCustomer } from "@/server/billing/razorpay-customers";
 import * as billingRepo from "@/server/repositories/billing.repository";
 import * as billingService from "@/server/services/billing.service";
 import { AppError, notFound } from "@/server/db/errors";
@@ -44,7 +50,9 @@ export const POST = withApiHandler(
     assertCheckoutClaimsMatchClientInput(sessionClaims, {
       planId: body.planId,
       billingCycle: body.billingCycle,
-      currency: body.currency ?? null,
+      // Currency is re-derived server-side at pay time (the billing
+      // country may have been corrected after the session was minted).
+      currency: null,
       maxTier: body.maxTier ?? null,
       seatBreakdown: body.seatBreakdown ?? null,
       organizationSeatCount: body.organizationSeatCount ?? null,
@@ -55,6 +63,13 @@ export const POST = withApiHandler(
       { displayName: user.displayName, email: user.email },
       minimalBilling,
     );
+
+    // Pay-time authority: declared billing country vs session IP country.
+    // IN → INR + GST · anywhere else → USD, zero-rated.
+    const payLocation = resolveOrderTimeLocation({
+      declaredCountry: billingDetails.countryCode,
+      ipCountry: sessionClaims.ipCountry ?? resolveIpCountry(request.headers),
+    });
 
     const plan = await billingRepo.getPlanById(sessionClaims.planId);
     if (!plan) {
@@ -96,13 +111,27 @@ export const POST = withApiHandler(
     const { subtotalPaise, seatBreakdown, organizationSeatCount } =
       resolveCheckoutSubtotalPaise(sessionClaims, plan);
 
-    const checkoutCurrency = sessionClaims.currency ?? "INR";
+    const checkoutCurrency = payLocation.currency;
     const tax = resolveCheckoutTaxPaiseForCurrency(
       subtotalPaise,
-      billingDetails,
+      billingDetailsForTax(billingDetails, payLocation.effectiveCountry),
       checkoutCurrency,
     );
     const totalPaise = subtotalPaise + tax.taxPaise;
+
+    // Razorpay customer for card tokenization (saved cards / Express Pay).
+    // Best-effort — checkout works without it.
+    let customerId: string | null = null;
+    try {
+      const customer = await ensureRazorpayCustomer({
+        userId: user.id,
+        email: user.email ?? billingDetails.fullName,
+        name: billingDetails.billToName ?? billingDetails.fullName,
+      });
+      customerId = customer.id;
+    } catch {
+      customerId = null;
+    }
 
     const checkout = await billingService.createCheckoutOrder({
       userId: user.id,
@@ -113,6 +142,8 @@ export const POST = withApiHandler(
       subtotalPaise,
       billingDetails,
       currency: checkoutCurrency,
+      location: payLocation.evidence,
+      customerId,
       maxTier: sessionClaims.maxTier ?? null,
       seatBreakdown,
       organizationSeatCount,
@@ -121,6 +152,11 @@ export const POST = withApiHandler(
     return jsonData(
       {
         ...checkout,
+        location: {
+          country: payLocation.effectiveCountry,
+          currency: checkoutCurrency,
+          verdict: payLocation.evidence.verdict,
+        },
         pricing: {
           subtotalPaise,
           taxPaise: tax.taxPaise,

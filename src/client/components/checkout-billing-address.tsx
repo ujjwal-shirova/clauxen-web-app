@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { checkoutUi } from "@/lib/checkout-ui";
 import { cn } from "@/lib/utils";
 import { INDIA_STATES } from "@/lib/india-states";
+import { BILLING_COUNTRIES, getCountryName } from "@/lib/countries";
 
 export type CheckoutAddressState = {
   fullName: string;
@@ -19,33 +20,51 @@ export type CheckoutAddressState = {
 };
 
 function composeAddressLine(state: CheckoutAddressState): string {
-  return [state.addressLine1, state.addressLine2, state.city, state.state, state.pin]
+  const country = getCountryName(state.countryCode) || state.countryCode;
+  return [
+    state.addressLine1,
+    state.addressLine2,
+    state.city,
+    state.state,
+    state.pin,
+    country,
+  ]
     .map((p) => p.trim())
     .filter(Boolean)
     .join(", ");
 }
 
-export function isCheckoutAddressComplete(state: CheckoutAddressState): boolean {
-  return (
-    state.fullName.trim().length >= 2 &&
-    state.addressLine1.trim().length >= 3 &&
-    state.city.trim().length >= 2 &&
-    /^\d{6}$/.test(state.pin.trim()) &&
-    state.state.trim().length >= 2
-  );
+function isIndia(state: CheckoutAddressState): boolean {
+  return state.countryCode.trim().toUpperCase() === "IN";
 }
 
-/** Human-readable reason Pay stays disabled for UPI address. */
+export function isCheckoutAddressComplete(state: CheckoutAddressState): boolean {
+  if (state.fullName.trim().length < 2) return false;
+  if (state.addressLine1.trim().length < 3) return false;
+  if (state.city.trim().length < 2) return false;
+  if (!/^[A-Z]{2}$/.test(state.countryCode.trim().toUpperCase())) return false;
+  if (isIndia(state)) {
+    return /^\d{6}$/.test(state.pin.trim()) && state.state.trim().length >= 2;
+  }
+  return state.pin.trim().length >= 3;
+}
+
+/** Human-readable reason Pay stays disabled for incomplete address. */
 export function getCheckoutAddressIncompleteReason(
   state: CheckoutAddressState,
 ): string | null {
   if (state.fullName.trim().length < 2) return "Enter your full name.";
   if (state.addressLine1.trim().length < 3) return "Enter address line 1.";
   if (state.city.trim().length < 2) return "Enter your city.";
-  if (!/^\d{6}$/.test(state.pin.trim())) {
-    return "Enter a valid 6-digit PIN code.";
+  if (!state.countryCode.trim()) return "Select your country.";
+  if (isIndia(state)) {
+    if (!/^\d{6}$/.test(state.pin.trim())) {
+      return "Enter a valid 6-digit PIN code.";
+    }
+    if (state.state.trim().length < 2) return "Select your state.";
+    return null;
   }
-  if (state.state.trim().length < 2) return "Select your state.";
+  if (state.pin.trim().length < 3) return "Enter your postal code.";
   return null;
 }
 
@@ -67,7 +86,9 @@ export function CheckoutBillingAddress({
   );
 
   const pinInvalid =
-    value.pin.length > 0 && !/^\d{6}$/.test(value.pin.trim());
+    isIndia(value) &&
+    value.pin.length > 0 &&
+    !/^\d{6}$/.test(value.pin.trim());
 
   return (
     <section className="flex min-w-0 flex-col gap-3">
@@ -134,16 +155,20 @@ export function CheckoutBillingAddress({
 
         <div>
           <label className={checkoutUi.fieldLabel} htmlFor="checkout-pin">
-            PIN
+            {isIndia(value) ? "PIN" : "Postal code"}
           </label>
           <input
             id="checkout-pin"
             type="text"
-            inputMode="numeric"
+            inputMode={isIndia(value) ? "numeric" : "text"}
             autoComplete="postal-code"
             value={value.pin}
             onChange={(e) =>
-              patch({ pin: e.target.value.replace(/\D/g, "").slice(0, 6) })
+              patch({
+                pin: isIndia(value)
+                  ? e.target.value.replace(/\D/g, "").slice(0, 6)
+                  : e.target.value.replace(/[^\w\s-]/g, "").slice(0, 12),
+              })
             }
             className={cn(
               checkoutUi.field,
@@ -158,20 +183,61 @@ export function CheckoutBillingAddress({
 
         <div>
           <label className={checkoutUi.fieldLabel} htmlFor="checkout-state">
-            State
+            {isIndia(value) ? "State" : "State / region"}
+          </label>
+          {isIndia(value) ? (
+            <div className="relative">
+              <select
+                id="checkout-state"
+                value={value.state}
+                onChange={(e) => patch({ state: e.target.value })}
+                className={cn(checkoutUi.fieldWithTrailingIcon, "appearance-none")}
+                aria-label="State"
+              >
+                <option value="">Select state</option>
+                {INDIA_STATES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
+                strokeWidth={1.75}
+              />
+            </div>
+          ) : (
+            <input
+              id="checkout-state"
+              type="text"
+              autoComplete="address-level1"
+              value={value.state}
+              onChange={(e) => patch({ state: e.target.value })}
+              className={checkoutUi.field}
+            />
+          )}
+        </div>
+
+        <div>
+          <label className={checkoutUi.fieldLabel} htmlFor="checkout-country">
+            Country
           </label>
           <div className="relative">
             <select
-              id="checkout-state"
-              value={value.state}
-              onChange={(e) => patch({ state: e.target.value })}
+              id="checkout-country"
+              value={value.countryCode || "IN"}
+              onChange={(e) =>
+                patch({
+                  countryCode: e.target.value,
+                  ...(e.target.value !== "IN" ? {} : {}),
+                })
+              }
               className={cn(checkoutUi.fieldWithTrailingIcon, "appearance-none")}
-              aria-label="State"
+              aria-label="Country"
             >
-              <option value="">Select state</option>
-              {INDIA_STATES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
+              {BILLING_COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
                 </option>
               ))}
             </select>
@@ -181,13 +247,6 @@ export function CheckoutBillingAddress({
             />
           </div>
         </div>
-
-        <div>
-          <p className={checkoutUi.fieldLabel}>Country</p>
-          <p className="flex h-9 items-center text-[14px] leading-5 text-[var(--settings-fg)]">
-            India
-          </p>
-        </div>
       </div>
     </section>
   );
@@ -196,5 +255,5 @@ export function CheckoutBillingAddress({
 export function checkoutAddressToBillingLine(
   state: CheckoutAddressState,
 ): string {
-  return composeAddressLine(state) || "India";
+  return composeAddressLine(state) || getCountryName(state.countryCode) || state.countryCode || "India";
 }

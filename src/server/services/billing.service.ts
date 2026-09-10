@@ -11,23 +11,30 @@ import {
 import {
   captureRazorpayPayment,
   createRazorpayOrder,
+  createRazorpayTokenPayment,
   createRazorpayUpiPaymentLink,
   createRazorpayUpiQr,
   fetchRazorpayOrder,
   fetchRazorpayPayment,
+  fetchRazorpayPaymentCard,
   fetchRazorpayPaymentLink,
   fetchRazorpayQrCode,
   fetchRazorpayQrPayments,
   isRazorpayConfigured,
+  listRazorpayCustomerTokens,
   newOrderId,
   newReceipt,
   renderCleanUpiQrDataUrl,
   resolveUpiQrIntent,
+  resendRazorpayPaymentOtp,
+  submitRazorpayPaymentOtp,
   verifyPaymentSignatureSecure,
+  type RazorpayCustomerToken,
 } from "@/server/billing/razorpay"; // payment gateway integration
 import { resolveRazorpayContactForUser } from "@/server/billing/resolve-razorpay-contact";
 import {
   fetchInvoicePdfFromWorker,
+  fulfillInvoiceOnWorker,
   generateInvoiceOnWorker,
 } from "@/server/billing/billing-worker";
 import { uploadInvoicePdfToRazorpay } from "@/server/billing/razorpay-invoice-upload";
@@ -37,11 +44,17 @@ import {
 } from "@/server/billing/invoice";
 import type { CheckoutBillingDetails } from "@/lib/checkout-tax";
 import {
+  finalizeLocationEvidence,
+  type LocationEvidence,
+} from "@/server/billing/checkout-location";
+import {
+  billingDetailsForTax,
   resolveCheckoutTaxPaise,
   resolveCheckoutTaxPaiseForCurrency,
 } from "@/server/billing/checkout-billing";
 import { getServerUsdInrRate } from "@/server/billing/checkout-currency-server";
 import {
+  defaultCurrencyForCountry,
   toRazorpayChargeAmount,
   type CheckoutCurrency,
 } from "@/lib/checkout-currency";
@@ -118,6 +131,12 @@ export function createCheckoutSession(input: {
   planName: string;
   billingCycle: "monthly" | "yearly";
   currency?: CheckoutCurrency;
+  /** Server-resolved effective country (ISO-2) at mint time. */
+  country?: string | null;
+  /** Edge geo-IP country (ISO-2) at mint time. */
+  ipCountry?: string | null;
+  /** Client-declared country (ISO-2) at mint time, if any. */
+  declaredCountry?: string | null;
   maxTier?: string | null;
   seatBreakdown?: Record<string, number> | null;
   organizationSeatCount?: number | null;
@@ -135,6 +154,9 @@ export function createCheckoutSession(input: {
     planName: input.planName.trim(),
     billingCycle: input.billingCycle,
     currency: input.currency ?? "INR",
+    ...(input.country ? { country: input.country } : {}),
+    ...(input.ipCountry ? { ipCountry: input.ipCountry } : {}),
+    ...(input.declaredCountry ? { declaredCountry: input.declaredCountry } : {}),
     returnPath,
     ...(input.maxTier ? { maxTier: input.maxTier } : {}),
     ...(input.seatBreakdown ? { seatBreakdown: input.seatBreakdown } : {}),
@@ -192,6 +214,9 @@ export function refreshCheckoutSession(input: {
     planName: inspected.claims.planName,
     billingCycle: inspected.claims.billingCycle,
     currency: inspected.claims.currency ?? "INR",
+    country: inspected.claims.country ?? null,
+    ipCountry: inspected.claims.ipCountry ?? null,
+    declaredCountry: inspected.claims.declaredCountry ?? null,
     maxTier: inspected.claims.maxTier ?? null,
     seatBreakdown: inspected.claims.seatBreakdown ?? null,
     organizationSeatCount: inspected.claims.organizationSeatCount ?? null,
@@ -215,6 +240,7 @@ export async function createUpiCheckoutPayment(input: {
   billingCycle: "monthly" | "yearly";
   subtotalPaise: number;
   currency?: CheckoutCurrency;
+  location?: LocationEvidence | null;
   maxTier?: string | null;
   seatBreakdown?: Record<string, number> | null;
   organizationSeatCount?: number | null;
@@ -250,7 +276,7 @@ export async function createUpiCheckoutPayment(input: {
 
   const tax = resolveCheckoutTaxPaiseForCurrency(
     input.subtotalPaise,
-    input.billingDetails,
+    billingDetailsForTax(input.billingDetails, input.location?.effective),
     "INR",
   );
   const totalInrPaise = input.subtotalPaise + tax.taxPaise;
@@ -392,6 +418,7 @@ export async function createUpiCheckoutPayment(input: {
         paise: tax.taxPaise,
         gstExempt: tax.isGstExempt,
       },
+      ...(input.location ? { locationEvidence: input.location } : {}),
       ...(input.seatBreakdown ? { seatBreakdown: input.seatBreakdown } : {}),
       ...(input.organizationSeatCount != null
         ? { organizationSeatCount: input.organizationSeatCount }
@@ -684,6 +711,12 @@ export async function createCheckoutOrder(input: {
   subtotalPaise: number;
   billingDetails: CheckoutBillingDetails;
   currency?: CheckoutCurrency;
+  /** Server-resolved location — currency is derived from it, never trusted. */
+  location?: LocationEvidence | null;
+  /** Razorpay customer id for tokenization / Express Pay. */
+  customerId?: string | null;
+  /** Express Pay idempotency key (stored on metadata). */
+  idempotencyKey?: string | null;
   maxTier?: string | null;
   seatBreakdown?: Record<string, number> | null;
   organizationSeatCount?: number | null;
@@ -708,10 +741,12 @@ export async function createCheckoutOrder(input: {
     throw new AppError("Unknown billing plan.", 400, "invalid_plan");
   }
 
-  const currency: CheckoutCurrency = input.currency ?? "INR";
+  const currency: CheckoutCurrency = input.location
+    ? defaultCurrencyForCountry(input.location.effective)
+    : (input.currency ?? "INR");
   const tax = resolveCheckoutTaxPaiseForCurrency(
     input.subtotalPaise,
-    input.billingDetails,
+    billingDetailsForTax(input.billingDetails, input.location?.effective),
     currency,
   );
   const totalInrPaise = input.subtotalPaise + tax.taxPaise;
@@ -730,12 +765,14 @@ export async function createCheckoutOrder(input: {
     amountMinor: charge.amount,
     currency: charge.currency,
     receipt,
+    ...(input.customerId ? { customerId: input.customerId } : {}),
     notes: {
       plan_id: planId,
       user_id: input.userId,
-      country: input.billingDetails.countryCode,
+      country: input.location?.effective ?? input.billingDetails.countryCode,
       charge_currency: charge.currency,
       inr_total_paise: String(totalInrPaise),
+      ...(input.location ? { location_verdict: input.location.verdict } : {}),
       ...(input.billingDetails.gstin
         ? { gstin: input.billingDetails.gstin }
         : {}),
@@ -771,6 +808,9 @@ export async function createCheckoutOrder(input: {
         paise: tax.taxPaise,
         gstExempt: tax.isGstExempt,
       },
+      ...(input.location ? { locationEvidence: input.location } : {}),
+      ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
+      ...(input.customerId ? { razorpayCustomerId: input.customerId } : {}),
       ...(input.seatBreakdown ? { seatBreakdown: input.seatBreakdown } : {}),
       ...(input.organizationSeatCount != null
         ? { organizationSeatCount: input.organizationSeatCount }
@@ -786,6 +826,7 @@ export async function createCheckoutOrder(input: {
       currency: razorpay.currency,
       keyId: env.publicRazorpayKeyId || env.razorpayKeyId,
       ...(checkoutParty.contact ? { contact: checkoutParty.contact } : {}),
+      ...(input.customerId ? { customerId: input.customerId } : {}),
     },
   };
 }
@@ -1131,6 +1172,39 @@ export async function verifyCheckoutPayment(input: {
     );
   }
 
+  return fulfillCapturedPayment({
+    razorpayOrderId: input.razorpayOrderId,
+    razorpayPaymentId: input.razorpayPaymentId,
+    settledPayment,
+    amountPaiseForFulfill,
+    userId: input.userId,
+    cardFirst4: input.cardFirst4,
+    source: "checkout",
+  });
+}
+
+/**
+ * Shared post-capture path: ledger fulfill → card-on-file →
+ * instrument-evidence finalize → invoice → gift delivery.
+ * Used by hosted-checkout verify AND Express Pay S2S confirm.
+ */
+export async function fulfillCapturedPayment(input: {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  settledPayment: import("@/server/billing/razorpay").RazorpayPaymentEntity;
+  amountPaiseForFulfill: number | null;
+  userId?: string;
+  cardFirst4?: string;
+  source?: string;
+}) {
+  const { settledPayment } = input;
+  const order = await billingRepo.getBillingOrderByRazorpayId(
+    input.razorpayOrderId,
+  );
+  if (!order) {
+    throw new AppError("Order not found.", 404, "not_found");
+  }
+
   const result = await billingRepo.fulfillPayment({
     orderId: input.razorpayOrderId,
     paymentId: input.razorpayPaymentId,
@@ -1144,9 +1218,9 @@ export async function verifyCheckoutPayment(input: {
         : "card"),
     paymentEmail: settledPayment.email ?? "",
     paymentContact: settledPayment.contact ?? "",
-    amountPaise: amountPaiseForFulfill,
+    amountPaise: input.amountPaiseForFulfill,
     currency: settledPayment.currency,
-    source: "checkout",
+    source: input.source ?? "checkout",
     providerPayload: {
       currency: settledPayment.currency,
       razorpayAmount: settledPayment.amount,
@@ -1172,6 +1246,14 @@ export async function verifyCheckoutPayment(input: {
     } catch (err) {
       console.warn("[billing] card-on-file save failed", err);
     }
+  }
+
+  // Finalize 2-of-3 location evidence with the real instrument snapshot.
+  // Best-effort and non-blocking — the audit trail, not the money path.
+  try {
+    await finalizeOrderLocationEvidence(input.razorpayOrderId, settledPayment);
+  } catch (err) {
+    console.warn("[billing] location evidence finalize failed", err);
   }
 
   // Never block plan activation / success redirect on invoice generation.
@@ -1210,6 +1292,65 @@ export async function verifyCheckoutPayment(input: {
   return result;
 }
 
+async function finalizeOrderLocationEvidence(
+  razorpayOrderId: string,
+  settledPayment: import("@/server/billing/razorpay").RazorpayPaymentEntity,
+): Promise<void> {
+  const details =
+    await billingRepo.getBillingOrderDetailsByRazorpayId(razorpayOrderId);
+  if (!details) return;
+  const meta = (details.metadata ?? {}) as Record<string, unknown>;
+  const stored = meta.locationEvidence as LocationEvidence | undefined;
+  const storedBilling = meta.billingDetails as
+    | { countryCode?: string }
+    | undefined;
+  const declaredFallback =
+    storedBilling?.countryCode?.toUpperCase?.() || "IN";
+  const prior: LocationEvidence =
+    stored && typeof stored === "object" && "declared" in stored
+      ? stored
+      : {
+          declared: declaredFallback,
+          ip: declaredFallback,
+          instrument: "UNKNOWN",
+          effective: declaredFallback,
+          verdict: "unverified",
+          decidedAt: new Date().toISOString(),
+        };
+
+  let card = settledPayment.card
+    ? {
+        network: settledPayment.card.network ?? null,
+        issuer: settledPayment.card.issuer ?? null,
+        international: settledPayment.card.international ?? null,
+      }
+    : null;
+  // Fetch dedicated card details when the payment didn't expand them.
+  if (!card && (settledPayment.method === "card" || !settledPayment.method)) {
+    try {
+      const fetched = await fetchRazorpayPaymentCard(settledPayment.id);
+      card = {
+        network: fetched.network ?? null,
+        issuer: fetched.issuer ?? null,
+        international: fetched.international ?? null,
+      };
+    } catch {
+      // keep null — instrument stays UNKNOWN, declared+IP still vote
+    }
+  }
+
+  const finalized = finalizeLocationEvidence(prior, {
+    method: settledPayment.method ?? null,
+    international: settledPayment.international ?? null,
+    card,
+    bank: settledPayment.bank ?? null,
+    vpa: settledPayment.vpa ?? null,
+  });
+  await billingRepo.mergeBillingOrderMetadataById(details.id, {
+    locationEvidence: finalized,
+  });
+}
+
 async function enqueueInvoiceGeneration(
   razorpayOrderId: string,
   paymentId: string,
@@ -1226,8 +1367,58 @@ async function enqueueInvoiceGeneration(
       order,
       payment,
     });
-    const generated = await generateInvoiceOnWorker(payload);
-    if (!generated?.r2Key) return false;
+    const meta = (order.metadata ?? {}) as Record<string, unknown>;
+    const storedBilling = meta.billingDetails as
+      | { countryCode?: string; gstin?: string }
+      | undefined;
+    const currency = (
+      payload.currency ||
+      order.currency ||
+      "INR"
+    ).toUpperCase();
+    const invoiceKind =
+      currency !== "INR"
+        ? ("export_lut" as const)
+        : order.tax_paise === 0 && storedBilling?.gstin
+          ? ("exempt_gstin" as const)
+          : ("domestic_gst" as const);
+
+    // Receipt goes to the account email — never block activation on it.
+    const emailTo = payload.billedTo.email || order.user_email || "";
+    const appOrigin = (env.appUrl || "https://www.clauxen.com").replace(
+      /\/$/,
+      "",
+    );
+    const pdfDownloadUrl = `${appOrigin}/api/v1/billing/invoices/${encodeURIComponent(paymentId)}/pdf`;
+
+    const fulfilled = emailTo
+      ? await fulfillInvoiceOnWorker({
+          ...payload,
+          invoiceKind,
+          email: {
+            to: emailTo,
+            billedToName: payload.billedTo.name,
+            addressSummary: payload.billedTo.address,
+            pdfDownloadUrl,
+          },
+        })
+      : await (async () => {
+          const generated = await generateInvoiceOnWorker({
+            ...payload,
+            invoiceKind,
+          });
+          return (
+            generated && {
+              ...generated,
+              emailed: false,
+              emailError: "missing_recipient",
+            }
+          );
+        })();
+    if (!fulfilled?.r2Key) return false;
+
+    // Alias for the shared attach + ledger path below.
+    const generated = fulfilled;
 
     let razorpayDocumentId = generated.razorpayDocumentId ?? null;
     let razorpayDocumentPurpose = generated.razorpayDocumentPurpose ?? null;
@@ -1263,14 +1454,41 @@ async function enqueueInvoiceGeneration(
       razorpayDocumentPurpose,
     });
 
-    // Email invoice receipt via Cloudflare billing Worker (best-effort).
-    const emailTo = payload.billedTo.email || order.user_email || "";
-    if (emailTo) {
+    // Ledger row: R2 URL persisted in Supabase AFTER the PDF lands in R2.
+    try {
+      await billingRepo.createBillingInvoice({
+        userId: order.user_id,
+        orderId: order.id,
+        paymentId,
+        invoiceNumber: generated.invoiceNumber,
+        kind: invoiceKind,
+        currency,
+        subtotalPaise: order.subtotal_paise,
+        taxPaise: order.tax_paise,
+        totalPaise: order.amount_paise,
+        country:
+          (
+            (meta.locationEvidence as LocationEvidence | undefined)
+              ?.effective ||
+            storedBilling?.countryCode ||
+            "IN"
+          ).toUpperCase(),
+        r2Key: generated.r2Key,
+        r2Url: pdfDownloadUrl,
+        razorpayDocumentId,
+        evidence: (meta.locationEvidence ?? {}) as Record<string, unknown>,
+        emailedAt: generated.emailed ? new Date().toISOString() : null,
+      });
+    } catch (invoiceRowErr) {
+      console.warn("[billing] invoice ledger insert failed", invoiceRowErr);
+    }
+
+    // Legacy receipt email when fulfill stored the PDF but email failed.
+    if (emailTo && !generated.emailed) {
       try {
         const { sendInvoicePaidEmail } = await import(
           "@/server/billing/billing-email"
         );
-        const currency = (payload.currency || "INR").toUpperCase();
         const major = (payload.totalPaise / 100).toFixed(2);
         const amountLabel =
           currency === "INR" ? `₹${major}` : `${currency} ${major}`;
@@ -1284,9 +1502,10 @@ async function enqueueInvoiceGeneration(
           billedToName: payload.billedTo.name,
           addressSummary: payload.billedTo.address,
           pdfAvailable: true,
+          pdfDownloadUrl,
         });
       } catch (emailErr) {
-        console.warn("[billing] invoice email failed", emailErr);
+        console.warn("[billing] invoice email fallback failed", emailErr);
       }
     }
     return true;

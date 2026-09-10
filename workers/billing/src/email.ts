@@ -10,6 +10,12 @@ export type BillingEmailEnv = {
       subject: string;
       html?: string;
       text?: string;
+      attachments?: Array<{
+        content: string | ArrayBuffer | ArrayBufferView;
+        filename: string;
+        type: string;
+        disposition: "attachment" | "inline";
+      }>;
     }) => Promise<{ messageId?: string }>;
   };
   FROM_EMAIL?: string;
@@ -28,6 +34,8 @@ type InvoicePayload = {
   billedToName?: string;
   addressSummary?: string;
   pdfAvailable?: boolean;
+  /** App download URL for the invoice PDF (auth'd route). */
+  pdfDownloadUrl?: string;
 };
 
 type AddressPayload = {
@@ -102,17 +110,6 @@ function giftNoteText(
   return `\n\n${label}:\n${note}\n`;
 }
 
-function appOrigin(env: BillingEmailEnv): string {
-  const raw = (env.APP_ORIGIN || "https://www.clauxen.com")
-    .trim()
-    .replace(/\/$/, "");
-  try {
-    return new URL(raw).origin;
-  } catch {
-    return "https://www.clauxen.com";
-  }
-}
-
 function wrapEmail(title: string, bodyHtml: string, footer?: string): string {
   return `<!doctype html>
 <html><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#18181b;">
@@ -133,6 +130,72 @@ function claimButton(claimUrl: string): string {
   </p>`;
 }
 
+export type InvoiceMailInput = Omit<InvoicePayload, "kind" | "to"> & {
+  to: string;
+};
+
+export function buildInvoicePaidEmail(
+  config: { fromEmail?: string; fromName?: string; appOrigin?: string },
+  payload: InvoiceMailInput,
+): {
+  from: { email: string; name: string };
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const fromEmail = config.fromEmail?.trim() || "noreply@clauxen.com";
+  const fromName = config.fromName?.trim() || "Clauxen";
+  const rawOrigin = (config.appOrigin || "https://www.clauxen.com")
+    .trim()
+    .replace(/\/$/, "");
+  let origin = "https://www.clauxen.com";
+  try {
+    origin = new URL(rawOrigin).origin;
+  } catch {
+    // keep default
+  }
+  const subject = `Payment successful — invoice ${payload.invoiceNumber}`;
+  const settingsUrl = `${origin}/settings?section=billing`;
+  const downloadButton = payload.pdfDownloadUrl
+    ? `<p style="margin:16px 0 0;">
+        <a href="${escapeHtml(payload.pdfDownloadUrl)}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;">
+          Download invoice (PDF)
+        </a>
+      </p>`
+    : "";
+  const html = wrapEmail(
+    "Payment successful",
+    `<p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3f3f46;">
+      Thanks${payload.billedToName ? `, ${escapeHtml(payload.billedToName)}` : ""}. Your payment of
+      <strong>${escapeHtml(payload.amountLabel)}</strong> for
+      <strong>${escapeHtml(payload.planName)}</strong> was successful.
+    </p>
+    <p style="margin:0 0 8px;font-size:14px;color:#52525b;">Invoice: <strong>${escapeHtml(payload.invoiceNumber)}</strong></p>
+    ${
+      payload.addressSummary
+        ? `<p style="margin:0 0 8px;font-size:14px;color:#52525b;">Billed to: ${escapeHtml(payload.addressSummary)}</p>`
+        : ""
+    }
+    <p style="margin:12px 0 0;font-size:14px;color:#52525b;">Your invoice PDF is attached to this email.</p>
+    ${downloadButton}
+    <p style="margin:16px 0 0;">
+      <a href="${escapeHtml(settingsUrl)}" style="display:inline-block;color:#18181b;text-decoration:underline;font-size:14px;font-weight:600;">
+        View billing history
+      </a>
+    </p>`,
+  );
+  const text = [
+    `Payment successful. Invoice ${payload.invoiceNumber}.`,
+    `Amount ${payload.amountLabel} for ${payload.planName}.`,
+    `Your invoice PDF is attached to this email.`,
+    payload.pdfDownloadUrl ? `Download: ${payload.pdfDownloadUrl}` : "",
+    `View billing: ${settingsUrl}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return { from: { email: fromEmail, name: fromName }, subject, html, text };
+}
+
 export async function sendBillingEmail(
   env: BillingEmailEnv,
   payload: EmailSendPayload,
@@ -142,35 +205,23 @@ export async function sendBillingEmail(
   }
   const fromEmail = env.FROM_EMAIL?.trim() || "noreply@clauxen.com";
   const fromName = env.FROM_NAME?.trim() || "Clauxen";
-  const origin = appOrigin(env);
 
   let subject = "";
   let html = "";
   let text = "";
 
   if (payload.kind === "invoice_paid") {
-    subject = `Payment successful — invoice ${payload.invoiceNumber}`;
-    const settingsUrl = `${origin}/settings?section=billing`;
-    html = wrapEmail(
-      "Payment successful",
-      `<p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3f3f46;">
-        Thanks${payload.billedToName ? `, ${escapeHtml(payload.billedToName)}` : ""}. Your payment of
-        <strong>${escapeHtml(payload.amountLabel)}</strong> for
-        <strong>${escapeHtml(payload.planName)}</strong> was successful.
-      </p>
-      <p style="margin:0 0 8px;font-size:14px;color:#52525b;">Invoice: <strong>${escapeHtml(payload.invoiceNumber)}</strong></p>
-      ${
-        payload.addressSummary
-          ? `<p style="margin:0 0 8px;font-size:14px;color:#52525b;">Billed to: ${escapeHtml(payload.addressSummary)}</p>`
-          : ""
-      }
-      <p style="margin:16px 0 0;">
-        <a href="${escapeHtml(settingsUrl)}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;">
-          View billing history
-        </a>
-      </p>`,
+    const mail = buildInvoicePaidEmail(
+      {
+        fromEmail: env.FROM_EMAIL,
+        fromName: env.FROM_NAME,
+        appOrigin: env.APP_ORIGIN,
+      },
+      payload,
     );
-    text = `Payment successful. Invoice ${payload.invoiceNumber}. Amount ${payload.amountLabel} for ${payload.planName}. View billing: ${settingsUrl}`;
+    subject = mail.subject;
+    html = mail.html;
+    text = mail.text;
   } else if (payload.kind === "automation_run") {
     const succeeded = payload.status === "success";
     subject = `${payload.taskName} ${succeeded ? "completed" : payload.status}`;

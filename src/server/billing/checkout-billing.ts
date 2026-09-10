@@ -127,7 +127,8 @@ export function buildCheckoutBillingDetailsForUser(
 
   const countryCode = minimal.countryCode?.trim().toUpperCase() || "IN";
   const addressLine = (
-    minimal.addressLine?.trim() || "India"
+    minimal.addressLine?.trim() ||
+    (countryCode === "IN" ? "India" : countryCode)
   ).slice(0, MAX_ADDRESS_LEN);
 
   if (minimal.addressLine && !isBillingAddressComplete(addressLine)) {
@@ -249,4 +250,15 @@ export function resolveCheckoutTaxPaiseForCurrency(
     };
   }
   return resolveCheckoutTaxPaise(subtotalPaise, billingDetails);
+}
+
+/** Tax uses the server-resolved country, never a false foreign declaration. */
+export function billingDetailsForTax(
+  details: CheckoutBillingDetails,
+  effectiveCountry?: string | null,
+): CheckoutBillingDetails {
+  const country = (effectiveCountry || details.countryCode || "IN")
+    .trim()
+    .toUpperCase();
+  return { ...details, countryCode: country };
 }

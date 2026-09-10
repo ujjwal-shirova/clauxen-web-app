@@ -34,6 +34,9 @@ export type CheckoutFormProps = {
   agreed: boolean;
   onAgreedChange: (value: boolean) => void;
   onPay: () => void;
+  onLinkPay?: () => void;
+  linkPayDisabled?: boolean;
+  showGstin?: boolean;
   showExpressCheckout?: boolean;
   hideUpi?: boolean;
   hideNetbanking?: boolean;
@@ -82,6 +85,9 @@ export function CheckoutForm({
   agreed,
   onAgreedChange,
   onPay,
+  onLinkPay,
+  linkPayDisabled = false,
+  showGstin = true,
   showExpressCheckout = false,
   hideUpi = false,
   hideNetbanking = false,
@@ -115,6 +121,8 @@ export function CheckoutForm({
           onExpressCheckout={onExpressCheckout}
           onCardFieldsChange={onCardFieldsChange}
           onNetbankingChange={onNetbankingChange}
+          onLinkPay={onLinkPay}
+          linkPayDisabled={linkPayDisabled}
         />
 
         {billingAddressCollapsed && billingAddress.isComplete ? (
@@ -160,6 +168,7 @@ export function CheckoutForm({
                 className={checkoutUi.field}
               />
             </div>
+            {showGstin && (
             <div>
               <label className={checkoutUi.fieldLabel} htmlFor="checkout-gstin">
                 GSTIN
@@ -177,6 +186,7 @@ export function CheckoutForm({
                 <p className={cn(checkoutUi.errorText, "mt-1")}>{gstinError}</p>
               )}
             </div>
+            )}
           </div>
         )}
 

@@ -337,6 +337,15 @@ export function CheckoutPaymentPanel({
     );
   }
 
+  if (tab === "link") {
+    return (
+      <div className={checkoutUi.panelMuted}>
+        Pay in one step with a saved card. Razorpay opens a secure Link checkout
+        — no card number to type.
+      </div>
+    );
+  }
+
   if (tab === "upi") {
     return (
       <div className={checkoutUi.panelMuted}>

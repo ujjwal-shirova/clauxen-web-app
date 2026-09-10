@@ -19,6 +19,10 @@ head_sampling_rate = 1
 INVOICE_ISSUER_NAME = "Shirova"
 INVOICE_ISSUER_LEGAL = "Shirova"
 INVOICE_ISSUER_ADDRESS = "India"
+# Legal GSTIN printed on domestic invoices (set the real value via wrangler vars).
+INVOICE_GSTIN = ""
+# LUT number for zero-rated export invoices (ACK from Form GST RFD-11).
+INVOICE_LUT_NUMBER = ""
 FROM_EMAIL = "no-reply@clauxen.com"
 FROM_NAME = "Clauxen Billing"
 APP_ORIGIN = "https://www.clauxen.com"

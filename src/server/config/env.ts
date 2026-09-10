@@ -199,6 +199,11 @@ export const env = {
   billingWorkerUrl: normalizeBaseUrl(optional("BILLING_WORKER_URL")),
   /** Shared secret for billing Worker internal routes. */
   billingInternalToken: optional("BILLING_INTERNAL_TOKEN"),
+  /**
+   * Fail closed when the Cloudflare billing Worker is unreachable —
+   * never fall back to direct Razorpay calls from Vercel. Production only.
+   */
+  billingRequireWorker: optional("BILLING_REQUIRE_WORKER") === "true",
 
   /** Cloudflare connector gateway (OAuth, token vault, tool execution). */
   get connectorGatewayUrl() {

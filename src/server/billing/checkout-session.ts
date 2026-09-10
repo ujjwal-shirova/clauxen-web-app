@@ -14,6 +14,12 @@ export type CheckoutSessionClaims = {
   planName: string;
   billingCycle: "monthly" | "yearly";
   currency?: CheckoutCurrency;
+  /** Server-resolved effective country (ISO-2) at mint time. */
+  country?: string;
+  /** Edge geo-IP country (ISO-2) at mint time. */
+  ipCountry?: string;
+  /** Client-declared country (ISO-2) at mint time, if any. */
+  declaredCountry?: string;
   maxTier?: string;
   seatBreakdown?: Record<string, number>;
   organizationSeatCount?: number;
@@ -98,6 +104,10 @@ function claimsShapeOk(claims: CheckoutSessionClaims): boolean {
       claims.planName &&
       (claims.billingCycle === "monthly" || claims.billingCycle === "yearly") &&
       (claims.currency == null || isCheckoutCurrency(claims.currency)) &&
+      (claims.country == null || /^[A-Z]{2}$/.test(claims.country)) &&
+      (claims.ipCountry == null || /^[A-Z]{2}$/.test(claims.ipCountry)) &&
+      (claims.declaredCountry == null ||
+        /^[A-Z]{2}$/.test(claims.declaredCountry)) &&
       giftOk,
   );
 }

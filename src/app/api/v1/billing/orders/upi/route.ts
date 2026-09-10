@@ -2,6 +2,7 @@ import { withApiHandler } from "@/server/http/api-handler";
 import { jsonData } from "@/server/http/api-response";
 import { requireSession } from "@/server/auth/require-session";
 import {
+  billingDetailsForTax,
   buildCheckoutBillingDetailsForUser,
   parseMinimalCheckoutBillingInput,
   resolveCheckoutTaxPaiseForCurrency,
@@ -10,8 +11,12 @@ import {
   assertCheckoutClaimsMatchClientInput,
   resolveCheckoutSubtotalPaise,
 } from "@/server/billing/checkout-pricing";
-import * as billingRepo from "@/server/repositories/billing.repository";
+import {
+  resolveIpCountry,
+  resolveOrderTimeLocation,
+} from "@/server/billing/checkout-location";
 import * as billingService from "@/server/services/billing.service";
+import * as billingRepo from "@/server/repositories/billing.repository";
 import { AppError, notFound } from "@/server/db/errors";
 
 export const runtime = "nodejs";
@@ -84,10 +89,14 @@ export const POST = withApiHandler(
       minimalBilling,
     );
 
-    const checkoutCurrency = claims.currency ?? "INR";
-    if (checkoutCurrency !== "INR") {
+    const payLocation = resolveOrderTimeLocation({
+      declaredCountry: billingDetails.countryCode,
+      ipCountry: claims.ipCountry ?? resolveIpCountry(request.headers),
+    });
+    const checkoutCurrency = payLocation.currency;
+    if (checkoutCurrency !== "INR" || payLocation.effectiveCountry !== "IN") {
       throw new AppError(
-        "UPI is only available for INR checkout.",
+        "UPI is only available for Indian rupee checkout.",
         400,
         "invalid_currency",
       );
@@ -95,7 +104,7 @@ export const POST = withApiHandler(
 
     const tax = resolveCheckoutTaxPaiseForCurrency(
       subtotalPaise,
-      billingDetails,
+      billingDetailsForTax(billingDetails, payLocation.effectiveCountry),
       checkoutCurrency,
     );
 
@@ -115,6 +124,7 @@ export const POST = withApiHandler(
       billingCycle: claims.billingCycle,
       subtotalPaise,
       currency: checkoutCurrency,
+      location: payLocation.evidence,
       maxTier: claims.maxTier ?? null,
       seatBreakdown,
       organizationSeatCount,

@@ -62,42 +62,79 @@ async function razorpayApi<T>(path: string, init?: RequestInit): Promise<T> {
   if (isBillingWorkerConfigured()) {
     try {
       const method = (init?.method ?? "GET").toUpperCase();
+      // Match on the path only; the original query (e.g. ?expand[]=card)
+      // is forwarded to the Worker route when one matches.
+      const queryIndex = path.indexOf("?");
+      const matchPath = queryIndex === -1 ? path : path.slice(0, queryIndex);
+      const query = queryIndex === -1 ? "" : path.slice(queryIndex);
+      const toWorker = (workerBase: string | null) =>
+        workerBase ? `${workerBase}${query}` : null;
       let workerPath: string | null = null;
-      if (path === "/v1/orders" && method === "POST") {
+      if (matchPath === "/v1/orders" && method === "POST") {
         workerPath = "/v1/razorpay/orders";
-      } else if (path === "/v1/payments/qr_codes" && method === "POST") {
+      } else if (matchPath === "/v1/payments/qr_codes" && method === "POST") {
         workerPath = "/v1/razorpay/upi-qr";
+      } else if (matchPath === "/v1/customers" && method === "POST") {
+        workerPath = "/v1/razorpay/customers";
+      } else if (matchPath === "/v1/payments/create" && method === "POST") {
+        workerPath = "/v1/razorpay/payments/create";
+      } else if (matchPath === "/v1/payments/otp/submit" && method === "POST") {
+        workerPath = "/v1/razorpay/payments/otp/submit";
+      } else if (matchPath === "/v1/payments/otp/resend" && method === "POST") {
+        workerPath = "/v1/razorpay/payments/otp/resend";
       } else {
-        const payCapture = path.match(/^\/v1\/payments\/([^/?]+)\/capture$/);
+        const payCapture = matchPath.match(/^\/v1\/payments\/([^/?]+)\/capture$/);
         if (payCapture && method === "POST") {
           workerPath = `/v1/razorpay/payments/${payCapture[1]}/capture`;
         }
-        const pay = path.match(/^\/v1\/payments\/([^/?]+)$/);
+        const payCard = matchPath.match(/^\/v1\/payments\/([^/?]+)\/card$/);
+        if (payCard && method === "GET") {
+          workerPath = `/v1/razorpay/payments/${payCard[1]}/card`;
+        }
+        const pay = matchPath.match(/^\/v1\/payments\/([^/?]+)$/);
         if (pay && method === "GET") {
           workerPath = `/v1/razorpay/payments/${pay[1]}`;
         }
-        const order = path.match(/^\/v1\/orders\/([^/?]+)$/);
+        const custTokensRevoke = matchPath.match(
+          /^\/v1\/customers\/([^/?]+)\/tokens\/([^/?]+)$/,
+        );
+        if (custTokensRevoke && method === "DELETE") {
+          workerPath = `/v1/razorpay/customers/${custTokensRevoke[1]}/tokens/${custTokensRevoke[2]}`;
+        }
+        const custTokens = matchPath.match(/^\/v1\/customers\/([^/?]+)\/tokens$/);
+        if (custTokens && method === "GET") {
+          workerPath = `/v1/razorpay/customers/${custTokens[1]}/tokens`;
+        }
+        const cust = matchPath.match(/^\/v1\/customers\/([^/?]+)$/);
+        if (cust && method === "GET") {
+          workerPath = `/v1/razorpay/customers/${cust[1]}`;
+        }
+        const order = matchPath.match(/^\/v1\/orders\/([^/?]+)$/);
         if (order && method === "GET") {
           workerPath = `/v1/razorpay/orders/${order[1]}`;
         }
-        const qr = path.match(/^\/v1\/payments\/qr_codes\/([^/?]+)$/);
+        const qr = matchPath.match(/^\/v1\/payments\/qr_codes\/([^/?]+)$/);
         if (qr && method === "GET") {
           workerPath = `/v1/razorpay/qr/${qr[1]}`;
         }
-        const qrPay = path.match(/^\/v1\/payments\/qr_codes\/([^/?]+)\/payments/);
+        const qrPay = matchPath.match(/^\/v1\/payments\/qr_codes\/([^/?]+)\/payments/);
         if (qrPay && method === "GET") {
           workerPath = `/v1/razorpay/qr/${qrPay[1]}/payments`;
         }
-        const qrClose = path.match(/^\/v1\/payments\/qr_codes\/([^/?]+)\/close$/);
+        const qrClose = matchPath.match(/^\/v1\/payments\/qr_codes\/([^/?]+)\/close$/);
         if (qrClose && method === "POST") {
           workerPath = `/v1/razorpay/qr/${qrClose[1]}/close`;
         }
       }
 
+      workerPath = toWorker(workerPath);
+
       if (workerPath) {
         return await billingWorkerRazorpay<T>(workerPath, init);
       }
     } catch (err) {
+      // Fail closed in production when the Cloudflare path is mandatory.
+      if (env.billingRequireWorker) throw err;
       // Worker missing secrets / down — fall through to Vercel Razorpay keys.
       if (
         !(err instanceof AppError) ||
@@ -132,6 +169,8 @@ export async function createRazorpayOrder(input: {
   currency?: string; // ISO currency — default INR
   receipt: string;
   notes?: Record<string, string>;
+  /** Razorpay customer id — enables saved-card tokenization for Express Pay. */
+  customerId?: string;
   /** Skip Cloudflare Worker hop when Vercel holds Razorpay keys. */
   preferDirect?: boolean;
 }) {
@@ -160,6 +199,7 @@ export async function createRazorpayOrder(input: {
     currency,
     receipt: input.receipt,
     notes: input.notes ?? {},
+    ...(input.customerId ? { customer_id: input.customerId } : {}),
     // Auto-capture on auth so checkout verify isn't stuck on "authorized".
     payment_capture: 1,
   });
@@ -209,6 +249,10 @@ export type RazorpayPaymentEntity = {
   email?: string;
   contact?: string;
   captured: boolean;
+  /** True when Razorpay classified the instrument as international. */
+  international?: boolean;
+  bank?: string | null;
+  vpa?: string | null;
   notes?: Record<string, string> | string[];
   /** Present on card payments when Razorpay returns card details. */
   card?: RazorpayPaymentCard | null;
@@ -284,6 +328,147 @@ export async function captureRazorpayPayment(input: {
     `/v1/payments/${input.paymentId}/capture`,
     { method: "POST", body },
   );
+}
+
+export type RazorpayCardDetails = RazorpayPaymentCard & {
+  id: string;
+  entity: string;
+  token_iin?: string | null;
+  sub_type?: string;
+};
+
+/** Card network / issuer / international flag for location evidence. */
+export async function fetchRazorpayPaymentCard(
+  paymentId: string,
+): Promise<RazorpayCardDetails> {
+  if (!RAZORPAY_PAYMENT_ID_RE.test(paymentId)) {
+    throw new AppError("Invalid payment id.", 400, "bad_request");
+  }
+  return razorpayApi<RazorpayCardDetails>(
+    `/v1/payments/${paymentId}/card`,
+  );
+}
+
+export type RazorpayCustomerToken = {
+  id: string;
+  entity: string;
+  token: string;
+  bank?: string | null;
+  wallet?: string | null;
+  method: string;
+  card?: {
+    name?: string;
+    last4?: string;
+    network?: string;
+    type?: string;
+    issuer?: string | null;
+    international?: boolean;
+    emi?: boolean;
+    expiry_month?: number;
+    expiry_year?: number;
+  } | null;
+  vpa?: string | null;
+  recurring?: boolean;
+  recurring_details?: unknown;
+  used_at?: number;
+  created_at?: number;
+};
+
+/** Saved tokenized instruments for a Razorpay customer (Express Pay). */
+export async function listRazorpayCustomerTokens(
+  customerId: string,
+): Promise<RazorpayCustomerToken[]> {
+  if (!/^cust_[A-Za-z0-9]{8,40}$/.test(customerId)) {
+    throw new AppError("Invalid customer id.", 400, "bad_request");
+  }
+  const res = await razorpayApi<{
+    entity: string;
+    count: number;
+    items: RazorpayCustomerToken[];
+  }>(`/v1/customers/${customerId}/tokens`);
+  return Array.isArray(res.items) ? res.items : [];
+}
+
+export async function revokeRazorpayCustomerToken(
+  customerId: string,
+  tokenId: string,
+): Promise<void> {
+  if (!/^cust_[A-Za-z0-9]{8,40}$/.test(customerId)) {
+    throw new AppError("Invalid customer id.", 400, "bad_request");
+  }
+  if (!tokenId.trim()) {
+    throw new AppError("Invalid token id.", 400, "bad_request");
+  }
+  await razorpayApi<unknown>(
+    `/v1/customers/${customerId}/tokens/${encodeURIComponent(tokenId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export type RazorpayS2SPaymentResponse = RazorpayPaymentEntity & {
+  next?: Array<{
+    action?: string;
+    url?: string;
+    otp?: boolean;
+  }>;
+};
+
+/**
+ * S2S token charge (Express Pay one-click). Requires Razorpay's S2S/token
+ * API enabled on the merchant account; callers must fall back to hosted
+ * Checkout when Razorpay rejects the flow.
+ */
+export async function createRazorpayTokenPayment(input: {
+  orderId: string;
+  tokenId: string;
+  customerId?: string;
+  email?: string;
+  contact?: string;
+}): Promise<RazorpayS2SPaymentResponse> {
+  if (!RAZORPAY_ORDER_ID_RE.test(input.orderId)) {
+    throw new AppError("Invalid order id.", 400, "bad_request");
+  }
+  if (!input.tokenId.trim()) {
+    throw new AppError("Invalid token id.", 400, "bad_request");
+  }
+  return razorpayApi<RazorpayS2SPaymentResponse>("/v1/payments/create", {
+    method: "POST",
+    body: JSON.stringify({
+      order_id: input.orderId,
+      token: input.tokenId,
+      ...(input.customerId ? { customer_id: input.customerId } : {}),
+      ...(input.email ? { email: input.email } : {}),
+      ...(input.contact ? { contact: input.contact } : {}),
+    }),
+  });
+}
+
+export async function submitRazorpayPaymentOtp(input: {
+  paymentId: string;
+  otp: string;
+}): Promise<RazorpayS2SPaymentResponse> {
+  if (!RAZORPAY_PAYMENT_ID_RE.test(input.paymentId)) {
+    throw new AppError("Invalid payment id.", 400, "bad_request");
+  }
+  if (!/^\d{4,8}$/.test(input.otp.trim())) {
+    throw new AppError("Invalid OTP.", 400, "bad_request");
+  }
+  return razorpayApi<RazorpayS2SPaymentResponse>("/v1/payments/otp/submit", {
+    method: "POST",
+    body: JSON.stringify({ id: input.paymentId, otp: input.otp.trim() }),
+  });
+}
+
+export async function resendRazorpayPaymentOtp(
+  paymentId: string,
+): Promise<unknown> {
+  if (!RAZORPAY_PAYMENT_ID_RE.test(paymentId)) {
+    throw new AppError("Invalid payment id.", 400, "bad_request");
+  }
+  return razorpayApi<unknown>("/v1/payments/otp/resend", {
+    method: "POST",
+    body: JSON.stringify({ id: paymentId }),
+  });
 }
 
 // Razorpay webhook payload authenticity verify — HMAC-SHA256(rawBody, webhookSecret) === signature header

@@ -3,7 +3,10 @@ import { jsonData } from "@/server/http/api-response";
 import { requireSession } from "@/server/auth/require-session";
 import * as billingService from "@/server/services/billing.service";
 import { AppError } from "@/server/db/errors";
-import { isCheckoutCurrency } from "@/lib/checkout-currency";
+import {
+  resolveIpCountry,
+  resolveOrderTimeLocation,
+} from "@/server/billing/checkout-location";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +22,8 @@ export const POST = withApiHandler(
       seatBreakdown?: Record<string, number>;
       organizationSeatCount?: number;
       currency?: string;
+      /** Client-declared billing country (ISO-2) — verified server-side. */
+      countryCode?: string;
       returnPath?: string;
       orderKind?: "subscription" | "gift";
       giftId?: string;
@@ -38,8 +43,15 @@ export const POST = withApiHandler(
       throw new AppError("billingCycle must be monthly or yearly.", 400);
     }
 
-    const currency =
-      body.currency && isCheckoutCurrency(body.currency) ? body.currency : "INR";
+    // Server is the authority on country + currency: geo-IP vs declared
+    // resolves here (client currency is ignored, never trusted).
+    const ipCountry = resolveIpCountry(request.headers);
+    const location = resolveOrderTimeLocation({
+      declaredCountry:
+        typeof body.countryCode === "string" ? body.countryCode : undefined,
+      ipCountry,
+    });
+    const currency = location.currency;
 
     const orderKind = body.orderKind === "gift" ? "gift" : null;
     if (orderKind === "gift") {
@@ -62,6 +74,9 @@ export const POST = withApiHandler(
       planName: body.planName.trim(),
       billingCycle,
       currency,
+      country: location.effectiveCountry,
+      ipCountry,
+      declaredCountry: location.evidence.declared,
       maxTier: body.maxTier ?? null,
       seatBreakdown: body.seatBreakdown ?? null,
       organizationSeatCount: body.organizationSeatCount ?? null,

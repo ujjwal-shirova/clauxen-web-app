@@ -1,21 +1,17 @@
 import { withApiHandler } from "@/server/http/api-handler";
 import { jsonData } from "@/server/http/api-response";
 import { defaultCurrencyForCountry } from "@/lib/checkout-currency";
+import { resolveIpCountry } from "@/server/billing/checkout-location";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const GET = withApiHandler(async ({ request }) => {
-  const country =
-    request.headers.get("x-vercel-ip-country") ??
-    request.headers.get("cf-ipcountry") ??
-    request.headers.get("x-country-code") ??
-    "IN";
-
-  const currency = defaultCurrencyForCountry(country);
+  const countryCode = resolveIpCountry(request.headers);
+  const currency = defaultCurrencyForCountry(countryCode);
 
   return jsonData({
-    countryCode: country.trim().toUpperCase().slice(0, 2),
+    countryCode,
     currency,
   });
 });

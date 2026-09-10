@@ -1,6 +1,9 @@
 import { env } from "@/server/config/env";
 import { AppError } from "@/server/db/errors";
-import { isBillingWorkerConfigured } from "@/server/billing/billing-worker";
+import {
+  billingWorkerRazorpay,
+  isBillingWorkerConfigured,
+} from "@/server/billing/billing-worker";
 import { isRazorpayConfigured } from "@/server/billing/razorpay";
 
 /** ₹25,000 mandate ceiling — authorization only, ₹0 charged at setup. */
@@ -18,6 +21,30 @@ function authHeader(): string {
 }
 
 async function razorpayDirect<T>(path: string, init?: RequestInit): Promise<T> {
+  // Prefer the Cloudflare billing Worker so Razorpay secrets can live
+  // only on Cloudflare; fall back to direct keys on Vercel when set.
+  if (isBillingWorkerConfigured()) {
+    const method = (init?.method ?? "GET").toUpperCase();
+    let workerPath: string | null = null;
+    if (path === "/v1/customers" && method === "POST") {
+      workerPath = "/v1/razorpay/customers";
+    } else if (path === "/v1/orders" && method === "POST") {
+      workerPath = "/v1/razorpay/orders";
+    } else {
+      const cust = path.match(/^\/v1\/customers\/([^/?]+)$/);
+      if (cust && method === "GET") {
+        workerPath = `/v1/razorpay/customers/${cust[1]}`;
+      }
+    }
+    if (workerPath) {
+      try {
+        return await billingWorkerRazorpay<T>(workerPath, init);
+      } catch (err) {
+        if (env.billingRequireWorker) throw err;
+        if (!env.razorpayKeyId || !env.razorpayKeySecret) throw err;
+      }
+    }
+  }
   const res = await fetch(`https://api.razorpay.com${path}`, {
     ...init,
     headers: {
@@ -68,16 +95,6 @@ export async function ensureRazorpayCustomer(input: {
       "billing_unavailable",
     );
   }
-  // Prefer direct keys for customer APIs (not all proxied on worker).
-  if (!env.razorpayKeyId || !env.razorpayKeySecret) {
-    if (isBillingWorkerConfigured()) {
-      throw new AppError(
-        "Razorpay customer APIs require RAZORPAY_KEY_ID/SECRET on the app.",
-        503,
-        "billing_unavailable",
-      );
-    }
-  }
 
   return razorpayDirect<RazorpayCustomer>("/v1/customers", {
     method: "POST",
@@ -101,7 +118,7 @@ export async function createMandateSetupOrder(input: {
   receipt: string;
   userId: string;
 }) {
-  if (!env.razorpayKeyId || !env.razorpayKeySecret) {
+  if (!isRazorpayConfigured()) {
     throw new AppError(
       "Razorpay is not configured.",
       503,

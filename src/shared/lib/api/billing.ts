@@ -92,6 +92,7 @@ export async function createCheckoutSession(input: {
   planName: string;
   billingCycle: "monthly" | "yearly";
   currency?: "INR" | "USD";
+  countryCode?: string;
   maxTier?: string;
   seatBreakdown?: Record<string, number>;
   organizationSeatCount?: number;
@@ -150,6 +151,12 @@ export async function createBillingOrder(input: {
       currency: string;
       keyId?: string;
       contact?: string;
+      customerId?: string;
+    };
+    location?: {
+      country: string;
+      currency: string;
+      verdict: string;
     };
     pricing: {
       subtotalPaise: number;

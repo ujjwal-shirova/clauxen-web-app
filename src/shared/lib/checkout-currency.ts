@@ -30,6 +30,22 @@ export function defaultCurrencyForCountry(countryCode: string): CheckoutCurrency
   return countryCode.trim().toUpperCase() === "IN" ? "INR" : "USD";
 }
 
+/**
+ * Conservative checkout country: any India signal (declared or IP) → IN.
+ * Unknown IP also defaults to IN so GST cannot be skipped before geo loads.
+ */
+export function effectiveCountryForCheckout(
+  declaredCountry: string,
+  ipCountry: string,
+): string {
+  const declared = declaredCountry.trim().toUpperCase();
+  const ip = ipCountry.trim().toUpperCase();
+  if (declared === "IN" || ip === "IN" || !ip) return "IN";
+  if (/^[A-Z]{2}$/.test(declared)) return declared;
+  if (/^[A-Z]{2}$/.test(ip)) return ip;
+  return "IN";
+}
+
 /** INR rupees (whole or fractional) → formatted checkout string. */
 export function formatCheckoutAmountInr(
   amountInr: number,

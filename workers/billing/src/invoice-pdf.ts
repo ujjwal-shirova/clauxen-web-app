@@ -35,10 +35,20 @@ function formatDate(iso: string): string {
 /**
  * Hostinger-inspired minimal invoice PDF.
  * Generated entirely server-side on Cloudflare Workers (pdf-lib).
+ *
+ * Brand: Clauxen (product) issued by the legal entity in `issuer`.
+ * Export invoices (zero-rated, USD) carry the LUT declaration line.
  */
 export async function buildInvoicePdf(
   data: InvoiceGenerateRequest,
-  issuer: { name: string; legal: string; address: string },
+  issuer: {
+    name: string;
+    brand?: string;
+    legal: string;
+    address: string;
+    gstin?: string;
+    lutNumber?: string;
+  },
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const page = doc.addPage([595.28, 841.89]); // A4
@@ -72,7 +82,7 @@ export async function buildInvoicePdf(
     });
   }
 
-  page.drawText(issuer.name, {
+  page.drawText(issuer.brand || issuer.name, {
     x: margin + 52,
     y: y - 14,
     size: 16,
@@ -93,15 +103,40 @@ export async function buildInvoicePdf(
     font,
     color: muted,
   });
+  if (issuer.gstin && data.invoiceKind !== "export_lut") {
+    page.drawText(`GSTIN: ${issuer.gstin}`, {
+      x: margin + 52,
+      y: y - 54,
+      size: 8,
+      font,
+      color: muted,
+    });
+  }
 
+  const isExport = data.invoiceKind === "export_lut";
   const rightX = 340;
-  page.drawText("INVOICE", {
+  page.drawText(isExport ? "EXPORT INVOICE" : "INVOICE", {
     x: rightX,
     y: y - 14,
-    size: 22,
+    size: isExport ? 16 : 22,
     font: fontBold,
     color: black,
   });
+  const lutNumber = (data.lutNumber || issuer.lutNumber || "").trim();
+  if (isExport) {
+    page.drawText(
+      lutNumber
+        ? `Supply for export under LUT ${lutNumber} without IGST`
+        : "Zero-rated supply — no GST charged",
+      {
+        x: rightX,
+        y: y - 28,
+        size: 7,
+        font,
+        color: muted,
+      },
+    );
+  }
 
   const meta: Array<[string, string]> = [
     ["Invoice #", data.invoiceNumber],
@@ -113,7 +148,7 @@ export async function buildInvoicePdf(
   }
   meta.push(["Order Number", data.orderId.slice(0, 28)]);
 
-  let metaY = y - 40;
+  let metaY = y - (isExport ? 54 : 40);
   for (const [label, value] of meta) {
     page.drawText(`${label}:`, {
       x: rightX,
