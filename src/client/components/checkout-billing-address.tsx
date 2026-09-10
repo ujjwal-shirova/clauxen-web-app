@@ -171,7 +171,7 @@ export function CheckoutBillingAddress({
               id="checkout-state"
               value={value.state}
               onChange={(e) => patch({ state: e.target.value })}
-              className={cn(checkoutUi.field, "appearance-none pr-9")}
+              className={cn(checkoutUi.fieldWithTrailingIcon, "appearance-none")}
               aria-label="State"
             >
               <option value="">Select state</option>
@@ -197,7 +197,7 @@ export function CheckoutBillingAddress({
               id="checkout-country"
               value={value.countryCode}
               onChange={(e) => patch({ countryCode: e.target.value })}
-              className={cn(checkoutUi.field, "appearance-none pr-9")}
+              className={cn(checkoutUi.fieldWithTrailingIcon, "appearance-none")}
               aria-label="Country"
             >
               <option value="IN">India</option>

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ChevronDown, Info, Lock, Minus, Plus } from "lucide-react";
+import { ArrowLeft, ChevronDown, Info, Minus, Plus } from "lucide-react";
 import { appBtn } from "@/lib/app-buttons";
 import {
   createBillingOrder,
@@ -1734,22 +1734,13 @@ export function BillingCheckout({
         <span className="clauxen-wordmark min-w-0 truncate text-[17px] font-medium tracking-[-0.02em]">
           Clauxen
         </span>
-        <span className="checkout-topbar__secure">
-          <Lock className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
-          Encrypted
-        </span>
       </header>
 
       <div className="checkout-split">
         <main className="checkout-pay">
           <div className="checkout-pay__inner">
-            <div className="mb-7">
+            <div className="mb-6">
               <h1 className="checkout-heading">Subscribe to {details.name}</h1>
-              <p className="checkout-kicker">
-                {isVariableCheckoutPlan
-                  ? "Share your details. We’ll confirm pricing next."
-                  : `${formatInr(total)} due today · ${cycleDetailLabel}`}
-              </p>
             </div>
             {payError && <CheckoutErrorBanner message={payError} />}
             <CheckoutForm
@@ -1833,10 +1824,7 @@ export function BillingCheckout({
 
             <div className={cn("flex flex-col gap-5", !orderSummaryOpen && "max-lg:hidden")}>
               <div className="hidden lg:block">
-                <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--settings-fg-muted)]">
-                  Order
-                </p>
-                <h2 className="mt-1 text-[20px] font-semibold tracking-[-0.03em]">
+                <h2 className="text-[20px] font-semibold tracking-[-0.03em]">
                   {details.name}
                 </h2>
                 <p className="mt-1 text-[13px] text-[var(--settings-fg-muted)]">

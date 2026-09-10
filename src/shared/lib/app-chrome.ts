@@ -60,6 +60,9 @@ const field = {
   base: "app-field",
   withIcons: "app-field app-field--icons",
   withTrailing: "app-field app-field--trailing",
+  withPrefix: "app-field app-field--prefix",
+  withLeadingIcon: "app-field app-field--leading-icon",
+  withCombo: "app-field app-field--combo",
   mutedPanel: "app-field-muted-panel",
 } as const;
 
@@ -71,6 +74,9 @@ const checkout = {
   field: field.base,
   fieldWithIcons: field.withIcons,
   fieldWithTrailingIcon: field.withTrailing,
+  fieldWithPrefix: field.withPrefix,
+  fieldWithLeadingIcon: field.withLeadingIcon,
+  fieldWithCombo: field.withCombo,
 
   sectionTitle: "text-[15px] font-semibold leading-5 tracking-[-0.02em] text-[var(--settings-fg)]",
   sectionHint: "text-[13px] leading-5 text-[var(--settings-fg-muted)]",

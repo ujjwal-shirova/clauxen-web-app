@@ -919,6 +919,22 @@ textarea.app-field {
   padding-right: 2.5rem;
 }
 
+/* Leading-adornment offsets. These MUST live here (not as Tailwind pl-*
+   utilities): unlayered author CSS wins over layered utilities, so a `pl-9`
+   class on an .app-field silently loses and the icon overlaps the text. */
+.app-field--prefix {
+  padding-left: 2.75rem;
+}
+
+.app-field--leading-icon {
+  padding-left: 2.4rem;
+}
+
+.app-field--combo {
+  padding-left: 2.4rem;
+  padding-right: 2.25rem;
+}
+
 .app-field-muted-panel {
   border-radius: var(--settings-card-radius, var(--radius-md));
   border: none;
@@ -5927,7 +5943,7 @@ button.prompt-model-selector[aria-expanded="true"] {
   width: 100%;
   flex-direction: column;
   overflow-y: auto;
-  background: var(--app-panel-bg);
+  background: var(--settings-canvas-bg, var(--app-shell-bg, #f4f4f5));
   color: var(--settings-fg);
   font-family: var(--font-inter), Inter, system-ui, sans-serif;
 }
@@ -5938,38 +5954,27 @@ button.prompt-model-selector[aria-expanded="true"] {
   z-index: 30;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   height: 56px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--settings-hairline);
-  background: var(--app-panel-bg);
-}
-
-.checkout-topbar__secure {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--settings-fg-muted);
+  background: var(--settings-canvas-bg, var(--app-shell-bg, #f4f4f5));
 }
 
 .checkout-split {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  width: 100%;
+  padding: 4px 16px 8rem;
 }
 
 .checkout-pay {
   min-width: 0;
-  padding: 20px 16px 8rem;
 }
 
 .checkout-rail {
   order: -1;
   min-width: 0;
-  padding: 12px 16px 8px;
-  background: var(--app-panel-bg);
 }
 
 .checkout-pay__inner,
@@ -5977,6 +5982,12 @@ button.prompt-model-selector[aria-expanded="true"] {
   width: 100%;
   max-width: 560px;
   margin: 0 auto;
+  background: var(--app-panel-bg);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px rgba(24, 24, 27, 0.05),
+    0 12px 32px -16px rgba(24, 24, 27, 0.14);
+  padding: 22px 20px;
 }
 
 .checkout-heading {
@@ -5984,13 +5995,6 @@ button.prompt-model-selector[aria-expanded="true"] {
   line-height: 28px;
   font-weight: 600;
   letter-spacing: -0.03em;
-}
-
-.checkout-kicker {
-  margin-top: 4px;
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--settings-fg-muted);
 }
 
 .checkout-segment {
@@ -6118,10 +6122,11 @@ button.prompt-model-selector[aria-expanded="true"] {
   position: sticky;
   bottom: 0;
   z-index: 20;
-  margin: 0 -16px -8rem;
-  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  margin: 8px -20px -22px;
+  padding: 12px 20px max(16px, env(safe-area-inset-bottom));
   background: color-mix(in oklab, var(--app-panel-bg) 92%, transparent);
   border-top: 1px solid var(--settings-hairline);
+  border-radius: 0 0 18px 18px;
   backdrop-filter: blur(12px);
 }
 
@@ -6139,8 +6144,16 @@ button.prompt-model-selector[aria-expanded="true"] {
     padding: 0 28px;
   }
 
+  /* Centered two-card layout with equal page gutters; each column scrolls
+     independently when its content overflows. */
   .checkout-split {
-    grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+    gap: 24px;
+    align-items: start;
+    width: 100%;
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 12px 28px 40px;
     min-height: 0;
     flex: 1;
   }
@@ -6150,27 +6163,21 @@ button.prompt-model-selector[aria-expanded="true"] {
     height: 100%;
     overflow-y: auto;
     order: 0;
-  }
-
-  .checkout-pay {
-    padding: 40px 40px 48px;
-  }
-
-  .checkout-rail {
-    padding: 32px 28px 36px;
-    background: color-mix(in oklab, var(--settings-canvas-bg, #f4f4f5) 88%, var(--app-panel-bg));
-    border-top: 0;
-    border-left: 1px solid var(--settings-hairline);
+    min-height: 0;
+    scrollbar-width: thin;
+    padding-bottom: 8px;
   }
 
   .checkout-pay__inner {
-    max-width: 520px;
-    margin: 0 0 0 auto;
-    padding-right: 24px;
+    max-width: 600px;
+    margin: 0;
+    padding: 28px;
   }
 
   .checkout-rail__inner {
     max-width: none;
+    margin: 0;
+    padding: 24px;
   }
 
   .checkout-pay-dock--mobile {
@@ -6183,8 +6190,11 @@ button.prompt-model-selector[aria-expanded="true"] {
   }
 }
 
-.dark .checkout-rail {
-  background: color-mix(in oklab, var(--settings-canvas-bg) 70%, #000);
+.dark .checkout-pay__inner,
+.dark .checkout-rail__inner {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 12px 32px -16px rgba(0, 0, 0, 0.5);
 }
 
 .dark .checkout-segment,
