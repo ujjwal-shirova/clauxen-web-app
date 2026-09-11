@@ -121,7 +121,7 @@ export function ChatViewHeader({
       <>
         <header
           className={cn(
-            "content-pane-top-bar pointer-events-none absolute inset-x-0 top-0 z-40 flex items-center font-sans",
+            "content-pane-top-bar pointer-events-none absolute inset-x-0 top-0 z-40 flex items-center bg-[var(--app-panel-bg,#fcfcfb)] font-sans",
             className,
           )}
         >

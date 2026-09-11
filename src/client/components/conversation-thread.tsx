@@ -48,10 +48,6 @@ import { useAppPreferencesOptional } from "@/contexts/app-preferences-context";
 import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
 import { groupMessagesIntoTurns } from "@/lib/chat-turns";
 import type { ConversationTurnGroup } from "@/lib/chat-turns";
-import {
-  createStickySyncCache,
-  syncStickyUserMessages,
-} from "@/lib/chat-sticky";
 import { hasCompletedAssistantOutput } from "@/lib/assistant-output-state";
 import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
 
@@ -75,11 +71,11 @@ interface ConversationThreadProps {
   onOpenSources?: (messageId?: string) => void;
   className?: string;
   scrollAreaRef?: React.RefObject<HTMLDivElement | null>;
-  /** Resets sticky state when switching chats. */
+  /** Identifies the active chat; kept for API compatibility. */
   conversationKey?: string | null;
-  /** Skip heavy sticky work while the user is flick-scrolling. */
+  /** Disables pointer events on turns while the user is flick-scrolling. */
   isFastScrolling?: boolean;
-  /** Throttle sticky observers while the model is streaming. */
+  /** True while the model is streaming a response. */
   isGenerating?: boolean;
   /** Send a suggested follow-up as a new user message. */
   onFollowUpSelect?: (prompt: string) => void;
@@ -809,57 +805,8 @@ const ConversationTurn = React.memo(
     turnIndex,
     chatIsGenerating = false,
   }: ConversationTurnProps) {
-    const turnRootRef = React.useRef<HTMLDivElement>(null);
-    const userMsgHostRef = React.useRef<HTMLDivElement>(null);
-
-    const isEditingUser = !!userMessage && editingMessageId === userMessage.id;
-
-    // Measure the bubble/editor height for the code-header sticky offset.
-    // The actions row is excluded on purpose: it fades in/out on hover and
-    // becomes a floating pill when docked, so including it would shift every
-    // sticky code/table header at the hover/dock boundary.
-    React.useLayoutEffect(() => {
-      const turnEl = turnRootRef.current;
-      const hostEl = userMsgHostRef.current;
-      if (!turnEl || !hostEl || !userMessage) return;
-
-      const measured = () =>
-        hostEl.querySelector<HTMLElement>(
-          ".user-msg-bubble, .user-msg-editor",
-        ) ?? hostEl;
-
-      const updateVar = () => {
-        const el = measured();
-        const styles = getComputedStyle(el);
-        const h =
-          (el.offsetHeight || 0) +
-          parseFloat(styles.marginTop || "0") +
-          parseFloat(styles.marginBottom || "0");
-        const next = `${Math.max(0, Math.round(h))}px`;
-        if (turnEl.style.getPropertyValue("--turn-user-msg-height") !== next) {
-          turnEl.style.setProperty("--turn-user-msg-height", next);
-          turnEl.dispatchEvent(
-            new CustomEvent("clauxen-turn-metrics", { bubbles: true }),
-          );
-        }
-      };
-
-      updateVar();
-
-      const ro = new ResizeObserver(updateVar);
-      ro.observe(hostEl);
-      const bubble = measured();
-      if (bubble !== hostEl) ro.observe(bubble);
-
-      return () => {
-        ro.disconnect();
-        turnEl.style.removeProperty("--turn-user-msg-height");
-      };
-    }, [userMessage, isEditingUser]);
-
     return (
       <div
-        ref={turnRootRef}
         data-conversation-turn
         data-turn-index={turnIndex}
         data-turn-streaming={
@@ -871,34 +818,26 @@ const ConversationTurn = React.memo(
         style={{ "--turn-index": turnIndex } as React.CSSProperties}
       >
         {userMessage && (
-          <>
-            <div className="sticky-user-msg-sentinel" aria-hidden />
-            <div
-              ref={userMsgHostRef}
-              data-sticky-user-msg
-              data-user-msg-editing={isEditingUser ? "true" : undefined}
-              className="sticky-user-msg-host sticky-user-msg w-full max-w-full shrink-0"
-            >
-              <MessageRow
-                message={userMessage}
-                editingMessageId={editingMessageId}
-                editValue={editValue}
-                copiedId={copiedId}
-                onEditValueChange={onEditValueChange}
-                onStartEdit={onStartEdit}
-                onCancelEdit={onCancelEdit}
-                onSaveEdit={onSaveEdit}
-                onCopy={onCopy}
-                onRetryUserMessage={onRetryUserMessage}
-                onRetryAssistant={onRetryAssistant}
-                onSwitchBranch={onSwitchBranch}
-                onOpenSources={onOpenSources}
-                moreMenuId={moreMenuId}
-                onToggleMoreMenu={onToggleMoreMenu}
-                chatIsGenerating={chatIsGenerating}
-              />
-            </div>
-          </>
+          <div className="w-full max-w-full shrink-0">
+            <MessageRow
+              message={userMessage}
+              editingMessageId={editingMessageId}
+              editValue={editValue}
+              copiedId={copiedId}
+              onEditValueChange={onEditValueChange}
+              onStartEdit={onStartEdit}
+              onCancelEdit={onCancelEdit}
+              onSaveEdit={onSaveEdit}
+              onCopy={onCopy}
+              onRetryUserMessage={onRetryUserMessage}
+              onRetryAssistant={onRetryAssistant}
+              onSwitchBranch={onSwitchBranch}
+              onOpenSources={onOpenSources}
+              moreMenuId={moreMenuId}
+              onToggleMoreMenu={onToggleMoreMenu}
+              chatIsGenerating={chatIsGenerating}
+            />
+          </div>
         )}
         {assistantMessages.map((msg) => (
           <MessageRow
@@ -984,8 +923,6 @@ export function ConversationThread({
   onSwitchBranch,
   onOpenSources,
   className,
-  scrollAreaRef,
-  conversationKey,
   isFastScrolling: isFastScrollingProp = false,
   isGenerating: isGeneratingProp = false,
   onFollowUpSelect,
@@ -1223,228 +1160,7 @@ export function ConversationThread({
     [messages],
   );
 
-  const stickyStreamKey = React.useMemo(() => {
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const message = messages[index];
-      if (message.role === "assistant" && message.isStreaming) {
-        const agentStreamSize = (message.agentTrace?.steps ?? []).reduce(
-          (stepTotal, step) => {
-            if (step.kind === "narration") {
-              return stepTotal + step.content.length;
-            }
-            if (step.kind === "tool") {
-              return (
-                stepTotal +
-                (step.stdout?.length ?? 0) +
-                (step.stderr?.length ?? 0) +
-                (step.result?.length ?? 0) +
-                (step.searchResults?.length ?? 0)
-              );
-            }
-            return stepTotal;
-          },
-          0,
-        );
-        return `${message.id}:${message.content.length}:${message.thinkingContent?.length ?? 0}:${agentStreamSize}`;
-      }
-    }
-    return "idle";
-  }, [messages]);
-
   const listRef = React.useRef<HTMLDivElement>(null);
-  const turnCountRef = React.useRef(groups.length);
-  turnCountRef.current = groups.length;
-  const stickySyncRef = React.useRef<(() => void) | null>(null);
-  const stickyCacheRef = React.useRef(createStickySyncCache());
-  const isGeneratingRef = React.useRef(isGeneratingProp);
-  isGeneratingRef.current = isGeneratingProp;
-  const isFastScrollingRef = React.useRef(isFastScrollingProp);
-  isFastScrollingRef.current = isFastScrollingProp;
-
-  const getScrollElement = React.useCallback(() => {
-    if (scrollAreaRef?.current) {
-      return (
-        scrollAreaRef.current.querySelector<HTMLElement>(
-          "[data-radix-scroll-area-viewport]",
-        ) ?? scrollAreaRef.current
-      );
-    }
-    return listRef.current;
-  }, [scrollAreaRef]);
-
-  // While editing, blur on user-driven viewport scroll so focus/scrollIntoView
-  // cannot keep the expanded sticky host pinned when it should release.
-  React.useEffect(() => {
-    if (!editingMessageId) return;
-    const viewport = getScrollElement();
-    if (!viewport) return;
-
-    let userScrollArmed = false;
-    const armUserScroll = () => {
-      userScrollArmed = true;
-    };
-    const onScrollbarPointerDown = (event: PointerEvent) => {
-      if (event.target === viewport) armUserScroll();
-    };
-    const onViewportScroll = () => {
-      if (!userScrollArmed) return;
-      userScrollArmed = false;
-      const active = document.activeElement;
-      if (
-        active instanceof HTMLElement &&
-        active.closest("[data-user-message-editing]")
-      ) {
-        active.blur();
-      }
-      stickySyncRef.current?.();
-    };
-
-    viewport.addEventListener("wheel", armUserScroll, { passive: true });
-    viewport.addEventListener("touchstart", armUserScroll, { passive: true });
-    viewport.addEventListener("pointerdown", onScrollbarPointerDown);
-    viewport.addEventListener("scroll", onViewportScroll, { passive: true });
-
-    return () => {
-      viewport.removeEventListener("wheel", armUserScroll);
-      viewport.removeEventListener("touchstart", armUserScroll);
-      viewport.removeEventListener("pointerdown", onScrollbarPointerDown);
-      viewport.removeEventListener("scroll", onViewportScroll);
-    };
-  }, [editingMessageId, getScrollElement]);
-
-  React.useLayoutEffect(() => {
-    const viewport = getScrollElement();
-    if (!viewport || groups.length === 0) return;
-
-    // New conversation (or turn-list reset) — force one full sticky pass.
-    stickyCacheRef.current = createStickySyncCache();
-
-    let syncRaf = 0;
-    let disposed = false;
-    let scrollEndTimer = 0;
-    let mutationTimer = 0;
-
-    const runSync = () => {
-      if (disposed) return;
-      syncStickyUserMessages(
-        viewport,
-        turnCountRef.current,
-        isGeneratingRef.current,
-        stickyCacheRef.current,
-      );
-    };
-    stickySyncRef.current = runSync;
-
-    const scheduleSync = () => {
-      if (syncRaf !== 0) return;
-      syncRaf = requestAnimationFrame(() => {
-        syncRaf = 0;
-        runSync();
-      });
-    };
-
-    const onTurnMetrics = () => scheduleSync();
-
-    const onViewportScroll = () => {
-      // Fast flicks only need one settle pass at the end — per-frame rect
-      // reads during the fling itself are pure scroll jank.
-      if (!isFastScrollingRef.current) scheduleSync();
-      window.clearTimeout(scrollEndTimer);
-      scrollEndTimer = window.setTimeout(() => {
-        runSync();
-      }, 130);
-    };
-
-    runSync();
-    requestAnimationFrame(() => {
-      runSync();
-      requestAnimationFrame(runSync);
-    });
-    const settleTimer = window.setTimeout(runSync, 0);
-    const lateTimer = window.setTimeout(runSync, 150);
-
-    viewport.addEventListener("scroll", onViewportScroll, { passive: true });
-    viewport.addEventListener("clauxen-turn-metrics", onTurnMetrics);
-    window.addEventListener("resize", runSync);
-
-    const content =
-      (viewport.firstElementChild as HTMLElement | null) ?? viewport;
-    const resizeObserver = new ResizeObserver(() => scheduleSync());
-    resizeObserver.observe(content);
-
-    viewport
-      .querySelectorAll<HTMLElement>("[data-sticky-user-msg]")
-      .forEach((host) => {
-        resizeObserver.observe(host);
-      });
-
-    // Observe mounts (streamed code/table blocks). Code/table offsets are CSS
-    // (--turn-user-msg-height); JS only elevates the active user bubble.
-    // Debounce during streaming to avoid token thrash.
-    const mutationObserver = new MutationObserver(() => {
-      if (isGeneratingRef.current) {
-        window.clearTimeout(mutationTimer);
-        mutationTimer = window.setTimeout(() => scheduleSync(), 48);
-        return;
-      }
-      scheduleSync();
-    });
-    mutationObserver.observe(content, {
-      childList: true,
-      subtree: true,
-    });
-
-    return () => {
-      disposed = true;
-      stickySyncRef.current = null;
-      if (syncRaf !== 0) {
-        cancelAnimationFrame(syncRaf);
-      }
-      window.clearTimeout(settleTimer);
-      window.clearTimeout(lateTimer);
-      window.clearTimeout(scrollEndTimer);
-      window.clearTimeout(mutationTimer);
-      viewport.removeEventListener("scroll", onViewportScroll);
-      viewport.removeEventListener("clauxen-turn-metrics", onTurnMetrics);
-      window.removeEventListener("resize", runSync);
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-    };
-  }, [getScrollElement, groups.length, conversationKey]);
-
-  React.useEffect(() => {
-    stickySyncRef.current?.();
-  }, [
-    stickyStreamKey,
-    isFastScrollingProp,
-    isGeneratingProp,
-    editingMessageId,
-  ]);
-
-  // Generation-end: one short settle pass after Streamdown finishes mounting.
-  React.useEffect(() => {
-    if (isGeneratingProp) return;
-    const viewport = getScrollElement();
-    if (!viewport) return;
-
-    const run = () => {
-      syncStickyUserMessages(
-        viewport,
-        turnCountRef.current,
-        false,
-        stickyCacheRef.current,
-      );
-    };
-
-    run();
-    const raf = requestAnimationFrame(run);
-    const timer = window.setTimeout(run, 120);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      window.clearTimeout(timer);
-    };
-  }, [isGeneratingProp, getScrollElement, stickyStreamKey]);
 
   const turnProps = {
     editingMessageId,

@@ -3347,16 +3347,14 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /*
-  Code/table headers always dock under that turn's sticky user bubble via
-  --turn-user-msg-height. No JS pin attrs — sticky works as soon as the block
-  mounts during streaming. Active-turn only raises
-  z-index so the current turn wins over older sticky chrome.
+  Code/table headers dock under the solid chat header. User messages are
+  static (ChatGPT-style) — no per-turn offset or JS pinning.
 */
 [data-conversation-turn]
   .composer-message-codeblock
   .ui-code-block.code-block-header-sticky {
   position: sticky;
-  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px));
+  top: var(--chat-header-height, var(--header-height, 44px));
   z-index: 8;
   background: #ffffff;
   backdrop-filter: none;
@@ -3370,7 +3368,7 @@ button.user-message-card__body:not(:disabled):hover,
   .composer-message-table
   .ui-table-title-header.table-title-header-sticky {
   position: sticky;
-  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px));
+  top: var(--chat-header-height, var(--header-height, 44px));
   z-index: 8;
   background: #ffffff;
   backdrop-filter: none;
@@ -3378,18 +3376,6 @@ button.user-message-card__body:not(:disabled):hover,
   overflow-anchor: none;
   box-shadow: none;
   transition: none !important;
-}
-
-[data-conversation-turn][data-sticky-active="true"]
-  .composer-message-codeblock
-  .ui-code-block.code-block-header-sticky {
-  z-index: 18;
-}
-
-[data-conversation-turn][data-sticky-active="true"]
-  .composer-message-table
-  .ui-table-title-header.table-title-header-sticky {
-  z-index: 18;
 }
 
 /* ─── Clauxen agent activity stream ────────────────────────────────────────
@@ -5821,25 +5807,17 @@ button[data-speed-toggle][data-state="open"] {
    Consolidated final block so the cascade stays reviewable. Every value
    below resolves through theme tokens — no hardcoded light/dark colors. */
 
-/* Chat header — frosted cloudy wash; no hairline from content. */
+/* Chat header — solid canvas; no translucency or blur. */
 .content-pane-top-bar {
   border-bottom: 0 !important;
   box-shadow: none !important;
-  background: color-mix(
-    in oklab,
-    var(--app-panel-bg, #fcfcfb) 58%,
-    transparent
-  ) !important;
-  -webkit-backdrop-filter: blur(22px) saturate(1.55);
-  backdrop-filter: blur(22px) saturate(1.55);
+  background: var(--app-panel-bg, #fcfcfb) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 .dark .content-pane-top-bar {
-  background: color-mix(
-    in oklab,
-    var(--chat-canvas-bg, #18181b) 52%,
-    transparent
-  ) !important;
+  background: var(--app-panel-bg, #18181b) !important;
 }
 
 /* Sit the title next to the collapsed-sidebar trigger (32px at 10px). */
@@ -6484,10 +6462,11 @@ button.prompt-model-selector[aria-expanded="true"] {
   background: #2a2a31;
 }
 
-/* ── User message rebuild — bubble, actions, sticky, editor ────────────────
+/* ── User message rebuild — bubble, actions, editor ──────────────────────────
    Final consolidated block. Supersedes the scattered historical
-   .user-message-card / .sticky-user-msg rules above. All values resolve
-   through theme tokens so light + dark stay in sync. */
+   .user-message-card rules above. All values resolve
+   through theme tokens so light + dark stay in sync. User messages are
+   static (ChatGPT-style) — no sticky docking. */
 
 /* Card: right-aligned column, bubble + actions share the trailing edge. */
 .user-message-card {
@@ -6671,93 +6650,62 @@ button.prompt-model-selector[aria-expanded="true"] {
   gap: 2px !important;
 }
 
-/* Sticky host: docks under the header with a canvas wash + hairline. The host
-   itself is transparent at rest; only the stuck state paints a surface so
-   scrolled content cannot show through. */
-.sticky-user-msg-host {
-  position: sticky !important;
-  top: calc(var(--chat-header-height, var(--header-height, 40px)) + 8px) !important;
-  z-index: 20 !important;
+/* User messages are static (ChatGPT-style) — no sticky docking. Any
+   historical sticky markup scrolls normally with the thread. */
+.sticky-user-msg-host,
+.sticky-user-msg-host[data-user-msg-editing="true"],
+[data-conversation-turn][data-sticky-active="true"] .sticky-user-msg-host,
+.sticky-user-msg--stuck {
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+  isolation: auto !important;
   width: 100% !important;
   max-width: 100% !important;
   flex-shrink: 0 !important;
   align-self: stretch !important;
   background: transparent !important;
+  background-color: transparent !important;
   overflow: visible !important;
   contain: layout style !important;
   overflow-anchor: none !important;
-  padding: 6px 0 2px !important;
-  margin: -6px 0 4px !important;
+  padding: 0 !important;
+  margin: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
   transition: none !important;
 }
 
-.sticky-user-msg-host[data-user-msg-editing="true"] {
-  position: sticky !important;
-  top: calc(var(--chat-header-height, var(--header-height, 40px)) + 8px) !important;
-  overflow: visible !important;
-  contain: layout style !important;
-  z-index: 34 !important;
-}
-
-[data-conversation-turn][data-sticky-active="true"] .sticky-user-msg-host {
-  z-index: 30 !important;
-}
-
-.sticky-user-msg--stuck {
-  z-index: 30 !important;
-  isolation: isolate !important;
-  background: color-mix(in oklab, var(--chat-canvas-bg, #f2f3f6) 88%, transparent) !important;
-  backdrop-filter: blur(14px) saturate(1.1) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 1px 0 rgba(24, 24, 27, 0.06), 0 12px 28px -18px rgba(24, 24, 27, 0.28) !important;
-  padding: 6px 8px 4px !important;
-  margin: -6px -8px 4px !important;
-}
-
 .sticky-user-msg--stuck::after {
-  content: "" !important;
-  position: absolute !important;
-  left: 8px !important;
-  right: 8px !important;
-  bottom: -1px !important;
-  height: 1px !important;
-  background: var(--ui-border-subtle) !important;
-  opacity: 0.7 !important;
-  pointer-events: none !important;
-  z-index: 0 !important;
+  display: none !important;
+  content: none !important;
 }
 
 .sticky-user-msg--stuck .user-msg-bubble {
-  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.06) !important;
+  box-shadow: none !important;
 }
 
-/* Docked actions become a floating pill that overlays the answer instead of
-   pushing it — same reveal rules (hover / branched / touch). */
-.sticky-user-msg--stuck .user-message-actions {
-  position: absolute !important;
-  top: calc(100% + 6px) !important;
-  right: 10px !important;
-  margin: 0 !important;
-  padding: 3px 4px !important;
-  min-height: 0 !important;
-  background: var(--app-panel-bg) !important;
-  border: 1px solid var(--ui-border) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 8px 24px -12px rgba(24, 24, 27, 0.3) !important;
-  z-index: 2 !important;
-}
-
+.sticky-user-msg--stuck .user-message-actions,
 .sticky-user-msg--stuck .user-message-actions [data-branch-nav] {
-  border-color: transparent !important;
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  margin: 6px 2px 0 auto !important;
+  padding: 0 !important;
+  min-height: 34px !important;
   background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  z-index: auto !important;
 }
 
 .sticky-user-msg-sentinel {
-  height: 1px !important;
-  width: 100% !important;
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
   pointer-events: none !important;
   visibility: hidden !important;
 }
@@ -6954,19 +6902,17 @@ button.prompt-model-selector[aria-expanded="true"] {
   background: linear-gradient(to top, var(--chat-user-card-bg), rgba(0, 0, 0, 0)) !important;
 }
 
-.dark .sticky-user-msg--stuck {
-  background: color-mix(in oklab, var(--chat-canvas-bg) 86%, transparent) !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07), 0 14px 30px -18px rgba(0, 0, 0, 0.6) !important;
+.dark .sticky-user-msg--stuck,
+.dark .sticky-user-msg--stuck .user-message-actions {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .dark .sticky-user-msg--stuck::after {
-  background: rgba(255, 255, 255, 0.08) !important;
-}
-
-.dark .sticky-user-msg--stuck .user-message-actions {
-  background: var(--app-panel-bg) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.55) !important;
+  display: none !important;
+  content: none !important;
 }
 
 .dark .user-msg-editor {
@@ -6987,19 +6933,68 @@ button.prompt-model-selector[aria-expanded="true"] {
     margin-right: 0 !important;
   }
 
-  .sticky-user-msg--stuck {
-    padding-left: 4px !important;
-    padding-right: 4px !important;
-    margin-left: -4px !important;
-    margin-right: -4px !important;
+  .sticky-user-msg--stuck,
+  .sticky-user-msg-host {
+    position: static !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .sticky-user-msg--stuck .user-message-actions {
-    right: 6px !important;
+    position: static !important;
+    right: auto !important;
   }
 
   .user-msg-editor {
     border-radius: 16px !important;
     padding: 10px 10px 8px !important;
   }
+}
+
+/* ── Static user messages (ChatGPT-style) — final safety net ───────────────
+   Historical sticky rules above stay for reference; this last block wins the
+   cascade (including dark-mode) so any lingering sticky markup can never
+   dock, paint a wash, or float its actions. */
+.sticky-user-msg-host,
+.sticky-user-msg-host[data-user-msg-editing="true"],
+[data-conversation-turn][data-sticky-active="true"] .sticky-user-msg-host,
+.sticky-user-msg--stuck,
+.dark .sticky-user-msg-host,
+.dark .sticky-user-msg-host[data-user-msg-editing="true"],
+.dark [data-conversation-turn][data-sticky-active="true"] .sticky-user-msg-host,
+.dark .sticky-user-msg--stuck {
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+  isolation: auto !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.sticky-user-msg--stuck::after,
+.dark .sticky-user-msg--stuck::after {
+  display: none !important;
+  content: none !important;
+}
+
+.sticky-user-msg-sentinel {
+  display: none !important;
+}
+
+.sticky-user-msg--stuck .user-message-actions,
+.dark .sticky-user-msg--stuck .user-message-actions {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }

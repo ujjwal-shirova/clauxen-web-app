@@ -564,9 +564,8 @@ function ChatAreaLayout({
                   conversationKey={activeChatId}
                   // The velocity-based fast-scroll heuristic can't tell our own
                   // programmatic auto-follow (streaming + a big block appearing)
-                  // from a real user flick. Never let it starve the sticky
-                  // code/table header resync while a response is generating —
-                  // that's exactly when headers need to dock in real time.
+                  // from a real user flick. Never disable pointer events for
+                  // programmatic follow while generating.
                   isFastScrolling={isFastScrolling && !isGenerating}
                   isGenerating={isGenerating}
                   onSaveEditedMessage={handleSaveEditedMessage}
