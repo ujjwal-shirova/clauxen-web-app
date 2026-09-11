@@ -14,11 +14,8 @@ import {
   Plus,
   Languages,
   Sparkles,
-  Wand2,
   X,
   LayoutGrid,
-  Clock3,
-  Blocks,
   Download,
   Search,
 } from "lucide-react";
@@ -187,7 +184,6 @@ interface SidebarProps {
   onUpgradeClick: () => void;
   onSettingsClick: () => void;
   onPersonalizationClick?: () => void;
-  onPluginsClick?: () => void;
   onAppsExtensionsClick: () => void;
   onGiftClick: () => void;
   onProjectsClick: () => void;
@@ -233,7 +229,6 @@ export function Sidebar({
   onUpgradeClick,
   onSettingsClick,
   onPersonalizationClick,
-  onPluginsClick,
   onAppsExtensionsClick,
   onGiftClick,
   onProjectsClick,
@@ -804,20 +799,6 @@ export function Sidebar({
               isCollapsed ? "flex flex-col items-center px-0" : "px-1.5",
             )}
           >
-            {renderNavButton({
-              label: "Automations",
-              icon: <Clock3 className="size-4" strokeWidth={1.5} />,
-              href: APP_ROUTES.automations,
-              active: activeView === "automations",
-            })}
-
-            {renderNavButton({
-              label: "Plugins",
-              icon: <Blocks className="size-4" strokeWidth={1.5} />,
-              href: APP_ROUTES.plugins,
-              active: activeView === "plugins",
-            })}
-
             {/* Order: Pinned (chats + projects) → Projects → Recent */}
             {!isCollapsed && hasPinnedSection ? (
               <div className="mt-3 mb-1 px-0">
@@ -1034,25 +1015,6 @@ export function Sidebar({
                       >
                         <Sparkles className="size-4 text-[var(--ui-fg-muted)]" />
                         <span>Personalization</span>
-                      </AppHref>
-                    </DropdownMenuItem>
-                  )}
-                  {onPluginsClick && (
-                    <DropdownMenuItem asChild>
-                      <AppHref
-                        href={overlayHref({
-                          type: "settings",
-                          tab: "Plugins",
-                        })}
-                        onClick={(e) => {
-                          if (!isPlainLeftClick(e)) return;
-                          e.preventDefault();
-                          runAccountOverlayAction(onPluginsClick);
-                        }}
-                        className="ui-menu-row no-hover-overlay cursor-pointer"
-                      >
-                        <Wand2 className="size-4 text-[var(--ui-fg-muted)]" />
-                        <span>Plugins</span>
                       </AppHref>
                     </DropdownMenuItem>
                   )}

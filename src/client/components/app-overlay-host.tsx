@@ -201,13 +201,6 @@ export function AppOverlayHost() {
           onClose={overlays.closeOverlay}
           initialTab={tab}
           onTabChange={(next) => overlays.openSettings(next)}
-          onGoToCustomize={(section) => {
-            if (section === "connectors") {
-              overlays.openSettings("Connectors");
-              return;
-            }
-            overlays.openSettings("Skills");
-          }}
           onUpgradeClick={() => overlays.openPricing()}
           user={auth.user}
           onLogout={() => void auth.logout()}

@@ -1,11 +1,11 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,
-  Blocks,
   Briefcase,
   Code2,
   CreditCard,
   KeyRound,
+  ScrollText,
   Settings,
   Shield,
   Sparkles,
@@ -23,7 +23,7 @@ import {
  * - Security owns sign-in, MFA, passkeys, and advanced protections.
  * - Privacy & safety merges Privacy, Safety, Parental controls, Trusted contact.
  * - Billing absorbs Storage usage.
- * - Extensions merges Skills, Connectors, Plugins behind one sub-nav.
+ * - Skills is the remaining customize surface (connectors/plugins removed).
  * - Clauxen Code stays standalone for developer workflows.
  */
 export const settingsNav = [
@@ -35,7 +35,7 @@ export const settingsNav = [
   { name: "Privacy & safety", icon: Shield },
   { name: "Billing", icon: CreditCard },
   { name: "Capabilities", icon: Briefcase },
-  { name: "Extensions", icon: Blocks },
+  { name: "Skills", icon: ScrollText },
   { name: "Clauxen Code", icon: Code2 },
 ] as const satisfies ReadonlyArray<{ name: string; icon: LucideIcon }>;
 
@@ -53,7 +53,7 @@ export type LegacySettingsTab =
   | "Trusted contact"
   | "Storage"
   | "Keyboard"
-  | "Skills"
+  | "Extensions"
   | "Connectors"
   | "Plugins"
   | "Data controls"
@@ -62,8 +62,6 @@ export type LegacySettingsTab =
   | "Voice";
 
 export type SettingsTab = VisibleSettingsTab | LegacySettingsTab;
-
-export type ExtensionSubView = "skills" | "connectors" | "plugins";
 
 /** Map any accepted tab (visible or legacy) to the visible section. */
 export function resolveVisibleTab(tab: string): VisibleSettingsTab {
@@ -76,7 +74,7 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
     case "Privacy & safety":
     case "Billing":
     case "Capabilities":
-    case "Extensions":
+    case "Skills":
     case "Clauxen Code":
       return tab;
     case "Security & login":
@@ -97,24 +95,14 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
     case "Enterprise":
     case "Voice":
       return "General";
-    case "Skills":
     case "Connectors":
     case "Plugins":
     case "Apps":
-      return "Extensions";
+    case "Extensions":
+      return "Skills";
     default:
       return "General";
   }
-}
-
-/** Legacy extension tabs preselect their sub-view inside Extensions. */
-export function extensionSubViewForTab(
-  tab: string,
-): ExtensionSubView | null {
-  if (tab === "Skills") return "skills";
-  if (tab === "Connectors" || tab === "Apps") return "connectors";
-  if (tab === "Plugins") return "plugins";
-  return null;
 }
 
 export const settingsTabDescriptions: Record<SettingsTab, string> = {
@@ -126,7 +114,7 @@ export const settingsTabDescriptions: Record<SettingsTab, string> = {
   "Privacy & safety": "Your data, content safety, and family.",
   Billing: "Plan, usage, invoices, and payment.",
   Capabilities: "Memory, tools, and things Clauxen can do.",
-  Extensions: "Skills, connectors, and plugins.",
+  Skills: "Reusable instructions Clauxen follows.",
   "Clauxen Code": "Terminal and IDE coding sessions.",
   "Security & login": "Sign-in, two-step verification, and passkeys.",
   Privacy: "Your data, content safety, and family.",
@@ -137,12 +125,12 @@ export const settingsTabDescriptions: Record<SettingsTab, string> = {
   "Trusted contact": "Your data, content safety, and family.",
   Storage: "Plan, usage, invoices, and payment.",
   Keyboard: "Theme, reading, and shortcuts.",
-  Skills: "Skills, connectors, and plugins.",
-  Connectors: "Skills, connectors, and plugins.",
-  Plugins: "Skills, connectors, and plugins.",
+  Extensions: "Reusable instructions Clauxen follows.",
+  Connectors: "Reusable instructions Clauxen follows.",
+  Plugins: "Reusable instructions Clauxen follows.",
   "Data controls": "Your data, content safety, and family.",
   Enterprise: "Theme, reading, and shortcuts.",
-  Apps: "Skills, connectors, and plugins.",
+  Apps: "Reusable instructions Clauxen follows.",
   Voice: "Theme, reading, and shortcuts.",
 };
 
@@ -164,7 +152,7 @@ export const settingsNavGroups: ReadonlyArray<{
   },
   {
     label: "Workspace",
-    items: ["Capabilities", "Extensions", "Clauxen Code"],
+    items: ["Capabilities", "Skills", "Clauxen Code"],
   },
 ];
 
@@ -178,7 +166,7 @@ const LEGACY_TAB_SET = new Set<string>([
   "Trusted contact",
   "Storage",
   "Keyboard",
-  "Skills",
+  "Extensions",
   "Connectors",
   "Plugins",
   "Data controls",

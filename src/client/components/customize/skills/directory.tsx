@@ -30,26 +30,6 @@ function descriptionForSkill(name: string) {
   );
 }
 
-function PluginsNavIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
-      className={className}
-    >
-      <path
-        fillRule="evenodd"
-        d="M13.147 3.147a.5.5 0 1 1 .707.707L11.207 6.5 13.5 8.793l2.646-2.646a.5.5 0 1 1 .707.707L14.208 9.5l2.146 2.146a.5.5 0 1 1-.707.707L15 11.708l-2.646 2.646a4.74 4.74 0 0 1-6.335.335l-2.165 2.165a.5.5 0 1 1-.707-.707l2.165-2.166a4.74 4.74 0 0 1 .335-6.333L8.293 5l-.646-.646a.5.5 0 1 1 .707-.707L10.5 5.793zM6.353 8.354a3.743 3.743 0 0 0 5.292 5.293L14.294 11 9 5.707z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
 export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("");
 
@@ -119,39 +99,6 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
                 >
                   <BookOpen className="h-5 w-5" />
                   <span>Skills</span>
-                </button>
-                <button
-                  type="button"
-                  className="flex items-center gap-3 rounded-lg px-4 py-1.5 app-page-body transition-colors hover:bg-[var(--ui-hover-wash)]"
-                >
-                  <span className="grid h-5 w-5 place-items-center">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M8 6a1 1 0 0 1 1 .999V11h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm1 10h4v-4H9zm-5 0h4v-4H4zm0-5h4V7H4z"
-                        clipRule="evenodd"
-                      />
-                      <path
-                        fillRule="evenodd"
-                        d="M16.103 3.005A1 1 0 0 1 17 4v4l-.005.103a1 1 0 0 1-.893.892L16 9h-4a1 1 0 0 1-.995-.897L11 8V4a1 1 0 0 1 1-1h4zM12 8h4V4h-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </span>
-                  <span>Connectors</span>
-                </button>
-                <button
-                  type="button"
-                  className="flex items-center gap-3 rounded-lg px-4 py-1.5 app-page-body transition-colors hover:bg-[var(--ui-hover-wash)]"
-                >
-                  <PluginsNavIcon className="h-5 w-5" />
-                  <span>Plugins</span>
                 </button>
               </nav>
             </aside>

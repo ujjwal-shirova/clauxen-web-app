@@ -1168,7 +1168,6 @@ export function PromptInput({
         onWebSearchModeChange={handleWebSearchModeChange}
         thinkingMode={thinkingMode}
         onThinkingModeChange={handleThinkingModeChange}
-        onOpenPlugins={() => openOverlayHash({ type: "apps" })}
         onOpenSkills={() =>
           openOverlayHash({ type: "settings", tab: "Skills" })
         }

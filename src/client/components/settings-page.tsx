@@ -3,7 +3,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, X } from "lucide-react";
 import {
-  extensionSubViewForTab,
   isSettingsTab,
   resolveVisibleTab,
   settingsTabDescriptions,
@@ -36,12 +35,11 @@ import { PrivacySafetySettings } from "@/components/settings/privacy-settings";
 import { BillingSettings } from "@/components/settings/billing-settings";
 import { CapabilitiesSettings } from "@/components/settings/capabilities-settings";
 import { ClauxenCodeSettings } from "@/components/settings/clauxen-code-settings";
-import { ExtensionsSettings } from "@/components/settings/extensions-settings";
+import { SkillsSettings } from "@/components/settings/skills-settings";
 
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
-  onGoToCustomize: (tab: "skills" | "connectors") => void;
   onUpgradeClick?: () => void;
   user?: SessionUser | null;
   onLogout?: () => void;
@@ -52,7 +50,6 @@ interface SettingsModalProps {
 export function SettingsModal({
   open,
   onClose,
-  onGoToCustomize,
   onUpgradeClick,
   user,
   onLogout,
@@ -79,7 +76,6 @@ export function SettingsModal({
     updateNotifications,
     updatePersonalization,
     updateSafety,
-    updatePlugins,
     refresh: refreshSettings,
   } = useSettings(settingsEnabled);
   /**
@@ -95,10 +91,7 @@ export function SettingsModal({
   const [copied, setCopied] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
 
-  /** Visible section — legacy deep links resolve (Skills → Extensions). */
   const visibleTab: VisibleSettingsTab = resolveVisibleTab(activeTab);
-  /** Legacy extension tabs preselect their sub-view. */
-  const extensionInitialView = extensionSubViewForTab(activeTab);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -182,7 +175,6 @@ export function SettingsModal({
   const personalization =
     settings.personalization ?? DEFAULT_APP_SETTINGS.personalization;
   const safety = settings.safety ?? DEFAULT_APP_SETTINGS.safety;
-  const plugins = settings.plugins ?? DEFAULT_APP_SETTINGS.plugins;
 
   useEffect(() => {
     if (!open || !user?.id) {
@@ -245,24 +237,13 @@ export function SettingsModal({
             advanced={{
               webSearch: personalization.webSearch ?? true,
               canvas: Boolean(capabilities.artifacts),
-              connectorSearch: Boolean(capabilities.connectorSearch),
             }}
             onAdvancedChange={(patch) => {
               if (patch.webSearch != null) {
                 updatePersonalization({ webSearch: patch.webSearch });
               }
-              const capabilityPatch: {
-                artifacts?: boolean;
-                connectorSearch?: boolean;
-              } = {};
               if (patch.canvas != null) {
-                capabilityPatch.artifacts = patch.canvas;
-              }
-              if (patch.connectorSearch != null) {
-                capabilityPatch.connectorSearch = patch.connectorSearch;
-              }
-              if (Object.keys(capabilityPatch).length > 0) {
-                updateCapabilities(capabilityPatch);
+                updateCapabilities({ artifacts: patch.canvas });
               }
             }}
             reflectRange={reflect.range}
@@ -388,17 +369,8 @@ export function SettingsModal({
             }}
           />
         );
-      case "Extensions":
-        return (
-          <ExtensionsSettings
-            key={extensionInitialView ?? "default"}
-            initialView={extensionInitialView ?? undefined}
-            permissionMode={plugins.permissionMode}
-            developerMode={plugins.developerMode}
-            onPluginsChange={updatePlugins}
-            onGoToCustomize={onGoToCustomize}
-          />
-        );
+      case "Skills":
+        return <SkillsSettings />;
       case "Clauxen Code":
         return <ClauxenCodeSettings isAuthenticated={Boolean(user?.id)} />;
       default:

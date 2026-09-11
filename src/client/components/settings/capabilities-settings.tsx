@@ -106,13 +106,6 @@ export function CapabilitiesSettings({
         </SettingsRow>
 
         <SettingsToggleRow
-          label="Connector search"
-          description="Surface relevant connectors in conversation."
-          checked={capabilities.connectorSearch}
-          onCheckedChange={(connectorSearch) => onChange({ connectorSearch })}
-        />
-
-        <SettingsToggleRow
           label="Switch models when flagged"
           description="Keep chatting on another model instead of pausing."
           checked={capabilities.switchModelsWhenFlagged}

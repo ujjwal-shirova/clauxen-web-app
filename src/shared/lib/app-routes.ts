@@ -14,7 +14,7 @@ import {
 const LEGACY_SETTINGS_TABS: Record<string, SettingsTab> = {
   Enterprise: "General",
   "Data controls": "Privacy & safety",
-  Apps: "Extensions",
+  Apps: "Skills",
   Voice: "General",
   "Security & login": "Security",
   Security: "Security",
@@ -26,9 +26,9 @@ const LEGACY_SETTINGS_TABS: Record<string, SettingsTab> = {
   "Trusted contact": "Privacy & safety",
   Storage: "Billing",
   Keyboard: "General",
-  Skills: "Extensions",
-  Connectors: "Extensions",
-  Plugins: "Extensions",
+  Extensions: "Skills",
+  Connectors: "Skills",
+  Plugins: "Skills",
 };
 
 export function normalizeSettingsTab(value: string): SettingsTab {
@@ -65,11 +65,11 @@ export function normalizeSettingsTab(value: string): SettingsTab {
     "clauxen-code": "Clauxen Code",
     "clauxen code": "Clauxen Code",
     keyboard: "General",
-    skills: "Extensions",
-    connectors: "Extensions",
-    plugins: "Extensions",
-    extensions: "Extensions",
-    apps: "Extensions",
+    skills: "Skills",
+    connectors: "Skills",
+    plugins: "Skills",
+    extensions: "Skills",
+    apps: "Skills",
     "data-controls": "Privacy & safety",
     enterprise: "General",
     voice: "General",
@@ -92,14 +92,12 @@ export const APP_ROUTES = {
   root: "/",
   newChat: "/new",
   home: "/new",
-  automations: "/automations",
-  plugins: "/plugins",
   library: "/library",
   /** Projects library / gallery. */
   projects: "/projects",
   /** Create-project surface. */
   projectNew: "/project",
-  /** @deprecated Removed — Customize nav opens settings Connectors. Kept for redirects. */
+  /** @deprecated Removed — Customize nav opens settings Skills. Kept for redirects. */
   customize: "/customize",
   myClauxen: "/my-clauxen",
 
@@ -275,10 +273,6 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname === "/" ||
     pathname === "/new" ||
     pathname.startsWith("/c/") ||
-    pathname === "/automations" ||
-    pathname.startsWith("/automations/") ||
-    pathname === "/plugins" ||
-    pathname.startsWith("/plugins/") ||
     pathname === "/library" ||
     pathname.startsWith("/library/") ||
     pathname === "/scheduled" ||

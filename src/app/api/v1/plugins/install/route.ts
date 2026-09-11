@@ -32,10 +32,9 @@ export const POST = withApiHandler(
       );
     }
     const returnPath =
-      typeof body.returnPath === "string" &&
-      body.returnPath.startsWith("/plugins")
+      typeof body.returnPath === "string" && body.returnPath.startsWith("/")
         ? body.returnPath
-        : "/plugins";
+        : "/new";
     const returnUrl = new URL(returnPath, env.appUrl);
     returnUrl.searchParams.set("plugin", plugin.id);
 

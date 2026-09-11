@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Globe,
   Paperclip,
-  Plug,
   ScrollText,
   type LucideIcon,
 } from "lucide-react";
@@ -30,12 +29,11 @@ export type ThinkingMode = "on" | "off";
 
 type PromptAddMenuItemId =
   | "files"
-  | "plugins"
   | "skills"
   | "web-search"
   | "thinking";
 
-type SubmenuId = "plugins" | "skills" | "web-search" | "thinking";
+type SubmenuId = "skills" | "web-search" | "thinking";
 
 type PromptAddMenuItem = {
   id: PromptAddMenuItemId;
@@ -56,7 +54,6 @@ export type PromptAddMenuPanelProps = {
   onWebSearchModeChange?: (mode: WebSearchMode) => void;
   thinkingMode?: ThinkingMode;
   onThinkingModeChange?: (mode: ThinkingMode) => void;
-  onOpenPlugins?: () => void;
   onOpenSkills?: () => void;
   className?: string;
 };
@@ -289,7 +286,6 @@ export function PromptAddMenuPanel({
   onWebSearchModeChange,
   thinkingMode = "off",
   onThinkingModeChange,
-  onOpenPlugins,
   onOpenSkills,
   className,
 }: PromptAddMenuPanelProps) {
@@ -324,13 +320,6 @@ export function PromptAddMenuPanel({
           },
         ]
       : []),
-    {
-      id: "plugins",
-      label: "Plugins",
-      icon: Plug,
-      hasSubmenu: true,
-      onSelect: () => setActiveSubmenu("plugins"),
-    },
     {
       id: "skills",
       label: "Skills",
@@ -508,17 +497,6 @@ export function PromptAddMenuPanel({
               onSelect={(mode) => {
                 onThinkingModeChange?.(mode);
                 onClose();
-              }}
-            />
-          ) : null}
-          {activeSubmenu === "plugins" ? (
-            <PlaceholderSubmenu
-              title="Plugins"
-              body="Connect tools and apps to use in chat."
-              actionLabel="Browse plugins"
-              onAction={() => {
-                onClose();
-                onOpenPlugins?.();
               }}
             />
           ) : null}

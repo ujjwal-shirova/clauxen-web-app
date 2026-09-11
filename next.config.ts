@@ -243,6 +243,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      { source: "/automations", destination: "/new", permanent: false },
+      { source: "/automations/:path*", destination: "/new", permanent: false },
+      { source: "/plugins", destination: "/new", permanent: false },
+      { source: "/plugins/:path*", destination: "/new", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

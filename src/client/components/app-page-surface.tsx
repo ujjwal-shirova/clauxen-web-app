@@ -3,7 +3,6 @@
 import { Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChatView } from "@/components/chat-view";
-import { AutomationsView } from "@/components/automations/automations-view";
 import { LibraryView } from "@/components/library-view";
 import { MyClauxenView } from "@/components/my-clauxen-view";
 import { ProjectsLibraryScreen } from "@/components/projects/projects-library-screen";
@@ -26,7 +25,6 @@ type SurfaceKind =
   | "project-create"
   | "project-home"
   | "library"
-  | "automations"
   | "my-clauxen"
   | "children";
 
@@ -39,9 +37,6 @@ function surfaceKind(pathname: string): SurfaceKind {
   }
   if (pathname === "/library" || pathname.startsWith("/library/")) {
     return "library";
-  }
-  if (pathname === "/automations" || pathname.startsWith("/automations/")) {
-    return "automations";
   }
   if (pathname === "/my-clauxen" || pathname.startsWith("/my-clauxen/")) {
     return "my-clauxen";
@@ -84,7 +79,6 @@ export function AppPageSurface({ children }: { children: React.ReactNode }) {
       kind === "project-create" ||
       kind === "project-home" ||
       kind === "library" ||
-      kind === "automations" ||
       kind === "my-clauxen" ||
       kind === "children" ? (
         <div className="flex min-h-0 h-full w-full max-w-full flex-1 flex-col overflow-hidden">
@@ -94,7 +88,6 @@ export function AppPageSurface({ children }: { children: React.ReactNode }) {
             <ProjectHomeScreen projectId={projectId ?? undefined} />
           ) : null}
           {kind === "library" ? <LibraryView /> : null}
-          {kind === "automations" ? <AutomationsView /> : null}
           {kind === "my-clauxen" ? <MyClauxenView /> : null}
           {kind === "children" ? (
             childrenCaughtUp ? (

@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils";
 export type PersonalizationAdvancedState = {
   webSearch: boolean;
   canvas: boolean;
-  connectorSearch: boolean;
 };
 
 interface PersonalizationSettingsProps {
@@ -310,14 +309,6 @@ export function PersonalizationSettingsPanel({
               description="Draft text and code side by side."
               checked={advanced.canvas}
               onCheckedChange={(canvas) => onAdvancedChange({ canvas })}
-            />
-            <SettingsToggleRow
-              label="Connector search"
-              description="Search connected sources automatically."
-              checked={advanced.connectorSearch}
-              onCheckedChange={(connectorSearch) =>
-                onAdvancedChange({ connectorSearch })
-              }
               borderless
             />
           </div>

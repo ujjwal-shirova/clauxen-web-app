@@ -43,8 +43,6 @@ const MOBILE_FULL_BLEED_PREFIXES = [
 
 const APP_SHELL_PREFETCH_ROUTES = [
   APP_ROUTES.newChat,
-  APP_ROUTES.automations,
-  APP_ROUTES.plugins,
   APP_ROUTES.library,
   APP_ROUTES.projects,
   APP_ROUTES.projectNew,
@@ -269,11 +267,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     closeMobileNav();
   }, [overlays, closeMobileNav]);
 
-  const onPluginsClick = useCallback(() => {
-    overlays.openSettings("Plugins");
-    closeMobileNav();
-  }, [overlays, closeMobileNav]);
-
   const onAppsExtensionsClick = useCallback(() => {
     overlays.openApps();
     closeMobileNav();
@@ -327,7 +320,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p === "/new" ||
       p === "/incognito" ||
       p.startsWith("/incognito/") ||
-      p === "/plugins" ||
       p === "/library" ||
       p === "/project" ||
       p === "/projects" ||
@@ -433,7 +425,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               onUpgradeClick={onUpgradeClick}
               onSettingsClick={() => onSettingsClick("General")}
               onPersonalizationClick={onPersonalizationClick}
-              onPluginsClick={onPluginsClick}
               onAppsExtensionsClick={onAppsExtensionsClick}
               onGiftClick={onGiftClick}
               onProjectsClick={goToProjects}
@@ -579,16 +570,11 @@ function computeActiveView(
   if (overlayType === "pricing") return "upgrade";
   if (overlayType === "gift") return "gift";
   if (overlayType === "apps") return "apps";
-  if (overlayType === "settings" && settingsTab === "Extensions") {
-    return "connectors";
-  }
   if (overlayType === "settings" && settingsTab === "Clauxen Code") {
     return "clauxen-code";
   }
   if (!pathname) return "chat";
   if (pathname.startsWith("/my-clauxen")) return "my-clauxen";
-  if (pathname.startsWith("/automations")) return "automations";
-  if (pathname.startsWith("/plugins")) return "plugins";
   if (pathname.startsWith("/project") || pathname.startsWith("/projects")) {
     return "projects";
   }

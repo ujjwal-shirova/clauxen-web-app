@@ -344,7 +344,7 @@ export function SecuritySettings({
         />
         <SettingsToggleRow
           label="Developer mode"
-          description="Allow unverified connectors. Can modify or erase data."
+          description="Enable experimental developer options."
           checked={developerMode}
           onCheckedChange={(val) => {
             setDeveloperMode(val);
