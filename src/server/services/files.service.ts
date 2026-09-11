@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { AppError, notFound } from "@/server/db/errors";
 import { env, isR2Configured } from "@/server/config/env";
 import * as userFilesRepo from "@/server/repositories/user-files.repository";
+import type { UserFileRow } from "@/server/repositories/user-files.repository";
 import * as billingRepo from "@/server/repositories/billing.repository";
 import {
   resolveActiveStoragePlanId,
@@ -15,6 +16,7 @@ import {
   buildUserLibraryKey,
   createPresignedGetUrl,
   createPresignedPutUrl,
+  getObject,
   type StoragePurpose,
 } from "@/server/storage/object-store";
 
@@ -38,6 +40,22 @@ function buildAvatarKey(userId: string, originalName: string) {
 function purposeForMime(mimeType?: string | null): StoragePurpose {
   if (mimeType?.startsWith("image/")) return "images";
   if (mimeType?.startsWith("video/")) return "attachments";
+  return "documents";
+}
+
+function storagePurposeForUserFile(file: UserFileRow): StoragePurpose {
+  const metaPurpose =
+    file.metadata && typeof file.metadata.purpose === "string"
+      ? file.metadata.purpose
+      : "";
+  if (
+    metaPurpose === "chat-attachment" ||
+    file.storage_bucket.includes("attachment")
+  ) {
+    return "attachments";
+  }
+  if (file.mime_type?.startsWith("video/")) return "attachments";
+  if (file.mime_type?.startsWith("image/")) return "images";
   return "documents";
 }
 
@@ -303,21 +321,23 @@ export async function completeUserFileUpload(
   return file;
 }
 
+export async function readUserFileBytes(userId: string, fileId: string) {
+  const file = await userFilesRepo.getUserFile(fileId, userId);
+  if (!file) throw notFound("File not found.");
+  const purpose = storagePurposeForUserFile(file);
+  const bytes = await getObject(
+    purpose,
+    file.storage_path,
+    file.storage_bucket,
+  );
+  return { file, bytes };
+}
+
 export async function getUserFileDownloadUrl(userId: string, fileId: string) {
   const file = await userFilesRepo.getUserFile(fileId, userId);
   if (!file) throw notFound("File not found.");
 
-  const metaPurpose =
-    file.metadata && typeof file.metadata.purpose === "string"
-      ? file.metadata.purpose
-      : "";
-  const purpose: StoragePurpose =
-    metaPurpose === "chat-attachment" ||
-    file.storage_bucket.includes("attachment")
-      ? "attachments"
-      : file.mime_type?.startsWith("image/")
-        ? "images"
-        : "documents";
+  const purpose = storagePurposeForUserFile(file);
   const presign = await buildDownloadPresign({
     purpose,
     bucket: file.storage_bucket,

@@ -43,11 +43,13 @@ import {
 } from "@/stores/chat-store";
 import * as chatsApi from "@/lib/api/chats";
 import { generateChatId } from "@/lib/chat-id";
-import { uploadUserFile } from "@/lib/api/files";
 import {
+  mergeMessageAttachments,
+  sanitizeMessageAttachments,
   toMessageAttachments,
   type ComposerAttachment,
 } from "@/lib/composer-attachments";
+import { settleComposerUploads } from "@/lib/composer-upload";
 import {
   attachmentContextLines,
   collectComposerVision,
@@ -251,9 +253,14 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     thinkingContent: meta.thinkingContent,
     hasThinking: meta.hasThinking,
     thinkingDurationSeconds: meta.thinkingDurationSeconds,
-    branchVersions: meta.branchVersions,
+    branchVersions: Array.isArray(meta.branchVersions)
+      ? meta.branchVersions.map((version) => ({
+          ...version,
+          attachments: sanitizeMessageAttachments(version.attachments),
+        }))
+      : meta.branchVersions,
     activeBranchIndex: meta.activeBranchIndex,
-    attachments: Array.isArray(meta.attachments) ? meta.attachments : undefined,
+    attachments: sanitizeMessageAttachments(meta.attachments),
     createdAt,
     isStreaming:
       isThisTurnActive &&
@@ -760,7 +767,10 @@ export function useChatApi(
             id: mapped.id,
             clientId: local.clientId ?? mapped.clientId ?? local.id,
             turnId: local.turnId ?? mapped.turnId,
-            attachments: local.attachments ?? mapped.attachments,
+            attachments: mergeMessageAttachments(
+              local.attachments,
+              mapped.attachments,
+            ),
           };
           return next;
         }
@@ -975,7 +985,10 @@ export function useChatApi(
               ...match,
               clientId: local.clientId ?? match.clientId ?? match.id,
               turnId: local.turnId ?? match.turnId,
-              attachments: local.attachments ?? match.attachments,
+              attachments: mergeMessageAttachments(
+                local.attachments,
+                match.attachments,
+              ),
             };
           });
           const existingKeys = new Set(
@@ -1044,7 +1057,10 @@ export function useChatApi(
             ...remote,
             clientId: local.clientId ?? remote.clientId ?? remote.id,
             turnId: local.turnId ?? remote.turnId,
-            attachments: local.attachments ?? remote.attachments,
+            attachments: mergeMessageAttachments(
+              local.attachments,
+              remote.attachments,
+            ),
           });
         });
         // Keep any local-only rows the server does not know about yet (e.g. an
@@ -2513,38 +2529,21 @@ export function useChatApi(
           useChatStore.getState().setChatGenerating(pendingChatId, true);
         }
 
-        // Upload attachments before generate when images need durable fileIds,
-        // but always read image bytes locally for Novita/Kimi vision (base64).
-        const knownFileIds = pendingAttachments
+        // Uploads start on attach. Settle leftover jobs in parallel with
+        // local vision (already prefetched) so generate is not gated on R2.
+        const [{ images: visionImages, remoteFileIds }, settledAttachments] =
+          await Promise.all([
+            collectComposerVision(pendingAttachments),
+            ephemeral || pendingAttachments.length === 0
+              ? Promise.resolve(pendingAttachments)
+              : settleComposerUploads(pendingAttachments, { chatId }),
+          ]);
+        const fileIds = settledAttachments
           .map((item) => item.fileId)
           .filter((id): id is string => Boolean(id));
-        const fileIds: string[] = [...knownFileIds];
-        let uploadFailures = 0;
-        const { images: visionImages } =
-          await collectComposerVision(pendingAttachments);
 
-        const uploadAttachments = async () => {
-          if (ephemeral || pendingAttachments.length === 0) return;
-          const uploaded = await Promise.all(
-            pendingAttachments.map(async (attachment) => {
-              if (attachment.fileId) return attachment.fileId;
-              if (!attachment.file) return null;
-              try {
-                return await uploadUserFile(attachment.file, {
-                  purpose: "chat-attachment",
-                  chatId,
-                });
-              } catch (error) {
-                console.warn("[chat] attachment upload failed:", error);
-                uploadFailures += 1;
-                return null;
-              }
-            }),
-          );
-          for (const id of uploaded) {
-            if (id && !fileIds.includes(id)) fileIds.push(id);
-          }
-
+        if (settledAttachments.length > 0) {
+          const messageAttachments = toMessageAttachments(settledAttachments);
           setAllChats((prev) => {
             const list = prev[chatId!] ?? [];
             const index = list.findIndex(
@@ -2555,34 +2554,13 @@ export function useChatApi(
             const current = next[index]!;
             next[index] = {
               ...current,
-              attachments: (current.attachments ?? []).map((item, i) => ({
-                ...item,
-                fileId: uploaded[i] ?? item.fileId,
-                previewUrl: item.previewUrl,
-              })),
+              attachments: messageAttachments,
             };
             return { ...prev, [chatId!]: next };
           });
-
-          if (uploadFailures > 0 && fileIds.length === 0) {
-            console.warn(
-              `[chat] ${uploadFailures} attachment upload(s) failed; continuing with text only`,
-            );
-          }
-        };
-
-        // Await uploads when we have files (images need durable ids for history;
-        // vision still uses local base64 so the model does not wait on R2).
-        if (
-          !ephemeral &&
-          pendingAttachments.some((item) => item.file && !item.fileId)
-        ) {
-          await uploadAttachments();
-        } else {
-          void uploadAttachments();
         }
 
-        const attachmentContext = attachmentContextLines(pendingAttachments);
+        const attachmentContext = attachmentContextLines(settledAttachments);
 
         const modelUserContent = `${trimmed}${attachmentContext}`.trim();
         const modelUser: Message = {
@@ -2617,7 +2595,8 @@ export function useChatApi(
                 content: userContent,
                 modelContent: modelUserContent || userContent,
                 fileIds: fileIds.length ? fileIds : undefined,
-                images: visionImages.length ? visionImages : undefined,
+                // Pixels go on `vision` so we do not double the generate body.
+                images: undefined,
                 // Persist the turn-encoded client ids so DB rows can rebuild
                 // the exact user↔assistant pairing on any later read.
                 userClientId,
@@ -2626,8 +2605,11 @@ export function useChatApi(
           {
             ephemeral,
             vision:
-              ephemeral && visionImages.length
-                ? { images: visionImages }
+              visionImages.length || remoteFileIds.length
+                ? {
+                    images: visionImages.length ? visionImages : undefined,
+                    fileIds: remoteFileIds.length ? remoteFileIds : undefined,
+                  }
                 : undefined,
           },
         );
@@ -2957,29 +2939,13 @@ export function useChatApi(
         [chatId]: nextChat,
       }));
 
-      // Upload new local files in the background; keep existing fileIds.
-      const uploadedAttachments: ComposerAttachment[] = await Promise.all(
-        pendingAttachments.map(async (attachment) => {
-          if (attachment.fileId || !attachment.file) return attachment;
-          try {
-            const fileId = await uploadUserFile(attachment.file, {
-              purpose: "chat-attachment",
-              chatId,
-            });
-            return {
-              ...attachment,
-              fileId,
-              uploadStatus: "ready" as const,
-            };
-          } catch (error) {
-            console.warn("[chat] edit attachment upload failed:", error);
-            return { ...attachment, uploadStatus: "error" as const };
-          }
-        }),
-      );
+      // Uploads start on attach. Settle leftover jobs in parallel with vision.
+      const [uploadedAttachments, vision] = await Promise.all([
+        settleComposerUploads(pendingAttachments, { chatId }),
+        collectComposerVision(pendingAttachments),
+      ]);
       const messageAttachments = toMessageAttachments(uploadedAttachments);
-      const { images: visionImages, fileIds: visionFileIds } =
-        await collectComposerVision(uploadedAttachments);
+      const { images: visionImages, remoteFileIds } = vision;
       const attachmentContext = attachmentContextLines(uploadedAttachments);
 
       // Patch the forked user message if uploads resolved new fileIds after
@@ -3035,10 +3001,10 @@ export function useChatApi(
           undefined,
           {
             vision:
-              visionImages.length || visionFileIds.length
+              visionImages.length || remoteFileIds.length
                 ? {
                     images: visionImages.length ? visionImages : undefined,
-                    fileIds: visionFileIds.length ? visionFileIds : undefined,
+                    fileIds: remoteFileIds.length ? remoteFileIds : undefined,
                   }
                 : undefined,
           },

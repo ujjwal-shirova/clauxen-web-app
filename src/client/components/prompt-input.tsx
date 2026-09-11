@@ -41,7 +41,10 @@ import { MessageQueuePanel } from "./message-queue-panel";
 import { DEFAULT_CHAT_MODEL_ID, type ChatModelId } from "@/lib/chat-models";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
 import { PromptModelSelector } from "./prompt-model-selector";
-import type { QueuedChatMessage } from "@/stores/chat-store";
+import {
+  useActiveChatId,
+  type QueuedChatMessage,
+} from "@/stores/chat-store";
 import {
   COMPOSER_FILE_ACCEPT,
   classifyComposerFile,
@@ -49,6 +52,10 @@ import {
   type ComposerAttachment,
   type SendMessageOptions,
 } from "@/lib/composer-attachments";
+import {
+  beginComposerAttachmentWork,
+  cancelComposerAttachment,
+} from "@/lib/composer-upload";
 import { AttachmentChip } from "@/components/composer/attachment-chip";
 import { AttachmentPreviewHost } from "@/components/composer/attachment-preview-host";
 import { ComposerAttachmentStrip } from "@/components/composer/attachment-strip";
@@ -188,6 +195,7 @@ export function PromptInput({
   allowAttachments = true,
   composerVariant = "default",
 }: PromptInputProps) {
+  const activeChatId = useActiveChatId();
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
@@ -651,7 +659,45 @@ export function PromptInput({
     setAttachmentError(null);
   }, []);
 
+  const patchAttachment = useCallback(
+    (id: string, patch: Partial<ComposerAttachment>) => {
+      setAttachments((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      );
+      setPreviewAttachment((current) =>
+        current?.id === id ? { ...current, ...patch } : current,
+      );
+    },
+    [],
+  );
+
+  const armComposerAttachment = useCallback(
+    (attachment: ComposerAttachment) => {
+      const skipUpload =
+        !allowAttachments || composerVariant === "incognito";
+      addAttachment({
+        ...attachment,
+        uploadStatus: skipUpload
+          ? attachment.uploadStatus ?? "local"
+          : "uploading",
+      });
+      beginComposerAttachmentWork(attachment, {
+        chatId: activeChatId,
+        skipUpload,
+        onUpdate: patchAttachment,
+      });
+    },
+    [
+      activeChatId,
+      addAttachment,
+      allowAttachments,
+      composerVariant,
+      patchAttachment,
+    ],
+  );
+
   const removeAttachment = useCallback((id: string) => {
+    cancelComposerAttachment(id);
     setAttachments((prev) => {
       const target = prev.find((item) => item.id === id);
       if (target?.previewUrl?.startsWith("blob:")) {
@@ -680,7 +726,7 @@ export function PromptInput({
         const id = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         if (kind === "image" || kind === "video") {
           const previewUrl = URL.createObjectURL(file);
-          addAttachment({
+          armComposerAttachment({
             id,
             name: file.name,
             previewUrl,
@@ -688,7 +734,7 @@ export function PromptInput({
               file.type || (kind === "video" ? "video/mp4" : "image/png"),
             kind,
             file,
-            uploadStatus: "local",
+            uploadStatus: "uploading",
           });
           added += 1;
           continue;
@@ -696,7 +742,7 @@ export function PromptInput({
 
         const textPreview = await readTextPreview(file);
         const previewUrl = URL.createObjectURL(file);
-        addAttachment({
+        armComposerAttachment({
           id,
           name: file.name,
           previewUrl,
@@ -704,13 +750,13 @@ export function PromptInput({
           kind: "document",
           file,
           textPreview: textPreview || undefined,
-          uploadStatus: "local",
+          uploadStatus: "uploading",
         });
         added += 1;
       }
       if (added > 0) setAttachmentError(null);
     },
-    [addAttachment],
+    [armComposerAttachment],
   );
 
   const handleFileInputChange = useCallback(
@@ -731,14 +777,14 @@ export function PromptInput({
       const res = await fetch(shot.dataUrl);
       const blob = await res.blob();
       const file = new File([blob], shot.fileName, { type: "image/png" });
-      addAttachment({
+      armComposerAttachment({
         id: `screenshot-${Date.now()}`,
         name: shot.fileName,
         previewUrl: shot.dataUrl,
         mimeType: "image/png",
         kind: "image",
         file,
-        uploadStatus: "local",
+        uploadStatus: "uploading",
       });
     } catch (error) {
       if (
@@ -755,7 +801,7 @@ export function PromptInput({
     } finally {
       setIsCapturingScreenshot(false);
     }
-  }, [addAttachment, isCapturingScreenshot]);
+  }, [armComposerAttachment, isCapturingScreenshot]);
 
   useEffect(() => {
     if (!allowAttachments) return;

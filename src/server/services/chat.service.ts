@@ -65,6 +65,7 @@ import {
   toUserFacingChatError,
   EMPTY_ASSISTANT_RESPONSE_FALLBACK,
 } from "@/lib/assistant-generation-error";
+import { durableFileContentUrl } from "@/lib/composer-attachments";
 
 /**
  * Build all export/training lines for one assistant turn. The repository
@@ -274,7 +275,7 @@ async function resolveUserAttachmentMeta(
           ? ("video" as const)
           : ("document" as const),
       fileId: file.id,
-      previewUrl: `/api/v1/files/${file.id}/url?redirect=1`,
+      previewUrl: durableFileContentUrl(file.id),
     };
   });
 }
@@ -702,8 +703,10 @@ export async function streamChatGeneration(input: {
           }
         }
 
-        const visionFileIds = input.vision?.fileIds ?? input.turn?.fileIds;
         const visionImages = input.vision?.images ?? input.turn?.images;
+        const visionFileIds =
+          input.vision?.fileIds ??
+          (visionImages?.length ? [] : input.turn?.fileIds);
         const hasVisionInputs =
           Boolean(visionImages?.length) || Boolean(visionFileIds?.length);
         const visionBlocks = hasVisionInputs

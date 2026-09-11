@@ -239,7 +239,9 @@ export function LibraryView() {
       void load(entry.id);
       return;
     }
-    window.location.assign(`/api/v1/files/${encodeURIComponent(entry.id)}/content`);
+    window.location.assign(
+      `/api/v1/files/${encodeURIComponent(entry.id)}/content?download=1`,
+    );
   };
 
   const rename = (entry: LibraryEntry) => {

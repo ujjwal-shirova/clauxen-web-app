@@ -18,6 +18,49 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+const visionJobs = new Map<string, Promise<ComposerVisionImage[]>>();
+
+async function readAttachmentVision(
+  item: ComposerAttachment,
+): Promise<ComposerVisionImage[]> {
+  if (item.kind === "image") {
+    const mimeType = item.mimeType || "image/jpeg";
+    let dataUrl =
+      typeof item.previewUrl === "string" &&
+      item.previewUrl.startsWith("data:")
+        ? item.previewUrl
+        : "";
+    if (!dataUrl && item.file) {
+      try {
+        dataUrl = await readFileAsDataUrl(item.file);
+      } catch {
+        return [];
+      }
+    }
+    if (!dataUrl) return [];
+    return [{ mimeType, data: dataUrl, name: item.name }];
+  }
+  if (item.kind === "video" && item.file) {
+    try {
+      return await extractVideoFrames(item.file);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+/** Decode images / sample video frames while the file is still attaching. */
+export function prefetchComposerVision(
+  item: ComposerAttachment,
+): Promise<ComposerVisionImage[]> {
+  const existing = visionJobs.get(item.id);
+  if (existing) return existing;
+  const job = readAttachmentVision(item);
+  visionJobs.set(item.id, job);
+  return job;
+}
+
 /**
  * Build OpenAI-compatible vision parts from composer / edit attachments.
  * Images go through as `image_url` data URIs. Videos are sampled into JPEG
@@ -28,39 +71,32 @@ export async function collectComposerVision(
 ): Promise<{
   images: ComposerVisionImage[];
   fileIds: string[];
+  /** Image fileIds that still need a server R2 fetch (no local pixels). */
+  remoteFileIds: string[];
 }> {
   const images: ComposerVisionImage[] = [];
   const fileIds: string[] = [];
+  const remoteFileIds: string[] = [];
 
   for (const item of attachments) {
     if (item.fileId && !fileIds.includes(item.fileId)) {
       fileIds.push(item.fileId);
     }
-    if (item.kind === "image") {
-      const mimeType = item.mimeType || "image/jpeg";
-      let dataUrl =
-        typeof item.previewUrl === "string" &&
-        item.previewUrl.startsWith("data:")
-          ? item.previewUrl
-          : "";
-      if (!dataUrl && item.file) {
-        try {
-          dataUrl = await readFileAsDataUrl(item.file);
-        } catch {
-          continue;
-        }
-      }
-      if (!dataUrl) continue;
-      images.push({ mimeType, data: dataUrl, name: item.name });
+    const frames = await prefetchComposerVision(item);
+    if (frames.length) {
+      images.push(...frames);
       continue;
     }
-    if (item.kind === "video" && item.file) {
-      const frames = await extractVideoFrames(item.file);
-      for (const frame of frames) images.push(frame);
+    if (
+      item.fileId &&
+      item.kind === "image" &&
+      !remoteFileIds.includes(item.fileId)
+    ) {
+      remoteFileIds.push(item.fileId);
     }
   }
 
-  return { images, fileIds };
+  return { images, fileIds, remoteFileIds };
 }
 
 export function attachmentContextLines(

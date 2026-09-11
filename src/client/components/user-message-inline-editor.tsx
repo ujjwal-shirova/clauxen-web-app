@@ -9,13 +9,19 @@ import { ComposerAttachmentStrip } from "@/components/composer/attachment-strip"
 import {
   COMPOSER_FILE_ACCEPT,
   classifyComposerFile,
+  durableFileContentUrl,
   readTextPreview,
   type ComposerAttachment,
   type MessageAttachment,
 } from "@/lib/composer-attachments";
+import {
+  beginComposerAttachmentWork,
+  cancelComposerAttachment,
+} from "@/lib/composer-upload";
 import { useStreamingDictation } from "@/features/dictation/use-streaming-dictation";
 import type { CaretRange } from "@/features/dictation/transcript";
 import { cn } from "@/lib/utils";
+import { useActiveChatId } from "@/stores/chat-store";
 
 const MAX_EDIT_LINES = 10;
 const EDIT_LINE_HEIGHT_PX = 24;
@@ -30,8 +36,9 @@ function messageToComposerAttachments(
     mimeType: item.mimeType,
     kind: item.kind,
     previewUrl:
-      item.previewUrl ||
-      (item.fileId ? `/api/v1/files/${item.fileId}/url?redirect=1` : ""),
+      item.fileId
+        ? durableFileContentUrl(item.fileId)
+        : item.previewUrl || "",
     fileId: item.fileId,
     textPreview: item.textPreview,
     uploadStatus: item.fileId ? "ready" : "local",
@@ -77,6 +84,7 @@ export function UserMessageInlineEditor({
     React.useState<ComposerAttachment | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const pendingCaretRef = React.useRef<CaretRange | null>(null);
+  const activeChatId = useActiveChatId();
 
   const maxHeightPx = MAX_EDIT_LINES * EDIT_LINE_HEIGHT_PX;
   const trimmed = value.trim();
@@ -168,6 +176,7 @@ export function UserMessageInlineEditor({
   }, []);
 
   const removeAttachment = (id: string) => {
+    cancelComposerAttachment(id);
     setAttachments((prev) => {
       const target = prev.find((item) => item.id === id);
       if (target?.previewUrl?.startsWith("blob:") && target.file) {
@@ -175,6 +184,15 @@ export function UserMessageInlineEditor({
       }
       return prev.filter((item) => item.id !== id);
     });
+  };
+
+  const patchAttachment = (id: string, patch: Partial<ComposerAttachment>) => {
+    setAttachments((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+    setPreviewAttachment((current) =>
+      current?.id === id ? { ...current, ...patch } : current,
+    );
   };
 
   const ingestFiles = async (files: File[]) => {
@@ -198,7 +216,7 @@ export function UserMessageInlineEditor({
             file.type || (kind === "video" ? "video/mp4" : "image/png"),
           kind,
           file,
-          uploadStatus: "local",
+          uploadStatus: "uploading",
         });
       } else {
         const textPreview = await readTextPreview(file);
@@ -210,13 +228,19 @@ export function UserMessageInlineEditor({
           kind: "document",
           file,
           textPreview,
-          uploadStatus: "local",
+          uploadStatus: "uploading",
         });
       }
     }
     if (next.length > 0) {
       setAttachments((prev) => [...prev, ...next]);
       setAttachmentError(null);
+      for (const item of next) {
+        beginComposerAttachmentWork(item, {
+          chatId: activeChatId,
+          onUpdate: patchAttachment,
+        });
+      }
     }
   };
 

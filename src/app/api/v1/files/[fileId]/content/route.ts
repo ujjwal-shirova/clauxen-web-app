@@ -1,26 +1,30 @@
 import { withApiRouteParams } from "@/server/http/route-params";
 import { requireSession } from "@/server/auth/require-session";
-import * as userFilesRepo from "@/server/repositories/user-files.repository";
-import { getObject } from "@/server/storage/object-store";
-import { notFound } from "@/server/db/errors";
+import * as filesService from "@/server/services/files.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const GET = withApiRouteParams<{ fileId: string }>(
-  async ({ session, params }) => {
+  async ({ session, params, request }) => {
     const user = requireSession(session);
-    const file = await userFilesRepo.getUserFile(params.fileId, user.id);
-    if (!file) throw notFound("File not found.");
-    const purpose = file.mime_type?.startsWith("image/") ? "images" : "documents";
-    const bytes = await getObject(purpose, file.storage_path, file.storage_bucket);
+    const { file, bytes } = await filesService.readUserFileBytes(
+      user.id,
+      params.fileId,
+    );
     const name = file.original_name.replace(/["\r\n]/g, "_");
-    return new Response(Uint8Array.from(bytes), {
+    const mime = file.mime_type || "application/octet-stream";
+    const forceDownload =
+      new URL(request.url).searchParams.get("download") === "1";
+    const inline =
+      !forceDownload &&
+      (mime.startsWith("image/") || mime.startsWith("video/"));
+    return new Response(new Uint8Array(bytes), {
       headers: {
-        "content-type": file.mime_type || "application/octet-stream",
+        "content-type": mime,
         "content-length": String(bytes.byteLength),
-        "content-disposition": `attachment; filename="${name}"`,
-        "cache-control": "private, no-store",
+        "content-disposition": `${inline ? "inline" : "attachment"}; filename="${name}"`,
+        "cache-control": "private, max-age=3600",
       },
     });
   },

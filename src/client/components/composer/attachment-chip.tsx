@@ -1,9 +1,11 @@
 "use client";
 
-import { FileText, Play, X } from "lucide-react";
+import { useState } from "react";
+import { FileText, LoaderCircle, Play, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   documentTypeLabel,
+  durableFileContentUrl,
   filePreviewSrc,
   type ComposerAttachment,
   type MessageAttachment,
@@ -29,7 +31,17 @@ export function AttachmentChip({
   const isVideo = file.kind === "video";
   const uploading = "uploadStatus" in file && file.uploadStatus === "uploading";
   const errored = "uploadStatus" in file && file.uploadStatus === "error";
-  const previewSrc = filePreviewSrc(file);
+  const preferredSrc = filePreviewSrc(file);
+  const durableSrc = file.fileId ? durableFileContentUrl(file.fileId) : undefined;
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const previewSrc =
+    failedSrc && failedSrc === preferredSrc && durableSrc && durableSrc !== preferredSrc
+      ? durableSrc
+      : preferredSrc;
+
+  const handlePreviewError = () => {
+    if (previewSrc) setFailedSrc(previewSrc);
+  };
 
   const imageSize =
     size === "lg"
@@ -70,6 +82,8 @@ export function AttachmentChip({
             alt={file.name}
             className="h-full w-full object-cover"
             draggable={false}
+            decoding="async"
+            onError={handlePreviewError}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-[var(--ui-hover-wash)]">
@@ -85,6 +99,7 @@ export function AttachmentChip({
               playsInline
               preload="metadata"
               className="h-full w-full object-cover"
+              onError={handlePreviewError}
             />
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25">
               <Play className="h-4 w-4 fill-white text-white" />
@@ -103,16 +118,7 @@ export function AttachmentChip({
               docThumb,
             )}
           >
-            {file.previewUrl ? (
-              <img
-                src={file.previewUrl}
-                alt=""
-                className="h-full w-full object-cover"
-                draggable={false}
-              />
-            ) : (
-              <FileText className="h-4 w-4 text-[var(--ui-fg-muted)]" />
-            )}
+            <FileText className="h-4 w-4 text-[var(--ui-fg-muted)]" />
           </div>
           <div className="min-w-0">
             <p
@@ -132,7 +138,12 @@ export function AttachmentChip({
       )}
 
       {uploading ? (
-        <span className="absolute inset-0 bg-white/55" aria-hidden />
+        <span
+          className="absolute inset-0 flex items-center justify-center bg-black/40"
+          aria-hidden
+        >
+          <LoaderCircle className="h-4 w-4 animate-spin text-white" />
+        </span>
       ) : null}
 
       {onRemove ? (
