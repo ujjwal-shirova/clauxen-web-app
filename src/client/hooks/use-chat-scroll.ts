@@ -120,10 +120,10 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
   const pinToBottom = useCallback(() => {
     cancelSmoothScroll();
     pinnedRef.current = true;
+    syncButtonVisibility(0);
     const viewport = resolveViewport();
     if (!viewport) return;
     viewport.scrollTop = maxScrollTop(viewport);
-    syncButtonVisibility(0);
   }, [cancelSmoothScroll, resolveViewport, syncButtonVisibility]);
 
   /** Public: explicit user request to return to latest (button). One
@@ -178,6 +178,9 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
   useEffect(() => {
     if (!enabled) {
       cancelSmoothScroll();
+      pinnedRef.current = true;
+      viewportRef.current = null;
+      syncButtonVisibility(0);
       return;
     }
     const viewport = resolveViewport();
@@ -308,6 +311,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     stickToBottom,
     cancelSmoothScroll,
     syncPinnedFromViewport,
+    syncButtonVisibility,
   ]);
 
   return {

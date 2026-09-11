@@ -221,14 +221,16 @@ function ChatAreaLayout({
   const showDesktopArtifactsRail =
     isConversationStarted && !isMobile && !isViewerOpen && !isSourcesPanelOpen;
 
+  const hasScrollableConversation =
+    isConversationStarted || showMessageSkeleton || showMessageLoadError;
+
   const { scrollToBottom, pinToBottom, showScrollToBottom } = useChatScroll({
     scrollAreaRef,
-    enabled:
-      isConversationStarted || showMessageSkeleton || showMessageLoadError,
+    enabled: hasScrollableConversation,
   });
   const { isFastScrolling } = useChatScrollActivity(
     scrollAreaRef,
-    isConversationStarted || showMessageSkeleton || showMessageLoadError,
+    hasScrollableConversation,
   );
   const sourceCountRef = React.useRef(chatSources.length);
 
@@ -443,7 +445,9 @@ function ChatAreaLayout({
       onSendMessage={handleSendMessageAndScroll}
       onStopGeneration={onStopGeneration}
       onScrollToBottom={scrollToBottom}
-      showScrollToBottomButton={showScrollToBottom}
+      showScrollToBottomButton={
+        showScrollToBottom && hasScrollableConversation
+      }
       isConversationStarted={composerAsConversation}
       isGenerating={isGenerating}
       queuedMessages={queuedMessages}

@@ -1299,17 +1299,19 @@ export function PromptInput({
           )}
           data-prompt-wrapper
         >
-          {showScrollToBottomButton && onScrollToBottom && (
-            <HintTooltip content="Scroll to latest">
-              <button
-                type="button"
-                onClick={onScrollToBottom}
-                className="absolute -top-11 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-field-bg)]/95 text-[var(--ui-fg-muted)] shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-              >
-                <ArrowDown className="icon-md" />
-              </button>
-            </HintTooltip>
-          )}
+          {showScrollToBottomButton &&
+            onScrollToBottom &&
+            isConversationStarted && (
+              <HintTooltip content="Scroll to latest">
+                <button
+                  type="button"
+                  onClick={onScrollToBottom}
+                  className="absolute -top-11 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-field-bg)]/95 text-[var(--ui-fg-muted)] shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                >
+                  <ArrowDown className="icon-md" />
+                </button>
+              </HintTooltip>
+            )}
 
           {queuedMessages.length > 0 &&
           onEditQueuedMessage &&
