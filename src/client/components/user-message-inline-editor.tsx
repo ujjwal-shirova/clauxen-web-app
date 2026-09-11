@@ -128,7 +128,6 @@ export function UserMessageInlineEditor({
       }
     };
     // Only on unmount — intentional.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const removeAttachment = (id: string) => {
@@ -349,7 +348,7 @@ export function UserMessageInlineEditor({
               aria-label="Attach files"
               disabled={disabled || isSubmitting}
               onClick={() => fileInputRef.current?.click()}
-              className="user-msg-editor__icon-btn"
+              className="user-msg-editor__icon-btn no-hover-overlay"
             >
               <Paperclip className="h-4 w-4" strokeWidth={1.75} />
             </button>
@@ -361,7 +360,7 @@ export function UserMessageInlineEditor({
                 type="button"
                 onClick={() => void startDictation()}
                 aria-label="Stop dictation"
-                className="user-msg-editor__icon-btn user-msg-editor__icon-btn--active"
+                className="user-msg-editor__icon-btn user-msg-editor__icon-btn--active no-hover-overlay"
               >
                 <X className="h-4 w-4" strokeWidth={2} />
               </button>
@@ -374,7 +373,7 @@ export function UserMessageInlineEditor({
                 disabled={disabled || isSubmitting || isTranscribing}
                 aria-pressed={isDictating}
                 aria-label="Dictate"
-                className="user-msg-editor__icon-btn"
+                className="user-msg-editor__icon-btn no-hover-overlay"
               >
                 {isTranscribing ? (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -395,7 +394,7 @@ export function UserMessageInlineEditor({
             onClick={onCancel}
             disabled={disabled || isSubmitting}
             title="Cancel (Esc)"
-            className="user-msg-editor__cancel"
+            className="user-msg-editor__cancel no-hover-overlay"
           >
             Cancel
           </button>
@@ -405,7 +404,7 @@ export function UserMessageInlineEditor({
             disabled={!canSubmit}
             title="Save and regenerate (Enter)"
             aria-label="Save edited message"
-            className="user-msg-editor__save"
+            className="user-msg-editor__save no-hover-overlay"
           >
             {isSubmitting ? (
               <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />

@@ -185,7 +185,7 @@ function BranchSwitcher({
           aria-label="Previous version"
           onClick={onPrev}
           disabled={prevDisabled}
-          className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] disabled:pointer-events-none disabled:opacity-35"
+          className="no-hover-overlay flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] disabled:pointer-events-none disabled:opacity-35"
         >
           <ChevronLeft className="size-4" strokeWidth={2} aria-hidden="true" />
         </button>
@@ -202,7 +202,7 @@ function BranchSwitcher({
           aria-label="Next version"
           onClick={onNext}
           disabled={nextDisabled}
-          className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] disabled:pointer-events-none disabled:opacity-35"
+          className="no-hover-overlay flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] disabled:pointer-events-none disabled:opacity-35"
         >
           <ChevronRight className="size-4" strokeWidth={2} aria-hidden="true" />
         </button>

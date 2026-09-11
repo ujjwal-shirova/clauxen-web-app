@@ -5863,12 +5863,9 @@ button[data-speed-toggle][data-state="open"] {
 
 .user-message-card .user-message-card__body:hover,
 .user-message-card .user-message-card__body:focus-visible {
-  background: color-mix(
-    in oklab,
-    var(--chat-user-card-bg) 94%,
-    var(--ui-fg)
-  ) !important;
-  border-color: var(--ui-border) !important;
+  background: var(--chat-user-card-bg) !important;
+  border-color: var(--ui-border-subtle) !important;
+  box-shadow: none !important;
 }
 
 /* Composer send — ink disc that inverts per theme (matches app-btn-primary). */
@@ -6501,8 +6498,9 @@ button.prompt-model-selector[aria-expanded="true"] {
 
 .user-message-card .user-message-card__body:hover,
 .user-message-card .user-msg-bubble:hover {
-  background: color-mix(in oklab, var(--chat-user-card-bg) 93%, var(--ui-fg)) !important;
-  border-color: var(--ui-border) !important;
+  background: var(--chat-user-card-bg) !important;
+  border-color: var(--ui-border-subtle) !important;
+  box-shadow: none !important;
 }
 
 /* Legacy inner edit affordance is removed — hide any stragglers. */
@@ -6859,14 +6857,29 @@ button.prompt-model-selector[aria-expanded="true"] {
   color: var(--app-panel-bg) !important;
   background: var(--ui-fg) !important;
   border: 0 !important;
-  transition: opacity 0.15s ease, transform 0.1s ease !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s ease, transform 0.1s ease !important;
 }
 
-.user-msg-editor__save:hover:not(:disabled) {
-  opacity: 0.88 !important;
+.user-msg-editor__save:hover:not(:disabled),
+.user-msg-editor__save:focus-visible:not(:disabled) {
+  background-color: color-mix(
+    in oklab,
+    var(--ui-fg) 88%,
+    var(--app-panel-bg)
+  ) !important;
+  color: var(--app-panel-bg) !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
 }
 
 .user-msg-editor__save:active:not(:disabled) {
+  background-color: color-mix(
+    in oklab,
+    var(--ui-fg) 78%,
+    var(--app-panel-bg)
+  ) !important;
+  color: var(--app-panel-bg) !important;
   transform: scale(0.98) !important;
 }
 
@@ -6894,8 +6907,9 @@ button.prompt-model-selector[aria-expanded="true"] {
 
 .dark .user-message-card .user-message-card__body:hover,
 .dark .user-message-card .user-msg-bubble:hover {
-  background: color-mix(in oklab, var(--chat-user-card-bg) 88%, white) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: var(--chat-user-card-bg) !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  box-shadow: none !important;
 }
 
 .dark .user-message-card__preview-fade {
