@@ -4,8 +4,8 @@ import * as React from "react";
 import { Check, LoaderCircle, Mic, Paperclip, X } from "lucide-react";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { AttachmentChip } from "@/components/composer/attachment-chip";
-import { AttachmentImageLightbox } from "@/components/composer/attachment-image-lightbox";
-import { AttachmentDocumentPreview } from "@/components/composer/attachment-document-preview";
+import { AttachmentPreviewHost } from "@/components/composer/attachment-preview-host";
+import { ComposerAttachmentStrip } from "@/components/composer/attachment-strip";
 import {
   COMPOSER_FILE_ACCEPT,
   classifyComposerFile,
@@ -13,6 +13,8 @@ import {
   type ComposerAttachment,
   type MessageAttachment,
 } from "@/lib/composer-attachments";
+import { useStreamingDictation } from "@/features/dictation/use-streaming-dictation";
+import type { CaretRange } from "@/features/dictation/transcript";
 import { cn } from "@/lib/utils";
 
 const MAX_EDIT_LINES = 10;
@@ -60,20 +62,21 @@ export function UserMessageInlineEditor({
 }: UserMessageInlineEditorProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const applyingDictationRef = React.useRef(false);
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+  const attachmentsRef = React.useRef<ComposerAttachment[]>([]);
   const [attachments, setAttachments] = React.useState<ComposerAttachment[]>(
     () => messageToComposerAttachments(initialAttachments),
   );
+  attachmentsRef.current = attachments;
   const [attachmentError, setAttachmentError] = React.useState<string | null>(
     null,
   );
   const [previewAttachment, setPreviewAttachment] =
     React.useState<ComposerAttachment | null>(null);
-  const [isDictating, setIsDictating] = React.useState(false);
-  const [isTranscribing, setIsTranscribing] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const streamRef = React.useRef<MediaStream | null>(null);
-  const recorderRef = React.useRef<MediaRecorder | null>(null);
-  const chunksRef = React.useRef<Blob[]>([]);
+  const pendingCaretRef = React.useRef<CaretRange | null>(null);
 
   const maxHeightPx = MAX_EDIT_LINES * EDIT_LINE_HEIGHT_PX;
   const trimmed = value.trim();
@@ -81,6 +84,39 @@ export function UserMessageInlineEditor({
     (Boolean(trimmed) || attachments.length > 0) &&
     !disabled &&
     !isSubmitting;
+
+  const readDraft = React.useCallback(
+    () => textareaRef.current?.value ?? valueRef.current,
+    [],
+  );
+  const readCaret = React.useCallback((): CaretRange => {
+    const textarea = textareaRef.current;
+    const draft = textarea?.value ?? valueRef.current;
+    if (!textarea) return { start: draft.length, end: draft.length };
+    return {
+      start: textarea.selectionStart ?? draft.length,
+      end: textarea.selectionEnd ?? draft.length,
+    };
+  }, []);
+  const applyDictationDraft = React.useCallback(
+    (next: string, caret: CaretRange) => {
+      applyingDictationRef.current = true;
+      pendingCaretRef.current = caret;
+      onValueChange(next);
+      queueMicrotask(() => {
+        applyingDictationRef.current = false;
+      });
+    },
+    [onValueChange],
+  );
+  const dictation = useStreamingDictation({
+    readDraft,
+    readCaret,
+    onDraftChange: applyDictationDraft,
+  });
+  const showDictationActions =
+    dictation.status === "listening" || dictation.status === "stopping";
+  const dictationConnecting = dictation.status === "connecting";
 
   const resizeTextarea = React.useCallback(() => {
     const textarea = textareaRef.current;
@@ -99,6 +135,16 @@ export function UserMessageInlineEditor({
     resizeTextarea();
   }, [value, resizeTextarea]);
 
+  React.useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    const caret = pendingCaretRef.current;
+    if (!textarea || !caret) return;
+    const start = Math.max(0, Math.min(caret.start, textarea.value.length));
+    const end = Math.max(start, Math.min(caret.end, textarea.value.length));
+    textarea.setSelectionRange(start, end);
+    pendingCaretRef.current = null;
+  }, [value]);
+
   React.useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -113,21 +159,12 @@ export function UserMessageInlineEditor({
 
   React.useEffect(() => {
     return () => {
-      for (const item of attachments) {
+      for (const item of attachmentsRef.current) {
         if (item.previewUrl?.startsWith("blob:") && item.file) {
           URL.revokeObjectURL(item.previewUrl);
         }
       }
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      if (recorderRef.current?.state === "recording") {
-        try {
-          recorderRef.current.stop();
-        } catch {
-          // noop
-        }
-      }
     };
-    // Only on unmount — intentional.
   }, []);
 
   const removeAttachment = (id: string) => {
@@ -152,13 +189,14 @@ export function UserMessageInlineEditor({
       }
       const id = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const previewUrl = URL.createObjectURL(file);
-      if (kind === "image") {
+      if (kind === "image" || kind === "video") {
         next.push({
           id,
           name: file.name,
           previewUrl,
-          mimeType: file.type || "image/png",
-          kind: "image",
+          mimeType:
+            file.type || (kind === "video" ? "video/mp4" : "image/png"),
+          kind,
           file,
           uploadStatus: "local",
         });
@@ -182,89 +220,24 @@ export function UserMessageInlineEditor({
     }
   };
 
-  const releaseRecording = React.useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    recorderRef.current = null;
-    chunksRef.current = [];
-  }, []);
-
-  const startDictation = async () => {
-    if (
-      !navigator.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === "undefined"
-    ) {
-      return;
-    }
-    if (isDictating) {
-      if (recorderRef.current?.state === "recording") {
-        recorderRef.current.stop();
-      }
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const recorder = new MediaRecorder(stream);
-      recorderRef.current = recorder;
-      chunksRef.current = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
-      };
-      recorder.onstop = async () => {
-        const audio = new Blob(chunksRef.current, {
-          type: recorder.mimeType || "audio/webm",
-        });
-        releaseRecording();
-        setIsDictating(false);
-        if (audio.size === 0) return;
-        setIsTranscribing(true);
-        try {
-          const body = new FormData();
-          body.append("audio", audio, "dictation.webm");
-          const response = await fetch("/api/v1/audio/transcriptions", {
-            method: "POST",
-            body,
-          });
-          if (!response.ok) return;
-          const result = (await response.json()) as {
-            text?: string;
-            transcript?: string;
-          };
-          const transcript = (result.text ?? result.transcript ?? "").trim();
-          if (!transcript) return;
-          const previous = value;
-          const next =
-            previous && !/\s$/.test(previous)
-              ? `${previous} ${transcript}`
-              : `${previous}${transcript}`;
-          onValueChange(next);
-        } catch {
-          // Transcription is best-effort.
-        } finally {
-          setIsTranscribing(false);
-        }
-      };
-      recorder.start(100);
-      setIsDictating(true);
-    } catch {
-      setIsDictating(false);
-      releaseRecording();
-    }
-  };
-
   const handleSubmit = React.useCallback(async () => {
     if (!canSubmit) return;
+    if (dictation.isActive) {
+      await dictation.submit();
+    }
     setIsSubmitting(true);
     try {
       await onSubmit(
-        value,
-        attachments.map((item) => ({ ...item })),
+        valueRef.current,
+        attachmentsRef.current.map((item) => ({ ...item })),
       );
     } finally {
       setIsSubmitting(false);
     }
-  }, [canSubmit, value, attachments, onSubmit]);
+  }, [canSubmit, dictation, onSubmit]);
+
+  const listeningEmpty =
+    dictation.status === "listening" && !value.trim();
 
   return (
     <div
@@ -274,6 +247,10 @@ export function UserMessageInlineEditor({
         if (event.key === "Escape") {
           event.preventDefault();
           event.stopPropagation();
+          if (dictation.isActive) {
+            void dictation.cancel();
+            return;
+          }
           onCancel();
         }
         if (
@@ -291,25 +268,31 @@ export function UserMessageInlineEditor({
         <span
           className={cn(
             "user-msg-editor__rec",
-            isDictating && "user-msg-editor__rec--live",
+            dictation.isListening && "user-msg-editor__rec--live",
           )}
-          aria-hidden={!isDictating}
+          aria-hidden={!dictation.isListening}
         >
-          {isDictating ? "Recording…" : ""}
+          {dictationConnecting
+            ? "Connecting…"
+            : dictation.isListening
+              ? "Listening…"
+              : ""}
         </span>
       </div>
 
       {attachments.length > 0 ? (
-        <div className="mb-2.5 flex flex-wrap gap-2">
-          {attachments.map((attachment) => (
-            <AttachmentChip
-              key={attachment.id}
-              file={attachment}
-              size="lg"
-              onRemove={() => removeAttachment(attachment.id)}
-              onOpen={() => setPreviewAttachment(attachment)}
-            />
-          ))}
+        <div className="mb-2.5">
+          <ComposerAttachmentStrip>
+            {attachments.map((attachment) => (
+              <AttachmentChip
+                key={attachment.id}
+                file={attachment}
+                size="lg"
+                onRemove={() => removeAttachment(attachment.id)}
+                onOpen={() => setPreviewAttachment(attachment)}
+              />
+            ))}
+          </ComposerAttachmentStrip>
         </div>
       ) : null}
 
@@ -317,26 +300,71 @@ export function UserMessageInlineEditor({
         ref={textareaRef}
         value={value}
         disabled={disabled || isSubmitting}
-        onChange={(event) => onValueChange(event.target.value)}
+        onChange={(event) => {
+          if (dictation.isListening && !applyingDictationRef.current) {
+            dictation.rebaseToCaret({
+              start:
+                event.currentTarget.selectionStart ??
+                event.target.value.length,
+              end:
+                event.currentTarget.selectionEnd ?? event.target.value.length,
+            });
+          }
+          onValueChange(event.target.value);
+        }}
+        onSelect={(event) => {
+          if (!dictation.isListening || applyingDictationRef.current) return;
+          dictation.rebaseToCaret({
+            start:
+              event.currentTarget.selectionStart ??
+              event.currentTarget.value.length,
+            end:
+              event.currentTarget.selectionEnd ??
+              event.currentTarget.value.length,
+          });
+        }}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+          if (
+            event.key === "Enter" &&
+            !event.shiftKey &&
+            !event.nativeEvent.isComposing
+          ) {
             event.preventDefault();
+            if (dictation.isActive) {
+              if (showDictationActions) void dictation.submit();
+              return;
+            }
             void handleSubmit();
           }
         }}
         rows={2}
-        placeholder="Edit your message…"
+        placeholder={listeningEmpty ? "Listening…" : "Edit your message…"}
         className="user-msg-editor__input w-full resize-none bg-transparent outline-none"
         style={{
           lineHeight: `${EDIT_LINE_HEIGHT_PX}px`,
           maxHeight: `${maxHeightPx}px`,
         }}
         aria-label="Edit user message"
+        data-dictation={
+          dictation.status !== "idle" ? dictation.status : undefined
+        }
       />
+      <span className="sr-only" aria-live="polite">
+        {dictationConnecting
+          ? "Connecting dictation"
+          : dictation.status === "listening"
+            ? "Listening"
+            : ""}
+      </span>
 
       {attachmentError ? (
         <p className="mt-1.5 text-[12px] font-medium text-[var(--settings-danger)]">
           {attachmentError}
+        </p>
+      ) : null}
+      {dictation.error ? (
+        <p className="mt-1.5 text-[12px] font-medium text-[var(--settings-danger)]" role="alert">
+          {dictation.error}
         </p>
       ) : null}
 
@@ -354,28 +382,48 @@ export function UserMessageInlineEditor({
             </button>
           </HintTooltip>
 
-          {isDictating ? (
-            <HintTooltip content="Stop dictation" side="bottom">
-              <button
-                type="button"
-                onClick={() => void startDictation()}
-                aria-label="Stop dictation"
-                className="user-msg-editor__icon-btn user-msg-editor__icon-btn--active no-hover-overlay"
-              >
-                <X className="h-4 w-4" strokeWidth={2} />
-              </button>
-            </HintTooltip>
+          {showDictationActions ? (
+            <>
+              <HintTooltip content="Cancel dictation" side="bottom">
+                <button
+                  type="button"
+                  onClick={() => void dictation.cancel()}
+                  disabled={dictation.status === "stopping"}
+                  aria-label="Cancel dictation"
+                  className="user-msg-editor__icon-btn user-msg-editor__icon-btn--active no-hover-overlay"
+                >
+                  <X className="h-4 w-4" strokeWidth={2} />
+                </button>
+              </HintTooltip>
+              <HintTooltip content="Keep dictated text" side="bottom">
+                <button
+                  type="button"
+                  onClick={() => void dictation.submit()}
+                  disabled={dictation.status === "stopping"}
+                  aria-label="Keep dictated text"
+                  className="user-msg-editor__icon-btn no-hover-overlay"
+                >
+                  <Check className="h-4 w-4" strokeWidth={2.25} />
+                </button>
+              </HintTooltip>
+            </>
           ) : (
-            <HintTooltip content="Dictate" side="bottom">
+            <HintTooltip
+              content={dictationConnecting ? "Connecting…" : "Dictate"}
+              side="bottom"
+            >
               <button
                 type="button"
-                onClick={() => void startDictation()}
-                disabled={disabled || isSubmitting || isTranscribing}
-                aria-pressed={isDictating}
-                aria-label="Dictate"
+                onClick={() => void dictation.start()}
+                disabled={disabled || isSubmitting || dictationConnecting}
+                aria-pressed={dictation.isActive}
+                aria-busy={dictationConnecting || undefined}
+                aria-label={
+                  dictationConnecting ? "Connecting dictation" : "Dictate"
+                }
                 className="user-msg-editor__icon-btn no-hover-overlay"
               >
-                {isTranscribing ? (
+                {dictationConnecting ? (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
                 ) : (
                   <Mic className="h-4 w-4" strokeWidth={1.75} />
@@ -429,18 +477,8 @@ export function UserMessageInlineEditor({
         }}
       />
 
-      <AttachmentImageLightbox
-        open={previewAttachment?.kind === "image"}
-        name={previewAttachment?.name ?? ""}
-        previewUrl={previewAttachment?.previewUrl ?? ""}
-        onClose={() => setPreviewAttachment(null)}
-      />
-      <AttachmentDocumentPreview
-        open={previewAttachment?.kind === "document"}
-        name={previewAttachment?.name ?? ""}
-        mimeType={previewAttachment?.mimeType ?? ""}
-        previewUrl={previewAttachment?.previewUrl}
-        textPreview={previewAttachment?.textPreview}
+      <AttachmentPreviewHost
+        file={previewAttachment}
         onClose={() => setPreviewAttachment(null)}
       />
     </div>

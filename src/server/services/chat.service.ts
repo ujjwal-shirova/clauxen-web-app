@@ -57,8 +57,8 @@ import {
   mergePromptHistories,
 } from "@/server/inference/build-chat-prompt-messages";
 import {
+  applyVisionToLastUserMessage,
   resolveVisionImageBlocks,
-  withVisionUserContent,
   type ClientVisionImage,
 } from "@/server/inference/vision-attachments";
 import {
@@ -238,8 +238,9 @@ type UserAttachmentMeta = {
   id: string;
   name: string;
   mimeType: string;
-  kind: "image" | "document";
+  kind: "image" | "document" | "video";
   fileId: string;
+  previewUrl?: string;
 };
 
 async function resolveUserAttachmentMeta(
@@ -269,8 +270,11 @@ async function resolveUserAttachmentMeta(
       mimeType: mime,
       kind: mime.startsWith("image/")
         ? ("image" as const)
-        : ("document" as const),
+        : mime.startsWith("video/")
+          ? ("video" as const)
+          : ("document" as const),
       fileId: file.id,
+      previewUrl: `/api/v1/files/${file.id}/url?redirect=1`,
     };
   });
 }
@@ -383,6 +387,11 @@ export async function streamChatGeneration(input: {
     images?: ClientVisionImage[];
     userClientId: string;
     assistantClientId: string;
+  };
+  /** Vision for edits / retries that do not open a new durable turn. */
+  vision?: {
+    fileIds?: string[];
+    images?: ClientVisionImage[];
   };
   signal?: AbortSignal;
   /**
@@ -693,40 +702,23 @@ export async function streamChatGeneration(input: {
           }
         }
 
+        const visionFileIds = input.vision?.fileIds ?? input.turn?.fileIds;
+        const visionImages = input.vision?.images ?? input.turn?.images;
         const hasVisionInputs =
-          Boolean(input.turn?.images?.length) ||
-          Boolean(input.turn?.fileIds?.length);
+          Boolean(visionImages?.length) || Boolean(visionFileIds?.length);
         const visionBlocks = hasVisionInputs
           ? await resolveVisionImageBlocks({
               userId: input.userId,
-              fileIds: input.turn?.fileIds,
-              clientImages: input.turn?.images,
+              fileIds: visionFileIds,
+              clientImages: visionImages,
             })
           : [];
 
         if (visionBlocks.length > 0) {
-          let lastUserIdx = -1;
-          for (let i = conversationForAgent.length - 1; i >= 0; i -= 1) {
-            if (conversationForAgent[i]?.role === "user") {
-              lastUserIdx = i;
-              break;
-            }
-          }
-          if (lastUserIdx >= 0) {
-            const current = conversationForAgent[lastUserIdx]!;
-            const text =
-              typeof current.content === "string"
-                ? current.content
-                : preferredUserContent;
-            conversationForAgent = conversationForAgent.map((message, index) =>
-              index === lastUserIdx
-                ? {
-                    ...message,
-                    content: withVisionUserContent(text, visionBlocks),
-                  }
-                : message,
-            );
-          }
+          conversationForAgent = applyVisionToLastUserMessage(
+            conversationForAgent,
+            visionBlocks,
+          );
         }
 
         let projectPromptAppend: string | undefined;

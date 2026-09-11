@@ -232,6 +232,10 @@ export const env = {
   scheduledTasksInternalToken: optional("SCHEDULED_TASKS_INTERNAL_TOKEN"),
 
   r2ImagesBucket: optional("R2_IMAGES_BUCKET", "clauxen-images"),
+  r2AttachmentsBucket: optional(
+    "R2_ATTACHMENTS_BUCKET",
+    "clauxen-user-attachments",
+  ),
   r2DocumentsBucket: optional(
     "R2_DOCUMENTS_BUCKET",
     optional("R2_USER_FILES_BUCKET", "clauxen-documents"),

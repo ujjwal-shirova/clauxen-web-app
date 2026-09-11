@@ -48,6 +48,10 @@ import {
   toMessageAttachments,
   type ComposerAttachment,
 } from "@/lib/composer-attachments";
+import {
+  attachmentContextLines,
+  collectComposerVision,
+} from "@/lib/composer-vision";
 import { createClient } from "@/utils/supabase/client";
 import { logSupabaseQueryError } from "@/lib/supabase-query-error";
 import { randomUUID } from "@/lib/id";
@@ -1457,9 +1461,16 @@ export function useChatApi(
         userClientId: string;
         assistantClientId: string;
       },
-      options?: { ephemeral?: boolean },
+      options?: {
+        ephemeral?: boolean;
+        vision?: {
+          fileIds?: string[];
+          images?: Array<{ mimeType: string; data: string; name?: string }>;
+        };
+      },
     ) => {
       const ephemeral = options?.ephemeral === true;
+      const vision = options?.vision;
       const controller = new AbortController();
       const assistantIdLocal =
         overrideAssistantId ?? turn?.assistantClientId ?? randomUUID();
@@ -1583,6 +1594,14 @@ export function useChatApi(
                   images: turn.images,
                   userClientId: turn.userClientId,
                   assistantClientId,
+                },
+              }
+            : {}),
+          ...(vision && (vision.images?.length || vision.fileIds?.length)
+            ? {
+                vision: {
+                  fileIds: vision.fileIds,
+                  images: vision.images,
                 },
               }
             : {}),
@@ -2501,44 +2520,8 @@ export function useChatApi(
           .filter((id): id is string => Boolean(id));
         const fileIds: string[] = [...knownFileIds];
         let uploadFailures = 0;
-
-        const readFileAsDataUrl = (file: File): Promise<string> =>
-          new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () =>
-              resolve(typeof reader.result === "string" ? reader.result : "");
-            reader.onerror = () =>
-              reject(reader.error ?? new Error("Failed to read image"));
-            reader.readAsDataURL(file);
-          });
-
-        const visionImages: Array<{
-          mimeType: string;
-          data: string;
-          name?: string;
-        }> = [];
-        for (const item of pendingAttachments) {
-          if (item.kind !== "image") continue;
-          const mimeType = item.mimeType || "image/jpeg";
-          let dataUrl =
-            typeof item.previewUrl === "string" &&
-            item.previewUrl.startsWith("data:")
-              ? item.previewUrl
-              : "";
-          if (!dataUrl && item.file) {
-            try {
-              dataUrl = await readFileAsDataUrl(item.file);
-            } catch {
-              continue;
-            }
-          }
-          if (!dataUrl) continue;
-          visionImages.push({
-            mimeType,
-            data: dataUrl,
-            name: item.name,
-          });
-        }
+        const { images: visionImages } =
+          await collectComposerVision(pendingAttachments);
 
         const uploadAttachments = async () => {
           if (ephemeral || pendingAttachments.length === 0) return;
@@ -2547,7 +2530,10 @@ export function useChatApi(
               if (attachment.fileId) return attachment.fileId;
               if (!attachment.file) return null;
               try {
-                return await uploadUserFile(attachment.file);
+                return await uploadUserFile(attachment.file, {
+                  purpose: "chat-attachment",
+                  chatId,
+                });
               } catch (error) {
                 console.warn("[chat] attachment upload failed:", error);
                 uploadFailures += 1;
@@ -2596,22 +2582,7 @@ export function useChatApi(
           void uploadAttachments();
         }
 
-        const attachmentContext =
-          pendingAttachments.length > 0
-            ? [
-                "",
-                "[Attached files]",
-                ...pendingAttachments.map((item) => {
-                  if (item.kind === "document" && item.textPreview) {
-                    return `- ${item.name}:\n${item.textPreview.slice(0, 8000)}`;
-                  }
-                  if (item.kind === "image") {
-                    return `- ${item.name} (image attached for vision)`;
-                  }
-                  return `- ${item.name} (${item.mimeType || item.kind})`;
-                }),
-              ].join("\n")
-            : "";
+        const attachmentContext = attachmentContextLines(pendingAttachments);
 
         const modelUserContent = `${trimmed}${attachmentContext}`.trim();
         const modelUser: Message = {
@@ -2652,7 +2623,13 @@ export function useChatApi(
                 userClientId,
                 assistantClientId,
               },
-          { ephemeral },
+          {
+            ephemeral,
+            vision:
+              ephemeral && visionImages.length
+                ? { images: visionImages }
+                : undefined,
+          },
         );
 
         if (pendingChatId && !ephemeral) {
@@ -2985,7 +2962,10 @@ export function useChatApi(
         pendingAttachments.map(async (attachment) => {
           if (attachment.fileId || !attachment.file) return attachment;
           try {
-            const fileId = await uploadUserFile(attachment.file);
+            const fileId = await uploadUserFile(attachment.file, {
+              purpose: "chat-attachment",
+              chatId,
+            });
             return {
               ...attachment,
               fileId,
@@ -2998,6 +2978,10 @@ export function useChatApi(
         }),
       );
       const messageAttachments = toMessageAttachments(uploadedAttachments);
+      const { images: visionImages, fileIds: visionFileIds } =
+        await collectComposerVision(uploadedAttachments);
+      const attachmentContext = attachmentContextLines(uploadedAttachments);
+
       // Patch the forked user message if uploads resolved new fileIds after
       // the optimistic paint (keeps the visible branch + metadata in sync).
       if (uploadedAttachments.length > 0) {
@@ -3029,20 +3013,6 @@ export function useChatApi(
         });
       }
 
-      const attachmentContext =
-        uploadedAttachments.length > 0
-          ? [
-              "",
-              "[Attached files]",
-              ...uploadedAttachments.map((item) => {
-                if (item.kind === "document" && item.textPreview) {
-                  return `- ${item.name}:\n${item.textPreview.slice(0, 8000)}`;
-                }
-                return `- ${item.name} (${item.mimeType || item.kind})`;
-              }),
-            ].join("\n")
-          : "";
-
       const conversationBase = nextChat.slice(0, -1).map((msg) =>
         msg.id === messageId
           ? {
@@ -3062,6 +3032,16 @@ export function useChatApi(
           conversationForApi,
           undefined,
           assistantMessageId,
+          undefined,
+          {
+            vision:
+              visionImages.length || visionFileIds.length
+                ? {
+                    images: visionImages.length ? visionImages : undefined,
+                    fileIds: visionFileIds.length ? visionFileIds : undefined,
+                  }
+                : undefined,
+          },
         );
       } finally {
         const finalMessages = allChatsRef.current[chatId] || [];

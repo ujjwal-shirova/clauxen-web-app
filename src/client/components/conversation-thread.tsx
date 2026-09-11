@@ -32,8 +32,8 @@ import { useMessageEnterAnimation } from "@/hooks/use-message-enter-animation";
 import { collectMessageSources } from "@/lib/chat-sources";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AttachmentChip } from "@/components/composer/attachment-chip";
-import { AttachmentImageLightbox } from "@/components/composer/attachment-image-lightbox";
-import { AttachmentDocumentPreview } from "@/components/composer/attachment-document-preview";
+import { AttachmentPreviewHost } from "@/components/composer/attachment-preview-host";
+import { ComposerAttachmentStrip } from "@/components/composer/attachment-strip";
 import type {
   ComposerAttachment,
   MessageAttachment,
@@ -362,24 +362,17 @@ const MessageRow = React.memo(
                 data-user-expanded={userExpanded || undefined}
               >
                 {message.attachments && message.attachments.length > 0 ? (
-                  <div className="mb-2 flex flex-wrap gap-1.5">
-                    {message.attachments.map((attachment) => (
-                      <AttachmentChip
-                        key={attachment.id}
-                        file={attachment}
-                        size="md"
-                        onOpen={() =>
-                          setPreviewAttachment({
-                            ...attachment,
-                            previewUrl:
-                              attachment.previewUrl ||
-                              (attachment.fileId
-                                ? `/api/v1/files/${attachment.fileId}/url?redirect=1`
-                                : undefined),
-                          })
-                        }
-                      />
-                    ))}
+                  <div className="mb-2">
+                    <ComposerAttachmentStrip>
+                      {message.attachments.map((attachment) => (
+                        <AttachmentChip
+                          key={attachment.id}
+                          file={attachment}
+                          size="md"
+                          onOpen={() => setPreviewAttachment(attachment)}
+                        />
+                      ))}
+                    </ComposerAttachmentStrip>
                   </div>
                 ) : null}
                 {message.content.trim() ? (
@@ -429,18 +422,8 @@ const MessageRow = React.memo(
                 ) : null}
               </div>
             )}
-            <AttachmentImageLightbox
-              open={previewAttachment?.kind === "image"}
-              name={previewAttachment?.name ?? ""}
-              previewUrl={previewAttachment?.previewUrl ?? ""}
-              onClose={() => setPreviewAttachment(null)}
-            />
-            <AttachmentDocumentPreview
-              open={previewAttachment?.kind === "document"}
-              name={previewAttachment?.name ?? ""}
-              mimeType={previewAttachment?.mimeType ?? ""}
-              previewUrl={previewAttachment?.previewUrl}
-              textPreview={previewAttachment?.textPreview}
+            <AttachmentPreviewHost
+              file={previewAttachment}
               onClose={() => setPreviewAttachment(null)}
             />
             {editingMessageId !== message.id ? (

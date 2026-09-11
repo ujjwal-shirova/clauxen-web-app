@@ -7,7 +7,8 @@ export async function presignUpload(input: {
   sizeBytes: number;
   projectId?: string;
   folderId?: string | null;
-  purpose?: "avatar" | "library";
+  purpose?: "avatar" | "library" | "chat-attachment";
+  chatId?: string | null;
 }) {
   return apiFetch<{
     fileId: string;
@@ -34,7 +35,12 @@ export async function completeUpload(input: {
 /** Upload a browser File via presign → PUT → complete. */
 export async function uploadUserFile(
   file: File,
-  options?: { folderId?: string | null; projectId?: string },
+  options?: {
+    folderId?: string | null;
+    projectId?: string;
+    purpose?: "avatar" | "library" | "chat-attachment";
+    chatId?: string | null;
+  },
 ) {
   const { fileId, uploadUrl, method, stub, worker } = await presignUpload({
     originalName: file.name,
@@ -42,6 +48,8 @@ export async function uploadUserFile(
     sizeBytes: file.size,
     folderId: options?.folderId,
     projectId: options?.projectId,
+    purpose: options?.purpose,
+    chatId: options?.chatId,
   });
 
   if (!stub) {

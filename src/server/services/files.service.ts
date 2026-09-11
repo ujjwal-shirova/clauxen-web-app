@@ -11,6 +11,7 @@ import {
   bucketForPurpose,
   buildImageKey,
   buildProjectFileKey,
+  buildUserAttachmentKey,
   buildUserLibraryKey,
   createPresignedGetUrl,
   createPresignedPutUrl,
@@ -35,7 +36,9 @@ function buildAvatarKey(userId: string, originalName: string) {
 }
 
 function purposeForMime(mimeType?: string | null): StoragePurpose {
-  return mimeType?.startsWith("image/") ? "images" : "documents";
+  if (mimeType?.startsWith("image/")) return "images";
+  if (mimeType?.startsWith("video/")) return "attachments";
+  return "documents";
 }
 
 function buildStorageKey(
@@ -44,6 +47,9 @@ function buildStorageKey(
   mimeType?: string | null,
   folderId?: string | null,
 ) {
+  if (mimeType?.startsWith("video/")) {
+    return buildUserAttachmentKey(userId, filename);
+  }
   return mimeType?.startsWith("image/")
     ? buildImageKey(userId, filename, folderId)
     : buildUserLibraryKey(userId, filename, folderId);
@@ -178,7 +184,8 @@ export async function presignUserFileUpload(
     workspaceId?: string | null;
     projectId?: string | null;
     folderId?: string | null;
-    purpose?: "avatar" | "library";
+    purpose?: "avatar" | "library" | "chat-attachment";
+    chatId?: string | null;
   },
 ) {
   const originalName = input.originalName.trim();
@@ -199,6 +206,7 @@ export async function presignUserFileUpload(
   }
 
   const isAvatar = input.purpose === "avatar";
+  const isChatAttachment = input.purpose === "chat-attachment";
   const mime = (input.mimeType ?? "").toLowerCase();
   if (isAvatar) {
     if (!AVATAR_MIMES.has(mime)) {
@@ -215,13 +223,19 @@ export async function presignUserFileUpload(
     throw new AppError("File exceeds 100 MB limit.", 400);
   }
 
-  const purpose = isAvatar ? "images" : purposeForMime(input.mimeType);
+  const purpose = isAvatar
+    ? "images"
+    : isChatAttachment
+      ? "attachments"
+      : purposeForMime(input.mimeType);
   const bucket = bucketForPurpose(purpose);
   const storagePath = isAvatar
     ? buildAvatarKey(userId, originalName)
-    : input.projectId
-      ? buildProjectFileKey(userId, input.projectId, originalName)
-      : buildStorageKey(userId, originalName, input.mimeType, input.folderId);
+    : isChatAttachment
+      ? buildUserAttachmentKey(userId, originalName, input.chatId)
+      : input.projectId
+        ? buildProjectFileKey(userId, input.projectId, originalName)
+        : buildStorageKey(userId, originalName, input.mimeType, input.folderId);
 
   const file = await userFilesRepo.createUserFile({
     userId,
@@ -235,8 +249,13 @@ export async function presignUserFileUpload(
     storagePath,
     status: "pending",
     metadata: {
-      purpose: isAvatar ? "avatar" : purpose,
+      purpose: isAvatar
+        ? "avatar"
+        : isChatAttachment
+          ? "chat-attachment"
+          : purpose,
       ...(input.projectId ? { projectKnowledge: true } : {}),
+      ...(input.chatId ? { chatId: input.chatId } : {}),
     },
   });
 
@@ -249,10 +268,19 @@ export async function presignUserFileUpload(
     contentType: input.mimeType,
   });
 
+  const stored = await userFilesRepo.updateUserFile(file.id, userId, {
+    storageUrl: presign.downloadUrl,
+    metadata: {
+      ...(file.metadata ?? {}),
+      storageUrl: presign.downloadUrl,
+    },
+  });
+
   return {
     fileId: file.id,
     storageBucket: bucket,
     storagePath,
+    storageUrl: stored?.storage_url ?? presign.downloadUrl,
     purpose,
     ...presign,
   };
@@ -279,9 +307,17 @@ export async function getUserFileDownloadUrl(userId: string, fileId: string) {
   const file = await userFilesRepo.getUserFile(fileId, userId);
   if (!file) throw notFound("File not found.");
 
-  const purpose: StoragePurpose = file.mime_type?.startsWith("image/")
-    ? "images"
-    : "documents";
+  const metaPurpose =
+    file.metadata && typeof file.metadata.purpose === "string"
+      ? file.metadata.purpose
+      : "";
+  const purpose: StoragePurpose =
+    metaPurpose === "chat-attachment" ||
+    file.storage_bucket.includes("attachment")
+      ? "attachments"
+      : file.mime_type?.startsWith("image/")
+        ? "images"
+        : "documents";
   const presign = await buildDownloadPresign({
     purpose,
     bucket: file.storage_bucket,

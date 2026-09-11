@@ -16,7 +16,8 @@ export const POST = withApiHandler(
       workspaceId?: string | null;
       projectId?: string | null;
       folderId?: string | null;
-      purpose?: "avatar" | "library";
+      purpose?: "avatar" | "library" | "chat-attachment";
+      chatId?: string | null;
     };
 
     const presign = await filesService.presignUserFileUpload(user.id, {
@@ -27,6 +28,7 @@ export const POST = withApiHandler(
       projectId: body.projectId,
       folderId: body.folderId,
       purpose: body.purpose,
+      chatId: body.chatId,
     });
 
     return jsonData(presign, 201);

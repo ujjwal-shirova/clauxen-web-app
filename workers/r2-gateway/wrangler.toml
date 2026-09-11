@@ -27,3 +27,7 @@ bucket_name = "clauxen-artifacts"
 [[r2_buckets]]
 binding = "USER_FILES"
 bucket_name = "clauxen-documents"
+
+[[r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "clauxen-user-attachments"

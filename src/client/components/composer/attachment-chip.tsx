@@ -1,9 +1,10 @@
 "use client";
 
-import { FileText, X } from "lucide-react";
+import { FileText, Play, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   documentTypeLabel,
+  filePreviewSrc,
   type ComposerAttachment,
   type MessageAttachment,
 } from "@/lib/composer-attachments";
@@ -25,11 +26,10 @@ export function AttachmentChip({
   size?: "sm" | "md" | "lg";
 }) {
   const isImage = file.kind === "image";
+  const isVideo = file.kind === "video";
   const uploading = "uploadStatus" in file && file.uploadStatus === "uploading";
   const errored = "uploadStatus" in file && file.uploadStatus === "error";
-  const previewSrc =
-    file.previewUrl ||
-    (file.fileId ? `/api/v1/files/${file.fileId}/url?redirect=1` : undefined);
+  const previewSrc = filePreviewSrc(file);
 
   const imageSize =
     size === "lg"
@@ -58,7 +58,7 @@ export function AttachmentChip({
         errored
           ? "border-[var(--settings-danger)]"
           : "border-[var(--ui-border)] hover:bg-[var(--ui-hover-wash)]",
-        isImage ? imageSize : docSize,
+        isImage || isVideo ? imageSize : docSize,
         className,
       )}
       aria-label={file.name}
@@ -74,6 +74,25 @@ export function AttachmentChip({
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-[var(--ui-hover-wash)]">
             <FileText className="h-4 w-4 text-[var(--ui-fg-placeholder)]" />
+          </div>
+        )
+      ) : isVideo ? (
+        previewSrc ? (
+          <>
+            <video
+              src={previewSrc}
+              muted
+              playsInline
+              preload="metadata"
+              className="h-full w-full object-cover"
+            />
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25">
+              <Play className="h-4 w-4 fill-white text-white" />
+            </span>
+          </>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-[var(--ui-hover-wash)]">
+            <Play className="h-4 w-4 text-[var(--ui-fg-placeholder)]" />
           </div>
         )
       ) : (

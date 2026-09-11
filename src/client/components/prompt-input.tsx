@@ -50,12 +50,12 @@ import {
   type SendMessageOptions,
 } from "@/lib/composer-attachments";
 import { AttachmentChip } from "@/components/composer/attachment-chip";
-import { AttachmentImageLightbox } from "@/components/composer/attachment-image-lightbox";
-import { AttachmentDocumentPreview } from "@/components/composer/attachment-document-preview";
+import { AttachmentPreviewHost } from "@/components/composer/attachment-preview-host";
+import { ComposerAttachmentStrip } from "@/components/composer/attachment-strip";
 import * as settingsApi from "@/lib/api/settings";
 import { overlayToHash } from "@/lib/app-routes";
 import { useStreamingDictation } from "@/features/dictation/use-streaming-dictation";
-import { StreamingDictationText } from "@/components/composer/streaming-dictation-text";
+import type { CaretRange } from "@/features/dictation/transcript";
 
 function openOverlayHash(overlay: Parameters<typeof overlayToHash>[0]) {
   const hash = overlayToHash(overlay);
@@ -226,15 +226,38 @@ export function PromptInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const syncDraftImmediateRef = useRef<(value: string) => void>(() => {});
+  const applyingDictationRef = useRef(false);
   const readDraftForDictation = useCallback(
     () => textareaRef.current?.value ?? draftValueRef.current,
     [],
   );
-  const applyDictationDraft = useCallback((value: string) => {
+  const readCaretForDictation = useCallback((): CaretRange => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      const len = draftValueRef.current.length;
+      return { start: len, end: len };
+    }
+    return {
+      start: textarea.selectionStart ?? textarea.value.length,
+      end: textarea.selectionEnd ?? textarea.value.length,
+    };
+  }, []);
+  const applyDictationDraft = useCallback((value: string, caret: CaretRange) => {
+    applyingDictationRef.current = true;
     syncDraftImmediateRef.current(value);
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const start = Math.max(0, Math.min(caret.start, textarea.value.length));
+      const end = Math.max(start, Math.min(caret.end, textarea.value.length));
+      textarea.setSelectionRange(start, end);
+    }
+    queueMicrotask(() => {
+      applyingDictationRef.current = false;
+    });
   }, []);
   const dictation = useStreamingDictation({
     readDraft: readDraftForDictation,
+    readCaret: readCaretForDictation,
     onDraftChange: applyDictationDraft,
   });
   const showComposeControls =
@@ -242,7 +265,7 @@ export function PromptInput({
   const composeMeta = activeComposeAction
     ? COMPOSE_ACTION_META[activeComposeAction]
     : null;
-  const showDictationSurface =
+  const showDictationActions =
     dictation.status === "listening" || dictation.status === "stopping";
   const dictationConnecting = dictation.status === "connecting";
   const hasPromptAddons =
@@ -406,19 +429,6 @@ export function PromptInput({
 
   const resizeTextarea = useCallback(() => {
     const textarea = textareaRef.current;
-    // During live dictation the textarea is swapped for StreamingDictationText —
-    // still keep multiline state honest from the live transcript so the shell
-    // only grows when the text actually needs another line.
-    if (showDictationSurface) {
-      const live = dictation.displayText ?? "";
-      const hasExplicitNewline = live.includes("\n");
-      const approxMultiline = hasExplicitNewline || live.trim().length > 72;
-      if (approxMultiline !== isMultilineRef.current) {
-        isMultilineRef.current = approxMultiline;
-        setIsMultiline(approxMultiline);
-      }
-      return;
-    }
     if (!textarea) return;
 
     const singleLineHeight = getSingleLineHeight();
@@ -464,11 +474,9 @@ export function PromptInput({
       }
     }
   }, [
-    dictation.displayText,
     getTextareaMaxHeight,
     getSingleLineHeight,
     readDraft,
-    showDictationSurface,
     syncPromptEditorMetrics,
   ]);
 
@@ -503,10 +511,10 @@ export function PromptInput({
     scheduleResizeTextarea();
   }, [
     isConversationStarted,
-    showDictationSurface,
+    showDictationActions,
     showComposeControls,
     isMultiline,
-    dictation.displayText,
+    dictation.status,
     scheduleResizeTextarea,
   ]);
 
@@ -670,14 +678,15 @@ export function PromptInput({
         }
 
         const id = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        if (kind === "image") {
+        if (kind === "image" || kind === "video") {
           const previewUrl = URL.createObjectURL(file);
           addAttachment({
             id,
             name: file.name,
             previewUrl,
-            mimeType: file.type || "image/png",
-            kind: "image",
+            mimeType:
+              file.type || (kind === "video" ? "video/mp4" : "image/png"),
+            kind,
             file,
             uploadStatus: "local",
           });
@@ -853,8 +862,18 @@ export function PromptInput({
       }
     }
 
+    if (e.key === "Escape" && dictation.isActive) {
+      e.preventDefault();
+      void dictation.cancel();
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (dictation.isActive) {
+        if (showDictationActions) void dictation.submit();
+        return;
+      }
       handleSubmit();
     }
   };
@@ -990,7 +1009,7 @@ export function PromptInput({
   );
 
   const renderTrailingActions = () => {
-    if (showDictationSurface) {
+    if (showDictationActions) {
       return (
         <>
           <HintTooltip content="Cancel dictation">
@@ -1162,24 +1181,37 @@ export function PromptInput({
     );
   };
 
-  const renderTextareaField = (placeholder: string, className?: string) =>
-    showDictationSurface ? (
-      <div className="min-w-0 flex-1 overflow-hidden">
-        <StreamingDictationText
-          text={dictation.displayText}
-          status={dictation.status}
-        />
-      </div>
-    ) : (
+  const renderTextareaField = (placeholder: string, className?: string) => {
+    const listeningEmpty =
+      dictation.status === "listening" && !hasDraft && !readDraft().trim();
+    const editorPlaceholder = listeningEmpty ? "Listening…" : placeholder;
+    return (
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-0">
         {activeInlineMode ? (
           <PromptInlineModeChip mode={activeInlineMode} />
         ) : null}
         <textarea
           ref={assignTextareaRef}
-          placeholder={placeholder}
+          placeholder={editorPlaceholder}
           defaultValue={draftValueRef.current}
-          onInput={handleInput}
+          onInput={(event) => {
+            if (dictation.isListening && !applyingDictationRef.current) {
+              const target = event.currentTarget;
+              dictation.rebaseToCaret({
+                start: target.selectionStart ?? target.value.length,
+                end: target.selectionEnd ?? target.value.length,
+              });
+            }
+            handleInput();
+          }}
+          onSelect={(event) => {
+            if (!dictation.isListening || applyingDictationRef.current) return;
+            const target = event.currentTarget;
+            dictation.rebaseToCaret({
+              start: target.selectionStart ?? target.value.length,
+              end: target.selectionEnd ?? target.value.length,
+            });
+          }}
           onKeyDown={handleKeyDown}
           onPaste={scheduleResizeTextarea}
           onCompositionEnd={scheduleResizeTextarea}
@@ -1189,10 +1221,19 @@ export function PromptInput({
             className,
           )}
           data-prompt-multiline={isMultiline || undefined}
+          data-dictation={dictation.status !== "idle" ? dictation.status : undefined}
           rows={1}
         />
+        <span className="sr-only" aria-live="polite">
+          {dictationConnecting
+            ? "Connecting dictation"
+            : dictation.status === "listening"
+              ? "Listening"
+              : ""}
+        </span>
       </div>
     );
+  };
 
   // Always paint the real composer — no client-only stub / skeleton swap.
   return (
@@ -1294,16 +1335,18 @@ export function PromptInput({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="flex flex-wrap gap-1.5 overflow-hidden px-2 pt-2 sm:px-2.5"
+                    className="overflow-hidden px-2 pt-2 sm:px-2.5"
                   >
-                    {attachments.map((attachment) => (
-                      <AttachmentChip
-                        key={attachment.id}
-                        file={attachment}
-                        onRemove={() => removeAttachment(attachment.id)}
-                        onOpen={() => setPreviewAttachment(attachment)}
-                      />
-                    ))}
+                    <ComposerAttachmentStrip>
+                      {attachments.map((attachment) => (
+                        <AttachmentChip
+                          key={attachment.id}
+                          file={attachment}
+                          onRemove={() => removeAttachment(attachment.id)}
+                          onOpen={() => setPreviewAttachment(attachment)}
+                        />
+                      ))}
+                    </ComposerAttachmentStrip>
                   </motion.div>
                 ) : null}
               </AnimatePresence>
@@ -1372,18 +1415,8 @@ export function PromptInput({
         </div>
       ) : null}
 
-      <AttachmentImageLightbox
-        open={previewAttachment?.kind === "image"}
-        name={previewAttachment?.name ?? ""}
-        previewUrl={previewAttachment?.previewUrl ?? ""}
-        onClose={() => setPreviewAttachment(null)}
-      />
-      <AttachmentDocumentPreview
-        open={previewAttachment?.kind === "document"}
-        name={previewAttachment?.name ?? ""}
-        mimeType={previewAttachment?.mimeType ?? ""}
-        previewUrl={previewAttachment?.previewUrl}
-        textPreview={previewAttachment?.textPreview}
+      <AttachmentPreviewHost
+        file={previewAttachment}
         onClose={() => setPreviewAttachment(null)}
       />
     </>

@@ -9,8 +9,10 @@ import {
 import {
   applyAssemblyTurn,
   EMPTY_STREAMING_TRANSCRIPT,
-  joinDraftAndTranscript,
+  insertTranscriptAtCaret,
+  splitDraftAroundCaret,
   transcriptText,
+  type CaretRange,
   type StreamingTranscriptState,
 } from "@/features/dictation/transcript";
 import type {
@@ -22,42 +24,65 @@ import type {
 
 type UseStreamingDictationOptions = {
   readDraft: () => string;
-  onDraftChange: (value: string) => void;
+  readCaret: () => CaretRange;
+  onDraftChange: (value: string, caret: CaretRange) => void;
 };
 
 export function useStreamingDictation({
   readDraft,
+  readCaret,
   onDraftChange,
 }: UseStreamingDictationOptions) {
   const [status, setStatus] = useState<DictationStatus>("idle");
-  const [displayText, setDisplayText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const statusRef = useRef<DictationStatus>("idle");
-  const baseDraftRef = useRef("");
+  const originDraftRef = useRef("");
+  const prefixRef = useRef("");
+  const suffixRef = useRef("");
   const transcriptRef = useRef<StreamingTranscriptState>(
     EMPTY_STREAMING_TRANSCRIPT,
   );
   const connectionRef = useRef<AssemblyAiStreamingConnection | null>(null);
   const captureRef = useRef<MicrophoneCapture | null>(null);
   const endingRef = useRef<Promise<void> | null>(null);
+  const applyingRef = useRef(false);
 
   const updateStatus = useCallback((next: DictationStatus) => {
     statusRef.current = next;
     setStatus(next);
   }, []);
 
-  const currentText = useCallback(() => {
-    return joinDraftAndTranscript(
-      baseDraftRef.current,
+  const captureSplit = useCallback(() => {
+    const draft = readDraft();
+    const split = splitDraftAroundCaret(draft, readCaret());
+    prefixRef.current = split.prefix;
+    suffixRef.current = split.suffix;
+  }, [readCaret, readDraft]);
+
+  const currentInsertion = useCallback(() => {
+    return insertTranscriptAtCaret(
+      prefixRef.current,
       transcriptText(transcriptRef.current),
+      suffixRef.current,
     );
   }, []);
+
+  const publish = useCallback(() => {
+    const next = currentInsertion();
+    applyingRef.current = true;
+    onDraftChange(next.text, next.caret);
+    queueMicrotask(() => {
+      applyingRef.current = false;
+    });
+  }, [currentInsertion, onDraftChange]);
 
   const releaseRefs = useCallback(() => {
     connectionRef.current = null;
     captureRef.current = null;
     transcriptRef.current = EMPTY_STREAMING_TRANSCRIPT;
     endingRef.current = null;
+    prefixRef.current = "";
+    suffixRef.current = "";
   }, []);
 
   const finish = useCallback(
@@ -73,14 +98,15 @@ export function useStreamingDictation({
         try {
           await capture?.stop();
           await connection?.finish();
-          const text = currentText();
           // Live transcription only — never upload/persist microphone audio.
           if (reason === "cancelled") {
-            onDraftChange(baseDraftRef.current);
-            setDisplayText(baseDraftRef.current);
+            const origin = originDraftRef.current;
+            onDraftChange(origin, {
+              start: origin.length,
+              end: origin.length,
+            });
           } else {
-            onDraftChange(text);
-            setDisplayText(text);
+            publish();
           }
         } catch (finishError) {
           setError(
@@ -97,18 +123,30 @@ export function useStreamingDictation({
       endingRef.current = work;
       return work;
     },
-    [currentText, onDraftChange, releaseRefs, updateStatus],
+    [onDraftChange, publish, releaseRefs, updateStatus],
   );
 
   const finishInBackground = useCallback(() => {
     if (statusRef.current === "idle") return;
-    const text = currentText();
+    const next = currentInsertion();
     captureRef.current?.emergencyStop();
     void connectionRef.current?.finish();
-    onDraftChange(text);
+    onDraftChange(next.text, next.caret);
     releaseRefs();
     statusRef.current = "idle";
-  }, [currentText, onDraftChange, releaseRefs]);
+  }, [currentInsertion, onDraftChange, releaseRefs]);
+
+  const rebaseToCaret = useCallback(
+    (caret: CaretRange) => {
+      if (statusRef.current !== "listening") return;
+      if (applyingRef.current) return;
+      const split = splitDraftAroundCaret(readDraft(), caret);
+      prefixRef.current = split.prefix;
+      suffixRef.current = split.suffix;
+      transcriptRef.current = EMPTY_STREAMING_TRANSCRIPT;
+    },
+    [readDraft],
+  );
 
   const start = useCallback(async () => {
     if (statusRef.current !== "idle") return;
@@ -118,9 +156,9 @@ export function useStreamingDictation({
     }
 
     setError(null);
-    baseDraftRef.current = readDraft();
+    originDraftRef.current = readDraft();
     transcriptRef.current = EMPTY_STREAMING_TRANSCRIPT;
-    setDisplayText(baseDraftRef.current);
+    captureSplit();
     updateStatus("connecting");
 
     let stream: MediaStream | null = null;
@@ -168,9 +206,7 @@ export function useStreamingDictation({
             transcriptRef.current,
             turn,
           );
-          const text = currentText();
-          setDisplayText(text);
-          onDraftChange(text);
+          publish();
         },
         () => setError("The live transcription stream reported an error."),
       );
@@ -186,13 +222,16 @@ export function useStreamingDictation({
         track.onended = () => void finish("track-ended");
       }
       await capture.start();
+      // Re-read in case the user typed or moved the caret while connecting.
+      originDraftRef.current = readDraft();
+      captureSplit();
       updateStatus("listening");
     } catch (startError) {
       stream?.getTracks().forEach((track) => track.stop());
       connectionRef.current?.close();
+      const origin = originDraftRef.current;
+      onDraftChange(origin, { start: origin.length, end: origin.length });
       releaseRefs();
-      onDraftChange(baseDraftRef.current);
-      setDisplayText(baseDraftRef.current);
       setError(
         startError instanceof DOMException &&
           startError.name === "NotAllowedError"
@@ -204,9 +243,10 @@ export function useStreamingDictation({
       updateStatus("idle");
     }
   }, [
-    currentText,
+    captureSplit,
     finish,
     onDraftChange,
+    publish,
     readDraft,
     releaseRefs,
     updateStatus,
@@ -223,11 +263,14 @@ export function useStreamingDictation({
 
   return {
     status,
-    displayText,
     error,
     isActive: status !== "idle",
+    isConnecting: status === "connecting",
+    isListening: status === "listening",
+    applyingRef,
     start,
     submit: () => finish("submitted"),
     cancel: () => finish("cancelled"),
+    rebaseToCaret,
   };
 }

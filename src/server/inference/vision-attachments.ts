@@ -138,8 +138,69 @@ export function withVisionUserContent(
   } else {
     parts.push({
       type: "text",
-      text: "Please analyze the attached image(s).",
+      text: "Please analyze the attached image(s) or video frames.",
     });
   }
   return parts;
+}
+
+const MAX_CLIENT_VISION_PARTS = 16;
+
+export type ParsedClientVisionImage = {
+  mimeType: string;
+  data: string;
+  name?: string;
+};
+
+/** Parse OpenAI-compatible `image_url` client payloads (Together / Novita). */
+export function parseClientVisionImages(
+  raw: unknown,
+  limit = MAX_CLIENT_VISION_PARTS,
+): ParsedClientVisionImage[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const parsed: ParsedClientVisionImage[] = [];
+  for (const image of raw) {
+    if (!image || typeof image !== "object") continue;
+    const record = image as Record<string, unknown>;
+    const mimeType =
+      typeof record.mimeType === "string" ? record.mimeType.trim() : "";
+    const data = typeof record.data === "string" ? record.data.trim() : "";
+    if (!mimeType || !data) continue;
+    parsed.push({
+      mimeType,
+      data,
+      ...(typeof record.name === "string"
+        ? { name: record.name.trim().slice(0, 240) }
+        : {}),
+    });
+    if (parsed.length >= limit) break;
+  }
+  return parsed.length ? parsed : undefined;
+}
+
+export function parseVisionFileIds(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const ids = raw.filter((id): id is string => typeof id === "string" && id.length > 0);
+  return ids.length ? ids : undefined;
+}
+
+export function applyVisionToLastUserMessage<
+  T extends { role: string; content?: unknown },
+>(messages: T[], images: ChatCompletionContentPartImage[]): T[] {
+  if (!images.length) return messages;
+  let lastUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.role === "user") {
+      lastUserIdx = i;
+      break;
+    }
+  }
+  if (lastUserIdx < 0) return messages;
+  const current = messages[lastUserIdx]!;
+  const text = typeof current.content === "string" ? current.content : "";
+  return messages.map((message, index) =>
+    index === lastUserIdx
+      ? ({ ...message, content: withVisionUserContent(text, images) } as T)
+      : message,
+  );
 }

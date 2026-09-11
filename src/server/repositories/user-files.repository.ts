@@ -14,6 +14,7 @@ export type UserFileRow = {
   content_hash: string | null;
   status: string;
   metadata: Record<string, unknown>;
+  storage_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -29,7 +30,7 @@ export type LibraryFolderRow = {
 
 const USER_FILE_COLUMNS = `id, user_id, workspace_id, project_id, folder_id,
   original_name, mime_type, size_bytes, storage_bucket, storage_path,
-  content_hash, status, metadata, created_at, updated_at`;
+  content_hash, status, metadata, storage_url, created_at, updated_at`;
 
 export type UserFileStorageStats = {
   total_bytes: number;
@@ -195,12 +196,14 @@ export async function createUserFile(input: {
   contentHash?: string | null;
   status?: string;
   metadata?: Record<string, unknown>;
+  storageUrl?: string | null;
 }) {
   return queryOne<UserFileRow>(
     `insert into public.user_files (
        user_id, workspace_id, project_id, folder_id, original_name, mime_type,
-       size_bytes, storage_bucket, storage_path, content_hash, status, metadata
-     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+       size_bytes, storage_bucket, storage_path, content_hash, status, metadata,
+       storage_url
+     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
      returning ${USER_FILE_COLUMNS}`,
     [
       input.userId,
@@ -215,6 +218,7 @@ export async function createUserFile(input: {
       input.contentHash ?? null,
       input.status ?? "pending",
       JSON.stringify(input.metadata ?? {}),
+      input.storageUrl ?? null,
     ],
   );
 }
@@ -227,6 +231,7 @@ export async function updateUserFile(
     sizeBytes?: number;
     contentHash?: string | null;
     metadata?: Record<string, unknown>;
+    storageUrl?: string | null;
   },
 ) {
   return queryOne<UserFileRow>(
@@ -235,6 +240,7 @@ export async function updateUserFile(
        size_bytes = coalesce($4, size_bytes),
        content_hash = coalesce($5, content_hash),
        metadata = coalesce($6::jsonb, metadata),
+       storage_url = coalesce($7, storage_url),
        updated_at = now()
      where id = $1 and user_id = $2 and status != 'deleted'
      returning ${USER_FILE_COLUMNS}`,
@@ -245,6 +251,7 @@ export async function updateUserFile(
       patch.sizeBytes ?? null,
       patch.contentHash ?? null,
       patch.metadata ? JSON.stringify(patch.metadata) : null,
+      patch.storageUrl ?? null,
     ],
   );
 }

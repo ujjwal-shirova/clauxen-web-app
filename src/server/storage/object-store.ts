@@ -20,7 +20,8 @@ export type StoragePurpose =
   | "artifacts"
   | "skills"
   | "chat-archives"
-  | "audio-recordings";
+  | "audio-recordings"
+  | "attachments";
 
 export type StoredObjectRef = {
   purpose: StoragePurpose;
@@ -36,6 +37,7 @@ const PURPOSE_BUCKET: Record<StoragePurpose, () => string> = {
   skills: () => env.r2SkillsBucket,
   "chat-archives": () => env.r2ChatArchivesBucket,
   "audio-recordings": () => env.r2AudioRecordingsBucket,
+  attachments: () => env.r2AttachmentsBucket,
 };
 
 export function bucketForPurpose(purpose: StoragePurpose): string {
@@ -199,6 +201,24 @@ export function buildUserLibraryKey(
   const safe = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
   const folder = folderId || "root";
   return `users/${userId}/library/${folder}/${Date.now()}-${safe}`;
+}
+
+/**
+ * Chat composer / inline-edit uploads. Unique per object so millions of
+ * concurrent users never collide: users/{userId}/attachments/{yyyy}/{mm}/{scope}/{uuid}-{file}
+ */
+export function buildUserAttachmentKey(
+  userId: string,
+  filename: string,
+  chatId?: string | null,
+) {
+  const safe = filename.replace(/[^a-zA-Z0-9._-]/g, "_") || "file";
+  const now = new Date();
+  const year = String(now.getUTCFullYear());
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const scope = (chatId || "draft").replace(/[^a-zA-Z0-9._-]/g, "_");
+  const id = crypto.randomUUID();
+  return `users/${userId}/attachments/${year}/${month}/${scope}/${id}-${safe}`;
 }
 
 export function buildImageKey(

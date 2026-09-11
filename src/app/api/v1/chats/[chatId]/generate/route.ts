@@ -8,6 +8,10 @@ import { resolveRequestCountryCode } from "@/lib/request-geo";
 import { parseHomerReasoningEffort } from "@/lib/model-effort";
 import { CLAUXEN_STREAM_HEADERS } from "@/server/inference/clauxen-sse-stream";
 import {
+  parseClientVisionImages,
+  parseVisionFileIds,
+} from "@/server/inference/vision-attachments";
+import {
   beginChatGeneration,
   endChatGeneration,
 } from "@/server/chat/generation-registry";
@@ -46,6 +50,10 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         userClientId?: unknown;
         assistantClientId?: unknown;
       };
+      vision?: {
+        fileIds?: unknown;
+        images?: unknown;
+      };
       generateChatTitle?: boolean;
       chatModel?: string;
       homerReasoningEffort?: string;
@@ -75,39 +83,8 @@ export const POST = withApiRouteParams<{ chatId: string }>(
             typeof rawTurn.modelContent === "string"
               ? rawTurn.modelContent.trim()
               : undefined,
-          fileIds: Array.isArray(rawTurn.fileIds)
-            ? rawTurn.fileIds.filter(
-                (fileId): fileId is string => typeof fileId === "string",
-              )
-            : undefined,
-          images: (() => {
-            if (!Array.isArray(rawTurn.images)) return undefined;
-            const parsed: Array<{
-              mimeType: string;
-              data: string;
-              name?: string;
-            }> = [];
-            for (const image of rawTurn.images) {
-              if (!image || typeof image !== "object") continue;
-              const record = image as Record<string, unknown>;
-              const mimeType =
-                typeof record.mimeType === "string"
-                  ? record.mimeType.trim()
-                  : "";
-              const data =
-                typeof record.data === "string" ? record.data.trim() : "";
-              if (!mimeType || !data) continue;
-              parsed.push({
-                mimeType,
-                data,
-                ...(typeof record.name === "string"
-                  ? { name: record.name.trim().slice(0, 240) }
-                  : {}),
-              });
-              if (parsed.length >= 8) break;
-            }
-            return parsed.length ? parsed : undefined;
-          })(),
+          fileIds: parseVisionFileIds(rawTurn.fileIds),
+          images: parseClientVisionImages(rawTurn.images),
           userClientId:
             typeof rawTurn.userClientId === "string"
               ? rawTurn.userClientId.trim()
@@ -116,6 +93,12 @@ export const POST = withApiRouteParams<{ chatId: string }>(
             typeof rawTurn.assistantClientId === "string"
               ? rawTurn.assistantClientId.trim()
               : "",
+        }
+      : undefined;
+    const vision = body.vision
+      ? {
+          fileIds: parseVisionFileIds(body.vision.fileIds),
+          images: parseClientVisionImages(body.vision.images),
         }
       : undefined;
     if (
@@ -173,6 +156,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           userId: user.id,
           messages,
           turn,
+          vision,
           signal: generationController.signal,
           ensureLease: () => generation.lease,
           userCountryCode: resolveRequestCountryCode(request.headers),

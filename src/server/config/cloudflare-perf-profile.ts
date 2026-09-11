@@ -26,8 +26,12 @@
  * - Worker placement: `aws:us-west-1` (near Supabase)
  *
  * ## Workers
- * - chat-history: Cache API → KV → R2 → Hyperdrive
+ * - chat-history: Cache API → KV → R2 archives → Hyperdrive
+ *   (read path for chat hydrate; never rate-limit subscribers)
  * - r2-gateway: JWT upload/download (sole product upload path)
+ *   Bindings: IMAGES, DOCUMENTS, ARTIFACTS, USER_FILES, ATTACHMENTS
+ *   ATTACHMENTS → `clauxen-user-attachments` (composer / edit uploads)
+ *   Object keys: `users/{userId}/attachments/{yyyy}/{mm}/{chatId|draft}/{uuid}-{file}`
  * - auth-email: OTP / magic link
  * - chat-coord: Durable Object generation lease per chatId
  *
@@ -39,7 +43,8 @@
  * ## Vercel
  * - Region `pdx1` (near Supabase us-west-1)
  * - Fluid Compute on; keep 1 GB only for long-running streaming/generation routes
- * - Env: chat-history + WORKER_URL + CHAT_COORD_* + EDGE_CONFIG
+ * - Env: CHAT_HISTORY_WORKER_URL + WORKER_URL + CHAT_COORD_* + EDGE_CONFIG
+ * - Env: R2_ATTACHMENTS_BUCKET=clauxen-user-attachments
  *
  * ## Deploy
  * ```bash

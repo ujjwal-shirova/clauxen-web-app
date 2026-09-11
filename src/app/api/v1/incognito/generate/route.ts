@@ -9,6 +9,12 @@ import { createChatStream } from "@/app/api/chat/stream";
 import { readEdgeFlags } from "@/server/config/edge-flags";
 import { assertDurableRateLimit } from "@/server/http/durable-rate-limit";
 import { clientIp } from "@/server/http/request-meta";
+import {
+  applyVisionToLastUserMessage,
+  parseClientVisionImages,
+  parseVisionFileIds,
+  resolveVisionImageBlocks,
+} from "@/server/inference/vision-attachments";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +47,10 @@ export const POST = withApiRoute(async ({ session, request }) => {
     homerReasoningEffort?: string;
     extendedThinking?: boolean;
     clientTimezone?: string;
+    vision?: {
+      fileIds?: unknown;
+      images?: unknown;
+    };
   };
 
   const messages = sanitizeMessages(body.messages).filter(
@@ -59,9 +69,28 @@ export const POST = withApiRoute(async ({ session, request }) => {
     );
   }
 
+  const visionImages = parseClientVisionImages(body.vision?.images);
+  const visionFileIds = parseVisionFileIds(body.vision?.fileIds);
+  const visionBlocks =
+    visionImages?.length || visionFileIds?.length
+      ? await resolveVisionImageBlocks({
+          userId: user.id,
+          fileIds: visionFileIds,
+          clientImages: visionImages,
+        })
+      : [];
+  const modelMessages = applyVisionToLastUserMessage(
+    messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    })),
+    visionBlocks,
+  );
+
   const stream = await createChatStream(messages, {
     chatModel: body.chatModel,
     userId: user.id,
+    modelMessages,
     // No conversationId — tools that key off durable chat history stay scoped
     // to this request only.
     userCountryCode: resolveRequestCountryCode(request.headers),

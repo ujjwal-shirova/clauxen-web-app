@@ -5,6 +5,7 @@ export interface Env {
   DOCUMENTS: R2Bucket;
   ARTIFACTS: R2Bucket;
   USER_FILES: R2Bucket;
+  ATTACHMENTS: R2Bucket;
 }
 
 function bucketForName(env: Env, name: string): R2Bucket | null {
@@ -13,9 +14,11 @@ function bucketForName(env: Env, name: string): R2Bucket | null {
     documents: env.DOCUMENTS,
     artifacts: env.ARTIFACTS,
     "user-files": env.USER_FILES,
+    attachments: env.ATTACHMENTS,
     "clauxen-images": env.IMAGES,
     "clauxen-documents": env.DOCUMENTS,
     "clauxen-artifacts": env.ARTIFACTS,
+    "clauxen-user-attachments": env.ATTACHMENTS,
   };
   return map[name.toLowerCase()] ?? null;
 }
