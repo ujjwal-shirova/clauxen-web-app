@@ -11,6 +11,24 @@ const REQUEST_TIMEOUT_MS = 20_000;
 
 type Json = Record<string, unknown>;
 
+export type McpPrompt = {
+  name: string;
+  description: string;
+  arguments?: Array<{
+    name: string;
+    description?: string;
+    required?: boolean;
+  }>;
+};
+
+function parseWwwAuthenticate(header: string | null): string | null {
+  if (!header) return null;
+  const quoted = /resource_metadata\s*=\s*"([^"]+)"/i.exec(header);
+  if (quoted?.[1]) return quoted[1];
+  const bare = /resource_metadata\s*=\s*([^,\s]+)/i.exec(header);
+  return bare?.[1]?.replace(/;$/, "") ?? null;
+}
+
 export class McpClient {
   private sessionId: string | null = null;
   private nextRequestId = 1;
@@ -26,6 +44,7 @@ export class McpClient {
     const headers: Record<string, string> = {
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
+      "mcp-protocol-version": PROTOCOL_VERSION,
       ...this.config.headers,
     };
     if (this.sessionId) headers["mcp-session-id"] = this.sessionId;
@@ -130,6 +149,55 @@ export class McpClient {
     await this.notify("notifications/initialized");
   }
 
+  /**
+   * Probe the server without throwing on auth challenges. Used by installs to
+   * distinguish open servers (connect immediately) from OAuth servers (need
+   * the gateway) and API-key servers (need a user key).
+   */
+  async probe(): Promise<{
+    status: number;
+    authorized: boolean;
+    resourceMetadataUrl: string | null;
+  }> {
+    const id = this.nextRequestId++;
+    const { response } = await this.post({
+      jsonrpc: "2.0",
+      id,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: "clauxen", version: "1.0.0" },
+      },
+    });
+    const resourceMetadataUrl = parseWwwAuthenticate(
+      response.headers.get("www-authenticate"),
+    );
+    if (response.status === 401 || response.status === 403) {
+      return { status: response.status, authorized: false, resourceMetadataUrl };
+    }
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(
+        `MCP ${this.config.id} initialize failed: HTTP ${response.status} ${body.slice(0, 200)}`,
+      );
+    }
+    const parsed = await this.parseResponse(response);
+    const error = parsed?.error as { message?: string } | undefined;
+    if (error) {
+      throw new Error(
+        `MCP ${this.config.id} initialize rejected: ${error.message ?? "unknown error"}`,
+      );
+    }
+    this.initialized = true;
+    await this.notify("notifications/initialized");
+    return {
+      status: response.status,
+      authorized: true,
+      resourceMetadataUrl,
+    };
+  }
+
   async listTools(): Promise<
     Array<{ name: string; description: string; inputSchema: Json }>
   > {
@@ -170,6 +238,80 @@ export class McpClient {
       if (!cursor) break;
     }
     return tools;
+  }
+
+  async listPrompts(): Promise<McpPrompt[]> {
+    try {
+      await this.initialize();
+      const { result } = await this.request("prompts/list", {});
+      const prompts = Array.isArray(result?.prompts)
+        ? (result.prompts as Json[])
+        : [];
+      return prompts
+        .map((prompt) => ({
+          name: typeof prompt.name === "string" ? prompt.name : "",
+          description:
+            typeof prompt.description === "string" ? prompt.description : "",
+          arguments: Array.isArray(prompt.arguments)
+            ? (prompt.arguments as Json[])
+                .map((item) => ({
+                  name: typeof item.name === "string" ? item.name : "",
+                  description:
+                    typeof item.description === "string"
+                      ? item.description
+                      : undefined,
+                  required: item.required === true,
+                }))
+                .filter((item) => item.name)
+            : undefined,
+        }))
+        .filter((prompt) => prompt.name);
+    } catch {
+      return [];
+    }
+  }
+
+  async getPrompt(
+    name: string,
+    args: Record<string, unknown> = {},
+  ): Promise<{ text: string; isError: boolean }> {
+    await this.initialize();
+    const { result, error } = await this.request("prompts/get", {
+      name,
+      arguments: args,
+    });
+    if (error) {
+      return {
+        text: `MCP skill error: ${error.message ?? "unknown error"}`,
+        isError: true,
+      };
+    }
+    const parts: string[] = [];
+    const description =
+      result && typeof result.description === "string"
+        ? result.description
+        : "";
+    if (description) parts.push(description);
+    const messages = Array.isArray(result?.messages)
+      ? (result.messages as Json[])
+      : [];
+    for (const message of messages) {
+      const role = typeof message.role === "string" ? message.role : "user";
+      const content = message.content;
+      if (typeof content === "string") {
+        parts.push(`${role}: ${content}`);
+        continue;
+      }
+      if (content && typeof content === "object") {
+        const block = content as Json;
+        if (typeof block.text === "string") {
+          parts.push(`${role}: ${block.text}`);
+        } else {
+          parts.push(`${role}: ${JSON.stringify(content)}`);
+        }
+      }
+    }
+    return { text: parts.join("\n\n") || "(empty skill)", isError: false };
   }
 
   async callTool(
