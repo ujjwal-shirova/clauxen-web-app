@@ -132,6 +132,7 @@ async function discoverAuthorization(
   revocationEndpoint: string | null;
   scopes: string[];
   resource: string;
+  clientIdMetadataDocumentSupported: boolean;
 }> {
   let protectedResource: Record<string, unknown> = {};
   for (const candidate of resourceMetadataCandidates(
@@ -195,7 +196,40 @@ async function discoverAuthorization(
     revocationEndpoint: firstHttps(asMetadata.revocation_endpoint),
     scopes: scopes.slice(0, 20),
     resource,
+    clientIdMetadataDocumentSupported:
+      asMetadata.client_id_metadata_document_supported === true,
   };
+}
+
+/**
+ * Self-hosted Client ID Metadata Document URL for this install, derived from
+ * the caller's return URL origin. Only HTTPS public origins qualify — the
+ * authorization server must fetch this document, so localhost always falls
+ * back to Dynamic Client Registration.
+ */
+function clientMetadataUrlFor(
+  returnUrl: string,
+  connectorKey: string,
+): string | null {
+  try {
+    const origin = new URL(returnUrl).origin;
+    const parsed = new URL(origin);
+    if (parsed.protocol !== "https:") return null;
+    const host = parsed.hostname.toLowerCase();
+    if (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "0.0.0.0" ||
+      host === "[::1]" ||
+      host.endsWith(".local") ||
+      host.endsWith(".localhost")
+    ) {
+      return null;
+    }
+    return `${origin}/api/oauth/client-metadata/${encodeURIComponent(connectorKey)}`;
+  } catch {
+    return null;
+  }
 }
 
 async function registerOAuthClient(
@@ -572,58 +606,101 @@ export async function installMcpPlugin(
       limit 1
     `;
     let clientId = existing[0]?.client_id ?? "";
+    let registration: "cimd" | "dcr" | "existing" = existing[0]
+      ? "existing"
+      : "dcr";
     if (!clientId) {
-      if (!discovery.registrationEndpoint) {
-        throw new HttpError(
-          "This plugin requires OAuth but does not support automatic client registration.",
-          409,
-          "mcp_oauth_registration_required",
-        );
-      }
-      const registered = await registerOAuthClient(
-        discovery.registrationEndpoint,
-        redirectUri,
-      );
-      clientId = registered.clientId;
-      const sealedSecret = registered.clientSecret
-        ? await sealText(
-            registered.clientSecret,
-            env.CONNECTOR_ENCRYPTION_KEY,
-            `oauth-client:${connectorId}`,
-          )
+      const metadataUrl = discovery.clientIdMetadataDocumentSupported
+        ? clientMetadataUrlFor(returnUrl, connectorKey)
         : null;
-      await sql`
-        insert into private.connector_oauth_configs (
-          connector_id, client_id, encrypted_client_secret, client_secret_nonce,
-          authorization_endpoint, token_endpoint, revocation_endpoint,
-          api_base_url, client_auth_method, scopes, authorization_params,
-          token_params, supports_pkce, enabled
-        ) values (
-          ${connectorId}::uuid, ${registered.clientId},
-          ${sealedSecret?.ciphertext ?? null}, ${sealedSecret?.nonce ?? null},
-          ${discovery.authorizationEndpoint}, ${discovery.tokenEndpoint},
-          ${discovery.revocationEndpoint}, ${mcpUrl},
-          ${registered.authMethod}, ${textArray(sql, discovery.scopes)},
-          ${sql.json({ resource: discovery.resource })},
-          ${sql.json({ resource: discovery.resource })},
-          true, true
-        )
-        on conflict (connector_id) do update set
-          client_id = excluded.client_id,
-          encrypted_client_secret = excluded.encrypted_client_secret,
-          client_secret_nonce = excluded.client_secret_nonce,
-          authorization_endpoint = excluded.authorization_endpoint,
-          token_endpoint = excluded.token_endpoint,
-          revocation_endpoint = excluded.revocation_endpoint,
-          api_base_url = excluded.api_base_url,
-          client_auth_method = excluded.client_auth_method,
-          scopes = excluded.scopes,
-          authorization_params = excluded.authorization_params,
-          token_params = excluded.token_params,
-          supports_pkce = true,
-          enabled = true,
-          updated_at = now()
-      `;
+      if (metadataUrl) {
+        clientId = metadataUrl;
+        registration = "cimd";
+        await sql`
+          insert into private.connector_oauth_configs (
+            connector_id, client_id, encrypted_client_secret, client_secret_nonce,
+            authorization_endpoint, token_endpoint, revocation_endpoint,
+            api_base_url, client_auth_method, scopes, authorization_params,
+            token_params, supports_pkce, enabled
+          ) values (
+            ${connectorId}::uuid, ${metadataUrl},
+            null, null,
+            ${discovery.authorizationEndpoint}, ${discovery.tokenEndpoint},
+            ${discovery.revocationEndpoint}, ${mcpUrl},
+            'none', ${textArray(sql, discovery.scopes)},
+            ${sql.json({ resource: discovery.resource })},
+            ${sql.json({ resource: discovery.resource })},
+            true, true
+          )
+          on conflict (connector_id) do update set
+            client_id = excluded.client_id,
+            encrypted_client_secret = null,
+            client_secret_nonce = null,
+            authorization_endpoint = excluded.authorization_endpoint,
+            token_endpoint = excluded.token_endpoint,
+            revocation_endpoint = excluded.revocation_endpoint,
+            api_base_url = excluded.api_base_url,
+            client_auth_method = 'none',
+            scopes = excluded.scopes,
+            authorization_params = excluded.authorization_params,
+            token_params = excluded.token_params,
+            supports_pkce = true,
+            enabled = true,
+            updated_at = now()
+        `;
+      } else {
+        if (!discovery.registrationEndpoint) {
+          throw new HttpError(
+            "This plugin requires OAuth but does not support automatic client registration.",
+            409,
+            "mcp_oauth_registration_required",
+          );
+        }
+        const registered = await registerOAuthClient(
+          discovery.registrationEndpoint,
+          redirectUri,
+        );
+        clientId = registered.clientId;
+        const sealedSecret = registered.clientSecret
+          ? await sealText(
+              registered.clientSecret,
+              env.CONNECTOR_ENCRYPTION_KEY,
+              `oauth-client:${connectorId}`,
+            )
+          : null;
+        await sql`
+          insert into private.connector_oauth_configs (
+            connector_id, client_id, encrypted_client_secret, client_secret_nonce,
+            authorization_endpoint, token_endpoint, revocation_endpoint,
+            api_base_url, client_auth_method, scopes, authorization_params,
+            token_params, supports_pkce, enabled
+          ) values (
+            ${connectorId}::uuid, ${registered.clientId},
+            ${sealedSecret?.ciphertext ?? null}, ${sealedSecret?.nonce ?? null},
+            ${discovery.authorizationEndpoint}, ${discovery.tokenEndpoint},
+            ${discovery.revocationEndpoint}, ${mcpUrl},
+            ${registered.authMethod}, ${textArray(sql, discovery.scopes)},
+            ${sql.json({ resource: discovery.resource })},
+            ${sql.json({ resource: discovery.resource })},
+            true, true
+          )
+          on conflict (connector_id) do update set
+            client_id = excluded.client_id,
+            encrypted_client_secret = excluded.encrypted_client_secret,
+            client_secret_nonce = excluded.client_secret_nonce,
+            authorization_endpoint = excluded.authorization_endpoint,
+            token_endpoint = excluded.token_endpoint,
+            revocation_endpoint = excluded.revocation_endpoint,
+            api_base_url = excluded.api_base_url,
+            client_auth_method = excluded.client_auth_method,
+            scopes = excluded.scopes,
+            authorization_params = excluded.authorization_params,
+            token_params = excluded.token_params,
+            supports_pkce = true,
+            enabled = true,
+            updated_at = now()
+        `;
+      }
     } else {
       await sql`
         update private.connector_oauth_configs
@@ -688,7 +765,7 @@ export async function installMcpPlugin(
       connectorKey,
       eventType: "oauth_started",
       status: "succeeded",
-      metadata: { pluginId, auth: "mcp_oauth2" },
+      metadata: { pluginId, auth: "mcp_oauth2", registration },
     });
 
     return json({
