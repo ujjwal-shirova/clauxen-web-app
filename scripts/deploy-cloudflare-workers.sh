@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# Deploy Clauxen Cloudflare Workers (chat-history, r2-gateway, auth-email).
+# Deploy Clauxen Cloudflare Workers (all 7: chat-history, r2-gateway,
+# auth-email, chat-coord, scheduled-tasks, billing, connector-gateway).
 # Accepts either CLOUDFLARE_API_TOKEN or Cloudflare_Token (Cursor runtime secret name).
+# No API token? Just run `npx wrangler login` first (OAuth, zero permission
+# setup) and this script uses that session. For headless CI, create ONE token
+# from the dashboard "Edit Cloudflare Workers" template + Queues:Edit +
+# Hyperdrive:Edit (see docs/cloudflare-workers-setup.md).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -127,13 +132,78 @@ else
   echo "==> Skipping clauxen-scheduled-tasks (set SCHEDULED_TASKS_INTERNAL_TOKEN to deploy)"
 fi
 
+# --- connector-gateway (MCP installs, OAuth vault, tool execution) ---
+# CONNECTOR_ENCRYPTION_KEY seals every stored OAuth secret/token. It is NEVER
+# generated or overwritten here: rotating it bricks existing installs. Provide
+# it only for a first-ever deploy (generate once with
+# `openssl rand -base64 32` and vault it), otherwise leave the worker's
+# secret untouched — wrangler deploy preserves existing secrets.
+if [[ -n "${CONNECTOR_GATEWAY_INTERNAL_TOKEN:-}" ]]; then
+  echo "==> Deploying clauxen-connector-gateway (MCP + OAuth)"
+  (
+    cd "$ROOT/workers/connector-gateway"
+    if [[ -n "${CONNECTOR_ENCRYPTION_KEY:-}" ]]; then
+      put_worker_secret CONNECTOR_ENCRYPTION_KEY "$CONNECTOR_ENCRYPTION_KEY"
+    else
+      echo "    keeping existing CONNECTOR_ENCRYPTION_KEY (set env to rotate; rotation invalidates stored tokens)"
+    fi
+    put_worker_secret CONNECTOR_GATEWAY_INTERNAL_TOKEN "$CONNECTOR_GATEWAY_INTERNAL_TOKEN"
+    if [[ -n "${CONNECTOR_GATEWAY_ADMIN_TOKEN:-}" ]]; then
+      put_worker_secret CONNECTOR_GATEWAY_ADMIN_TOKEN "$CONNECTOR_GATEWAY_ADMIN_TOKEN"
+    else
+      CONNECTOR_GATEWAY_ADMIN_TOKEN="$(openssl rand -hex 32)"
+      put_worker_secret CONNECTOR_GATEWAY_ADMIN_TOKEN "$CONNECTOR_GATEWAY_ADMIN_TOKEN"
+      printf '%s' "$CONNECTOR_GATEWAY_ADMIN_TOKEN" > /tmp/clauxen-connector-gateway-admin-token.txt
+      chmod 600 /tmp/clauxen-connector-gateway-admin-token.txt
+      echo "    generated CONNECTOR_GATEWAY_ADMIN_TOKEN (saved to /tmp/clauxen-connector-gateway-admin-token.txt)"
+    fi
+    npx wrangler deploy
+  )
+  printf '%s' "$CONNECTOR_GATEWAY_INTERNAL_TOKEN" > /tmp/clauxen-connector-gateway-internal-token.txt
+  chmod 600 /tmp/clauxen-connector-gateway-internal-token.txt
+else
+  echo "==> Skipping clauxen-connector-gateway (set CONNECTOR_GATEWAY_INTERNAL_TOKEN to deploy;"
+  echo "    generate one with: openssl rand -hex 32 — and set the SAME value on Vercel)"
+fi
+
+# --- billing (Razorpay proxy + invoice PDFs) ---
+if [[ -n "${BILLING_INTERNAL_TOKEN:-}" ]]; then
+  echo "==> Deploying clauxen-billing"
+  (
+    cd "$ROOT/workers/billing"
+    put_worker_secret BILLING_INTERNAL_TOKEN "$BILLING_INTERNAL_TOKEN"
+    if [[ -n "${RAZORPAY_KEY_ID:-}" ]]; then
+      put_worker_secret RAZORPAY_KEY_ID "$RAZORPAY_KEY_ID"
+    fi
+    if [[ -n "${RAZORPAY_KEY_SECRET:-}" ]]; then
+      put_worker_secret RAZORPAY_KEY_SECRET "$RAZORPAY_KEY_SECRET"
+    fi
+    if [[ -n "${SUPABASE_URL:-}${NEXT_PUBLIC_SUPABASE_URL:-}" ]]; then
+      put_worker_secret SUPABASE_URL "${SUPABASE_URL:-$NEXT_PUBLIC_SUPABASE_URL}"
+    fi
+    if [[ -n "${SUPABASE_ANON_KEY:-}${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}" ]]; then
+      put_worker_secret SUPABASE_ANON_KEY "${SUPABASE_ANON_KEY:-$NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+    fi
+    npx wrangler deploy
+  )
+  printf '%s' "$BILLING_INTERNAL_TOKEN" > /tmp/clauxen-billing-internal-token.txt
+  chmod 600 /tmp/clauxen-billing-internal-token.txt
+else
+  echo "==> Skipping clauxen-billing (set BILLING_INTERNAL_TOKEN to deploy;"
+  echo "    generate one with: openssl rand -hex 32 — and set the SAME value on Vercel)"
+fi
+
 WORKER_SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-ujjwal-8fc}"
 AUTH_EMAIL_URL="https://clauxen-auth-email.${WORKER_SUBDOMAIN}.workers.dev"
 CHAT_HISTORY_URL="https://clauxen-chat-history.${WORKER_SUBDOMAIN}.workers.dev"
 CHAT_COORD_URL="https://clauxen-chat-coord.${WORKER_SUBDOMAIN}.workers.dev"
+CONNECTOR_GATEWAY_URL="https://clauxen-connector-gateway.${WORKER_SUBDOMAIN}.workers.dev"
+BILLING_URL="https://clauxen-billing.${WORKER_SUBDOMAIN}.workers.dev"
 export AUTH_EMAIL_WORKER_URL="$AUTH_EMAIL_URL"
 export CHAT_HISTORY_WORKER_URL="$CHAT_HISTORY_URL"
 export CHAT_COORD_WORKER_URL="$CHAT_COORD_URL"
+export CONNECTOR_GATEWAY_URL
+export BILLING_WORKER_URL="$BILLING_URL"
 # Keep generated token available for Vercel wiring below.
 if [[ -f /tmp/clauxen-auth-email-internal-token.txt ]]; then
   export AUTH_EMAIL_INTERNAL_TOKEN="$(tr -d '\n' </tmp/clauxen-auth-email-internal-token.txt)"
@@ -160,6 +230,10 @@ fi
 
 echo "  CHAT_HISTORY_WORKER_URL=$CHAT_HISTORY_URL"
 echo "  CHAT_COORD_WORKER_URL=$CHAT_COORD_URL"
+echo "  CONNECTOR_GATEWAY_URL=$CONNECTOR_GATEWAY_URL"
+echo "  CONNECTOR_GATEWAY_INTERNAL_TOKEN=<from /tmp/clauxen-connector-gateway-internal-token.txt — SAME value on Vercel>"
+echo "  BILLING_WORKER_URL=$BILLING_URL"
+echo "  BILLING_INTERNAL_TOKEN=<from /tmp/clauxen-billing-internal-token.txt — SAME value on Vercel>"
 echo "  WORKER_URL=https://clauxen-r2-gateway.${WORKER_SUBDOMAIN}.workers.dev"
 echo
 echo "Cloudflare Email Service: onboard clauxen.com and allow sender no-reply@clauxen.com"
