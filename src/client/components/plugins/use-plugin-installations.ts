@@ -18,7 +18,7 @@ type InstallEnvelope = {
     authorizeUrl?: string | null;
     installationId?: string | null;
   };
-  error?: { message?: string };
+  error?: { message?: string; code?: string };
 };
 
 type ConnectionsEnvelope = {
@@ -61,6 +61,7 @@ export function usePluginInstallations() {
   const [connections, setConnections] = useState<PluginInstallation[]>([]);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -179,6 +180,7 @@ export function usePluginInstallations() {
     ) => {
       setPendingId(pluginId);
       setError(null);
+      setErrorCode(null);
       const returnPath =
         options?.returnPath && options.returnPath.startsWith("/plugins")
           ? options.returnPath
@@ -197,9 +199,11 @@ export function usePluginInstallations() {
           return;
         }
         if (!response.ok) {
-          throw new Error(
+          const failure = new Error(
             payload.error?.message || "Unable to add this plugin.",
-          );
+          ) as Error & { code?: string };
+          failure.code = payload.error?.code;
+          throw failure;
         }
         if (payload.data?.authorizeUrl) {
           window.location.assign(payload.data.authorizeUrl);
@@ -216,6 +220,11 @@ export function usePluginInstallations() {
           installError instanceof Error
             ? installError.message
             : "Unable to add this plugin.",
+        );
+        setErrorCode(
+          installError instanceof Error
+            ? ((installError as Error & { code?: string }).code ?? null)
+            : null,
         );
       } finally {
         setPendingId(null);
@@ -341,6 +350,7 @@ export function usePluginInstallations() {
     byPluginId,
     pendingId,
     error,
+    errorCode,
     install,
     remove,
     refresh,

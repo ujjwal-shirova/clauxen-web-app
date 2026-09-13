@@ -1,7 +1,11 @@
 import { requireSession } from "@/server/auth/require-session";
 import { env } from "@/server/config/env";
 import { AppError } from "@/server/db/errors";
-import { installMcpPlugin } from "@/server/connectors/gateway";
+import {
+  connectorGatewayConfigured,
+  installMcpPlugin,
+} from "@/server/connectors/gateway";
+import { installMcpPluginLocal } from "@/server/plugins/install-local";
 import { getPluginById } from "@/server/plugins/catalog";
 import { withApiHandler } from "@/server/http/api-handler";
 import { jsonData } from "@/server/http/api-response";
@@ -38,14 +42,45 @@ export const POST = withApiHandler(
     const returnUrl = new URL(returnPath, env.appUrl);
     returnUrl.searchParams.set("plugin", plugin.id);
 
-    const result = await installMcpPlugin(user.id, {
+    if (connectorGatewayConfigured()) {
+      const result = await installMcpPlugin(user.id, {
+        pluginId: plugin.id,
+        displayName: plugin.displayName || plugin.name,
+        mcpUrl: plugin.mcpUrl,
+        logoUrl: plugin.logoUrl || null,
+        returnUrl: returnUrl.toString(),
+      });
+      return jsonData(result);
+    }
+
+    const local = await installMcpPluginLocal(user.id, {
       pluginId: plugin.id,
       displayName: plugin.displayName || plugin.name,
       mcpUrl: plugin.mcpUrl,
       logoUrl: plugin.logoUrl || null,
-      returnUrl: returnUrl.toString(),
     });
-    return jsonData(result);
+    if (local.status === "connected") {
+      return jsonData({
+        status: "connected" as const,
+        connectorKey: local.connectorKey,
+        installationId: local.installationId,
+        authorizeUrl: null,
+        toolCount: local.toolCount,
+        skillCount: local.skillCount,
+      });
+    }
+    if (local.status === "authorization_required") {
+      throw new AppError(
+        "This plugin needs sign-in through the connector gateway, which isn't configured on this deployment.",
+        503,
+        "connector_gateway_required",
+      );
+    }
+    throw new AppError(
+      "This plugin needs an API key to connect.",
+      409,
+      "plugin_api_key_required",
+    );
   },
   { requireAuth: true },
 );

@@ -2,6 +2,11 @@ import "server-only";
 
 import { AppError } from "@/server/db/errors";
 import { env } from "@/server/config/env";
+import {
+  decideLocalApproval,
+  disconnectLocal,
+  listLocalConnections,
+} from "@/server/connectors/local";
 
 type GatewayEnvelope<T> = {
   data?: T;
@@ -129,6 +134,9 @@ async function gatewayRequest<T>(
 }
 
 export function listConnectorConnections(userId: string) {
+  if (!connectorGatewayConfigured()) {
+    return listLocalConnections(userId);
+  }
   return gatewayRequest<{ connections: ConnectorConnection[] }>(
     "/v1/connections",
     userId,
@@ -170,6 +178,9 @@ export function startConnectorOAuth(
 }
 
 export function disconnectConnector(userId: string, installationId: string) {
+  if (!connectorGatewayConfigured()) {
+    return disconnectLocal(userId, installationId);
+  }
   return gatewayRequest<{ installationId: string; disconnected: boolean }>(
     `/v1/connections/${encodeURIComponent(installationId)}`,
     userId,
@@ -208,6 +219,13 @@ export function decideConnectorApproval(
   approvalId: string,
   decision: "approve" | "deny",
 ) {
+  if (!connectorGatewayConfigured()) {
+    return decideLocalApproval(
+      userId,
+      approvalId,
+      decision === "approve" ? "approved" : "denied",
+    );
+  }
   return gatewayRequest<{ approvalId: string; status: string }>(
     `/v1/approvals/${encodeURIComponent(approvalId)}/${decision}`,
     userId,

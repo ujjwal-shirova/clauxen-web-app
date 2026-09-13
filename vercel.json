@@ -161,6 +161,10 @@
     "src/app/api/**/route.ts": {
       "memory": 512
     },
+    "src/app/api/v1/plugins/install/route.ts": {
+      "memory": 512,
+      "maxDuration": 60
+    },
     "src/app/api/v1/chats/**/generate/route.ts": {
       "memory": 1024,
       "maxDuration": 300
