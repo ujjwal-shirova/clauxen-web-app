@@ -176,8 +176,8 @@ export function usePluginInstallations() {
   const install = useCallback(
     async (
       pluginId: string,
-      options?: { category?: string | null; returnPath?: string },
-    ) => {
+      options?: { category?: string | null; returnPath?: string; apiKey?: string },
+    ): Promise<{ ok: boolean; code: string | null; message: string | null }> => {
       setPendingId(pluginId);
       setError(null);
       setErrorCode(null);
@@ -189,14 +189,18 @@ export function usePluginInstallations() {
         const response = await fetch("/api/v1/plugins/install", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ pluginId, returnPath }),
+          body: JSON.stringify({
+            pluginId,
+            returnPath,
+            ...(options?.apiKey ? { apiKey: options.apiKey } : {}),
+          }),
         });
         const payload = (await response.json()) as InstallEnvelope;
         if (response.status === 401) {
           window.location.assign(
             `/login?redirectTo=${encodeURIComponent(returnPath)}`,
           );
-          return;
+          return { ok: false, code: "unauthorized", message: null };
         }
         if (!response.ok) {
           const failure = new Error(
@@ -207,7 +211,7 @@ export function usePluginInstallations() {
         }
         if (payload.data?.authorizeUrl) {
           window.location.assign(payload.data.authorizeUrl);
-          return;
+          return { ok: true, code: null, message: null };
         }
         if (payload.data?.status === "authorization_required") {
           throw new Error(
@@ -215,17 +219,19 @@ export function usePluginInstallations() {
           );
         }
         await refresh();
+        return { ok: true, code: null, message: null };
       } catch (installError) {
-        setError(
-          installError instanceof Error
-            ? installError.message
-            : "Unable to add this plugin.",
-        );
-        setErrorCode(
+        const code =
           installError instanceof Error
             ? ((installError as Error & { code?: string }).code ?? null)
-            : null,
-        );
+            : null;
+        const message =
+          installError instanceof Error
+            ? installError.message
+            : "Unable to add this plugin.";
+        setError(message);
+        setErrorCode(code);
+        return { ok: false, code, message };
       } finally {
         setPendingId(null);
       }

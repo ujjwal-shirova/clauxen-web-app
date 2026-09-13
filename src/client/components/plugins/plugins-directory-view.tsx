@@ -29,6 +29,7 @@ import {
 import { usePluginInstallations } from "./use-plugin-installations";
 import { PluginArtwork } from "./plugin-artwork";
 import { PluginPageHeader } from "./plugin-page-header";
+import { PluginApiKeyDialog } from "./plugin-api-key-dialog";
 import { useAppLayout } from "@/components/app-layout-context";
 
 type DirectoryTab = "all" | "featured" | "saved";
@@ -233,6 +234,8 @@ export function PluginsDirectoryView({
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState(false);
+  const [keyPlugin, setKeyPlugin] = useState<PluginSummary | null>(null);
+  const [keyError, setKeyError] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const installations = usePluginInstallations();
@@ -404,12 +407,33 @@ export function PluginsDirectoryView({
     sortOption,
   ]);
 
-  const togglePluginInstall = (id: string) => {
-    if (installations.isInstalled(id)) {
-      void installations.remove(id);
-    } else {
-      void installations.install(id, { returnPath: "/plugins" });
+  const togglePluginInstall = (plugin: PluginSummary) => {
+    if (installations.isInstalled(plugin.id)) {
+      void installations.remove(plugin.id);
+      return;
     }
+    void installations
+      .install(plugin.id, { returnPath: "/plugins" })
+      .then((result) => {
+        if (!result.ok && result.code === "plugin_api_key_required") {
+          setKeyError(null);
+          setKeyPlugin(plugin);
+        }
+      });
+  };
+
+  const submitApiKey = (apiKey: string) => {
+    if (!keyPlugin) return;
+    void installations
+      .install(keyPlugin.id, { returnPath: "/plugins", apiKey })
+      .then((result) => {
+        if (result.ok) {
+          setKeyPlugin(null);
+          setKeyError(null);
+        } else {
+          setKeyError(result.message || "That key didn't work. Try again.");
+        }
+      });
   };
 
   const handleLoadMore = async () => {
@@ -603,7 +627,7 @@ export function PluginsDirectoryView({
             </p>
           ) : null}
 
-          {installations.error ? (
+          {installations.error && keyPlugin === null ? (
             <p className="rounded-lg bg-red-50 px-3 py-2.5 text-[13px] text-red-700 dark:bg-red-950/40 dark:text-red-300">
               {installations.error}
             </p>
@@ -641,7 +665,7 @@ export function PluginsDirectoryView({
                         pending={installations.isPending(plugin.id)}
                         saved={installations.isInCollection(plugin.id)}
                         busy={installations.pendingId === plugin.id}
-                        onToggleInstall={() => togglePluginInstall(plugin.id)}
+                        onToggleInstall={() => togglePluginInstall(plugin)}
                         onToggleCollection={() =>
                           installations.toggleCollection(plugin.id)
                         }
@@ -668,7 +692,7 @@ export function PluginsDirectoryView({
                   pending={installations.isPending(plugin.id)}
                   saved={installations.isInCollection(plugin.id)}
                   busy={installations.pendingId === plugin.id}
-                  onToggleInstall={() => togglePluginInstall(plugin.id)}
+                  onToggleInstall={() => togglePluginInstall(plugin)}
                   onToggleCollection={() =>
                     installations.toggleCollection(plugin.id)
                   }
@@ -722,6 +746,18 @@ export function PluginsDirectoryView({
           ) : null}
         </main>
       </div>
+
+      <PluginApiKeyDialog
+        open={keyPlugin !== null}
+        pluginName={keyPlugin ? pluginLabel(keyPlugin) : ""}
+        pending={keyPlugin !== null && installations.pendingId === keyPlugin.id}
+        error={keyError}
+        onSubmit={submitApiKey}
+        onClose={() => {
+          setKeyPlugin(null);
+          setKeyError(null);
+        }}
+      />
     </div>
   );
 }

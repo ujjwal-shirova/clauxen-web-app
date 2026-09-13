@@ -19,6 +19,7 @@ import { pluginRouteSegment } from "@/lib/plugins/types";
 import { usePluginInstallations } from "./use-plugin-installations";
 import { PluginArtwork } from "./plugin-artwork";
 import { PluginPageHeader } from "./plugin-page-header";
+import { PluginApiKeyDialog } from "./plugin-api-key-dialog";
 
 function safeExternalUrl(value: string | undefined): string | null {
   if (!value) return null;
@@ -81,6 +82,8 @@ export function PluginDetailView({
 
   const [copiedMention, setCopiedMention] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [keyDialogOpen, setKeyDialogOpen] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
 
   const prompts = useMemo(
     () => (plugin.defaultPrompts || []).filter(Boolean).slice(0, 3),
@@ -109,12 +112,36 @@ export function PluginDetailView({
   const toggleInstallation = () => {
     if (installed) {
       void installations.remove(plugin.id);
-    } else {
-      void installations.install(plugin.id, {
+      return;
+    }
+    void installations
+      .install(plugin.id, {
         category: returnCategory,
         returnPath: `/plugins/${pluginRouteSegment(plugin)}`,
+      })
+      .then((result) => {
+        if (!result.ok && result.code === "plugin_api_key_required") {
+          setKeyError(null);
+          setKeyDialogOpen(true);
+        }
       });
-    }
+  };
+
+  const submitApiKey = (apiKey: string) => {
+    void installations
+      .install(plugin.id, {
+        category: returnCategory,
+        returnPath: `/plugins/${pluginRouteSegment(plugin)}`,
+        apiKey,
+      })
+      .then((result) => {
+        if (result.ok) {
+          setKeyDialogOpen(false);
+          setKeyError(null);
+        } else {
+          setKeyError(result.message || "That key didn't work. Try again.");
+        }
+      });
   };
 
   const handleCopyMention = async () => {
@@ -260,7 +287,7 @@ export function PluginDetailView({
             </div>
           </section>
 
-          {installations.error ? (
+          {installations.error && !keyDialogOpen ? (
             <p className="rounded-lg bg-red-50 px-3 py-2.5 text-[13px] text-red-700 dark:bg-red-950/40 dark:text-red-300">
               {installations.error}
             </p>
@@ -448,6 +475,18 @@ export function PluginDetailView({
           </Link>
         </div>
       </div>
+
+      <PluginApiKeyDialog
+        open={keyDialogOpen}
+        pluginName={name}
+        pending={busy}
+        error={keyError}
+        onSubmit={submitApiKey}
+        onClose={() => {
+          setKeyDialogOpen(false);
+          setKeyError(null);
+        }}
+      />
     </div>
   );
 }
