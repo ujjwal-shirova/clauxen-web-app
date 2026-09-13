@@ -92,6 +92,7 @@ export const APP_ROUTES = {
   root: "/",
   newChat: "/new",
   home: "/new",
+  plugins: "/plugins",
   library: "/library",
   /** Projects library / gallery. */
   projects: "/projects",
@@ -273,6 +274,8 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname === "/" ||
     pathname === "/new" ||
     pathname.startsWith("/c/") ||
+    pathname === "/plugins" ||
+    pathname.startsWith("/plugins/") ||
     pathname === "/library" ||
     pathname.startsWith("/library/") ||
     pathname === "/scheduled" ||

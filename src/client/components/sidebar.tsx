@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Settings,
   ArrowUpCircle,
+  Blocks,
   ChevronRight,
   Gift,
   HelpCircle,
@@ -799,6 +800,13 @@ export function Sidebar({
               isCollapsed ? "flex flex-col items-center px-0" : "px-1.5",
             )}
           >
+            {renderNavButton({
+              label: "Plugins",
+              icon: <Blocks className="size-4" strokeWidth={1.5} />,
+              href: APP_ROUTES.plugins,
+              active: activeView === "plugins",
+            })}
+
             {/* Order: Pinned (chats + projects) → Projects → Recent */}
             {!isCollapsed && hasPinnedSection ? (
               <div className="mt-3 mb-1 px-0">
