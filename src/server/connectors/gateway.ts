@@ -152,12 +152,26 @@ export function installMcpPlugin(
     mcpUrl: string;
     logoUrl?: string | null;
     returnUrl: string;
+    apiKey?: string | null;
   },
 ) {
   return gatewayRequest<McpInstallResult>(
     "/v1/mcp/install",
     userId,
-    { method: "POST", body: JSON.stringify(input) },
+    {
+      method: "POST",
+      body: JSON.stringify(
+        input.apiKey
+          ? input
+          : {
+              pluginId: input.pluginId,
+              displayName: input.displayName,
+              mcpUrl: input.mcpUrl,
+              logoUrl: input.logoUrl,
+              returnUrl: input.returnUrl,
+            },
+      ),
+    },
     45_000,
   );
 }

@@ -41,6 +41,8 @@ export const POST = withApiHandler(
         : "/new";
     const returnUrl = new URL(returnPath, env.appUrl);
     returnUrl.searchParams.set("plugin", plugin.id);
+    const apiKey =
+      typeof body.apiKey === "string" ? body.apiKey.trim().slice(0, 1000) : "";
 
     if (connectorGatewayConfigured()) {
       const result = await installMcpPlugin(user.id, {
@@ -49,6 +51,7 @@ export const POST = withApiHandler(
         mcpUrl: plugin.mcpUrl,
         logoUrl: plugin.logoUrl || null,
         returnUrl: returnUrl.toString(),
+        apiKey: apiKey || null,
       });
       return jsonData(result);
     }
@@ -58,6 +61,7 @@ export const POST = withApiHandler(
       displayName: plugin.displayName || plugin.name,
       mcpUrl: plugin.mcpUrl,
       logoUrl: plugin.logoUrl || null,
+      apiKey: apiKey || null,
     });
     if (local.status === "connected") {
       return jsonData({

@@ -95,6 +95,10 @@ export async function disconnectLocal(
       [installationId],
     );
     await client.query(
+      `delete from private.plugin_mcp_api_keys where installation_id = $1::uuid`,
+      [installationId],
+    );
+    await client.query(
       `update public.connector_installations
        set status = 'revoked', granted_scopes = '{}', updated_at = now()
        where id = $1::uuid`,

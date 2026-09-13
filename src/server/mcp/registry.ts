@@ -7,6 +7,7 @@ import {
   connectorGatewayConfigured,
   listConnectorGatewayTools,
 } from "@/server/connectors/gateway";
+import { openPluginApiKey } from "@/server/plugins/api-key-crypto";
 import { query, queryOne } from "@/server/db/pool";
 
 type ToolTarget =
@@ -342,10 +343,39 @@ export class McpConnectorHarness {
 
       let client = this.directClients.get(target.installationId);
       if (!client) {
+        const headers: Record<string, string> = {};
+        const sealed = await queryOne<{
+          encrypted_api_key: string;
+          api_key_nonce: string;
+          encryption_key_version: number;
+        }>(
+          `select encrypted_api_key, api_key_nonce, encryption_key_version
+           from private.plugin_mcp_api_keys
+           where installation_id = $1::uuid`,
+          [target.installationId],
+        ).catch(() => null);
+        if (sealed) {
+          try {
+            const apiKey = openPluginApiKey(
+              {
+                ciphertext: sealed.encrypted_api_key,
+                nonce: sealed.api_key_nonce,
+                version: sealed.encryption_key_version,
+              },
+              target.installationId,
+            );
+            headers["Authorization"] = `Bearer ${apiKey}`;
+          } catch {
+            return {
+              text: `The stored API key for ${target.connectorName} could not be read. Remove and re-add the plugin with a new key.`,
+              isError: true,
+            };
+          }
+        }
         client = new McpClient({
           id: target.connectorKey,
           url: target.mcpUrl,
-          headers: {},
+          headers,
         });
         this.directClients.set(target.installationId, client);
       }

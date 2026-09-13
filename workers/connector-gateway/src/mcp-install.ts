@@ -424,7 +424,7 @@ async function upsertMcpCatalog(
     displayName: string;
     mcpUrl: string;
     logoUrl: string | null;
-    authType: "none" | "mcp_oauth2";
+    authType: "none" | "api_key" | "mcp_oauth2";
   },
 ): Promise<string> {
   const rows = await sql<{ id: string }[]>`
@@ -515,13 +515,14 @@ export async function installMcpPlugin(
     "mcpUrl",
   );
   const logoUrl = stringField(body, "logoUrl", { max: 2000 });
+  const apiKey = stringField(body, "apiKey", { max: 1000 });
   const returnUrl = allowedReturnUrl(
     stringField(body, "returnUrl", { required: true })!,
     env,
   );
   const connectorKey = await mcpConnectorKey(pluginId);
 
-  const client = new WorkerMcpClient(mcpUrl);
+  const client = new WorkerMcpClient(mcpUrl, apiKey);
   let probe: Awaited<ReturnType<WorkerMcpClient["probe"]>>;
   try {
     probe = await client.probe();
@@ -536,29 +537,63 @@ export async function installMcpPlugin(
   } finally {
     await client.close();
   }
+  if (apiKey && !probe.authorized) {
+    throw new HttpError(
+      "That API key was rejected by the plugin's server.",
+      401,
+      "plugin_api_key_invalid",
+    );
+  }
 
   return withDatabase(env, async (sql) => {
     try {
     if (probe.authorized) {
+      const authType = apiKey ? "api_key" : "none";
       const connectorId = await upsertMcpCatalog(sql, {
         connectorKey,
         pluginId,
         displayName,
         mcpUrl,
         logoUrl,
-        authType: "none",
+        authType,
       });
       const installationId = await upsertInstallation(sql, {
         connectorId,
         userId,
         status: "active",
       });
+      if (apiKey) {
+        const sealed = await sealText(
+          apiKey,
+          env.CONNECTOR_ENCRYPTION_KEY,
+          `installation:${installationId}:access`,
+        );
+        await sql`
+          insert into private.connector_credentials (
+            installation_id, encrypted_access_token, access_token_nonce,
+            token_type, expires_at, provider_metadata
+          ) values (
+            ${installationId}::uuid, ${sealed.ciphertext}, ${sealed.nonce},
+            'Bearer', null, ${sql.json({ auth: "api_key" })}
+          )
+          on conflict (installation_id) do update set
+            encrypted_access_token = excluded.encrypted_access_token,
+            access_token_nonce = excluded.access_token_nonce,
+            token_type = 'Bearer',
+            expires_at = null,
+            encrypted_refresh_token = null,
+            refresh_token_nonce = null,
+            provider_metadata = excluded.provider_metadata,
+            updated_at = now()
+        `;
+      }
       let synced = { tools: 0, skills: 0 };
       try {
         synced = await syncMcpTools(sql, {
           connectorId,
           installationId,
           mcpUrl,
+          accessToken: apiKey ?? undefined,
         });
       } catch {
         // Tools can be refreshed on the next chat turn / reconnect.
@@ -569,7 +604,7 @@ export async function installMcpPlugin(
         connectorKey,
         eventType: "mcp_connected",
         status: "succeeded",
-        metadata: { pluginId, auth: "none", ...synced },
+        metadata: { pluginId, auth: authType, ...synced },
       });
       return json({
         data: {

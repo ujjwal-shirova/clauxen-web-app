@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { McpClient, type McpPrompt } from "@/server/mcp/client";
 import { AppError } from "@/server/db/errors";
 import { query, queryOne, withTransaction } from "@/server/db/pool";
+import { sealPluginApiKey } from "@/server/plugins/api-key-crypto";
 
 export type LocalMcpInstallResult =
   | {
@@ -72,12 +73,13 @@ async function upsertMcpCatalog(input: {
   displayName: string;
   mcpUrl: string;
   logoUrl: string | null;
+  authType: "none" | "api_key";
 }): Promise<string> {
   const provider = new URL(input.mcpUrl).hostname;
   const row = await queryOne<{ id: string }>(
     `insert into public.connector_catalog
        (key, name, provider, auth_type, protocol, mcp_url, scopes, status, metadata)
-     values ($1, $2, $3, 'none', 'mcp', $4, '{}'::text[], 'active', $5::jsonb)
+     values ($1, $2, $3, $4, 'mcp', $5, '{}'::text[], 'active', $6::jsonb)
      on conflict (key) do update set
        name = excluded.name,
        provider = excluded.provider,
@@ -92,6 +94,7 @@ async function upsertMcpCatalog(input: {
       input.connectorKey,
       input.displayName,
       provider,
+      input.authType,
       input.mcpUrl,
       JSON.stringify({
         pluginId: input.pluginId,
@@ -233,8 +236,13 @@ async function syncMcpTools(input: {
   connectorId: string;
   installationId: string;
   mcpUrl: string;
+  headers?: Record<string, string>;
 }): Promise<{ tools: number; skills: number }> {
-  const client = new McpClient({ id: "local-install", url: input.mcpUrl, headers: {} });
+  const client = new McpClient({
+    id: "local-install",
+    url: input.mcpUrl,
+    headers: input.headers ?? {},
+  });
   try {
     const [tools, prompts] = await Promise.all([
       client.listTools(),
@@ -295,9 +303,10 @@ async function audit(input: {
 }
 
 /**
- * Gateway-less install for open (no-auth) MCP servers. Needs only Postgres.
- * OAuth servers return authorization_required (caller routes to the gateway);
- * 401s without OAuth metadata return api_key_required (caller asks for a key).
+ * Gateway-less install for open (no-auth) and API-key MCP servers. Needs only
+ * Postgres. OAuth servers return authorization_required (caller routes to the
+ * gateway); 401s without OAuth metadata return api_key_required (caller asks
+ * for a key, then retries with apiKey).
  */
 export async function installMcpPluginLocal(
   userId: string,
@@ -306,6 +315,7 @@ export async function installMcpPluginLocal(
     displayName: string;
     mcpUrl: string;
     logoUrl?: string | null;
+    apiKey?: string | null;
   },
 ): Promise<LocalMcpInstallResult> {
   let parsed: URL;
@@ -319,7 +329,11 @@ export async function installMcpPluginLocal(
   }
 
   const connectorKey = localMcpConnectorKey(input.pluginId);
-  const client = new McpClient({ id: connectorKey, url: input.mcpUrl, headers: {} });
+  const apiKey = (input.apiKey || "").trim();
+  const headers: Record<string, string> = apiKey
+    ? { Authorization: `Bearer ${apiKey}` }
+    : {};
+  const client = new McpClient({ id: connectorKey, url: input.mcpUrl, headers });
   let probe: Awaited<ReturnType<McpClient["probe"]>>;
   try {
     probe = await client.probe();
@@ -334,6 +348,13 @@ export async function installMcpPluginLocal(
   }
 
   if (!probe.authorized) {
+    if (apiKey) {
+      throw new AppError(
+        "That API key was rejected by the plugin's server.",
+        401,
+        "plugin_api_key_invalid",
+      );
+    }
     return probe.resourceMetadataUrl
       ? { status: "authorization_required", connectorKey }
       : { status: "api_key_required", connectorKey };
@@ -346,11 +367,26 @@ export async function installMcpPluginLocal(
       displayName: input.displayName,
       mcpUrl: input.mcpUrl,
       logoUrl: input.logoUrl ?? null,
+      authType: apiKey ? "api_key" : "none",
     });
     const installationId = await upsertInstallation({ connectorId, userId });
+    if (apiKey) {
+      const sealed = sealPluginApiKey(apiKey, installationId);
+      await query(
+        `insert into private.plugin_mcp_api_keys
+           (installation_id, encrypted_api_key, api_key_nonce, encryption_key_version)
+         values ($1::uuid, $2, $3, $4)
+         on conflict (installation_id) do update set
+           encrypted_api_key = excluded.encrypted_api_key,
+           api_key_nonce = excluded.api_key_nonce,
+           encryption_key_version = excluded.encryption_key_version,
+           updated_at = now()`,
+        [installationId, sealed.ciphertext, sealed.nonce, sealed.version],
+      );
+    }
     let synced = { tools: 0, skills: 0 };
     try {
-      synced = await syncMcpTools({ connectorId, installationId, mcpUrl: input.mcpUrl });
+      synced = await syncMcpTools({ connectorId, installationId, mcpUrl: input.mcpUrl, headers });
     } catch {
       // Tools refresh on next use; the install itself stands.
     }
@@ -360,7 +396,12 @@ export async function installMcpPluginLocal(
       connectorKey,
       eventType: "mcp_connected",
       status: "succeeded",
-      metadata: { pluginId: input.pluginId, auth: "none", via: "local", ...synced },
+      metadata: {
+        pluginId: input.pluginId,
+        auth: apiKey ? "api_key" : "none",
+        via: "local",
+        ...synced,
+      },
     });
     return { status: "connected", connectorKey, installationId, toolCount: synced.tools, skillCount: synced.skills };
   } catch (error) {
