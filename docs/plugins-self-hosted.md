@@ -2,18 +2,29 @@
 
 Clauxen runs its **own** Model Context Protocol platform. No Pipedream, no
 third-party connector cloud, no per-call broker in the middle. The Next.js app
-owns the catalog and chat runtime; a Cloudflare Worker owns OAuth, the token
-vault, and MCP tool execution; Postgres (Supabase) owns installs, tools,
-approvals, and audit.
+owns the catalog and chat runtime; Postgres (Supabase) owns installs, tools,
+approvals, and audit; a Cloudflare Worker adds OAuth when configured.
+
+Two modes, same tables:
+
+| Mode | Needs | Add works for |
+|---|---|---|
+| Full | Postgres + Worker env | OAuth + open + API-key plugins |
+| Local-only | Postgres alone | Open + API-key plugins (OAuth gets a precise `connector_gateway_required` error, not a generic failure) |
+
+Run `npm run plugins:setup` on any machine to see which mode you are in and
+the exact fix for anything missing.
 
 ## Architecture
 
 ```
-Browser  →  Next.js (Vercel)  →  connector-gateway (Cloudflare Worker)  →  MCP server
+Browser  →  Next.js (Vercel)  →  connector-gateway (Cloudflare Worker, optional)  →  MCP server
   /plugins      /api/plugins        /v1/mcp/install (probe + OAuth + sync)
   Add button    /api/v1/plugins/*   /v1/tools/list + /v1/tools/call
   @mention      agent query-loop    /v1/oauth/* (DCR + CIMD + PKCE)
-                    ↓                        ↓
+  API-key       local installer ────── direct when gateway env missing
+  dialog        direct executor ──────┘
+                    ↓
             scripts/.../plugins.json   Supabase Postgres
             1,977 verified MCP URLs    catalog / installs / tools /
                                        credentials (encrypted) / audit
@@ -32,8 +43,10 @@ Browser  →  Next.js (Vercel)  →  connector-gateway (Cloudflare Worker)  → 
 
 ### Install & OAuth (own gateway)
 
-`POST /api/v1/plugins/install` → `src/server/connectors/gateway.ts` →
-`POST {gateway}/v1/mcp/install` (`workers/connector-gateway/src/mcp-install.ts`):
+`POST /api/v1/plugins/install` uses the worker when `CONNECTOR_GATEWAY_*` is
+set, else `src/server/plugins/install-local.ts` (same key derivation, same
+tool sync, same tables). Both probe first (`WorkerMcpClient` /
+`McpClient.probe()`):
 
 1. **Probe** the MCP endpoint with `initialize` over Streamable HTTP
    (`Accept: application/json, text/event-stream`, `mcp-protocol-version`).
@@ -51,15 +64,31 @@ Browser  →  Next.js (Vercel)  →  connector-gateway (Cloudflare Worker)  → 
 4. Tokens are sealed with `CONNECTOR_ENCRYPTION_KEY` (per-install AAD) before
    Postgres. Raw tokens never touch the Next.js tier or logs.
 
+### API-key servers (both modes)
+
+Servers that 401 without OAuth metadata need a user key. Add returns
+`plugin_api_key_required` and the UI opens a minimal key dialog; retrying
+with a key probes with `Authorization: Bearer`, then stores it sealed:
+
+- Gateway mode: worker-sealed into `private.connector_credentials`
+  (requires worker deploy ≥ the apiKey support commit).
+- Local mode: Next-sealed into `private.plugin_mcp_api_keys`
+  (`src/server/plugins/api-key-crypto.ts`, AES-256-GCM, per-install AAD).
+  Zero-config default derives the key from `SUPABASE_SERVICE_ROLE_KEY`;
+  set `PLUGIN_CREDENTIAL_KEY` for breach separation. Re-installing with a
+  new key rotates it; Remove wipes it.
+
 ### Chat runtime (agent tools)
 
 - `src/server/mcp/registry.ts` (`McpConnectorHarness`) discovers the user's
-  gateway tools per turn (8s budget, failures skipped) and exposes them as
-  `mcp__<connectorKey>__<toolName>`.
+  tools per turn (8s budget, failures skipped) — via the gateway when
+  configured, else straight from Postgres with in-process calls — and exposes
+  them as `mcp__<connectorKey>__<toolName>`.
 - `src/server/agent-core/runtime/query-loop.ts` injects connected plugin names
-  into the system prompt and routes `mcp__*` calls through the gateway, which
-  enforces approvals (`write`/`destructive`/`sensitive` require confirmation),
-  refreshes OAuth tokens with a Postgres lease, and audits every call.
+  into the system prompt and routes `mcp__*` calls onward. Both executors
+  enforce approvals (`write`/`destructive`/`sensitive` require confirmation),
+  refresh OAuth tokens with a Postgres lease (gateway), cap direct output at
+  100k chars, and audit every call.
 
 ### Saved collections (own backend)
 
@@ -71,6 +100,15 @@ Browser  →  Next.js (Vercel)  →  connector-gateway (Cloudflare Worker)  → 
 
 ## Setup
 
+Start here on any machine:
+
+```sh
+npm run plugins:setup
+```
+
+It checks the catalog, the 9 Postgres tables, and gateway reachability/auth,
+prints your mode (full vs local-only), and the exact fix for each gap.
+
 ### 1. Supabase (Postgres)
 
 ```sh
@@ -80,7 +118,8 @@ supabase db push
 Required tables ride with the repo: `connector_catalog`, `connector_tools`,
 `connector_installations`, `connector_action_approvals`, `connector_audit_events`,
 `private.connector_oauth_configs`, `private.connector_credentials`,
-`private.connector_oauth_transactions`, `plugin_collections`, plus the
+`private.connector_oauth_transactions`, `public.plugin_collections`,
+`private.plugin_mcp_api_keys`, plus the
 `claim_connector_oauth_transaction` / refresh-lease RPCs.
 
 Env (Vercel → Sensitive, never `NEXT_PUBLIC_`):
@@ -116,7 +155,20 @@ Env:
   `returnUrl` values; must be HTTPS in production)
 
 No Pipedream keys, no third-party connector SDKs. The only outbound calls are
-the Worker's direct HTTPS POSTs to each plugin's own `mcpUrl`.
+direct HTTPS POSTs to each plugin's own `mcpUrl` (from the Worker in full
+mode, from Next.js in local mode).
+
+## Troubleshooting (Add button errors)
+
+| Error code | Meaning | Fix |
+|---|---|---|
+| `connector_gateway_required` (503) | OAuth plugin, gateway env missing | Set `CONNECTOR_GATEWAY_URL` + matching `CONNECTOR_GATEWAY_INTERNAL_TOKEN`, or pick an open/API-key plugin |
+| `connector_service_unavailable` (503) | Gateway env set but Worker down/unreachable | `wrangler deploy` the worker; check `GET /health` |
+| `plugin_api_key_required` (409) | Server 401s without OAuth metadata | UI opens the key dialog; paste a key |
+| `plugin_api_key_invalid` (401) | Key rejected by the server | Check the key with the provider, retry |
+| `mcp_unreachable` (502) | No MCP handshake (DNS/TLS/dead URL) | Retry later; report the plugin |
+| `mcp_oauth_undiscoverable` (409) | OAuth endpoints not advertised | Provider-side gap; use another plugin |
+| `reauthorization_required` (409) | Token expired without refresh | Remove + re-add the plugin |
 
 ## Why not Pipedream (or similar)
 
@@ -133,10 +185,13 @@ the Worker's direct HTTPS POSTs to each plugin's own `mcpUrl`.
 
 - UI: `src/app/(main)/plugins/**`, `src/client/components/plugins/**`
 - Catalog: `src/server/plugins/catalog.ts`, `src/app/api/plugins/**`
-- Install/saved: `src/app/api/v1/plugins/**`, `src/server/connectors/gateway.ts`
+- Install/saved: `src/app/api/v1/plugins/**`, `src/server/connectors/gateway.ts`,
+  `src/server/connectors/local.ts`, `src/server/plugins/install-local.ts`
+- API keys: `src/server/plugins/api-key-crypto.ts`, `private.plugin_mcp_api_keys`
 - Gateway: `workers/connector-gateway/src/**` (`mcp-client`, `mcp-install`,
   `oauth`, `connectors`)
 - Agent: `src/server/mcp/**`, `src/server/agent-core/runtime/query-loop.ts`
 - CIMD: `src/app/api/oauth/client-metadata/[connectorKey]/route.ts`
 - Icons: `public/assets/plugins/*.png` (134),
   `src/shared/lib/plugins/local-icons.ts`
+- Diagnostics: `scripts/setup-plugins.mjs` (`npm run plugins:setup`)
