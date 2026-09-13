@@ -8,6 +8,7 @@ import type {
   PluginDirectoryResponse,
   PluginSummary,
 } from "@/lib/plugins/types";
+import { resolvePluginLogo } from "@/lib/plugins/local-icons";
 
 type RawCatalog = {
   categories: string[];
@@ -108,9 +109,15 @@ let catalogPromise: Promise<RawCatalog> | null = null;
 async function getCatalog(): Promise<RawCatalog> {
   catalogPromise ??= readFile(catalogPath, "utf8").then((value) => {
     const parsed = JSON.parse(value) as RawCatalog;
-    const plugins = (parsed.plugins || []).filter(
-      (plugin) => typeof plugin.mcpUrl === "string" && plugin.mcpUrl.length > 0,
-    );
+    const plugins = (parsed.plugins || [])
+      .filter(
+        (plugin) =>
+          typeof plugin.mcpUrl === "string" && plugin.mcpUrl.length > 0,
+      )
+      .map((plugin) => ({
+        ...plugin,
+        logoUrl: resolvePluginLogo(plugin),
+      }));
     const categories = (parsed.categories || []).filter((slug) =>
       plugins.some((plugin) => plugin.categories.includes(slug)),
     );
@@ -130,7 +137,7 @@ function makeSummary(plugin: PluginCatalogItem): PluginSummary {
       plugin.directoryDescription ||
       "",
     shortDescription: plugin.shortDescription || plugin.description || "",
-    logoUrl: plugin.logoUrl || "",
+    logoUrl: resolvePluginLogo(plugin),
     brandColor: plugin.brandColor || "",
     categories: plugin.categories || [],
     captureStatus: plugin.captureStatus,
@@ -261,6 +268,28 @@ export async function getPluginByRouteSegment(segment: string) {
 
 export async function getPluginById(pluginId: string) {
   return getPluginByRouteSegment(pluginId);
+}
+
+export async function getPluginsByIds(ids: string[]): Promise<PluginSummary[]> {
+  if (ids.length === 0) return [];
+  const catalog = await getCatalog();
+  const wanted = new Set(
+    ids
+      .slice(0, 100)
+      .map((id) => id.trim())
+      .filter(Boolean),
+  );
+  const byId = new Map(catalog.plugins.map((plugin) => [plugin.id, plugin]));
+  const ordered: PluginSummary[] = [];
+  for (const id of wanted) {
+    const plugin =
+      byId.get(id) ??
+      catalog.plugins.find(
+        (candidate) => candidate.id.toLowerCase() === id.toLowerCase(),
+      );
+    if (plugin) ordered.push(makeSummary(plugin));
+  }
+  return ordered;
 }
 
 export async function getRelatedPlugins(
