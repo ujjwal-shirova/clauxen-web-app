@@ -10,6 +10,7 @@ const config = [
       ".autonomous-agent-files/**",
       ".venv*/**",
       "vendor/**",
+      "integrations/**",
       "output/**",
       ".tools/**",
     ],

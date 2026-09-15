@@ -1,0 +1,28 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "rootDir": "lib",
+        "outDir": "dist"
+    },
+    "references": [
+        {
+            "path": "../feature-flags"
+        },
+        {
+            "path": "../internal-auth"
+        },
+        {
+            "path": "../kvstore"
+        },
+        {
+            "path": "../types"
+        },
+        {
+            "path": "../utils"
+        },
+        {
+            "path": "../scheduler"
+        }
+    ],
+    "include": ["lib/**/*"]
+}
