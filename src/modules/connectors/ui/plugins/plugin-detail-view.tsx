@@ -44,7 +44,7 @@ function PluginMiniCard({ plugin }: { plugin: PluginSummary }) {
   return (
     <Link
       href={`/connectors/${pluginRouteSegment(plugin)}`}
-      prefetch
+      prefetch={false}
       className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--settings-hairline)] bg-[var(--settings-card-bg)] px-3 py-2.5 hover:bg-[var(--ui-hover-wash)]"
     >
       <PluginArtwork
@@ -259,10 +259,8 @@ export function PluginDetailView({
                   onClick={toggleInstallation}
                   disabled={busy}
                   className={cn(
-                    "inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-[13px] font-medium disabled:opacity-60",
-                    installed
-                      ? "bg-[var(--ui-hover-wash)] text-[var(--settings-fg)]"
-                      : "bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)] hover:opacity-90",
+                    "no-hover connector-add-btn inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-[13px] font-medium disabled:opacity-60",
+                    installed && "connector-add-btn--added",
                   )}
                 >
                   {busy ? (
@@ -397,12 +395,13 @@ export function PluginDetailView({
               {isRest ? (
                 <>
                   <li>
-                    Click Add to Clauxen. Cloudflare opens the provider’s
-                    sign-in page.
+                    Click Add to Clauxen. If the app can sign in with OAuth,
+                    you’ll be sent to the provider. Otherwise paste an access
+                    token.
                   </li>
                   <li>
-                    Approve access. Clauxen seals the token in Supabase and
-                    returns you here.
+                    After it shows Added, Clauxen can use this app’s tools in
+                    chat.
                   </li>
                   <li>
                     Then type{" "}
@@ -531,10 +530,8 @@ export function PluginDetailView({
             onClick={toggleInstallation}
             disabled={busy}
             className={cn(
-              "inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg text-[13.5px] font-medium disabled:opacity-60",
-              installed
-                ? "bg-[var(--ui-hover-wash)] text-[var(--settings-fg)]"
-                : "bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)]",
+              "no-hover connector-add-btn inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg text-[13.5px] font-medium disabled:opacity-60",
+              installed && "connector-add-btn--added",
             )}
           >
             {busy ? (

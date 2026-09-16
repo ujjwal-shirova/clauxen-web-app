@@ -1,14 +1,8 @@
 import { chrome } from "@/lib/app-chrome";
 
-function CardSkeleton({ list = false }: { list?: boolean }) {
+function CardSkeleton() {
   return (
-    <div
-      className={
-        list
-          ? "flex min-h-[64px] animate-pulse items-center gap-3 rounded-[var(--radius-md)] border border-[var(--settings-hairline)] bg-[var(--settings-card-bg)] px-3 py-2.5"
-          : "flex h-full animate-pulse flex-col rounded-[var(--radius-md)] border border-[var(--settings-hairline)] bg-[var(--settings-card-bg)] p-3.5"
-      }
-    >
+    <div className="flex h-full animate-pulse flex-col rounded-[var(--radius-md)] border border-[var(--settings-hairline)] bg-[var(--settings-card-bg)] p-3.5">
       <div className="flex min-w-0 items-start gap-3">
         <div className="size-10 shrink-0 rounded-[10px] bg-[var(--ui-hover-wash)]" />
         <div className="min-w-0 flex-1 space-y-2 pt-0.5">
@@ -16,16 +10,14 @@ function CardSkeleton({ list = false }: { list?: boolean }) {
           <div className="h-3 w-full rounded bg-[var(--ui-hover-wash)]" />
         </div>
       </div>
-      {!list ? (
-        <div className="mt-3 flex justify-end">
-          <div className="h-7 w-16 rounded-lg bg-[var(--ui-hover-wash)]" />
-        </div>
-      ) : null}
+      <div className="mt-3 flex justify-end">
+        <div className="h-7 w-16 rounded-lg bg-[var(--ui-hover-wash)]" />
+      </div>
     </div>
   );
 }
 
-export default function ConnectorsLoading() {
+export function ConnectorsDirectoryLoading() {
   return (
     <div className={chrome.page.surface}>
       <div className="sticky top-0 z-30 w-full shrink-0 border-b border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)]">

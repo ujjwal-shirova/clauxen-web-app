@@ -7,6 +7,7 @@ import {
   connectorGatewayConfigured,
   listConnectorGatewayTools,
 } from "@/connectors/server/gateway";
+import { executeRestTool } from "@/connectors/server/rest-local";
 import { openPluginApiKey } from "@/connectors/server/plugins/api-key-crypto";
 import { query, queryOne } from "@/server/db/pool";
 
@@ -18,7 +19,8 @@ type ToolTarget =
       installationId: string;
       connectorKey: string;
       connectorName: string;
-      mcpUrl: string;
+      mcpUrl: string | null;
+      protocol: string;
       name: string;
       mcpName: string;
       mcpKind: string | null;
@@ -27,7 +29,8 @@ type ToolTarget =
 type DirectToolRow = {
   connectorKey: string;
   connectorName: string;
-  mcpUrl: string;
+  mcpUrl: string | null;
+  protocol: string;
   installationId: string;
   toolName: string;
   toolTitle: string;
@@ -120,8 +123,9 @@ export class McpConnectorHarness {
     if (this.options.userId) {
       if (connectorGatewayConfigured()) {
         discoveries.push(this.discoverViaGateway(this.options.userId));
+        discoveries.push(this.discoverDirect(this.options.userId, true));
       } else {
-        discoveries.push(this.discoverDirect(this.options.userId));
+        discoveries.push(this.discoverDirect(this.options.userId, false));
       }
     }
 
@@ -152,11 +156,15 @@ export class McpConnectorHarness {
     }
   }
 
-  private async discoverDirect(userId: string): Promise<void> {
+  private async discoverDirect(
+    userId: string,
+    restOnly: boolean,
+  ): Promise<void> {
     try {
       const rows = await query<DirectToolRow>(
         `select catalog.key as "connectorKey", catalog.name as "connectorName",
                 catalog.mcp_url as "mcpUrl",
+                catalog.protocol as protocol,
                 installation.id as "installationId",
                 tool.name as "toolName", tool.title as "toolTitle",
                 tool.description, tool.input_schema as "inputSchema",
@@ -170,17 +178,23 @@ export class McpConnectorHarness {
           and permission.tool_name = tool.name
          where installation.user_id = $1::uuid
            and installation.status = 'active'
-           and catalog.protocol = 'mcp'
-           and catalog.mcp_url is not null
            and tool.is_enabled = true
            and coalesce(permission.policy, 'inherit') <> 'deny'
-           and not exists (
-             select 1 from private.connector_credentials credential
-             where credential.installation_id = installation.id
+           and (
+             catalog.protocol = 'rest'
+             or (
+               $2::boolean = false
+               and catalog.protocol = 'mcp'
+               and catalog.mcp_url is not null
+               and not exists (
+                 select 1 from private.connector_credentials credential
+                 where credential.installation_id = installation.id
+               )
+             )
            )
          order by catalog.key, tool.name
          limit 500`,
-        [userId],
+        [userId, restOnly],
       );
       for (const row of rows) {
         const qualifiedName =
@@ -203,16 +217,21 @@ export class McpConnectorHarness {
           }
         }
         const kindLabel =
-          row.mcpKind === "skill" ? "MCP skill" : "MCP tool";
+          row.protocol === "rest"
+            ? "REST tool"
+            : row.mcpKind === "skill"
+              ? "MCP skill"
+              : "MCP tool";
         this.toolIndex.set(qualifiedName, {
           kind: "direct",
           installationId: row.installationId,
           connectorKey: row.connectorKey,
           connectorName: row.connectorName,
           mcpUrl: row.mcpUrl,
+          protocol: row.protocol,
           name: row.toolName,
           mcpName: row.mcpToolName || row.toolName,
-          mcpKind: row.mcpKind,
+          mcpKind: row.mcpKind || (row.protocol === "rest" ? "rest" : null),
         });
         this.discovered.push({
           qualifiedName,
@@ -341,36 +360,88 @@ export class McpConnectorHarness {
         };
       }
 
+      const sealed = await queryOne<{
+        encrypted_api_key: string;
+        api_key_nonce: string;
+        encryption_key_version: number;
+      }>(
+        `select encrypted_api_key, api_key_nonce, encryption_key_version
+         from private.plugin_mcp_api_keys
+         where installation_id = $1::uuid`,
+        [target.installationId],
+      ).catch(() => null);
+
+      let accessToken: string | null = null;
+      if (sealed) {
+        try {
+          accessToken = openPluginApiKey(
+            {
+              ciphertext: sealed.encrypted_api_key,
+              nonce: sealed.api_key_nonce,
+              version: sealed.encryption_key_version,
+            },
+            target.installationId,
+          );
+        } catch {
+          return {
+            text: `The stored API key for ${target.connectorName} could not be read. Remove and re-add the plugin with a new key.`,
+            isError: true,
+          };
+        }
+      }
+
+      const isRest =
+        target.protocol === "rest" || target.mcpKind === "rest";
+      if (isRest) {
+        if (!accessToken) {
+          return {
+            text: `${target.connectorName} needs an access token. Remove and add it again.`,
+            isError: true,
+          };
+        }
+        const outcome = await executeRestTool({
+          connectorKey: target.connectorKey,
+          toolName: target.name,
+          args,
+          accessToken,
+        });
+        await query(
+          `update public.connector_installations
+           set last_used_at = now(),
+               last_error_code = $2,
+               last_error_at = case when $2 is null then null else now() end,
+               updated_at = now()
+           where id = $1::uuid`,
+          [target.installationId, outcome.isError ? "rest_tool_error" : null],
+        ).catch(() => undefined);
+        await query(
+          `insert into public.connector_audit_events
+             (user_id, installation_id, connector_key, event_type, tool_name, status, error_code)
+           values ($1::uuid, $2::uuid, $3, 'tool_called', $4, $5, $6)`,
+          [
+            userId,
+            target.installationId,
+            target.connectorKey,
+            target.name,
+            outcome.isError ? "failed" : "succeeded",
+            outcome.isError ? "rest_tool_error" : null,
+          ],
+        ).catch(() => undefined);
+        return { text: truncateOutput(outcome.text), isError: outcome.isError };
+      }
+
+      if (!target.mcpUrl) {
+        return {
+          text: `${target.connectorName} has no MCP endpoint.`,
+          isError: true,
+        };
+      }
+
       let client = this.directClients.get(target.installationId);
       if (!client) {
         const headers: Record<string, string> = {};
-        const sealed = await queryOne<{
-          encrypted_api_key: string;
-          api_key_nonce: string;
-          encryption_key_version: number;
-        }>(
-          `select encrypted_api_key, api_key_nonce, encryption_key_version
-           from private.plugin_mcp_api_keys
-           where installation_id = $1::uuid`,
-          [target.installationId],
-        ).catch(() => null);
-        if (sealed) {
-          try {
-            const apiKey = openPluginApiKey(
-              {
-                ciphertext: sealed.encrypted_api_key,
-                nonce: sealed.api_key_nonce,
-                version: sealed.encryption_key_version,
-              },
-              target.installationId,
-            );
-            headers["Authorization"] = `Bearer ${apiKey}`;
-          } catch {
-            return {
-              text: `The stored API key for ${target.connectorName} could not be read. Remove and re-add the plugin with a new key.`,
-              isError: true,
-            };
-          }
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`;
         }
         client = new McpClient({
           id: target.connectorKey,

@@ -211,10 +211,14 @@ export function usePluginInstallations() {
           return { ok: false, code: "unauthorized", message: null };
         }
         if (!response.ok) {
-          const failure = new Error(
-            payload.error?.message || "Unable to add this connector.",
-          ) as Error & { code?: string };
-          failure.code = payload.error?.code;
+          const code = payload.error?.code ?? null;
+          const message =
+            payload.error?.message || "Unable to add this connector.";
+          if (code === "plugin_api_key_required") {
+            return { ok: false, code, message };
+          }
+          const failure = new Error(message) as Error & { code?: string };
+          failure.code = code ?? undefined;
           throw failure;
         }
         if (payload.data?.authorizeUrl) {

@@ -7,6 +7,10 @@ import {
   installMcpPlugin,
   startConnectorOAuth,
 } from "@/connectors/server/gateway";
+import {
+  installRestConnectorLocal,
+  REST_ACCESS_TOKEN_HINT,
+} from "@/connectors/server/rest-local";
 import { installMcpPluginLocal } from "@/connectors/server/plugins/install-local";
 import { getPluginById } from "@/connectors/server/plugins/catalog";
 import { withApiHandler } from "@/server/http/api-handler";
@@ -18,6 +22,30 @@ export const dynamic = "force-dynamic";
 function safeReturnPath(value: unknown, fallback: string): string {
   if (typeof value === "string" && value.startsWith("/")) return value;
   return fallback;
+}
+
+function canFallbackToLocalToken(error: unknown): boolean {
+  if (!(error instanceof AppError)) return false;
+  return (
+    error.status === 503 ||
+    error.status === 502 ||
+    [
+      "connector_service_unavailable",
+      "connector_gateway_required",
+      "connector_not_configured",
+      "connector_request_failed",
+      "connector_gateway_invalid_response",
+    ].includes(error.code)
+  );
+}
+
+function restTokenRequired(connectorId: string): AppError {
+  return new AppError(
+    REST_ACCESS_TOKEN_HINT[connectorId] ||
+      "This app needs an access token to connect.",
+    409,
+    "plugin_api_key_required",
+  );
 }
 
 export const POST = withApiHandler(
@@ -49,20 +77,44 @@ export const POST = withApiHandler(
       typeof body.apiKey === "string" ? body.apiKey.trim().slice(0, 1000) : "";
 
     if (isRestConnectorId(connectorId)) {
-      returnUrl.searchParams.set("connector", connectorId);
-      const result = await startConnectorOAuth(user.id, {
-        connectorKey: connectorId,
-        workspaceId:
-          typeof body.workspaceId === "string" ? body.workspaceId : null,
-        returnUrl: returnUrl.toString(),
-      });
-      return jsonData({
-        status: "authorization_required" as const,
-        connectorKey: connectorId,
-        installationId: null,
-        authorizeUrl: result.authorizeUrl,
-        expiresIn: result.expiresIn,
-      });
+      if (apiKey) {
+        const local = await installRestConnectorLocal(
+          user.id,
+          connectorId,
+          apiKey,
+        );
+        return jsonData({
+          status: "connected" as const,
+          connectorKey: local.connectorKey,
+          installationId: local.installationId,
+          authorizeUrl: null,
+          toolCount: local.toolCount,
+          accountLabel: local.accountLabel,
+        });
+      }
+
+      if (connectorGatewayConfigured()) {
+        try {
+          returnUrl.searchParams.set("connector", connectorId);
+          const result = await startConnectorOAuth(user.id, {
+            connectorKey: connectorId,
+            workspaceId:
+              typeof body.workspaceId === "string" ? body.workspaceId : null,
+            returnUrl: returnUrl.toString(),
+          });
+          return jsonData({
+            status: "authorization_required" as const,
+            connectorKey: connectorId,
+            installationId: null,
+            authorizeUrl: result.authorizeUrl,
+            expiresIn: result.expiresIn,
+          });
+        } catch (error) {
+          if (!canFallbackToLocalToken(error)) throw error;
+        }
+      }
+
+      throw restTokenRequired(connectorId);
     }
 
     const plugin = await getPluginById(connectorId);
@@ -76,15 +128,19 @@ export const POST = withApiHandler(
     returnUrl.searchParams.set("plugin", plugin.id);
 
     if (connectorGatewayConfigured()) {
-      const result = await installMcpPlugin(user.id, {
-        pluginId: plugin.id,
-        displayName: plugin.displayName || plugin.name,
-        mcpUrl: plugin.mcpUrl,
-        logoUrl: plugin.logoUrl || null,
-        returnUrl: returnUrl.toString(),
-        apiKey: apiKey || null,
-      });
-      return jsonData(result);
+      try {
+        const result = await installMcpPlugin(user.id, {
+          pluginId: plugin.id,
+          displayName: plugin.displayName || plugin.name,
+          mcpUrl: plugin.mcpUrl,
+          logoUrl: plugin.logoUrl || null,
+          returnUrl: returnUrl.toString(),
+          apiKey: apiKey || null,
+        });
+        return jsonData(result);
+      } catch (error) {
+        if (!canFallbackToLocalToken(error)) throw error;
+      }
     }
 
     const local = await installMcpPluginLocal(user.id, {
@@ -106,9 +162,9 @@ export const POST = withApiHandler(
     }
     if (local.status === "authorization_required") {
       throw new AppError(
-        "This connector needs sign-in through the connector gateway, which isn't configured on this deployment.",
-        503,
-        "connector_gateway_required",
+        "This connector needs an access token or API key to connect.",
+        409,
+        "plugin_api_key_required",
       );
     }
     throw new AppError(

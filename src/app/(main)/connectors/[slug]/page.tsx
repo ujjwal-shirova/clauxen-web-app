@@ -11,6 +11,8 @@ type ConnectorPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params,
 }: ConnectorPageProps): Promise<Metadata> {

@@ -77,7 +77,7 @@ function PluginCard({
     >
       <Link
         href={href}
-        prefetch
+        prefetch={false}
         aria-label={`View ${name}`}
         className="absolute inset-0 z-0 rounded-[var(--radius-md)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
       />
@@ -146,10 +146,8 @@ function PluginCard({
           disabled={busy}
           aria-label={`${installed ? "Remove" : pending ? "Sign in to add" : "Add"} ${name}`}
           className={cn(
-            "inline-flex h-8 min-w-[4.25rem] items-center justify-center gap-1 rounded-lg px-2.5 text-[12.5px] font-medium transition-colors disabled:opacity-60 sm:h-7",
-            installed
-              ? "bg-[var(--ui-hover-wash)] text-[var(--settings-fg)]"
-              : "bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)] hover:opacity-90",
+            "no-hover connector-add-btn inline-flex h-8 min-w-[4.25rem] items-center justify-center gap-1 rounded-lg px-2.5 text-[12.5px] font-medium transition-opacity disabled:opacity-60 sm:h-7",
+            installed && "connector-add-btn--added",
           )}
         >
           {busy ? (

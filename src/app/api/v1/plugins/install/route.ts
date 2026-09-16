@@ -45,15 +45,35 @@ export const POST = withApiHandler(
       typeof body.apiKey === "string" ? body.apiKey.trim().slice(0, 1000) : "";
 
     if (connectorGatewayConfigured()) {
-      const result = await installMcpPlugin(user.id, {
-        pluginId: plugin.id,
-        displayName: plugin.displayName || plugin.name,
-        mcpUrl: plugin.mcpUrl,
-        logoUrl: plugin.logoUrl || null,
-        returnUrl: returnUrl.toString(),
-        apiKey: apiKey || null,
-      });
-      return jsonData(result);
+      try {
+        const result = await installMcpPlugin(user.id, {
+          pluginId: plugin.id,
+          displayName: plugin.displayName || plugin.name,
+          mcpUrl: plugin.mcpUrl,
+          logoUrl: plugin.logoUrl || null,
+          returnUrl: returnUrl.toString(),
+          apiKey: apiKey || null,
+        });
+        return jsonData(result);
+      } catch (error) {
+        const code = error instanceof AppError ? error.code : "";
+        if (
+          error instanceof AppError &&
+          (error.status === 503 ||
+            error.status === 502 ||
+            [
+              "connector_service_unavailable",
+              "connector_gateway_required",
+              "connector_not_configured",
+              "connector_request_failed",
+              "connector_gateway_invalid_response",
+            ].includes(code))
+        ) {
+          // Fall through to local install.
+        } else {
+          throw error;
+        }
+      }
     }
 
     const local = await installMcpPluginLocal(user.id, {
@@ -75,9 +95,9 @@ export const POST = withApiHandler(
     }
     if (local.status === "authorization_required") {
       throw new AppError(
-        "This plugin needs sign-in through the connector gateway, which isn't configured on this deployment.",
-        503,
-        "connector_gateway_required",
+        "This plugin needs an access token or API key to connect.",
+        409,
+        "plugin_api_key_required",
       );
     }
     throw new AppError(

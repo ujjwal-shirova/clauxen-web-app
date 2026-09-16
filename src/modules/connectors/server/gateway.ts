@@ -133,15 +133,40 @@ async function gatewayRequest<T>(
   return payload.data;
 }
 
-export function listConnectorConnections(userId: string) {
+function mergeConnections(
+  primary: ConnectorConnection[],
+  secondary: ConnectorConnection[],
+): ConnectorConnection[] {
+  const seenIds = new Set(primary.map((item) => item.id));
+  const seenKeys = new Set(primary.map((item) => item.connectorKey));
+  const extra = secondary.filter(
+    (item) => !seenIds.has(item.id) && !seenKeys.has(item.connectorKey),
+  );
+  return [...primary, ...extra];
+}
+
+export async function listConnectorConnections(userId: string) {
   if (!connectorGatewayConfigured()) {
     return listLocalConnections(userId);
   }
-  return gatewayRequest<{ connections: ConnectorConnection[] }>(
-    "/v1/connections",
-    userId,
-    { method: "GET" },
-  );
+  try {
+    const remote = await gatewayRequest<{ connections: ConnectorConnection[] }>(
+      "/v1/connections",
+      userId,
+      { method: "GET" },
+    );
+    const local = await listLocalConnections(userId).catch(() => ({
+      connections: [] as ConnectorConnection[],
+    }));
+    return {
+      connections: mergeConnections(
+        remote.connections ?? [],
+        local.connections,
+      ),
+    };
+  } catch {
+    return listLocalConnections(userId);
+  }
 }
 
 export function installMcpPlugin(

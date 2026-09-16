@@ -4836,7 +4836,7 @@ button[data-speed-toggle],
 }
 
 /* Hover state — ghost/toolbar buttons only (never override solid primary CTAs) */
-button:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
+button:not(.no-hover):not(.connector-add-btn):not(.no-hover-overlay):not(.auth-text-link):not(
     .label-hover-bold
   ):not(.follow-up-prompt):not(.clickable-label):not([class*="underline"]):not(
     [class*="hover:underline"]
@@ -4881,6 +4881,27 @@ button[data-speed-toggle]:hover,
 .app-action-button:hover,
 .dropdown-menu-trigger:not(.prompt-model-selector):hover {
   background-color: rgba(24, 24, 27, 0.05) !important;
+}
+
+button.connector-add-btn:not(:disabled),
+button.connector-add-btn:hover:not(:disabled),
+button.connector-add-btn:focus:not(:disabled),
+button.connector-add-btn:active:not(:disabled) {
+  background-color: var(--settings-fg) !important;
+  color: var(--settings-canvas-bg) !important;
+}
+
+button.connector-add-btn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+button.connector-add-btn--added:not(:disabled),
+button.connector-add-btn--added:hover:not(:disabled),
+button.connector-add-btn--added:focus:not(:disabled),
+button.connector-add-btn--added:active:not(:disabled) {
+  background-color: var(--ui-hover-wash) !important;
+  color: var(--settings-fg) !important;
+  opacity: 1;
 }
 
 /* Chat rows + label prompts: never take the global button wash. */

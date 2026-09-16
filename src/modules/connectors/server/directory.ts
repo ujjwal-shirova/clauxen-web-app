@@ -145,18 +145,9 @@ export async function getRelatedConnectors(
   limit = 6,
 ): Promise<PluginSummary[]> {
   if (connector.kind === "rest" || isRestConnectorId(connector.id)) {
-    const others = REST_CONNECTORS.filter((item) => item.id !== connector.id)
+    return REST_CONNECTORS.filter((item) => item.id !== connector.id)
       .map(restConnectorSummary)
-      .slice(0, Math.min(3, limit));
-    const relatedPlugins = await getRelatedPlugins(connector, limit);
-    const combined = [...others];
-    for (const plugin of relatedPlugins.map(withMcpKind)) {
-      if (combined.length >= limit) break;
-      if (!combined.some((item) => item.id === plugin.id)) {
-        combined.push(plugin);
-      }
-    }
-    return combined.slice(0, limit);
+      .slice(0, Math.min(6, limit));
   }
 
   const related = (await getRelatedPlugins(connector, limit)).map(withMcpKind);

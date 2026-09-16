@@ -38,9 +38,9 @@ export function PluginApiKeyDialog({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className={cn(chrome.overlay.panel, "sm:max-w-[420px]")}>
         <DialogHeader>
-          <DialogTitle>API key</DialogTitle>
+          <DialogTitle>Connect</DialogTitle>
           <DialogDescription>
-            {pluginName} needs a key to connect.
+            {pluginName} needs an access token or API key to connect.
           </DialogDescription>
         </DialogHeader>
         <input
@@ -55,8 +55,8 @@ export function PluginApiKeyDialog({
               onSubmit(value.trim());
             }
           }}
-          placeholder="Paste key"
-          aria-label="API key"
+          placeholder="Paste access token or API key"
+          aria-label="Access token"
           className="app-page-search !pl-3 outline-none"
         />
         {error ? (

@@ -27,7 +27,7 @@ function getAllowedDevOrigins(): string[] {
       .map((origin) => origin.trim())
       .filter(Boolean) ?? [];
 
-  return [...new Set([...fromEnv, ...getLocalNetworkHosts()])];
+  return [...new Set(["localhost", "127.0.0.1", ...fromEnv, ...getLocalNetworkHosts()])];
 }
 
 function r2ImagePatterns(): NonNullable<

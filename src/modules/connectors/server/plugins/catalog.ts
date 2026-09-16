@@ -13,6 +13,7 @@ import { resolvePluginLogo } from "@/connectors/catalog/local-icons";
 type RawCatalog = {
   categories: string[];
   plugins: PluginCatalogItem[];
+  byId: Map<string, PluginCatalogItem>;
 };
 
 const catalogPath = path.join(
@@ -107,22 +108,29 @@ const categoryCopy: Record<string, Omit<PluginCategory, "slug" | "count">> = {
 let catalogPromise: Promise<RawCatalog> | null = null;
 
 async function getCatalog(): Promise<RawCatalog> {
-  catalogPromise ??= readFile(catalogPath, "utf8").then((value) => {
-    const parsed = JSON.parse(value) as RawCatalog;
-    const plugins = (parsed.plugins || [])
-      .filter(
-        (plugin) =>
-          typeof plugin.mcpUrl === "string" && plugin.mcpUrl.length > 0,
-      )
-      .map((plugin) => ({
-        ...plugin,
-        logoUrl: resolvePluginLogo(plugin),
-      }));
-    const categories = (parsed.categories || []).filter((slug) =>
-      plugins.some((plugin) => plugin.categories.includes(slug)),
-    );
-    return { categories, plugins };
-  });
+  catalogPromise ??= readFile(catalogPath, "utf8")
+    .then((value) => {
+      const parsed = JSON.parse(value) as RawCatalog;
+      const plugins = (parsed.plugins || [])
+        .filter(
+          (plugin) =>
+            typeof plugin.mcpUrl === "string" && plugin.mcpUrl.length > 0,
+        )
+        .map((plugin) => ({
+          ...plugin,
+          logoUrl: resolvePluginLogo(plugin),
+        }));
+      const categories = (parsed.categories || []).filter((slug) =>
+        plugins.some((plugin) => plugin.categories.includes(slug)),
+      );
+      const byId = new Map(plugins.map((plugin) => [plugin.id, plugin]));
+      return { categories, plugins, byId };
+    })
+    .catch(() => ({
+      categories: [] as string[],
+      plugins: [] as PluginCatalogItem[],
+      byId: new Map<string, PluginCatalogItem>(),
+    }));
   return catalogPromise;
 }
 
@@ -259,7 +267,7 @@ export async function getPluginByRouteSegment(segment: string) {
   const catalog = await getCatalog();
   const decoded = decodeURIComponent(segment);
   return (
-    catalog.plugins.find((plugin) => plugin.id === decoded) ??
+    catalog.byId.get(decoded) ??
     catalog.plugins.find(
       (plugin) => plugin.id.toLowerCase() === decoded.toLowerCase(),
     ) ??
@@ -280,11 +288,10 @@ export async function getPluginsByIds(ids: string[]): Promise<PluginSummary[]> {
       .map((id) => id.trim())
       .filter(Boolean),
   );
-  const byId = new Map(catalog.plugins.map((plugin) => [plugin.id, plugin]));
   const ordered: PluginSummary[] = [];
   for (const id of wanted) {
     const plugin =
-      byId.get(id) ??
+      catalog.byId.get(id) ??
       catalog.plugins.find(
         (candidate) => candidate.id.toLowerCase() === id.toLowerCase(),
       );
