@@ -59,6 +59,7 @@ export const MARKETING_PUBLIC_PREFIXES = [
   "/codex",
   "/business",
   "/community",
+  "/connectors",
   "/product",
   "/solutions",
   "/platform",

@@ -36,6 +36,7 @@ import { SidebarToggleIcon } from "@/components/icons";
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
   "/my-clauxen",
+  "/connectors",
   "/plugins",
   "/project",
   "/projects",
@@ -44,6 +45,7 @@ const MOBILE_FULL_BLEED_PREFIXES = [
 
 const APP_SHELL_PREFETCH_ROUTES = [
   APP_ROUTES.newChat,
+  APP_ROUTES.connectors,
   APP_ROUTES.plugins,
   APP_ROUTES.library,
   APP_ROUTES.projects,
@@ -324,6 +326,8 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p.startsWith("/incognito/") ||
       p === "/plugins" ||
       p.startsWith("/plugins/") ||
+      p === "/connectors" ||
+      p.startsWith("/connectors/") ||
       p === "/library" ||
       p === "/project" ||
       p === "/projects" ||
@@ -579,7 +583,9 @@ function computeActiveView(
   }
   if (!pathname) return "chat";
   if (pathname.startsWith("/my-clauxen")) return "my-clauxen";
-  if (pathname.startsWith("/plugins")) return "plugins";
+  if (pathname.startsWith("/plugins") || pathname.startsWith("/connectors")) {
+    return "connectors";
+  }
   if (pathname.startsWith("/project") || pathname.startsWith("/projects")) {
     return "projects";
   }

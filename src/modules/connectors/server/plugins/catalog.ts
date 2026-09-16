@@ -141,6 +141,7 @@ function makeSummary(plugin: PluginCatalogItem): PluginSummary {
     brandColor: plugin.brandColor || "",
     categories: plugin.categories || [],
     captureStatus: plugin.captureStatus,
+    kind: "mcp",
   };
 }
 

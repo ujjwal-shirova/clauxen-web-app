@@ -1,3 +1,11 @@
+export type ConnectorKind = "rest" | "mcp";
+
+export type ConnectorToolPreview = {
+  name: string;
+  title: string;
+  description: string;
+};
+
 export type PluginCatalogItem = {
   id: string;
   name: string;
@@ -23,6 +31,10 @@ export type PluginCatalogItem = {
   captureStatus: "detail-api" | "index-only";
   detailFetchError?: string;
   mcpUrl: string;
+  kind?: ConnectorKind;
+  scopes?: string[];
+  tools?: ConnectorToolPreview[];
+  documentationUrl?: string;
 };
 
 export type PluginSummary = Pick<
@@ -36,6 +48,7 @@ export type PluginSummary = Pick<
   | "brandColor"
   | "categories"
   | "captureStatus"
+  | "kind"
 >;
 
 export type PluginCategory = {

@@ -247,6 +247,12 @@ const nextConfig: NextConfig = {
     return [
       { source: "/automations", destination: "/new", permanent: false },
       { source: "/automations/:path*", destination: "/new", permanent: false },
+      { source: "/plugins", destination: "/connectors", permanent: false },
+      {
+        source: "/plugins/:path*",
+        destination: "/connectors/:path*",
+        permanent: false,
+      },
     ];
   },
 };

@@ -326,7 +326,7 @@ export function PromptAddMenuPanel({
       : []),
     {
       id: "plugins",
-      label: "Plugins",
+      label: "Connectors",
       icon: Plug,
       hasSubmenu: true,
       onSelect: () => setActiveSubmenu("plugins"),
@@ -524,9 +524,9 @@ export function PromptAddMenuPanel({
           ) : null}
           {activeSubmenu === "plugins" ? (
             <PlaceholderSubmenu
-              title="Plugins"
+              title="Connectors"
               body="Connect tools and apps to use in chat."
-              actionLabel="Browse plugins"
+              actionLabel="Browse connectors"
               onAction={() => {
                 onClose();
                 onOpenPlugins?.();

@@ -59,7 +59,7 @@ function PluginCard({
   onToggleInstall: () => void;
   onToggleCollection: () => void;
 }) {
-  const href = `/plugins/${pluginRouteSegment(plugin)}`;
+  const href = `/connectors/${pluginRouteSegment(plugin)}`;
   const name = pluginLabel(plugin);
   const description =
     plugin.shortDescription ||
@@ -178,10 +178,10 @@ async function loadDirectory(
   });
   if (options.query) params.set("q", options.query);
   if (options.category) params.set("category", options.category);
-  const response = await fetch(`/api/plugins?${params.toString()}`, {
+  const response = await fetch(`/api/connectors?${params.toString()}`, {
     signal,
   });
-  if (!response.ok) throw new Error("Unable to load plugins");
+  if (!response.ok) throw new Error("Unable to load connectors");
   return response.json() as Promise<PluginDirectoryResponse>;
 }
 
@@ -205,10 +205,10 @@ async function loadSaved(
 ): Promise<PluginSummary[]> {
   if (ids.length === 0) return [];
   const params = new URLSearchParams({ ids: ids.slice(0, 100).join(",") });
-  const response = await fetch(`/api/plugins/by-ids?${params.toString()}`, {
+  const response = await fetch(`/api/connectors/by-ids?${params.toString()}`, {
     signal,
   });
-  if (!response.ok) throw new Error("Unable to load saved plugins");
+  if (!response.ok) throw new Error("Unable to load saved connectors");
   const payload = (await response.json()) as { plugins: PluginSummary[] };
   return payload.plugins ?? [];
 }
@@ -310,9 +310,11 @@ export function PluginsDirectoryView({
     const ids = [
       ...new Set([
         ...installations.bookmarkedIds,
-        ...[...installations.byPluginId.keys()],
+        ...installations.connections.map(
+          (connection) => connection.pluginId || connection.connectorKey,
+        ),
       ]),
-    ];
+    ].filter((id): id is string => Boolean(id));
     if (ids.length === 0) {
       setSavedPlugins([]);
       return;
@@ -364,7 +366,6 @@ export function PluginsDirectoryView({
   }, [
     activeTab,
     installations.bookmarkedIds,
-    installations.byPluginId,
     installations.connections,
   ]);
 
@@ -413,7 +414,7 @@ export function PluginsDirectoryView({
       return;
     }
     void installations
-      .install(plugin.id, { returnPath: "/plugins" })
+      .install(plugin.id, { returnPath: "/connectors" })
       .then((result) => {
         if (!result.ok && result.code === "plugin_api_key_required") {
           setKeyError(null);
@@ -425,7 +426,7 @@ export function PluginsDirectoryView({
   const submitApiKey = (apiKey: string) => {
     if (!keyPlugin) return;
     void installations
-      .install(keyPlugin.id, { returnPath: "/plugins", apiKey })
+      .install(keyPlugin.id, { returnPath: "/connectors", apiKey })
       .then((result) => {
         if (result.ok) {
           setKeyPlugin(null);
@@ -470,7 +471,7 @@ export function PluginsDirectoryView({
 
   return (
     <div className={chrome.page.surface}>
-      <PluginPageHeader title="Plugins" />
+      <PluginPageHeader title="Connectors" />
 
       <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto">
         <main className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-3 pb-24 pt-4 sm:gap-5 sm:px-6 sm:pt-6">
@@ -484,8 +485,8 @@ export function PluginsDirectoryView({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search plugins"
-              aria-label="Search plugins"
+              placeholder="Search connectors"
+              aria-label="Search connectors"
               className="h-10 w-full rounded-lg border border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] pl-9 pr-16 text-[14px] text-[var(--settings-fg)] outline-none placeholder:text-[var(--settings-fg-muted)] focus:border-[var(--settings-input-focus-border)] sm:h-9 sm:text-[13px]"
             />
             <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center">
@@ -539,7 +540,7 @@ export function PluginsDirectoryView({
                 onChange={(event) =>
                   setSortOption(event.target.value as SortOption)
                 }
-                aria-label="Sort plugins"
+                aria-label="Sort connectors"
                 className="h-8 rounded-lg border border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] px-2 text-[12.5px] text-[var(--settings-fg)] outline-none"
               >
                 <option value="featured">Featured</option>
@@ -623,7 +624,7 @@ export function PluginsDirectoryView({
 
           {error ? (
             <p className="rounded-lg bg-red-50 px-3 py-2.5 text-[13px] text-red-700 dark:bg-red-950/40 dark:text-red-300">
-              Couldn’t load plugins. Try again.
+              Couldn’t load connectors. Try again.
             </p>
           ) : null}
 
@@ -702,11 +703,11 @@ export function PluginsDirectoryView({
           ) : (
             <div className="flex min-h-52 flex-col items-center justify-center px-4 py-12 text-center">
               <h3 className="text-[14px] font-medium text-[var(--settings-fg)]">
-                {activeTab === "saved" ? "Nothing saved yet" : "No plugins found"}
+                {activeTab === "saved" ? "Nothing saved yet" : "No connectors found"}
               </h3>
               <p className="mt-1 max-w-sm text-[13px] text-[var(--settings-fg-muted)]">
                 {activeTab === "saved"
-                  ? "Save a plugin to find it here later."
+                  ? "Save a connector to find it here later."
                   : "Try a different search or category."}
               </p>
               {activeTab === "saved" ? (
@@ -715,7 +716,7 @@ export function PluginsDirectoryView({
                   onClick={() => setActiveTab("all")}
                   className={cn(chrome.btn.secondarySm, "mt-4")}
                 >
-                  Browse plugins
+                  Browse connectors
                 </button>
               ) : query ? (
                 <button

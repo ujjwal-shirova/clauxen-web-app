@@ -1,25 +1,16 @@
-import { PluginsDirectoryView } from "@/connectors/ui/plugins/plugins-directory-view";
-import { getPluginDirectory } from "@/connectors/server/plugins/catalog";
+import { redirect } from "next/navigation";
 
-export default async function PluginsPage({
+export default async function PluginsRedirect({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const category = Array.isArray(params.category)
-    ? params.category[0]
-    : params.category;
-
-  const initialData = await getPluginDirectory({
-    category: category ?? null,
-    overview: !category,
-  });
-
-  return (
-    <PluginsDirectoryView
-      initialCategory={initialData.category?.slug ?? null}
-      initialData={initialData}
-    />
-  );
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    const item = Array.isArray(value) ? value[0] : value;
+    if (item) query.set(key, item);
+  }
+  const suffix = query.toString();
+  redirect(suffix ? `/connectors?${suffix}` : "/connectors");
 }

@@ -50,11 +50,15 @@ function setStoredCollection(ids: string[]) {
   }
 }
 
-function pluginReturnPath(pluginId: string, category?: string | null) {
+function connectorReturnPath(connectorId: string, category?: string | null) {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
   const query = params.toString();
-  return `/plugins/${encodeURIComponent(pluginId)}${query ? `?${query}` : ""}`;
+  return `/connectors/${encodeURIComponent(connectorId)}${query ? `?${query}` : ""}`;
+}
+
+function isDirectoryReturnPath(path: string) {
+  return path.startsWith("/connectors") || path.startsWith("/plugins");
 }
 
 export function usePluginInstallations() {
@@ -144,10 +148,12 @@ export function usePluginInstallations() {
     if (connectorError) {
       setError(
         connectorError === "authorization_denied"
-          ? "Plugin sign-in was cancelled."
+          ? "Sign-in was cancelled."
           : connectorError === "oauth_exchange_failed"
-            ? "Plugin sign-in did not complete. Try adding it again."
-            : "Plugin sign-in failed. Try adding it again.",
+            ? "Sign-in did not complete. Try adding it again."
+            : connectorError === "connector_not_configured"
+              ? "This app is not configured with an OAuth client yet."
+              : "Sign-in failed. Try adding it again.",
       );
     }
     if (
@@ -169,6 +175,7 @@ export function usePluginInstallations() {
     const map = new Map<string, PluginInstallation>();
     for (const connection of connections) {
       if (connection.pluginId) map.set(connection.pluginId, connection);
+      map.set(connection.connectorKey, connection);
     }
     return map;
   }, [connections]);
@@ -182,14 +189,15 @@ export function usePluginInstallations() {
       setError(null);
       setErrorCode(null);
       const returnPath =
-        options?.returnPath && options.returnPath.startsWith("/plugins")
+        options?.returnPath && isDirectoryReturnPath(options.returnPath)
           ? options.returnPath
-          : pluginReturnPath(pluginId, options?.category);
+          : connectorReturnPath(pluginId, options?.category);
       try {
-        const response = await fetch("/api/v1/plugins/install", {
+        const response = await fetch("/api/v1/connectors/add", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
+            connectorId: pluginId,
             pluginId,
             returnPath,
             ...(options?.apiKey ? { apiKey: options.apiKey } : {}),
@@ -204,7 +212,7 @@ export function usePluginInstallations() {
         }
         if (!response.ok) {
           const failure = new Error(
-            payload.error?.message || "Unable to add this plugin.",
+            payload.error?.message || "Unable to add this connector.",
           ) as Error & { code?: string };
           failure.code = payload.error?.code;
           throw failure;
@@ -215,7 +223,7 @@ export function usePluginInstallations() {
         }
         if (payload.data?.status === "authorization_required") {
           throw new Error(
-            "This plugin needs sign-in, but no authorization URL was returned.",
+            "This connector needs sign-in, but no authorization URL was returned.",
           );
         }
         await refresh();
@@ -228,7 +236,7 @@ export function usePluginInstallations() {
         const message =
           installError instanceof Error
             ? installError.message
-            : "Unable to add this plugin.";
+            : "Unable to add this connector.";
         setError(message);
         setErrorCode(code);
         return { ok: false, code, message };
@@ -255,7 +263,7 @@ export function usePluginInstallations() {
           { method: "DELETE" },
         );
         if (!response.ok) {
-          throw new Error("Unable to remove this plugin.");
+          throw new Error("Unable to remove this connector.");
         }
         await refresh();
         return true;
@@ -263,7 +271,7 @@ export function usePluginInstallations() {
         setError(
           removeError instanceof Error
             ? removeError.message
-            : "Unable to remove this plugin.",
+            : "Unable to remove this connector.",
         );
         return false;
       } finally {
@@ -341,13 +349,19 @@ export function usePluginInstallations() {
   }, []);
 
   const installedCount = useMemo(
-    () => Array.from(byPluginId.values()).filter((c) => c.status === "active").length,
-    [byPluginId],
+    () => connections.filter((c) => c.status === "active").length,
+    [connections],
   );
 
   const collectionCount = useMemo(
-    () => new Set([...bookmarkedIds, ...Array.from(byPluginId.keys())]).size,
-    [bookmarkedIds, byPluginId],
+    () =>
+      new Set([
+        ...bookmarkedIds,
+        ...connections
+          .map((connection) => connection.pluginId || connection.connectorKey)
+          .filter(Boolean),
+      ]).size,
+    [bookmarkedIds, connections],
   );
 
   return {

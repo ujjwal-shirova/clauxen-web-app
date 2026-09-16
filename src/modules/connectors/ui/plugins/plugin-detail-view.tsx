@@ -43,7 +43,7 @@ function PluginMiniCard({ plugin }: { plugin: PluginSummary }) {
   const name = plugin.displayName || plugin.name;
   return (
     <Link
-      href={`/plugins/${pluginRouteSegment(plugin)}`}
+      href={`/connectors/${pluginRouteSegment(plugin)}`}
       prefetch
       className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--settings-hairline)] bg-[var(--settings-card-bg)] px-3 py-2.5 hover:bg-[var(--ui-hover-wash)]"
     >
@@ -58,7 +58,7 @@ function PluginMiniCard({ plugin }: { plugin: PluginSummary }) {
           {name}
         </h4>
         <p className="line-clamp-1 text-[12px] text-[var(--settings-fg-muted)]">
-          {plugin.shortDescription || plugin.description || "Plugin"}
+          {plugin.shortDescription || plugin.description || "Connector"}
         </p>
       </div>
     </Link>
@@ -117,7 +117,7 @@ export function PluginDetailView({
     void installations
       .install(plugin.id, {
         category: returnCategory,
-        returnPath: `/plugins/${pluginRouteSegment(plugin)}`,
+        returnPath: `/connectors/${pluginRouteSegment(plugin)}`,
       })
       .then((result) => {
         if (!result.ok && result.code === "plugin_api_key_required") {
@@ -131,7 +131,7 @@ export function PluginDetailView({
     void installations
       .install(plugin.id, {
         category: returnCategory,
-        returnPath: `/plugins/${pluginRouteSegment(plugin)}`,
+        returnPath: `/connectors/${pluginRouteSegment(plugin)}`,
         apiKey,
       })
       .then((result) => {
@@ -168,6 +168,10 @@ export function PluginDetailView({
 
   const externalLinks = [
     { label: "Website", href: safeExternalUrl(plugin.websiteUrl) },
+    {
+      label: "Docs",
+      href: safeExternalUrl(plugin.documentationUrl || plugin.sourceUrl),
+    },
     { label: "MCP", href: safeExternalUrl(plugin.mcpUrl) },
     { label: "Privacy", href: safeExternalUrl(plugin.privacyPolicyUrl) },
     { label: "Terms", href: safeExternalUrl(plugin.termsOfServiceUrl) },
@@ -181,13 +185,19 @@ export function PluginDetailView({
       ? "Added"
       : pending
         ? "Sign in"
-        : "Add";
+        : "Add to Clauxen";
+  const isRest = plugin.kind === "rest";
+  const protocolLabel = isRest ? "REST" : "MCP";
+  const tools = (plugin.tools || []).filter(
+    (tool) => tool.title || tool.name,
+  );
 
   return (
     <div className={chrome.page.surface}>
       <PluginPageHeader
         title={name}
-        backHref="/plugins"
+        backHref="/connectors"
+        backLabel="All connectors"
         trailing={
           <>
             <button
@@ -195,7 +205,7 @@ export function PluginDetailView({
               onClick={() => installations.toggleCollection(plugin.id)}
               className="ui-icon-button text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
               title={isSaved ? "Saved" : "Save"}
-              aria-label={isSaved ? "Remove from saved" : "Save plugin"}
+              aria-label={isSaved ? "Remove from saved" : "Save connector"}
             >
               {isSaved ? (
                 <BookmarkCheck className="size-[18px]" strokeWidth={1.75} />
@@ -339,24 +349,92 @@ export function PluginDetailView({
             ) : null}
           </section>
 
+          {tools.length > 0 ? (
+            <section>
+              <h3 className="text-[13px] font-medium text-[var(--settings-fg)]">
+                Tools
+              </h3>
+              <ul className="mt-2 divide-y divide-[var(--settings-hairline)] overflow-hidden rounded-[var(--radius-md)] border border-[var(--settings-hairline)] bg-[var(--settings-card-bg)]">
+                {tools.map((tool) => (
+                  <li key={tool.name} className="px-3.5 py-3">
+                    <p className="text-[13.5px] font-medium text-[var(--settings-fg)]">
+                      {tool.title || tool.name}
+                    </p>
+                    {tool.description ? (
+                      <p className="mt-0.5 text-[12.5px] leading-5 text-[var(--settings-fg-muted)]">
+                        {tool.description}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {plugin.scopes && plugin.scopes.length > 0 ? (
+            <section>
+              <h3 className="text-[13px] font-medium text-[var(--settings-fg)]">
+                Permissions
+              </h3>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {plugin.scopes.map((scope) => (
+                  <span
+                    key={scope}
+                    className="rounded-md bg-[var(--ui-hover-wash)] px-2 py-0.5 font-mono text-[11.5px] text-[var(--settings-fg-muted)]"
+                  >
+                    {scope}
+                  </span>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <section>
             <h3 className="text-[13px] font-medium text-[var(--settings-fg)]">
               How to use
             </h3>
             <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-[13.5px] leading-5 text-[var(--settings-fg-muted)]">
-              <li>
-                Add the plugin, then type{" "}
-                <button
-                  type="button"
-                  onClick={handleCopyMention}
-                  className="rounded bg-[var(--ui-hover-wash)] px-1 py-0.5 font-mono text-[12px] text-[var(--settings-fg)]"
-                >
-                  {copiedMention ? "Copied" : chatMention}
-                </button>{" "}
-                in a chat.
-              </li>
-              <li>Ask it to look something up or take an action.</li>
-              <li>Clauxen runs the tool and shows the result in the thread.</li>
+              {isRest ? (
+                <>
+                  <li>
+                    Click Add to Clauxen. Cloudflare opens the provider’s
+                    sign-in page.
+                  </li>
+                  <li>
+                    Approve access. Clauxen seals the token in Supabase and
+                    returns you here.
+                  </li>
+                  <li>
+                    Then type{" "}
+                    <button
+                      type="button"
+                      onClick={handleCopyMention}
+                      className="rounded bg-[var(--ui-hover-wash)] px-1 py-0.5 font-mono text-[12px] text-[var(--settings-fg)]"
+                    >
+                      {copiedMention ? "Copied" : chatMention}
+                    </button>{" "}
+                    in a chat to use its tools.
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    Add the connector, then type{" "}
+                    <button
+                      type="button"
+                      onClick={handleCopyMention}
+                      className="rounded bg-[var(--ui-hover-wash)] px-1 py-0.5 font-mono text-[12px] text-[var(--settings-fg)]"
+                    >
+                      {copiedMention ? "Copied" : chatMention}
+                    </button>{" "}
+                    in a chat.
+                  </li>
+                  <li>Ask it to look something up or take an action.</li>
+                  <li>
+                    Clauxen runs the tool and shows the result in the thread.
+                  </li>
+                </>
+              )}
             </ol>
           </section>
 
@@ -392,7 +470,9 @@ export function PluginDetailView({
                 ) : null}
                 <div className="flex justify-between gap-4">
                   <dt className="text-[var(--settings-fg-muted)]">Protocol</dt>
-                  <dd className="text-[var(--settings-fg)]">MCP</dd>
+                  <dd className="text-[var(--settings-fg)]">
+                    {protocolLabel}
+                  </dd>
                 </div>
               </dl>
             </div>
@@ -428,10 +508,10 @@ export function PluginDetailView({
                   Related
                 </h3>
                 <Link
-                  href="/plugins"
+                  href="/connectors"
                   className="text-[12.5px] text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
                 >
-                  All plugins
+                  All connectors
                 </Link>
               </div>
               <div className="mt-2 flex flex-col gap-1.5">

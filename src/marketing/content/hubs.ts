@@ -78,7 +78,7 @@ export const hubPages: MarketingPage[] = [
       "Connectors",
       "Ground answers in Drive, Slack, GitHub, Notion, and more — with admin controls on Business.",
     ),
-    ctaBand("Open connectors", "Sign in → Customize → Connectors."),
+    ctaBand("Open connectors", "Sign in, then Add to Clauxen from the catalog."),
   ]),
   definePage(
     "/platform/plugins",

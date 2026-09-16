@@ -1170,7 +1170,7 @@ export function PromptInput({
         onThinkingModeChange={handleThinkingModeChange}
         onOpenPlugins={() => {
           if (typeof window !== "undefined") {
-            window.location.assign("/plugins");
+            window.location.assign("/connectors");
           }
         }}
         onOpenSkills={() =>

@@ -1,4 +1,4 @@
-/** The verified MCP plugin catalog remains server-owned and is queried through `/api/plugins`. */
+/** Connector directory data is server-owned and queried through `/api/connectors`. */
 export {
   pluginRouteSegment,
   type PluginCatalogItem,

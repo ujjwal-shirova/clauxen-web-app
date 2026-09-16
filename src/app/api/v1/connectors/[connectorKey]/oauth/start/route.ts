@@ -29,7 +29,7 @@ export const POST = withApiRouteParams<{ connectorKey: string }>(
     const returnPath =
       typeof body.returnPath === "string" && body.returnPath.startsWith("/")
         ? body.returnPath
-        : "/connect";
+        : "/connectors";
     const returnUrl = new URL(returnPath, env.appUrl);
     returnUrl.searchParams.set("connector", params.connectorKey);
 

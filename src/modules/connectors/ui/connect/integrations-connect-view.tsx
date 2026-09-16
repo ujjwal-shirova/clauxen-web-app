@@ -177,7 +177,7 @@ export function IntegrationsConnectView() {
         `/api/v1/connectors/${encodeURIComponent(app.key)}/oauth/start`,
         {
           method: "POST",
-          body: JSON.stringify({ returnPath: "/connect" }),
+          body: JSON.stringify({ returnPath: "/connectors" }),
         },
       );
       window.location.assign(result.authorizeUrl);
@@ -261,9 +261,9 @@ export function IntegrationsConnectView() {
       </h1>
       <p className="settings-muted mb-6 max-w-[62ch] leading-6">
         Clauxen apps authenticate through Cloudflare. Access tokens are sealed
-        in Supabase before they are stored. MCP plugins live on{" "}
-        <a className="underline" href="/plugins">
-          /plugins
+        in Supabase before they are stored. The full catalog lives on{" "}
+        <a className="underline" href="/connectors">
+          /connectors
         </a>
         . Builder tokens for Cursor stay on this page.
       </p>

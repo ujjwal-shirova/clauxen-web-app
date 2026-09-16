@@ -16,7 +16,7 @@ type PluginPageHeaderProps = {
 export function PluginPageHeader({
   title,
   backHref,
-  backLabel = "All plugins",
+  backLabel = "All connectors",
   trailing,
 }: PluginPageHeaderProps) {
   const { openMobileNav, isMobile, isSidebarCollapsed } = useAppLayout();

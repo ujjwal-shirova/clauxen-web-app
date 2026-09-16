@@ -801,10 +801,10 @@ export function Sidebar({
             )}
           >
             {renderNavButton({
-              label: "Plugins",
+              label: "Connectors",
               icon: <Blocks className="size-4" strokeWidth={1.5} />,
-              href: APP_ROUTES.plugins,
-              active: activeView === "plugins",
+              href: APP_ROUTES.connectors,
+              active: activeView === "connectors" || activeView === "plugins",
             })}
 
             {/* Order: Pinned (chats + projects) → Projects → Recent */}

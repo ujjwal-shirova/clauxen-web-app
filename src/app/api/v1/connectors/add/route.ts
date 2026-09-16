@@ -1,9 +1,11 @@
 import { requireSession } from "@/server/auth/require-session";
 import { env } from "@/server/config/env";
 import { AppError } from "@/server/db/errors";
+import { isRestConnectorId } from "@/connectors/catalog/rest-directory";
 import {
   connectorGatewayConfigured,
   installMcpPlugin,
+  startConnectorOAuth,
 } from "@/connectors/server/gateway";
 import { installMcpPluginLocal } from "@/connectors/server/plugins/install-local";
 import { getPluginById } from "@/connectors/server/plugins/catalog";
@@ -12,6 +14,11 @@ import { jsonData } from "@/server/http/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function safeReturnPath(value: unknown, fallback: string): string {
+  if (typeof value === "string" && value.startsWith("/")) return value;
+  return fallback;
+}
 
 export const POST = withApiHandler(
   async ({ session, request }) => {
@@ -22,27 +29,51 @@ export const POST = withApiHandler(
     } catch {
       throw new AppError("JSON object required.", 400, "invalid_json");
     }
-    const pluginId =
-      typeof body.pluginId === "string" ? body.pluginId.trim() : "";
-    if (!pluginId) {
-      throw new AppError("pluginId is required.", 400, "invalid_body");
+
+    const connectorId =
+      typeof body.connectorId === "string"
+        ? body.connectorId.trim()
+        : typeof body.pluginId === "string"
+          ? body.pluginId.trim()
+          : "";
+    if (!connectorId) {
+      throw new AppError("connectorId is required.", 400, "invalid_body");
     }
-    const plugin = await getPluginById(pluginId);
+
+    const returnPath = safeReturnPath(
+      body.returnPath,
+      `/connectors/${encodeURIComponent(connectorId)}`,
+    );
+    const returnUrl = new URL(returnPath, env.appUrl);
+    const apiKey =
+      typeof body.apiKey === "string" ? body.apiKey.trim().slice(0, 1000) : "";
+
+    if (isRestConnectorId(connectorId)) {
+      returnUrl.searchParams.set("connector", connectorId);
+      const result = await startConnectorOAuth(user.id, {
+        connectorKey: connectorId,
+        workspaceId:
+          typeof body.workspaceId === "string" ? body.workspaceId : null,
+        returnUrl: returnUrl.toString(),
+      });
+      return jsonData({
+        status: "authorization_required" as const,
+        connectorKey: connectorId,
+        installationId: null,
+        authorizeUrl: result.authorizeUrl,
+        expiresIn: result.expiresIn,
+      });
+    }
+
+    const plugin = await getPluginById(connectorId);
     if (!plugin?.mcpUrl) {
       throw new AppError(
-        "This plugin is not available for MCP install.",
+        "This connector is not available to add.",
         404,
         "plugin_not_found",
       );
     }
-    const returnPath =
-      typeof body.returnPath === "string" && body.returnPath.startsWith("/")
-        ? body.returnPath
-        : "/connectors";
-    const returnUrl = new URL(returnPath, env.appUrl);
     returnUrl.searchParams.set("plugin", plugin.id);
-    const apiKey =
-      typeof body.apiKey === "string" ? body.apiKey.trim().slice(0, 1000) : "";
 
     if (connectorGatewayConfigured()) {
       const result = await installMcpPlugin(user.id, {
@@ -75,13 +106,13 @@ export const POST = withApiHandler(
     }
     if (local.status === "authorization_required") {
       throw new AppError(
-        "This plugin needs sign-in through the connector gateway, which isn't configured on this deployment.",
+        "This connector needs sign-in through the connector gateway, which isn't configured on this deployment.",
         503,
         "connector_gateway_required",
       );
     }
     throw new AppError(
-      "This plugin needs an API key to connect.",
+      "This connector needs an API key to connect.",
       409,
       "plugin_api_key_required",
     );
