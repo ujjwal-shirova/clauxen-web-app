@@ -68,18 +68,27 @@ export const hubPages: MarketingPage[] = [
         body: "Work extensions",
         href: "/platform/plugins",
       },
-      { title: "Connectors", body: "Company tools", href: "/connectors" },
+      { title: "Connectors", body: "Company tools", href: "/platform/connectors" },
     ]),
     ctaBand("Browse in the app"),
   ]),
 
-  definePage("/connectors", "Connectors", "Connect Clauxen to your tools.", [
-    hero(
-      "Connectors",
-      "Ground answers in Drive, Slack, GitHub, Notion, and more — with admin controls on Business.",
-    ),
-    ctaBand("Open connectors", "Sign in, then Add to Clauxen from the catalog."),
-  ]),
+  definePage(
+    "/platform/connectors",
+    "Connectors",
+    "Connect Clauxen to your tools.",
+    [
+      hero(
+        "Connectors",
+        "Ground answers in Drive, Slack, GitHub, Notion, and more — with admin controls on Business.",
+      ),
+      ctaBand(
+        "Open connectors",
+        "Sign in, then Add to Clauxen from the catalog.",
+        { label: "Open connectors", href: "/login?redirectTo=/connectors" },
+      ),
+    ],
+  ),
   definePage(
     "/platform/plugins",
     "Plugins",

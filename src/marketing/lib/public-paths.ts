@@ -2,7 +2,8 @@
  * Path prefixes / exact paths that must stay reachable without login.
  * Used by Edge middleware (`src/utils/supabase/middleware.ts`).
  *
- * Keep chat app routes (/ , /new, /c/*, /library, …) protected.
+ * Keep chat app routes (/ , /new, /c/*, /library, /connectors, …) protected.
+ * Marketing connectors live at `/platform/connectors`, not `/connectors`.
  * Marketing pricing is `/plans` — not `/pricing` (in-app overlay).
  */
 
@@ -23,7 +24,7 @@ export const MARKETING_PUBLIC_EXACT = [
   "/contact-sales",
   "/customers",
   "/community",
-  "/connectors",
+  "/platform/connectors",
   "/platform/plugins",
   "/skills",
   "/docs",
@@ -59,7 +60,6 @@ export const MARKETING_PUBLIC_PREFIXES = [
   "/codex",
   "/business",
   "/community",
-  "/connectors",
   "/product",
   "/solutions",
   "/platform",

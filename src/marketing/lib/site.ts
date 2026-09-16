@@ -123,7 +123,7 @@ export const FOOTER_COLUMNS: {
     links: [
       { label: "API", href: "/platform/api" },
       { label: "Marketplace", href: "/platform/marketplace" },
-      { label: "Connectors", href: "/connectors" },
+      { label: "Connectors", href: "/platform/connectors" },
       { label: "Plugins", href: "/platform/plugins" },
       { label: "Skills", href: "/skills" },
       { label: "Partners", href: "/partners" },

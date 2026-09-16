@@ -20,6 +20,8 @@ APP_RESERVED_SEGMENTS = frozenset(
         "auth",
         "c",
         "checkout",
+        "connect",
+        "connectors",
         "customize",
         "library",
         "login",
