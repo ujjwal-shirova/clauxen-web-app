@@ -3,6 +3,7 @@ import {
   configureConnectorTools,
   decideApproval,
   disconnect,
+  listCatalog,
   listConnections,
   listTools,
 } from "./connectors";
@@ -110,6 +111,9 @@ async function route(
   }
 
   await enforceRateLimit(env.CONNECTOR_RATE_LIMITER, `api:${userId}`);
+  if (request.method === "GET" && path === "/v1/catalog") {
+    return listCatalog(env);
+  }
   if (request.method === "GET" && path === "/v1/connections") {
     return listConnections(env, userId);
   }

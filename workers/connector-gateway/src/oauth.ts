@@ -36,6 +36,8 @@ type OAuthConfigRow = {
   authorization_params: Record<string, unknown>;
   token_params: Record<string, unknown>;
   supports_pkce: boolean;
+  scope_separator: string;
+  refresh_endpoint: string | null;
 };
 
 type ClaimedTransaction = {
@@ -133,12 +135,34 @@ function safeOAuthParams(
   return output;
 }
 
+function recipeField(metadata: unknown, key: string): string | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+  const record = metadata as { oauth?: unknown; nango?: unknown };
+  const recipe =
+    record.oauth && typeof record.oauth === "object" && !Array.isArray(record.oauth)
+      ? record.oauth
+      : record.nango && typeof record.nango === "object" && !Array.isArray(record.nango)
+        ? record.nango
+        : null;
+  if (!recipe) return null;
+  const value = (recipe as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 async function oauthConfigByKey(
   sql: Sql,
   connectorKey: string,
   enabledOnly = true,
 ): Promise<OAuthConfigRow | null> {
-  const rows = await sql<OAuthConfigRow[]>`
+  const rows = await sql<
+    Array<
+      Omit<OAuthConfigRow, "scope_separator" | "refresh_endpoint"> & {
+        catalog_metadata: unknown;
+      }
+    >
+  >`
     select catalog.id as connector_id, catalog.key as connector_key,
            catalog.name as connector_name, catalog.provider,
            config.client_id, config.encrypted_client_secret,
@@ -146,7 +170,7 @@ async function oauthConfigByKey(
            config.token_endpoint, config.revocation_endpoint,
            config.api_base_url, config.client_auth_method, config.scopes,
            config.authorization_params, config.token_params,
-           config.supports_pkce
+           config.supports_pkce, catalog.metadata as catalog_metadata
     from public.connector_catalog catalog
     join private.connector_oauth_configs config on config.connector_id = catalog.id
     where catalog.key = ${connectorKey}
@@ -156,9 +180,15 @@ async function oauthConfigByKey(
   `;
   const row = rows[0];
   if (!row) return null;
+  const { catalog_metadata, ...config } = row;
+  const scopeSeparator = recipeField(catalog_metadata, "scopeSeparator");
+  const refreshUrl = recipeField(catalog_metadata, "refreshUrl");
   return {
-    ...row,
-    scopes: parseTextArray(row.scopes),
+    ...config,
+    scopes: parseTextArray(config.scopes),
+    scope_separator:
+      scopeSeparator && scopeSeparator.length <= 5 ? scopeSeparator : " ",
+    refresh_endpoint: refreshUrl,
   };
 }
 
@@ -378,7 +408,9 @@ export async function startOAuth(
       redirect_uri: redirectUri,
       state,
     };
-    if (config.scopes.length > 0) params.scope = config.scopes.join(" ");
+    if (config.scopes.length > 0) {
+      params.scope = config.scopes.join(config.scope_separator || " ");
+    }
     if (config.supports_pkce) {
       params.code_challenge = await pkceChallenge(verifier);
       params.code_challenge_method = "S256";

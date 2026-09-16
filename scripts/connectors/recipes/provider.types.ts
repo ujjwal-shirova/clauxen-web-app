@@ -1,7 +1,7 @@
 /**
- * Provider recipe types harvested from NangoHQ/nango (Elastic License 2.0).
- * Source: packages/types/lib/providers/provider.ts plus the small auth/proxy
- * types it imported. Kept self-contained so Clauxen does not depend on Nango.
+ * Clauxen REST/OAuth provider recipe types.
+ * Originally harvested from NangoHQ/nango (Elastic License 2.0) as a catalog
+ * of provider endpoints — Clauxen does not run, call, or brand as Nango.
  */
 
 export type EndpointMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";

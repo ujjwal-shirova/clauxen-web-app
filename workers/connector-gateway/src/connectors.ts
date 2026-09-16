@@ -266,12 +266,57 @@ export async function listConnections(
   });
 }
 
+export async function listCatalog(env: Env): Promise<Response> {
+  return withDatabase(env, async (sql) => {
+    const rows = await sql<
+      Array<{
+        key: string;
+        name: string;
+        provider: string;
+        protocol: string;
+        authType: string;
+        status: string;
+        scopes: string[];
+        documentationUrl: string | null;
+        capabilities: unknown;
+        toolCount: number;
+        oauthConfigured: boolean;
+      }>
+    >`
+      select catalog.key,
+             catalog.name,
+             catalog.provider,
+             catalog.protocol,
+             catalog.auth_type as "authType",
+             catalog.status,
+             catalog.scopes,
+             catalog.documentation_url as "documentationUrl",
+             catalog.capabilities,
+             (
+               select count(*)::int from public.connector_tools tool
+               where tool.connector_id = catalog.id and tool.is_enabled = true
+             ) as "toolCount",
+             exists (
+               select 1
+               from private.connector_oauth_configs config
+               where config.connector_id = catalog.id
+                 and config.enabled = true
+             ) as "oauthConfigured"
+      from public.connector_catalog catalog
+      where catalog.status in ('active', 'beta')
+      order by catalog.protocol, catalog.name
+    `;
+    return json({ data: { connectors: rows } });
+  });
+}
+
 export async function listTools(env: Env, userId: string): Promise<Response> {
   return withDatabase(env, async (sql) => {
     const rows = await sql<
       Array<{
         connectorKey: string;
         connectorName: string;
+        protocol: string;
         toolName: string;
         description: string;
         inputSchema: Record<string, unknown>;
@@ -279,6 +324,7 @@ export async function listTools(env: Env, userId: string): Promise<Response> {
       }>
     >`
       select catalog.key as "connectorKey", catalog.name as "connectorName",
+             catalog.protocol as protocol,
              tool.name as "toolName", tool.description,
              tool.input_schema as "inputSchema",
              tool.metadata->>'kind' as "mcpKind"
@@ -297,7 +343,11 @@ export async function listTools(env: Env, userId: string): Promise<Response> {
     `;
     const tools = rows.map((row) => {
       const kindLabel =
-        row.mcpKind === "skill" ? "MCP skill" : "MCP tool";
+        row.mcpKind === "skill"
+          ? "MCP skill"
+          : row.protocol === "mcp"
+            ? "MCP tool"
+            : "API tool";
       let inputSchema: Record<string, unknown> = {
         type: "object",
         properties: {},
@@ -545,12 +595,15 @@ async function refreshAccessToken(
     const timeout = setTimeout(() => controller.abort(), 20_000);
     let response: Response;
     try {
-      response = await fetch(config.token_endpoint, {
-        method: "POST",
-        headers,
-        body: form,
-        signal: controller.signal,
-      });
+      response = await fetch(
+        config.refresh_endpoint || config.token_endpoint,
+        {
+          method: "POST",
+          headers,
+          body: form,
+          signal: controller.signal,
+        },
+      );
     } finally {
       clearTimeout(timeout);
     }

@@ -1,9 +1,10 @@
 # Self-hosted plugins & MCP platform
 
-Clauxen runs its **own** Model Context Protocol platform. No Pipedream, no
-third-party connector cloud, no per-call broker in the middle. The Next.js app
-owns the catalog and chat runtime; Postgres (Supabase) owns installs, tools,
-approvals, and audit; a Cloudflare Worker adds OAuth when configured.
+Clauxen runs its **own** Model Context Protocol and REST connector platform.
+No Nango, no Pipedream, no third-party connector cloud, no per-call broker
+in the middle. The Next.js app owns the catalog and chat runtime; Postgres
+(Supabase) owns installs, tools, approvals, and the encrypted vault; a
+Cloudflare Worker handles OAuth under the Clauxen name.
 
 Two modes, same tables:
 
@@ -158,6 +159,27 @@ No Pipedream keys, no third-party connector SDKs. The only outbound calls are
 direct HTTPS POSTs to each plugin's own `mcpUrl` (from the Worker in full
 mode, from Next.js in local mode).
 
+### 4. REST apps (Clauxen OAuth, provider APIs)
+
+Nothing is routed through Nango, Pipedream, or any other connector cloud.
+`npm run connectors:seed` upserts GitHub, Slack, Notion, Gmail, Google Drive,
+and Figma into `connector_catalog` / `connector_tools` with each provider's
+own HTTPS API. Users connect them on `/connect`. OAuth screens show
+**Clauxen**. Client IDs/secrets stay on Cloudflare:
+
+```sh
+npm run connectors:configure-oauth -- github
+```
+
+That calls `PUT /v1/admin/connectors/:key/oauth`. The worker AES-GCM-seals
+`client_secret` into `private.connector_oauth_configs`. User tokens land in
+`private.connector_credentials`. The agent sees connected tools as
+`mcp__github__list_repos` (and the rest) through `/v1/tools/list` +
+`/v1/tools/call`.
+
+Until an OAuth app is registered with the provider, Connect returns
+`connector_not_configured`. MCP plugins on `/plugins` do not need those apps.
+
 ## Troubleshooting (Add button errors)
 
 | Error code | Meaning | Fix |
@@ -169,17 +191,18 @@ mode, from Next.js in local mode).
 | `mcp_unreachable` (502) | No MCP handshake (DNS/TLS/dead URL) | Retry later; report the plugin |
 | `mcp_oauth_undiscoverable` (409) | OAuth endpoints not advertised | Provider-side gap; use another plugin |
 | `reauthorization_required` (409) | Token expired without refresh | Remove + re-add the plugin |
+| `connector_not_configured` (409) | REST OAuth app missing | `npm run connectors:configure-oauth -- <key>` with provider client id/secret |
 
 ## Why not Pipedream (or similar)
 
 | Concern | Third-party broker | Clauxen (this repo) |
 |---|---|---|
 | Token custody | Broker vault, shared tenancy | Our Worker seals tokens with our key before Postgres |
-| OAuth client | Broker's client_id, broker callback | Our CIMD/DCR client, our callback per connector |
-| Tool execution | Broker proxy + markup | Worker → MCP server direct Streamable HTTP |
+| OAuth client | Broker's client_id, broker callback | Clauxen CIMD/DCR client, Clauxen callback per connector |
+| Tool execution | Broker proxy + markup | Worker → GitHub/Slack/MCP server direct HTTPS |
 | Approvals/audit | Broker dashboard | `connector_action_approvals` + `connector_audit_events` in our Postgres |
-| Catalog | Broker's app list | Our 1,977 verified MCP URLs + 134 bundled icons |
-| Cost/limits | Per-task pricing, rate caps | Cloudflare + Supabase we already run |
+| Catalog | Broker's app list | Our 1,977 verified MCP URLs + Clauxen REST recipes |
+| Branding | Broker name on OAuth screens | `client_name: Clauxen`, callback on our Worker |
 
 ## Files
 
@@ -194,4 +217,9 @@ mode, from Next.js in local mode).
 - CIMD: `src/app/api/oauth/client-metadata/[connectorKey]/route.ts`
 - Icons: `public/assets/plugins/*.png` (134),
   `src/modules/connectors/catalog/local-icons.ts`
+- REST recipes: `src/modules/connectors/server/rest-providers.ts`,
+  `scripts/connectors/recipes/` (offline catalog of provider endpoints, not a runtime)
+- Catalog/health APIs: `src/app/api/v1/connectors/catalog/route.ts`,
+  `src/app/api/v1/connectors/health/route.ts`
+- Seed/configure: `npm run connectors:seed`, `npm run connectors:configure-oauth`
 - Diagnostics: `scripts/connectors/setup.mjs` (`npm run plugins:setup`)

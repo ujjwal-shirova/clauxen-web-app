@@ -247,6 +247,7 @@ async function registerOAuthClient(
       },
       body: JSON.stringify({
         client_name: "Clauxen",
+        client_uri: "https://www.clauxen.com",
         redirect_uris: [redirectUri],
         grant_types: ["authorization_code", "refresh_token"],
         response_types: ["code"],

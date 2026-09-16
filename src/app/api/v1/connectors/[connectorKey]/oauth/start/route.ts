@@ -26,7 +26,11 @@ export const POST = withApiRouteParams<{ connectorKey: string }>(
     }
     const workspaceId =
       typeof body.workspaceId === "string" ? body.workspaceId : null;
-    const returnUrl = new URL("/new", env.appUrl);
+    const returnPath =
+      typeof body.returnPath === "string" && body.returnPath.startsWith("/")
+        ? body.returnPath
+        : "/connect";
+    const returnUrl = new URL(returnPath, env.appUrl);
     returnUrl.searchParams.set("connector", params.connectorKey);
 
     const result = await startConnectorOAuth(user.id, {
