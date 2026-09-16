@@ -7,7 +7,6 @@ tmp/
 .venv-*/
 .git/
 /workers/
-/integrations/
 
 # Local storage fallbacks and dev artifacts (root-level only — not src/backend/storage)
 /storage/
