@@ -1,5 +1,5 @@
-import { PluginsDirectoryView } from "@/components/plugins/plugins-directory-view";
-import { getPluginDirectory } from "@/server/plugins/catalog";
+import { PluginsDirectoryView } from "@/connectors/ui/plugins/plugins-directory-view";
+import { getPluginDirectory } from "@/connectors/server/plugins/catalog";
 
 export default async function PluginsPage({
   searchParams,

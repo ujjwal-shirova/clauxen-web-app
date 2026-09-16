@@ -5,4 +5,4 @@ export {
   type PluginCategory,
   type PluginDirectoryResponse,
   type PluginSummary,
-} from "@/lib/plugins/types";
+} from "@/connectors/catalog/types";

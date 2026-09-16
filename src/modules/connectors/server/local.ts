@@ -2,7 +2,7 @@ import "server-only";
 
 import { AppError } from "@/server/db/errors";
 import { query, queryOne, withTransaction } from "@/server/db/pool";
-import type { ConnectorConnection } from "@/server/connectors/gateway";
+import type { ConnectorConnection } from "@/connectors/server/gateway";
 
 /**
  * Gateway-less connector operations. Used when CONNECTOR_GATEWAY_* env is

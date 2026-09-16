@@ -1,5 +1,5 @@
 import { requireSession } from "@/server/auth/require-session";
-import { disconnectConnector } from "@/server/connectors/gateway";
+import { disconnectConnector } from "@/connectors/server/gateway";
 import { withApiRouteParams } from "@/server/http/route-params";
 import { jsonData } from "@/server/http/api-response";
 

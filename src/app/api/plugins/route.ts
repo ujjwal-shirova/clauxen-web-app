@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPluginDirectory } from "@/server/plugins/catalog";
+import { getPluginDirectory } from "@/connectors/server/plugins/catalog";
 
 export const dynamic = "force-dynamic";
 

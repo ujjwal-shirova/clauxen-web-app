@@ -164,7 +164,7 @@ const nextConfig: NextConfig = {
     "/api/**/*": [
       "./src/prompts/**/*",
       "./src/server/email-verifier/disposable.txt",
-      "./scripts/chatgpt-plugins/plugins.json",
+      "./scripts/connectors/mcp-catalog/plugins.json",
     ],
     "/auth/**/*": [
       "./src/prompts/**/*",
@@ -173,7 +173,7 @@ const nextConfig: NextConfig = {
     "/*": [
       "./src/prompts/**/*",
       "./src/server/email-verifier/disposable.txt",
-      "./scripts/chatgpt-plugins/plugins.json",
+      "./scripts/connectors/mcp-catalog/plugins.json",
     ],
   },
   // Keep heavy server-only libs out of the client graph / slim function traces.

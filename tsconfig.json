@@ -41,6 +41,8 @@
       "@/types/*": ["./src/shared/types/*"],
       "@/projects": ["./src/modules/projects"],
       "@/projects/*": ["./src/modules/projects/*"],
+      "@/connectors": ["./src/modules/connectors"],
+      "@/connectors/*": ["./src/modules/connectors/*"],
       "@/*": ["./src/*"]
     }
   },

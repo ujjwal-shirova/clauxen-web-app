@@ -4,9 +4,9 @@ import { AppError } from "@/server/db/errors";
 import {
   connectorGatewayConfigured,
   installMcpPlugin,
-} from "@/server/connectors/gateway";
-import { installMcpPluginLocal } from "@/server/plugins/install-local";
-import { getPluginById } from "@/server/plugins/catalog";
+} from "@/connectors/server/gateway";
+import { installMcpPluginLocal } from "@/connectors/server/plugins/install-local";
+import { getPluginById } from "@/connectors/server/plugins/catalog";
 import { withApiHandler } from "@/server/http/api-handler";
 import { jsonData } from "@/server/http/api-response";
 

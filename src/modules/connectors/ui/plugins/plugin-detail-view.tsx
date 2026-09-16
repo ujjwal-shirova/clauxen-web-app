@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 import { chrome } from "@/lib/app-chrome";
 import { cn } from "@/lib/utils";
-import type { PluginCatalogItem, PluginSummary } from "@/lib/plugins/types";
-import { pluginRouteSegment } from "@/lib/plugins/types";
+import type { PluginCatalogItem, PluginSummary } from "@/connectors/catalog/types";
+import { pluginRouteSegment } from "@/connectors/catalog/types";
 import { usePluginInstallations } from "./use-plugin-installations";
 import { PluginArtwork } from "./plugin-artwork";
 import { PluginPageHeader } from "./plugin-page-header";

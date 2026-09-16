@@ -7,8 +7,8 @@ import type {
   PluginCategory,
   PluginDirectoryResponse,
   PluginSummary,
-} from "@/lib/plugins/types";
-import { resolvePluginLogo } from "@/lib/plugins/local-icons";
+} from "@/connectors/catalog/types";
+import { resolvePluginLogo } from "@/connectors/catalog/local-icons";
 
 type RawCatalog = {
   categories: string[];
@@ -17,7 +17,7 @@ type RawCatalog = {
 
 const catalogPath = path.join(
   process.cwd(),
-  "scripts/chatgpt-plugins/plugins.json",
+  "scripts/connectors/mcp-catalog/plugins.json",
 );
 
 const categoryCopy: Record<string, Omit<PluginCategory, "slug" | "count">> = {

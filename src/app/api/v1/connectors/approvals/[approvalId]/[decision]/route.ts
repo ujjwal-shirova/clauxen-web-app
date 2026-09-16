@@ -1,6 +1,6 @@
 import { requireSession } from "@/server/auth/require-session";
 import { AppError } from "@/server/db/errors";
-import { decideConnectorApproval } from "@/server/connectors/gateway";
+import { decideConnectorApproval } from "@/connectors/server/gateway";
 import { withApiRouteParams } from "@/server/http/route-params";
 import { jsonData } from "@/server/http/api-response";
 

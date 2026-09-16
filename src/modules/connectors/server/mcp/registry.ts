@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
-import { McpClient } from "@/server/mcp/client";
-import { listMcpServers } from "@/server/mcp/types";
-import type { McpCallResult, McpToolDescriptor } from "@/server/mcp/types";
+import { McpClient } from "@/connectors/server/mcp/client";
+import { listMcpServers } from "@/connectors/server/mcp/types";
+import type { McpCallResult, McpToolDescriptor } from "@/connectors/server/mcp/types";
 import {
   callConnectorGatewayTool,
   connectorGatewayConfigured,
   listConnectorGatewayTools,
-} from "@/server/connectors/gateway";
-import { openPluginApiKey } from "@/server/plugins/api-key-crypto";
+} from "@/connectors/server/gateway";
+import { openPluginApiKey } from "@/connectors/server/plugins/api-key-crypto";
 import { query, queryOne } from "@/server/db/pool";
 
 type ToolTarget =

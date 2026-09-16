@@ -53,7 +53,7 @@ import {
   toolResultPart,
   type TranscriptAgentModelTurn,
 } from "@/server/training/transcript-format";
-import { McpConnectorHarness } from "@/server/mcp/registry";
+import { McpConnectorHarness } from "@/connectors/server/mcp/registry";
 
 /** Cap MCP discovery so a hung connector cannot delay first token. */
 const MCP_DISCOVER_BUDGET_MS = 8_000;

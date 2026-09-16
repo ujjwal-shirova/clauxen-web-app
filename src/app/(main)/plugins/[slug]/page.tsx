@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PluginDetailView } from "@/components/plugins/plugin-detail-view";
+import { PluginDetailView } from "@/connectors/ui/plugins/plugin-detail-view";
 import {
   getPluginByRouteSegment,
   getRelatedPlugins,
-} from "@/server/plugins/catalog";
+} from "@/connectors/server/plugins/catalog";
 
 type PluginPageProps = {
   params: Promise<{ slug: string }>;

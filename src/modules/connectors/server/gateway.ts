@@ -6,7 +6,7 @@ import {
   decideLocalApproval,
   disconnectLocal,
   listLocalConnections,
-} from "@/server/connectors/local";
+} from "@/connectors/server/local";
 
 type GatewayEnvelope<T> = {
   data?: T;

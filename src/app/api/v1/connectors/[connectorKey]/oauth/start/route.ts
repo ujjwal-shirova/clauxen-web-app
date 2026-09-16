@@ -1,7 +1,7 @@
 import { requireSession } from "@/server/auth/require-session";
 import { env } from "@/server/config/env";
 import { AppError } from "@/server/db/errors";
-import { startConnectorOAuth } from "@/server/connectors/gateway";
+import { startConnectorOAuth } from "@/connectors/server/gateway";
 import { withApiRouteParams } from "@/server/http/route-params";
 import { jsonData } from "@/server/http/api-response";
 

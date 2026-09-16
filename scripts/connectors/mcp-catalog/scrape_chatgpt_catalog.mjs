@@ -5,7 +5,7 @@
  * chatgpt.com/backend-anon/ps/*, including mcp_servers URLs.
  *
  * Usage:
- *   node scripts/chatgpt-plugins/scrape_chatgpt_catalog.mjs
+ *   node scripts/connectors/mcp-catalog/scrape_chatgpt_catalog.mjs
  *
  * Requires Playwright with Google Chrome (`channel: "chrome"`) so Cloudflare
  * lets the public plugin APIs through. Optional:

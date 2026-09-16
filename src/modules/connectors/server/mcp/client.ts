@@ -1,4 +1,4 @@
-import type { McpServerConfig } from "@/server/mcp/types";
+import type { McpServerConfig } from "@/connectors/server/mcp/types";
 
 /**
  * Minimal MCP client over the streamable-HTTP transport (JSON-RPC 2.0).

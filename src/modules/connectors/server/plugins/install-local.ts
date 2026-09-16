@@ -1,10 +1,10 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { McpClient, type McpPrompt } from "@/server/mcp/client";
+import { McpClient, type McpPrompt } from "@/connectors/server/mcp/client";
 import { AppError } from "@/server/db/errors";
 import { query, queryOne, withTransaction } from "@/server/db/pool";
-import { sealPluginApiKey } from "@/server/plugins/api-key-crypto";
+import { sealPluginApiKey } from "@/connectors/server/plugins/api-key-crypto";
 
 export type LocalMcpInstallResult =
   | {

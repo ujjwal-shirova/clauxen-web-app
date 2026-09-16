@@ -49,16 +49,16 @@ function fail(label, fix = "") {
 
 async function checkCatalog() {
   console.log("catalog");
-  const file = path.join(root, "scripts/chatgpt-plugins/plugins.json");
+  const file = path.join(root, "scripts/connectors/mcp-catalog/plugins.json");
   if (!existsSync(file)) {
-    fail("plugins.json missing", "restore scripts/chatgpt-plugins/plugins.json from git");
+    fail("plugins.json missing", "restore scripts/connectors/mcp-catalog/plugins.json from git");
     return;
   }
   let parsed;
   try {
     parsed = JSON.parse(readFileSync(file, "utf8"));
   } catch {
-    fail("plugins.json is not valid JSON", "restore scripts/chatgpt-plugins/plugins.json from git");
+    fail("plugins.json is not valid JSON", "restore scripts/connectors/mcp-catalog/plugins.json from git");
     return;
   }
   const plugins = Array.isArray(parsed.plugins) ? parsed.plugins : [];
@@ -66,7 +66,7 @@ async function checkCatalog() {
     (plugin) => typeof plugin?.mcpUrl === "string" && plugin.mcpUrl.length > 0,
   );
   if (plugins.length === 0 || withMcp.length === 0) {
-    fail("catalog has no verified MCP plugins", "restore scripts/chatgpt-plugins/plugins.json from git");
+    fail("catalog has no verified MCP plugins", "restore scripts/connectors/mcp-catalog/plugins.json from git");
     return;
   }
   ok(`${withMcp.length} verified MCP plugins`, `${plugins.length - withMcp.length} without mcpUrl ignored`);

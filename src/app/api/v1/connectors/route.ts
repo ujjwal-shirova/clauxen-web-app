@@ -1,5 +1,5 @@
 import { requireSession } from "@/server/auth/require-session";
-import { listConnectorConnections } from "@/server/connectors/gateway";
+import { listConnectorConnections } from "@/connectors/server/gateway";
 import { withApiHandler } from "@/server/http/api-handler";
 import { jsonData } from "@/server/http/api-response";
 

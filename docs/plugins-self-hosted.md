@@ -32,10 +32,10 @@ Browser  →  Next.js (Vercel)  →  connector-gateway (Cloudflare Worker, optio
 
 ### Catalog (no third party)
 
-- `scripts/chatgpt-plugins/plugins.json` — 1,977 plugins with live-verified
+- `scripts/connectors/mcp-catalog/plugins.json` — 1,977 plugins with live-verified
   `mcpUrl` values. Source of truth for `/plugins`.
-- `src/server/plugins/catalog.ts` — filters to verified MCP only, resolves
-  bundled icons first (`src/shared/lib/plugins/local-icons.ts` → 134 files in
+- `src/modules/connectors/server/plugins/catalog.ts` — filters to verified MCP only, resolves
+  bundled icons first (`src/modules/connectors/catalog/local-icons.ts` → 134 files in
   `public/assets/plugins/`), then remote artwork, then letter avatars.
 - `src/app/api/plugins/route.ts` — public paginated search (`?q=&category=
   &page=`), cached at the edge. `src/app/api/plugins/by-ids/route.ts` serves
@@ -44,7 +44,7 @@ Browser  →  Next.js (Vercel)  →  connector-gateway (Cloudflare Worker, optio
 ### Install & OAuth (own gateway)
 
 `POST /api/v1/plugins/install` uses the worker when `CONNECTOR_GATEWAY_*` is
-set, else `src/server/plugins/install-local.ts` (same key derivation, same
+set, else `src/modules/connectors/server/plugins/install-local.ts` (same key derivation, same
 tool sync, same tables). Both probe first (`WorkerMcpClient` /
 `McpClient.probe()`):
 
@@ -73,14 +73,14 @@ with a key probes with `Authorization: Bearer`, then stores it sealed:
 - Gateway mode: worker-sealed into `private.connector_credentials`
   (requires worker deploy ≥ the apiKey support commit).
 - Local mode: Next-sealed into `private.plugin_mcp_api_keys`
-  (`src/server/plugins/api-key-crypto.ts`, AES-256-GCM, per-install AAD).
+  (`src/modules/connectors/server/plugins/api-key-crypto.ts`, AES-256-GCM, per-install AAD).
   Zero-config default derives the key from `SUPABASE_SERVICE_ROLE_KEY`;
   set `PLUGIN_CREDENTIAL_KEY` for breach separation. Re-installing with a
   new key rotates it; Remove wipes it.
 
 ### Chat runtime (agent tools)
 
-- `src/server/mcp/registry.ts` (`McpConnectorHarness`) discovers the user's
+- `src/modules/connectors/server/mcp/registry.ts` (`McpConnectorHarness`) discovers the user's
   tools per turn (8s budget, failures skipped) — via the gateway when
   configured, else straight from Postgres with in-process calls — and exposes
   them as `mcp__<connectorKey>__<toolName>`.
@@ -183,15 +183,15 @@ mode, from Next.js in local mode).
 
 ## Files
 
-- UI: `src/app/(main)/plugins/**`, `src/client/components/plugins/**`
-- Catalog: `src/server/plugins/catalog.ts`, `src/app/api/plugins/**`
-- Install/saved: `src/app/api/v1/plugins/**`, `src/server/connectors/gateway.ts`,
-  `src/server/connectors/local.ts`, `src/server/plugins/install-local.ts`
-- API keys: `src/server/plugins/api-key-crypto.ts`, `private.plugin_mcp_api_keys`
+- UI: `src/app/(main)/plugins/**`, `src/modules/connectors/ui/plugins/**`
+- Catalog: `src/modules/connectors/server/plugins/catalog.ts`, `src/app/api/plugins/**`
+- Install/saved: `src/app/api/v1/plugins/**`, `src/modules/connectors/server/gateway.ts`,
+  `src/modules/connectors/server/local.ts`, `src/modules/connectors/server/plugins/install-local.ts`
+- API keys: `src/modules/connectors/server/plugins/api-key-crypto.ts`, `private.plugin_mcp_api_keys`
 - Gateway: `workers/connector-gateway/src/**` (`mcp-client`, `mcp-install`,
   `oauth`, `connectors`)
-- Agent: `src/server/mcp/**`, `src/server/agent-core/runtime/query-loop.ts`
+- Agent: `src/modules/connectors/server/mcp/**`, `src/server/agent-core/runtime/query-loop.ts`
 - CIMD: `src/app/api/oauth/client-metadata/[connectorKey]/route.ts`
 - Icons: `public/assets/plugins/*.png` (134),
-  `src/shared/lib/plugins/local-icons.ts`
-- Diagnostics: `scripts/setup-plugins.mjs` (`npm run plugins:setup`)
+  `src/modules/connectors/catalog/local-icons.ts`
+- Diagnostics: `scripts/connectors/setup.mjs` (`npm run plugins:setup`)
