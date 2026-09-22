@@ -88,7 +88,7 @@ export function GiftView({ onClose }: GiftViewProps) {
   const auth = useAuth();
   const { currency, usdInrRate } = useCheckoutCurrency();
   const [step, setStep] = useState<1 | 2>(1);
-  const [selectedPlan, setSelectedPlan] = useState<GiftPlanId>("plus");
+  const [selectedPlan, setSelectedPlan] = useState<GiftPlanId>("pro");
   const [selectedDuration, setSelectedDuration] = useState("6months");
   const [selectedColor, setSelectedColor] = useState(colors[0]);
   const [deliveryMethod, setDeliveryMethod] = useState<"email" | "link">(

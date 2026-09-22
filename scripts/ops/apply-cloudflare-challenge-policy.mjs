@@ -6,7 +6,7 @@
  * Policy (Free plan, ≤5 custom rules):
  *  1. Skip APIs, Next internals, RSC — never challenge product traffic
  *  2. Block scanners / empty UA / sensitive paths
- *  3. Managed Challenge only on public auth/marketing entry (once per clearance)
+ *  3. Managed Challenge only on public auth entry (once per clearance)
  *  4. Challenge suspicious auth POSTs
  *  5. (optional slot) keep prior rate-limit outside custom rules
  *
@@ -91,9 +91,9 @@ function desiredRules() {
     },
     {
       description:
-        "Managed Challenge once on public auth/marketing entry (not chat nav)",
+        "Managed Challenge once on public auth entry (not chat nav)",
       action: "managed_challenge",
-      expression: `(http.request.method eq "GET" and ${notProductTraffic} and (http.request.uri.path eq "/" or http.request.uri.path eq "/login" or starts_with(http.request.uri.path, "/signup") or starts_with(http.request.uri.path, "/auth/") or http.request.uri.path eq "/contact-sales" or starts_with(http.request.uri.path, "/plans")))`,
+      expression: `(http.request.method eq "GET" and ${notProductTraffic} and (http.request.uri.path eq "/" or http.request.uri.path eq "/login" or starts_with(http.request.uri.path, "/signup") or starts_with(http.request.uri.path, "/auth/")))`,
       enabled: true,
     },
     {

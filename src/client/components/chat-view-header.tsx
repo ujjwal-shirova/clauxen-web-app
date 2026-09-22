@@ -252,17 +252,12 @@ export function ChatViewHeader({
         {showFreePlanUpgrade ? (
           <div className="pointer-events-none absolute inset-x-12 top-1/2 flex h-8 -translate-y-1/2 select-none items-center justify-center sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2">
             <div className="pointer-events-auto flex h-8 items-center gap-1.5 rounded-lg bg-[var(--ui-muted-surface)] px-2 pr-2.5 text-center text-[13px] font-normal leading-5 text-[var(--ui-fg-muted)] sm:text-[14px]">
-              <span>Free plan</span>
-              <span
-                className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[var(--ui-fg-placeholder)] opacity-40"
-                aria-hidden="true"
-              />
               <button
                 type="button"
                 onClick={onUpgradeClick}
                 className="rounded-sm text-[var(--link)] underline decoration-[var(--link-decoration)] underline-offset-[3px] outline-none transition-[color,text-decoration-color,box-shadow] duration-[60ms] hover:text-[var(--link-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
               >
-                Upgrade
+                Upgrade to Pro
               </button>
             </div>
           </div>

@@ -1,16 +1,7 @@
 import { ApiError, apiFetch } from "@/lib/api/client";
 
-const CONNECTOR_ID_RE = /^[a-z][a-z0-9_-]{0,63}$/;
 const MAX_SKILL_TITLE_LENGTH = 200;
 const MAX_SKILL_INSTRUCTIONS_LENGTH = 32_000;
-
-function parseConnectorId(connectorId: string): string {
-  const id = connectorId.trim();
-  if (!id || !CONNECTOR_ID_RE.test(id)) {
-    throw new ApiError("Invalid connector id.", 400, "bad_request");
-  }
-  return id;
-}
 
 function parseSkillInput(input: {
   id?: string;
@@ -54,12 +45,6 @@ export type ApiFileSkill = {
   updated_at: string;
 };
 
-export type ApiConnector = {
-  connectorId: string;
-  status: string;
-  connectedAt: string;
-};
-
 export async function listSkills() {
   return apiFetch<{ skills: ApiSkill[]; fileSkills: ApiFileSkill[] }>(
     "/api/v1/customize/skills",
@@ -92,33 +77,4 @@ export async function saveSkill(input: {
     // JSON.stringify — request body serialize
     body: JSON.stringify(payload),
   });
-}
-
-export async function listConnectors() {
-  return apiFetch<{ connectors: ApiConnector[] }>(
-    "/api/v1/customize/connectors",
-  );
-}
-
-export async function connectConnector(connectorId: string) {
-  return apiFetch<{ connectors: ApiConnector[] }>(
-    "/api/v1/customize/connectors",
-    {
-      method: "POST",
-      // JSON.stringify — request body serialize
-      body: JSON.stringify({ connectorId }),
-    },
-  );
-}
-
-export async function disconnectConnector(connectorId: string) {
-  const id = parseConnectorId(connectorId);
-  return apiFetch<{ connectors: ApiConnector[] }>(
-    "/api/v1/customize/connectors",
-    {
-      method: "POST",
-      // JSON.stringify — request body serialize
-      body: JSON.stringify({ connectorId: id, revoke: true }),
-    },
-  );
 }

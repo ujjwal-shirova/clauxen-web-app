@@ -1168,11 +1168,6 @@ export function PromptInput({
         onWebSearchModeChange={handleWebSearchModeChange}
         thinkingMode={thinkingMode}
         onThinkingModeChange={handleThinkingModeChange}
-        onOpenPlugins={() => {
-          if (typeof window !== "undefined") {
-            window.location.assign("/connectors");
-          }
-        }}
         onOpenSkills={() =>
           openOverlayHash({ type: "settings", tab: "Skills" })
         }

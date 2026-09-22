@@ -26,7 +26,7 @@ Clauxen is a full-stack AI chat platform built with Next.js (App Router), React 
 
 ```
 src/
-  app/                 # App Router routes: marketing, auth, checkout, api/v1/*
+  app/                 # App Router routes: auth, checkout, api/v1/*
   client/
     components/        # Chat UI, agent trace components, composer, settings…
     hooks/             # use-chat-api (stream lifecycle), scroll, visibility…

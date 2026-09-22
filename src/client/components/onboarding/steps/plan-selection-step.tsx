@@ -126,7 +126,7 @@ export function PlanSelectionStep({
       <div className="mx-auto flex w-full min-h-0 max-w-[1100px] flex-col items-center gap-6 pb-10">
         <OnboardingHeading
           title="Plans that grow with you"
-          subtitle="Start free, or pick a plan that fits how you work"
+          subtitle="Pro is ₹1,999 a month. Max is for the highest limits."
         />
 
         <PlansCarouselSection

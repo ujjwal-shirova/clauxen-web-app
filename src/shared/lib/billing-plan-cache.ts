@@ -14,9 +14,9 @@ export function formatPlanLabel(
   planId: string | null | undefined,
   displayName?: string | null,
 ): string {
-  const id = (planId || "free").trim().toLowerCase() || "free";
-  if (id === "free") return "Free plan";
-  const name = (displayName || planId || "Free").trim();
+  const id = (planId || "").trim().toLowerCase();
+  if (!id || id === "free" || id === "go" || id === "plus") return "No plan";
+  const name = (displayName || planId || "No plan").trim();
   return name.toLowerCase().includes("plan") ? name : `${name} plan`;
 }
 

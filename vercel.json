@@ -95,23 +95,6 @@
       ]
     },
     {
-      "source": "/api/plugins/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=60, s-maxage=300"
-        },
-        {
-          "key": "CDN-Cache-Control",
-          "value": "public, max-age=60, s-maxage=300"
-        },
-        {
-          "key": "Vercel-CDN-Cache-Control",
-          "value": "public, max-age=60, s-maxage=300"
-        }
-      ]
-    },
-    {
       "source": "/api/oauth/client-metadata/(.*)",
       "headers": [
         {
@@ -160,10 +143,6 @@
   "functions": {
     "src/app/api/**/route.ts": {
       "memory": 512
-    },
-    "src/app/api/v1/plugins/install/route.ts": {
-      "memory": 512,
-      "maxDuration": 60
     },
     "src/app/api/v1/chats/**/generate/route.ts": {
       "memory": 1024,

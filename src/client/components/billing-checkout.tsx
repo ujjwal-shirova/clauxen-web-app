@@ -530,7 +530,7 @@ export function BillingCheckout({
     [],
   );
 
-  const activePlanId = planId || "plus";
+  const activePlanId = planId || "pro";
   const orgPlan = getOrganizationPlan(activePlanId);
   const details = getCheckoutPlanDetails(activePlanId, maxTier);
   const isMaxPlan = activePlanId === "max";

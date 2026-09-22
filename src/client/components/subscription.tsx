@@ -32,24 +32,21 @@ interface UpgradePageContentProps {
     maxTier?: MaxTier,
     planDisplayName?: string,
   ) => void;
-  /** Active subscription plan id (e.g. go, plus). Drives "Current plan" CTAs. */
+  /** Active subscription plan id (pro or max). Drives "Current plan" CTAs. */
   currentPlanId?: string | null;
 }
 
 const PLAN_RANK: Record<string, number> = {
-  free: 0,
-  go: 1,
-  plus: 2,
-  pro: 3,
-  max: 4,
+  pro: 1,
+  max: 2,
 };
 
 function normalizePlanId(planId: string | null | undefined): string {
-  if (!planId) return "free";
+  if (!planId) return "";
   const normalized = planId.replace(/_/g, "").toLowerCase();
+  if (normalized === "max5x" || normalized === "max20x") return "max";
   if (normalized in PLAN_RANK) return normalized;
-  const known = Object.keys(PLAN_RANK).find((id) => normalized.startsWith(id));
-  return known ?? "free";
+  return "";
 }
 
 function PlanBadge({
@@ -289,7 +286,7 @@ function PlanCarouselCard({
   onSelect,
   ctaLabel,
   forceSelectable = false,
-  currentPlanId = "free",
+  currentPlanId = "",
 }: {
   plan: PlanCard;
   billingCycle: BillingCycle;
@@ -389,10 +386,7 @@ function PlanCarouselCard({
             onClick={onSelect}
             variant={plan.isPopular ? "primary" : "secondary"}
           >
-            {ctaLabel ??
-              (forceSelectable && plan.id === "free"
-                ? "Continue with Free"
-                : plan.buttonLabel)}
+            {ctaLabel ?? plan.buttonLabel}
           </PricingCtaButton>
         )}
       </div>
@@ -644,7 +638,7 @@ export function PlansCarouselSection({
   onOrganizationPlanSelect,
   onCtaClick,
   selectableCurrentPlanIds,
-  currentPlanId = "free",
+  currentPlanId = "",
   className,
 }: PlansCarouselSectionProps) {
   const [activeTab, setActiveTab] = React.useState<"individual" | "team">(
@@ -683,7 +677,7 @@ export function PlansCarouselSection({
     <div className={cn("flex flex-col gap-4", className)}>
       <div className="sticky top-0 z-10 -mx-4 bg-[var(--pricing-bg,var(--settings-canvas-bg,#f4f4f3))] px-4 py-2 sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:py-0">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-        {layout === "tabs" ? (
+        {layout === "tabs" && ORGANIZATION_PLANS.length > 0 ? (
           <div className={cn(segmentedTrackClass, "w-full sm:w-auto")} role="tablist" aria-label="Plan type">
             <button
               type="button"
@@ -776,7 +770,7 @@ export function PlansCarouselSection({
 export default function UpgradePageContent({
   onClose,
   onSelectPlan,
-  currentPlanId = "free",
+  currentPlanId = "",
 }: UpgradePageContentProps) {
   const activePlanId = normalizePlanId(currentPlanId);
 
@@ -831,7 +825,7 @@ export default function UpgradePageContent({
           <div className="mx-auto hidden max-w-[36rem] text-center sm:block">
             <h1 className="app-page-title">Plans that grow with you</h1>
             <p className="app-page-subtitle">
-              Start free, or pick a plan that fits how you work.
+              Pro is ₹1,999 a month. Max is for the highest limits.
             </p>
           </div>
 

@@ -164,7 +164,6 @@ const nextConfig: NextConfig = {
     "/api/**/*": [
       "./src/prompts/**/*",
       "./src/server/email-verifier/disposable.txt",
-      "./scripts/connectors/mcp-catalog/plugins.json",
     ],
     "/auth/**/*": [
       "./src/prompts/**/*",
@@ -173,7 +172,6 @@ const nextConfig: NextConfig = {
     "/*": [
       "./src/prompts/**/*",
       "./src/server/email-verifier/disposable.txt",
-      "./scripts/connectors/mcp-catalog/plugins.json",
     ],
   },
   // Keep heavy server-only libs out of the client graph / slim function traces.
@@ -247,12 +245,10 @@ const nextConfig: NextConfig = {
     return [
       { source: "/automations", destination: "/new", permanent: false },
       { source: "/automations/:path*", destination: "/new", permanent: false },
-      { source: "/plugins", destination: "/connectors", permanent: false },
-      {
-        source: "/plugins/:path*",
-        destination: "/connectors/:path*",
-        permanent: false,
-      },
+      { source: "/plugins", destination: "/new", permanent: false },
+      { source: "/plugins/:path*", destination: "/new", permanent: false },
+      { source: "/connectors", destination: "/new", permanent: false },
+      { source: "/connectors/:path*", destination: "/new", permanent: false },
     ];
   },
 };

@@ -424,7 +424,7 @@ export function SettingsModal({
             Manage your Clauxen account and application preferences.
           </p>
 
-          <div className="flex min-h-0 flex-1 flex-col bg-[var(--settings-canvas-bg)] md:flex-row md:items-stretch">
+          <div className="cx-settings flex min-h-0 flex-1 flex-col bg-[var(--cx-paper)] md:flex-row md:items-stretch">
             <div className="shrink-0 border-b border-[var(--settings-hairline)] bg-[var(--settings-sidebar-bg)] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
               <div className="mb-3 flex h-8 items-center justify-between gap-3">
                 <h2 className="truncate text-[18px] font-semibold tracking-[-0.02em] text-[var(--settings-fg)]">
@@ -446,7 +446,7 @@ export function SettingsModal({
               />
             </div>
 
-            <aside className="hidden min-h-0 shrink-0 bg-[var(--settings-sidebar-bg)] md:flex md:w-[264px] md:flex-col md:border-r md:border-[var(--settings-modal-border)] md:px-3 md:pb-3 md:pt-5">
+            <aside className="cx-settings-aside hidden min-h-0 shrink-0 md:flex md:w-[264px] md:flex-col md:px-3 md:pb-3 md:pt-5">
               <div className="mb-4 flex h-9 items-center px-2">
                 <h2 className="text-[20px] font-semibold tracking-[-0.025em] text-[var(--settings-fg)]">
                   Settings

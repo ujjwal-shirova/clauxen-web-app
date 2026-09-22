@@ -53,11 +53,6 @@ import {
   toolResultPart,
   type TranscriptAgentModelTurn,
 } from "@/server/training/transcript-format";
-import { McpConnectorHarness } from "@/connectors/server/mcp/registry";
-
-/** Cap MCP discovery so a hung connector cannot delay first token. */
-const MCP_DISCOVER_BUDGET_MS = 8_000;
-
 /** Single autonomous step budget. The model decides how many steps it needs. */
 const MAX_STEPS = 24;
 
@@ -230,10 +225,6 @@ function emitToolArtifacts(
   emitArtifactRecord(sse, record, fallbackPath, fallbackContent, description);
 }
 
-function isMcpToolName(name: string): boolean {
-  return name.startsWith("mcp__");
-}
-
 /** Build self-healing tool definitions for built-in autonomous tools. */
 function buildHealingTools(): Map<string, ToolDefinition> {
   const map = new Map<string, ToolDefinition>();
@@ -334,56 +325,14 @@ export async function runAutonomousAgent(
   const healingTools = buildHealingTools();
   const thinkingBudget = resolveThinkingBudget(options);
 
-  // Signal the client immediately — do not wait on MCP discovery for UI start.
   if (!options.skipWriteStart) {
     sse.writeStart(true);
   }
 
-  // MCP connectors: discover with a hard budget so unreachable servers never
-  // sit on the TTFT critical path.
-  const mcp = new McpConnectorHarness({ userId });
-  let mcpTools: Awaited<ReturnType<McpConnectorHarness["discover"]>> = [];
-  if (mcp.hasSources()) {
-    try {
-      mcpTools = await Promise.race([
-        mcp.discover(),
-        new Promise<typeof mcpTools>((resolve) => {
-          setTimeout(() => resolve([]), MCP_DISCOVER_BUDGET_MS);
-        }),
-      ]);
-    } catch {
-      mcpTools = [];
-    }
-  }
+  const systemPrompt = initialSystemPrompt;
 
-  const connectedPluginNames = [
-    ...new Set(
-      mcpTools
-        .map((tool) => {
-          const match = /Connected Clauxen plugin: ([^.]+)\./.exec(
-            tool.description,
-          );
-          return match?.[1]?.trim();
-        })
-        .filter((name): name is string => Boolean(name)),
-    ),
-  ];
-  const connectedSkills = mcpTools.filter((tool) =>
-    tool.description.includes("MCP skill from"),
-  );
-  const pluginPrompt = connectedPluginNames.length
-    ? `\n\nThe user connected these MCP plugins in Clauxen. Use their mcp__ tools when the request is about those products or accounts:\n${connectedPluginNames.map((name) => `- ${name}`).join("\n")}`
-    : "";
-  const skillPrompt = connectedSkills.length
-    ? `\n\nConnected MCP skills (invoke the matching mcp__ tool to run them):\n${connectedSkills
-        .slice(0, 40)
-        .map((tool) => `- ${tool.name}`)
-        .join("\n")}`
-    : "";
-  const systemPrompt = `${initialSystemPrompt ?? ""}${pluginPrompt}${skillPrompt}` || initialSystemPrompt;
-
-  const openAITools = toOpenAITools([
-    ...autonomousAgentTools
+  const openAITools = toOpenAITools(
+    autonomousAgentTools
       // present_files removed — create_file auto-presents to the user.
       .filter((tool) => tool.name !== "present_files")
       .map((tool) => ({
@@ -394,12 +343,7 @@ export async function runAutonomousAgent(
           properties: {},
         }) as Record<string, unknown>,
       })),
-    ...mcpTools.map((tool) => ({
-      name: tool.qualifiedName,
-      description: tool.description,
-      parameters: tool.inputSchema,
-    })),
-  ]);
+  );
 
   // Responses API input is an ordered list of user/assistant messages plus
   // native function_call/function_call_output items from agent rounds.
@@ -631,20 +575,6 @@ export async function runAutonomousAgent(
           true,
         );
 
-        // MCP connector tools route to their server over streamable HTTP.
-        if (isMcpToolName(tc.name)) {
-          const outcome = await mcp.call(tc.name, rawArgs);
-          const isError = outcome.isError;
-          sse.writeToolEnd(tc.id, tc.name, outcome.text, isError);
-          toolResults.push({
-            toolCallId: tc.id,
-            name: tc.name,
-            result: outcome.text,
-            isError,
-          });
-          continue;
-        }
-
         const healingTool = healingTools.get(tc.name);
         let outcomeOutput: unknown;
         let outcomePause = false;
@@ -805,7 +735,6 @@ export async function runAutonomousAgent(
   } finally {
     sse.writeDone();
     sse.finalize();
-    await mcp.close().catch(() => {});
   }
 }
 

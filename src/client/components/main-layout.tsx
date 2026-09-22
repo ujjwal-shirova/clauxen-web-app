@@ -30,14 +30,12 @@ import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { APP_ROUTES, isIncognitoPath } from "@/lib/app-routes";
 import { AppPageSurface } from "@/components/app-page-surface";
-import { Sidebar } from "@/components/sidebar";
+import { Sidebar } from "@/ui/shell/sidebar";
 import { SidebarToggleIcon } from "@/components/icons";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
   "/my-clauxen",
-  "/connectors",
-  "/plugins",
   "/project",
   "/projects",
   "/incognito",
@@ -45,8 +43,6 @@ const MOBILE_FULL_BLEED_PREFIXES = [
 
 const APP_SHELL_PREFETCH_ROUTES = [
   APP_ROUTES.newChat,
-  APP_ROUTES.connectors,
-  APP_ROUTES.plugins,
   APP_ROUTES.library,
   APP_ROUTES.projects,
   APP_ROUTES.projectNew,
@@ -324,10 +320,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p === "/new" ||
       p === "/incognito" ||
       p.startsWith("/incognito/") ||
-      p === "/plugins" ||
-      p.startsWith("/plugins/") ||
-      p === "/connectors" ||
-      p.startsWith("/connectors/") ||
       p === "/library" ||
       p === "/project" ||
       p === "/projects" ||
@@ -583,9 +575,6 @@ function computeActiveView(
   }
   if (!pathname) return "chat";
   if (pathname.startsWith("/my-clauxen")) return "my-clauxen";
-  if (pathname.startsWith("/plugins") || pathname.startsWith("/connectors")) {
-    return "connectors";
-  }
   if (pathname.startsWith("/project") || pathname.startsWith("/projects")) {
     return "projects";
   }

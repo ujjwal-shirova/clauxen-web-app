@@ -8,7 +8,6 @@ export default {
     "./src/client/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/shared/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/modules/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/marketing/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/server/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/**/*.{js,ts,jsx,tsx,mdx}",
   ],

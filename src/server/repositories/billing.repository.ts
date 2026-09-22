@@ -229,7 +229,10 @@ export async function getPlanById(planId: string) {
   }>(
     `select id, name, display_name, price_paise_monthly, price_paise_yearly, currency,
             token_grant, giftable, yearly_supported
-     from public.plans where id = $1 and is_active = true`,
+     from public.plans
+     where id = $1
+       and is_active = true
+       and id in ('pro', 'max', 'max5x', 'max20x')`,
     [planId],
   );
 }
@@ -246,7 +249,10 @@ export async function listPlans() {
     features: unknown;
   }>(
     `select id, name, display_name, price_paise_monthly, price_paise_yearly, currency, token_grant, features
-     from public.plans where is_active = true order by price_paise_monthly asc`,
+     from public.plans
+     where is_active = true
+       and id in ('pro', 'max', 'max5x', 'max20x')
+     order by price_paise_monthly asc`,
   );
 }
 

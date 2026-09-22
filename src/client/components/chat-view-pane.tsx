@@ -308,13 +308,8 @@ export function ChatViewPane({
                 onClick={onUpgradeClick}
                 className="mb-6 inline-flex h-8 items-center gap-1.5 rounded-xl bg-[var(--ui-muted-surface)] px-3 text-[14px] font-normal leading-5 text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
               >
-                <span>Free plan</span>
-                <span
-                  className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[var(--ui-fg-placeholder)] opacity-40"
-                  aria-hidden="true"
-                />
                 <span className="text-[var(--link)] underline decoration-[var(--link-decoration)] underline-offset-[3px]">
-                  Upgrade
+                  Upgrade to Pro
                 </span>
               </button>
             ) : null}
@@ -405,13 +400,8 @@ export function ChatViewPane({
                       onClick={onUpgradeClick}
                       className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#f6f6f4] px-3 text-[14px] font-normal leading-5 text-[#898781] transition-colors hover:bg-[#f1f1ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                     >
-                      <span>Free plan</span>
-                      <span
-                        className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[rgba(137,135,129,0.3)]"
-                        aria-hidden="true"
-                      />
                       <span className="text-[var(--link)] underline decoration-[var(--link-decoration)] underline-offset-[3px]">
-                        Upgrade
+                        Upgrade to Pro
                       </span>
                     </button>
                   ) : null}
@@ -422,7 +412,7 @@ export function ChatViewPane({
                       onClick={onUpgradeClick}
                       className="inline-flex items-center rounded-full border border-zinc-200/90 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
                     >
-                      Free plan · Upgrade
+                      Upgrade to Pro
                     </button>
                   ) : null}
 

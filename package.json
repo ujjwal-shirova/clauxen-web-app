@@ -24,11 +24,7 @@
     "strip:annotations": "node .tools/strip-hindi-annotations.mjs",
     "worker": "tsx scripts/worker.ts",
     "audit:public-env": "node scripts/audit-public-env.mjs",
-    "plugins:setup": "node scripts/connectors/setup.mjs",
-    "connectors:seed": "tsx scripts/connectors/seed-rest-catalog.ts",
-    "connectors:configure-oauth": "node scripts/connectors/configure-oauth.mjs",
-    "vercel:env:sync": "node scripts/sync-vercel-env-api.mjs",
-    "website:manifest": "python3 scripts/website/generate-pages-manifest.py"
+    "vercel:env:sync": "node scripts/sync-vercel-env-api.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",

@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Settings,
   ArrowUpCircle,
-  Blocks,
   ChevronRight,
   Gift,
   HelpCircle,
@@ -16,11 +15,12 @@ import {
   Languages,
   Sparkles,
   X,
+  FolderKanban,
   LayoutGrid,
-  Download,
+  Library,
   Search,
 } from "lucide-react";
-import { SidebarToggleIcon, NewChatBubbleIcon, NavProjectsIcon } from "./icons";
+import { SidebarToggleIcon, NavProjectsIcon } from "./icons";
 import { cn } from "@/lib/utils";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
@@ -479,92 +479,6 @@ export function Sidebar({
     });
   };
 
-  const navButtonClass = (active = false, muted = false) =>
-    cn(
-      "ui-sidebar-menu-button no-hover-overlay group/nav mb-0 w-full rounded-lg text-[13px] font-normal leading-[18px] transition-[background-color,color,box-shadow] duration-150 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
-      muted ? "text-[var(--ui-fg-placeholder)]" : "text-[var(--ui-fg-body)]",
-      isCollapsed
-        ? "ui-icon-button mx-auto flex !size-9 justify-center gap-0 !rounded-xl px-0"
-        : "ui-nav-row justify-start px-2",
-      active && "bg-[var(--brand-soft)] font-medium text-[var(--ui-fg)]",
-    );
-
-  const renderNavButton = ({
-    label,
-    icon,
-    href,
-    onClick,
-    active = false,
-    muted = false,
-    trailing,
-    replace = false,
-  }: {
-    label: string;
-    icon: React.ReactNode;
-    href?: string;
-    onClick?: () => void;
-    active?: boolean;
-    muted?: boolean;
-    trailing?: React.ReactNode;
-    replace?: boolean;
-  }) => {
-    const body = (
-      <div
-        className={cn(
-          "flex min-w-0 items-center gap-2",
-          !isCollapsed && "w-full",
-        )}
-      >
-        <div className={cn("ui-nav-icon", muted && "opacity-60")}>{icon}</div>
-        {!isCollapsed && (
-          <span
-            className={cn(
-              "flex min-w-0 items-center gap-0.5",
-              muted && "text-[var(--ui-fg-placeholder)]",
-            )}
-          >
-            <span className="truncate">{label}</span>
-            {trailing}
-          </span>
-        )}
-      </div>
-    );
-
-    if (href) {
-      return (
-        <AppHref
-          href={href}
-          replace={replace}
-          aria-label={label}
-          aria-current={active ? "page" : undefined}
-          className={navButtonClass(active, muted)}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!isPlainLeftClick(e)) return;
-            onClick?.();
-            if (isMobileLayout) onNavigate?.();
-          }}
-        >
-          {body}
-        </AppHref>
-      );
-    }
-
-    return (
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick?.();
-        }}
-        aria-label={label}
-        className={navButtonClass(active, muted)}
-      >
-        {body}
-      </button>
-    );
-  };
-
   const generatingSet = useMemo(() => {
     if (!generatingChatIds) return new Set<string>();
     return generatingChatIds instanceof Set
@@ -689,7 +603,8 @@ export function Sidebar({
         data-skip-global-prompt-focus
         onClick={() => !isMobileLayout && isCollapsed && setIsCollapsed(false)}
         className={cn(
-          "sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-sidebar-bg,var(--app-shell-bg))] pt-[env(safe-area-inset-top)]",
+          "cx-sidebar sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden pt-[env(safe-area-inset-top)]",
+          !isMobileLayout && isCollapsed && "is-collapsed",
           isMobileLayout &&
             "fixed left-0 top-0 z-40 will-change-transform transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           !isMobileLayout && "relative z-20 shrink-0",
@@ -750,49 +665,58 @@ export function Sidebar({
           className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
           data-scroll-region=""
         >
-          <div
-            className={cn(
-              "sticky top-0 z-10 bg-[var(--app-sidebar-bg,var(--app-shell-bg))] pb-1 pt-0",
-              isCollapsed ? "flex justify-center px-0" : "px-1.5",
-            )}
-          >
-            <div
-              className={cn(isCollapsed ? "flex justify-center px-0" : "px-0")}
+          <nav className="cx-nav" aria-label="Primary">
+            <AppHref
+              href={APP_ROUTES.newChat}
+              replace
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isPlainLeftClick(e)) return;
+                e.preventDefault();
+                handleNewChat();
+              }}
+              aria-label="New chat"
+              className="cx-nav-btn cx-nav-btn--primary"
             >
-              {isCollapsed ? (
-                <AppHref
-                  href={APP_ROUTES.newChat}
-                  replace
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!isPlainLeftClick(e)) return;
-                    e.preventDefault();
-                    handleNewChat();
-                  }}
-                  aria-label="New chat"
-                  className="ui-icon-button !size-9 !rounded-xl text-[var(--ui-fg-body)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                >
-                  <NewChatBubbleIcon className="size-4" />
-                </AppHref>
-              ) : (
-                <AppHref
-                  href={APP_ROUTES.newChat}
-                  replace
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!isPlainLeftClick(e)) return;
-                    e.preventDefault();
-                    handleNewChat();
-                  }}
-                  aria-label="New chat"
-                  className="group no-hover-overlay flex h-9 w-full items-center gap-2 rounded-xl bg-[var(--ui-hover-wash)] px-2.5 text-[13px] font-medium leading-[18px] text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-border-subtle)]"
-                >
-                  <Plus className="size-4 shrink-0" strokeWidth={1.75} />
-                  <span className="truncate">New chat</span>
-                </AppHref>
+              <Plus strokeWidth={1.75} />
+              {isCollapsed && !isMobileLayout ? null : <span>New chat</span>}
+            </AppHref>
+            <AppHref
+              href={APP_ROUTES.library}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isPlainLeftClick(e)) return;
+                if (isMobileLayout) onNavigate?.();
+              }}
+              aria-label="Library"
+              aria-current={activeView === "library" ? "page" : undefined}
+              className={cn(
+                "cx-nav-btn",
+                activeView === "library" && "is-active",
               )}
-            </div>
-          </div>
+            >
+              <Library strokeWidth={1.75} />
+              {isCollapsed && !isMobileLayout ? null : <span>Library</span>}
+            </AppHref>
+            <AppHref
+              href={APP_ROUTES.projects}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isPlainLeftClick(e)) return;
+                onProjectsClick?.();
+                if (isMobileLayout) onNavigate?.();
+              }}
+              aria-label="Projects"
+              aria-current={activeView === "projects" ? "page" : undefined}
+              className={cn(
+                "cx-nav-btn",
+                activeView === "projects" && "is-active",
+              )}
+            >
+              <FolderKanban strokeWidth={1.75} />
+              {isCollapsed && !isMobileLayout ? null : <span>Projects</span>}
+            </AppHref>
+          </nav>
 
           <div
             className={cn(
@@ -800,13 +724,6 @@ export function Sidebar({
               isCollapsed ? "flex flex-col items-center px-0" : "px-1.5",
             )}
           >
-            {renderNavButton({
-              label: "Connectors",
-              icon: <Blocks className="size-4" strokeWidth={1.5} />,
-              href: APP_ROUTES.connectors,
-              active: activeView === "connectors" || activeView === "plugins",
-            })}
-
             {/* Order: Pinned (chats + projects) → Projects → Recent */}
             {!isCollapsed && hasPinnedSection ? (
               <div className="mt-3 mb-1 px-0">
@@ -1123,17 +1040,6 @@ export function Sidebar({
 
               {!isCollapsed ? (
                 <div className="flex shrink-0 items-center gap-0.5">
-                  {!isMobileLayout ? (
-                    <AppHref
-                      href="/download"
-                      aria-label="Download Clauxen"
-                      title="Download Clauxen"
-                      className="ui-icon-button !size-8 !rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                    >
-                      <Download className="size-[17px]" strokeWidth={1.7} />
-                    </AppHref>
-                  ) : null}
-
                   {!isPeekPreview ? (
                     <Popover
                     open={sidebarSearchOpen}
