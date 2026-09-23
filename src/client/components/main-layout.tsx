@@ -444,7 +444,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
             overlayOpen && "pointer-events-none opacity-0",
           )}
         >
-          <SidebarToggleIcon className="size-[18px] shrink-0" />
+          <SidebarToggleIcon className="size-5 shrink-0" />
         </button>
       ) : null}
 

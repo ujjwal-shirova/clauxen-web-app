@@ -321,8 +321,8 @@ export function ChatViewPane({
             >
               <Image
                 src="/assets/icons/clauxen-icon.png"
-                width={28}
-                height={28}
+                width={38}
+                height={38}
                 alt=""
                 aria-hidden="true"
                 priority

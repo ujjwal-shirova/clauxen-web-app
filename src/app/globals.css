@@ -146,7 +146,7 @@
     --ui-fg-subtle: color-mix(in oklab, #14151a 62%, transparent);
     --ui-fg-placeholder: color-mix(in oklab, #14151a 50%, transparent);
     --ui-field-bg: #ffffff;
-    --ui-field-focus-border: color-mix(in oklab, hsl(var(--brand)) 45%, transparent);
+    --ui-field-focus-border: color-mix(in oklab, var(--ui-fg) 30%, transparent);
     --ui-field-focus-ring: var(--brand-soft);
     --ui-muted-surface: color-mix(in oklab, #14151a 4%, transparent);
 
@@ -347,7 +347,7 @@
     --settings-info: hsl(var(--info));
     --settings-info-soft: var(--info-soft);
     --ui-field-bg: #202023;
-    --ui-field-focus-border: color-mix(in oklab, hsl(var(--brand)) 50%, transparent);
+    --ui-field-focus-border: color-mix(in oklab, var(--ui-fg) 36%, transparent);
     --ui-field-focus-ring: var(--brand-soft);
     --ui-muted-surface: rgba(255, 255, 255, 0.05);
     --overlay-scrim: rgba(0, 0, 0, 0.55);
@@ -1578,10 +1578,10 @@ button.plugin-add-button:disabled,
 
 .new-chat-greeting__mark {
   display: inline-block;
-  width: 27px;
-  height: 27px;
-  margin-right: 11px;
-  vertical-align: -3px;
+  width: 38px;
+  height: 38px;
+  margin-right: 12px;
+  vertical-align: -6px;
   object-fit: contain;
 }
 
@@ -8694,8 +8694,8 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
 }
 
 .cx-sidebar .cx-hide-sidebar svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 .cx-hide-sidebar + .clauxen-wordmark {
@@ -8913,6 +8913,12 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   border-radius: 8px !important;
   padding: 0 !important;
   color: var(--cx-sidebar-fg);
+}
+
+.cx-sidebar .cx-sidebar-search svg,
+.cx-sidebar .ui-icon-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 .cx-sidebar .glass-sidebar-footer-account-trigger:not(.size-9) {

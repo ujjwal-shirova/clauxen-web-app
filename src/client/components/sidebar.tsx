@@ -510,7 +510,7 @@ export function Sidebar({
                 setIsCollapsed(true);
               }}
             >
-              <SidebarToggleIcon className="size-4" aria-hidden />
+              <SidebarToggleIcon className="size-5" aria-hidden />
             </button>
           ) : null}
           {!isCollapsed ? (
@@ -909,7 +909,7 @@ export function Sidebar({
                     }}
                     className="cx-sidebar-search ui-icon-button text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                   >
-                    <Search className="size-4" strokeWidth={1.75} />
+                    <Search className="size-5 shrink-0" strokeWidth={1.75} />
                   </button>
                 </div>
               ) : null}
