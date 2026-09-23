@@ -15,8 +15,8 @@ export function formatPlanLabel(
   displayName?: string | null,
 ): string {
   const id = (planId || "").trim().toLowerCase();
-  if (!id || id === "free" || id === "go" || id === "plus") return "No plan";
-  const name = (displayName || planId || "No plan").trim();
+  if (!id || id === "free" || id === "go" || id === "plus") return "Free Plan";
+  const name = (displayName || planId || "Free Plan").trim();
   return name.toLowerCase().includes("plan") ? name : `${name} plan`;
 }
 
@@ -34,9 +34,10 @@ export function readCachedBillingPlan(): CachedBillingPlan | null {
     ) {
       return null;
     }
+    const planId = parsed.planId.trim().toLowerCase();
     return {
-      planId: parsed.planId.trim().toLowerCase(),
-      planLabel: parsed.planLabel.trim(),
+      planId,
+      planLabel: formatPlanLabel(planId, parsed.planLabel.trim()),
       updatedAt:
         typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now(),
     };

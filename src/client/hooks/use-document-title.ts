@@ -3,8 +3,12 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { parseOverlayHash } from "@/lib/app-routes";
+import {
+  DOCUMENT_TITLE_BRAND,
+  formatChatTabTitle,
+} from "@/lib/document-title";
 
-const BRAND = "Clauxen";
+const BRAND = DOCUMENT_TITLE_BRAND;
 
 /** Soft-nav from useInstantNavigate dispatches this so tab titles stay in sync. */
 export const CLAUXEN_NAVIGATE_EVENT = "clauxen:navigate";
@@ -12,7 +16,7 @@ export const CLAUXEN_NAVIGATE_EVENT = "clauxen:navigate";
 function isChatPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
   return (
-    /^\/c\/[^/]+/.test(pathname) || /\/conversations\/[^/]+/.test(pathname)
+    /^\/c\/[^/]+/.test(pathname)
   );
 }
 
@@ -36,11 +40,7 @@ function titleForPath(
   }
 
   const chatMatch = pathname.match(/^\/c\/([^/]+)/);
-  if (chatMatch) {
-    const name = chatTitle?.trim();
-    if (!name || /^new chat$/i.test(name)) return BRAND;
-    return `${name} - ${BRAND}`;
-  }
+  if (chatMatch) return formatChatTabTitle(chatTitle);
 
   if (pathname.startsWith("/library")) return `Library - ${BRAND}`;
   if (pathname.startsWith("/scheduled")) return `Scheduled Tasks - ${BRAND}`;
@@ -69,8 +69,8 @@ export function useDocumentTitle(
 
     const apply = () => {
       if (options?.brandOnly) {
-        document.title = BRAND;
-        return;
+        if (document.title !== BRAND) document.title = BRAND;
+        return true;
       }
 
       const livePath =
@@ -79,23 +79,61 @@ export function useDocumentTitle(
 
       // Layout / non-chat owners: never overwrite a ChatView-owned tab title.
       if (!ownsChatTitle && isChatPath(livePath)) {
-        return;
+        return false;
       }
 
-      document.title = titleForPath(
+      // Name not hydrated yet — keep the server tab title instead of
+      // replacing it with "Clauxen" or "Chat - Clauxen".
+      if (ownsChatTitle && isChatPath(livePath) && !chatTitle?.trim()) {
+        return true;
+      }
+
+      const next = titleForPath(
         livePath,
         ownsChatTitle ? chatTitle : null,
         hash,
       );
+      if (document.title !== next) document.title = next;
+      return true;
     };
 
-    apply();
+    const ownsTitle = apply();
 
     const onNav = () => apply();
     window.addEventListener("hashchange", onNav);
     window.addEventListener("popstate", onNav);
     window.addEventListener(CLAUXEN_NAVIGATE_EVENT, onNav);
+
+    // Next's metadata title ("Chat - Clauxen") is applied after this effect.
+    // Re-apply the chat title whenever that <title> node is rewritten.
+    let titleEl = document.querySelector("title");
+    const titleObserver = new MutationObserver(() => {
+      const nextTitle = document.querySelector("title");
+      if (nextTitle !== titleEl) {
+        titleEl = nextTitle;
+        if (titleEl) {
+          titleObserver.observe(titleEl, {
+            childList: true,
+            characterData: true,
+            subtree: true,
+          });
+        }
+      }
+      apply();
+    });
+    if (ownsTitle) {
+      if (titleEl) {
+        titleObserver.observe(titleEl, {
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+      }
+      titleObserver.observe(document.head, { childList: true });
+    }
+
     return () => {
+      titleObserver.disconnect();
       window.removeEventListener("hashchange", onNav);
       window.removeEventListener("popstate", onNav);
       window.removeEventListener(CLAUXEN_NAVIGATE_EVENT, onNav);

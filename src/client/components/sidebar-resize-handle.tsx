@@ -37,15 +37,35 @@ export function SidebarResizeHandle() {
     );
   };
 
-  const finishDrag = (width: number) => {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
+  const releaseDragCursor = () => {
     document.documentElement.removeAttribute("data-sidebar-resizing");
     document.body.style.removeProperty("cursor");
     document.body.style.removeProperty("user-select");
+  };
+
+  const finishDrag = (width: number) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    releaseDragCursor();
     paintWidth(width);
     updateGeneral({ sidebarWidth: width });
   };
+
+  useEffect(() => {
+    const endFromWindow = () => {
+      if (!draggingRef.current) return;
+      finishDrag(widthRef.current);
+    };
+    window.addEventListener("pointerup", endFromWindow);
+    window.addEventListener("pointercancel", endFromWindow);
+    window.addEventListener("blur", endFromWindow);
+    return () => {
+      window.removeEventListener("pointerup", endFromWindow);
+      window.removeEventListener("pointercancel", endFromWindow);
+      window.removeEventListener("blur", endFromWindow);
+      releaseDragCursor();
+    };
+  }, [updateGeneral]);
 
   return (
     <div
@@ -81,6 +101,9 @@ export function SidebarResizeHandle() {
         finishDrag(widthFromEvent(event));
       }}
       onPointerCancel={() => {
+        finishDrag(widthRef.current);
+      }}
+      onLostPointerCapture={() => {
         finishDrag(widthRef.current);
       }}
       onKeyDown={(event) => {

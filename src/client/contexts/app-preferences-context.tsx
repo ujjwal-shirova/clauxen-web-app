@@ -155,7 +155,7 @@ function PreferencesInner({ children }: { children: ReactNode }) {
           accentColor: normalizeAccentId(data.general.accentColor),
           contrastMode: normalizeContrastMode(data.general.contrastMode),
           colorMode: colorModeForAppearance(data.general.appearancePreset),
-          sidebarWidth: data.general.sidebarWidth,
+          sidebarWidth: readLocalGeneralPrefs().sidebarWidth,
         };
         setGeneral(next);
         applyGeneralToDom(next);
@@ -181,7 +181,10 @@ function PreferencesInner({ children }: { children: ReactNode }) {
 
   const updateGeneral = useCallback(
     (patch: Partial<GeneralSettings>) => {
-      dirtyRef.current = true;
+      const sidebarWidthOnly = Object.keys(patch).every(
+        (key) => key === "sidebarWidth",
+      );
+      if (!sidebarWidthOnly) dirtyRef.current = true;
       const epoch = ++persistEpoch.current;
 
       setGeneral((prev) => {
@@ -216,15 +219,18 @@ function PreferencesInner({ children }: { children: ReactNode }) {
         // UI first — theme / font / motion apply before any network work.
         applyGeneralToDom(next);
 
+        if (sidebarWidthOnly) return next;
+
         if (persistTimer.current) clearTimeout(persistTimer.current);
         persistTimer.current = setTimeout(() => {
           if (!user?.id) {
             dirtyRef.current = false;
             return;
           }
-          const snapshot = generalRef.current;
+          const { sidebarWidth: _sidebarWidth, ...generalForServer } =
+            generalRef.current;
           void settingsApi
-            .updateSettings({ general: snapshot })
+            .updateSettings({ general: generalForServer })
             .then(() => {
               // Ignore stale responses from rapid toggles.
               if (epoch !== persistEpoch.current) return;

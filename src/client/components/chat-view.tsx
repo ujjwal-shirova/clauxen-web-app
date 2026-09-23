@@ -21,6 +21,7 @@ import {
   isNewChatPath,
 } from "@/lib/app-routes";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { resolveDisplayChatTitle } from "@/lib/chat-title";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { getBillingSubscription } from "@/lib/api/billing";
 import {
@@ -359,14 +360,19 @@ function ChatViewBody({
     (isChatRoute || Boolean(hydratingChatId));
   const blankPaneChatId = awaitingRouteHydration ? hydratingChatId : null;
 
+  const visibleChatTitle = displayTitleChat?.name
+    ? resolveDisplayChatTitle(
+        displayTitleChat.name,
+        Boolean(displayTitleChat.isTitleStreaming),
+      )
+    : "";
   const brandOnlyTab =
     !blankNewChatComposer &&
     isGenerating &&
-    (!displayActiveChat?.name ||
-      /^new chat$/i.test(displayActiveChat.name.trim()));
+    (!visibleChatTitle || /^new chat$/i.test(visibleChatTitle.trim()));
 
   useDocumentTitle(
-    isIncognito ? "Incognito" : (displayTitleChat?.name ?? null),
+    isIncognito ? "Incognito" : visibleChatTitle || null,
     {
       brandOnly: brandOnlyTab,
     },

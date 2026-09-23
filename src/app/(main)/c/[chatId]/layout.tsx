@@ -1,8 +1,13 @@
-import type { Metadata } from "next";
+import { chatDocumentMetadata } from "@/server/chat/chat-document-metadata";
 
-export const metadata: Metadata = {
-  title: "Chat - Clauxen",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ chatId: string }>;
+}) {
+  const { chatId } = await params;
+  return chatDocumentMetadata(chatId);
+}
 
 export default function ChatIdLayout({
   children,
