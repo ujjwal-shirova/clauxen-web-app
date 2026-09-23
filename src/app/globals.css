@@ -5841,10 +5841,6 @@ button[data-speed-toggle][data-state="open"] {
   align-items: center;
 }
 
-.cx-sidebar-peek-top {
-  justify-content: flex-start;
-}
-
 .cx-nav-sticky {
   position: sticky;
   top: 0;
