@@ -2815,6 +2815,7 @@ button.user-message-card__body:not(:disabled):hover,
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
   min-height: 18px;
   gap: 0.5rem;
   padding: 0 0.25rem;
@@ -2827,6 +2828,15 @@ button.user-message-card__body:not(:disabled):hover,
   margin: 0;
   white-space: nowrap;
   color: #a1a1aa;
+}
+
+.glass-chat-status-bar__trailing {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  transform: translateY(-50%);
 }
 
 .ui-menu,
@@ -5832,14 +5842,7 @@ button[data-speed-toggle][data-state="open"] {
 }
 
 .cx-sidebar-peek-top {
-  justify-content: center;
-  padding-left: 48px;
-  padding-right: 48px;
-}
-
-.cx-sidebar-peek-top .clauxen-wordmark {
-  width: 100%;
-  text-align: center;
+  justify-content: flex-start;
 }
 
 .cx-nav-sticky {
@@ -8702,6 +8705,16 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   margin-left: 6px;
 }
 
+.cx-hide-sidebar-spacer {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  flex: none;
+  margin-right: 6px;
+}
+
 .cx-sidebar:not(.is-collapsed) a.cx-nav-btn {
   height: 32px !important;
   min-height: 32px !important;
@@ -8905,21 +8918,6 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   white-space: nowrap;
 }
 
-.cx-sidebar .cx-sidebar-search {
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  min-height: 32px !important;
-  border-radius: 8px !important;
-  padding: 0 !important;
-  color: var(--cx-sidebar-fg);
-}
-
-.cx-sidebar .cx-sidebar-search svg,
-.cx-sidebar .ui-icon-button svg {
-  width: 20px;
-  height: 20px;
-}
 
 .cx-sidebar .glass-sidebar-footer-account-trigger:not(.size-9) {
   height: 32px;

@@ -1085,7 +1085,7 @@ export function PromptInput({
 
     return (
       <>
-        {renderModelSelector()}
+        {!isConversationStarted ? renderModelSelector() : null}
         {renderMicButton()}
         {isGenerating ? (
           hasDraft || attachments.length > 0 ? (
@@ -1446,6 +1446,9 @@ export function PromptInput({
             <p className="glass-chat-status-bar__center">
               Clauxen can make mistakes. Check important info.
             </p>
+            <div className="glass-chat-status-bar__trailing">
+              {renderModelSelector()}
+            </div>
           </div>
         </div>
       ) : null}

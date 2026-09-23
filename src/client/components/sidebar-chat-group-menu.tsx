@@ -20,7 +20,7 @@ const groupOptions: Array<{
   { value: "date", label: "Date" },
 ];
 
-const sidebarGroupTriggerClass =
+export const sidebarSectionIconButtonClass =
   "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-zinc-800/66 shadow-none transition-colors hover:bg-black/[0.04] hover:text-zinc-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10 data-[state=open]:bg-black/[0.04] data-[state=open]:text-zinc-800/80";
 
 export function SidebarChatGroupMenu({
@@ -39,7 +39,7 @@ export function SidebarChatGroupMenu({
           type="button"
           aria-label="Group chats"
           onClick={onClick}
-          className={sidebarGroupTriggerClass}
+          className={sidebarSectionIconButtonClass}
         >
           <SlidersVertical className="size-3.5 shrink-0" strokeWidth={1.5} />
         </button>

@@ -50,7 +50,7 @@ import { StreamingChatTitle } from "./streaming-chat-title";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
-import { SidebarChatGroupMenu } from "./sidebar-chat-group-menu";
+import { SidebarChatGroupMenu, sidebarSectionIconButtonClass } from "./sidebar-chat-group-menu";
 import { groupChats, type ChatGroupBy } from "@/lib/chat-grouping";
 import type { RecentChat } from "@/lib/types";
 
@@ -493,11 +493,9 @@ export function Sidebar({
         <div
           className={cn(
             "ui-sidebar-top-bar relative flex h-11 shrink-0 items-center px-2",
-            isPeekPreview
-              ? "cx-sidebar-peek-top justify-center"
-              : isCollapsed && !isMobileLayout
-                ? "justify-center"
-                : "justify-start",
+            isCollapsed && !isMobileLayout && !isPeekPreview
+              ? "justify-center"
+              : "justify-start",
           )}
         >
           {!isMobileLayout && !isCollapsed && !isPeekPreview ? (
@@ -512,6 +510,8 @@ export function Sidebar({
             >
               <SidebarToggleIcon className="size-5" aria-hidden />
             </button>
+          ) : isPeekPreview ? (
+            <span className="cx-hide-sidebar-spacer" aria-hidden />
           ) : null}
           {!isCollapsed ? (
             <span
@@ -907,9 +907,9 @@ export function Sidebar({
                       event.stopPropagation();
                       setSidebarSearchOpen(true);
                     }}
-                    className="cx-sidebar-search ui-icon-button text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                    className={sidebarSectionIconButtonClass}
                   >
-                    <Search className="size-5 shrink-0" strokeWidth={1.75} />
+                    <Search className="size-3.5 shrink-0" strokeWidth={1.5} />
                   </button>
                 </div>
               ) : null}
