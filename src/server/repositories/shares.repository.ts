@@ -2,6 +2,8 @@ import { createHash, randomBytes } from "crypto";
 import { env } from "@/server/config/env"; // trusted app origin — Host header spoofing avoid
 import { queryOne } from "@/server/db/pool"; // parameterized single-row SQL
 import { AppError } from "@/server/db/errors"; // invalid visibility → 400
+import type { SharedChatSnapshot } from "@/lib/share-public";
+import { sealShareToken } from "@/server/chat/share-token";
 
 const SHARE_VISIBILITIES = ["link", "workspace", "public"] as const;
 type ShareVisibility = (typeof SHARE_VISIBILITIES)[number];
@@ -14,7 +16,8 @@ export type ConversationShareRow = {
   visibility: string; // link | workspace | public — access policy hint
   created_at: string; // share creation time
   revoked_at: string | null; // null = active; timestamp = revoked
-  metadata: Record<string, unknown>; // extra JSON — must not store plaintext share tokens
+  metadata: Record<string, unknown>; // sealed token only — never the raw link secret
+  share_token_hash: string;
 };
 
 function hashShareToken(token: string) {
@@ -48,7 +51,8 @@ function trustedShareBaseUrl(requestedBaseUrl: string): string {
 
 export async function getActiveShareForChat(chatId: string, userId: string) {
   return queryOne<ConversationShareRow>(
-    `select id, chat_id, user_id, visibility, created_at, revoked_at, metadata
+    `select id, chat_id, user_id, visibility, created_at, revoked_at, metadata,
+            share_token_hash
      from public.conversation_shares
      where chat_id = $1 and user_id = $2 and revoked_at is null
      order by created_at desc
@@ -62,28 +66,32 @@ export async function createConversationShare(input: {
   chatId: string;
   visibility?: "link" | "workspace" | "public";
   baseUrl: string;
+  snapshot: SharedChatSnapshot;
 }) {
   const token = randomBytes(24).toString("base64url"); // URL-safe high-entropy secret
   const shareTokenHash = hashShareToken(token);
+  const sealedToken = sealShareToken(token);
   const visibility = resolveShareVisibility(input.visibility);
   const baseUrl = trustedShareBaseUrl(input.baseUrl);
 
   const row = await queryOne<ConversationShareRow>(
     `insert into public.conversation_shares (
-       chat_id, user_id, share_token_hash, visibility, metadata
-     ) values ($1, $2, $3, $4, $5::jsonb)
-     returning id, chat_id, user_id, visibility, created_at, revoked_at, metadata`,
+       chat_id, user_id, share_token_hash, visibility, metadata, snapshot
+     ) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
+     returning id, chat_id, user_id, visibility, created_at, revoked_at, metadata,
+               share_token_hash`,
     [
-      input.chatId, // $1 — shared chat id
-      input.userId, // $2 — creator owner
-      shareTokenHash, // $3 — hashed token for lookup/validation
-      visibility, // $4 — validated visibility enum
-      JSON.stringify({}), // $5 — no plaintext token in DB; hash is sole secret store
+      input.chatId,
+      input.userId,
+      shareTokenHash,
+      visibility,
+      JSON.stringify({ sealedToken }),
+      JSON.stringify(input.snapshot),
     ],
   );
 
-  const shareUrl = `${baseUrl}/share/${token}`; // trusted origin only — open redirect blocked
-  return { share: row, shareUrl, token };
+  const shareUrl = `${baseUrl}/share/${token}`;
+  return { share: row, shareUrl, token, shareTokenHash };
 }
 
 export async function revokeConversationShare(shareId: string, userId: string) {
@@ -91,22 +99,24 @@ export async function revokeConversationShare(shareId: string, userId: string) {
     `update public.conversation_shares
      set revoked_at = now()
      where id = $1 and user_id = $2 and revoked_at is null
-     returning id, chat_id, user_id, visibility, created_at, revoked_at`,
+     returning id, chat_id, user_id, visibility, created_at, revoked_at, metadata,
+               share_token_hash`,
     [shareId, userId],
   );
 }
 
-export async function getShareByToken(token: string) {
+export async function getPublicShareSnapshot(token: string) {
   const shareTokenHash = hashShareToken(token);
-  return queryOne<
-    ConversationShareRow & { share_token_hash: string; chat_title: string | null }
-  >(
-    `select cs.id, cs.chat_id, cs.user_id, cs.visibility, cs.created_at, cs.revoked_at, cs.metadata,
-            c.title as chat_title
-     from public.conversation_shares cs
-     join public.chats c on c.id = cs.chat_id
-     where cs.share_token_hash = $1 and cs.revoked_at is null
+  return queryOne<{
+    visibility: string;
+    expires_at: string | null;
+    snapshot: unknown;
+  }>(
+    `select visibility, expires_at, snapshot
+     from public.conversation_shares
+     where share_token_hash = $1 and revoked_at is null
      limit 1`,
     [shareTokenHash],
   );
 }
+

@@ -117,13 +117,13 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://*.razorpay.com https://cdn.razorpay.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://*.razorpay.com https://cdn.razorpay.com https://challenges.cloudflare.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https: https://*.razorpay.com https://*.rzp.io",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss://streaming.assemblyai.com wss://streaming.us.assemblyai.com wss://streaming.eu.assemblyai.com https://api.razorpay.com https://*.razorpay.com https://checkout.razorpay.com https://*.r2.dev https://*.cloudflarestorage.com https://*.workers.dev https://va.vercel-scripts.com",
-      "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://*.rzp.io",
-      "child-src 'self' https://checkout.razorpay.com https://*.razorpay.com https://*.rzp.io",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss://streaming.assemblyai.com wss://streaming.us.assemblyai.com wss://streaming.eu.assemblyai.com https://api.razorpay.com https://*.razorpay.com https://checkout.razorpay.com https://*.r2.dev https://*.cloudflarestorage.com https://*.workers.dev https://challenges.cloudflare.com https://va.vercel-scripts.com",
+      "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://*.rzp.io https://challenges.cloudflare.com",
+      "child-src 'self' https://checkout.razorpay.com https://*.razorpay.com https://*.rzp.io https://challenges.cloudflare.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self' https://checkout.razorpay.com https://api.razorpay.com",
@@ -208,6 +208,28 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        source: "/share/:path*",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex, nofollow, noarchive, nosnippet, noimageindex",
+          },
+          { key: "Cache-Control", value: "private, no-store" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
+      {
+        source: "/api/v1/share/:path*",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex, nofollow, noarchive, nosnippet, noimageindex",
+          },
+          { key: "Cache-Control", value: "private, no-store" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
       },
       {
         source: "/_next/static/:path*",

@@ -8,7 +8,7 @@ import {
   Copy,
   Globe,
   Link2,
-  Loader2,
+  LoaderCircle,
   Lock,
   X,
 } from "lucide-react";
@@ -179,7 +179,8 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                       Share chat
                     </h2>
                     <p className="mt-2.5 pr-10 text-[13.5px] leading-[1.45] text-[var(--ui-fg-muted)]">
-                      Create a link to share a read-only snapshot of this chat.
+                      Create a link to a saved copy of this chat. Anyone with the
+                    link can view it. Search engines cannot open the messages.
                     </p>
                   </div>
                   <button
@@ -206,7 +207,7 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                   </p>
                 ) : loading ? (
                   <div className="flex items-center gap-2 py-8 text-[13.5px] text-[var(--ui-fg-muted)]">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
                     Loading…
                   </div>
                 ) : (
@@ -237,10 +238,12 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                             Only you can access this chat
                           </span>
                         </span>
-                        {mode === "private" ? (
+                        {mode === "private" && !busy ? (
                           <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[var(--ui-fg)] text-[var(--app-panel-bg)]">
                             <Check className="h-3 w-3" strokeWidth={3} />
                           </span>
+                        ) : busy && mode === "link" ? (
+                          <LoaderCircle className="h-4 w-4 shrink-0 animate-spin text-[var(--ui-fg-placeholder)]" />
                         ) : (
                           <span className="h-[22px] w-[22px] shrink-0" />
                         )}
@@ -272,12 +275,12 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                             Anyone with the link can view
                           </span>
                         </span>
-                        {mode === "link" ? (
+                        {mode === "link" && !busy ? (
                           <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[var(--ui-fg)] text-[var(--app-panel-bg)]">
                             <Check className="h-3 w-3" strokeWidth={3} />
                           </span>
-                        ) : busy ? (
-                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--ui-fg-placeholder)]" />
+                        ) : busy && mode !== "link" ? (
+                          <LoaderCircle className="h-4 w-4 shrink-0 animate-spin text-[var(--ui-fg-placeholder)]" />
                         ) : (
                           <span className="h-[22px] w-[22px] shrink-0" />
                         )}
@@ -329,8 +332,9 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
 
                             {/* Footnote */}
                             <p className="text-[12px] leading-snug text-[var(--ui-fg-muted)]">
-                              Future messages aren&apos;t included until you
-                              create a new link.
+                              This link keeps the chat as it is now. New messages
+                              stay private until you turn the link off and create
+                              it again.
                             </p>
                           </div>
                         </motion.div>

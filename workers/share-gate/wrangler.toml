@@ -1,0 +1,21 @@
+name = "clauxen-share-gate"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "8fc7a67e9057989309921f362784ecf4"
+workers_dev = true
+
+[observability]
+enabled = true
+head_sampling_rate = 0.05
+
+[vars]
+APP_ORIGIN = "https://clauxen.com,https://www.clauxen.com,https://*.vercel.app,http://localhost:9002"
+ALLOW_TEST_TURNSTILE = "false"
+
+# Secrets, set with wrangler (never commit the values):
+#   wrangler secret put SHARE_WORKER_INTERNAL_TOKEN
+#   wrangler secret put TURNSTILE_SECRET_KEY
+[[kv_namespaces]]
+binding = "SHARE_KV"
+id = "6d2743bc64cd4b7c8f304f9edf105fb6"

@@ -199,6 +199,17 @@ export const env = {
   billingWorkerUrl: normalizeBaseUrl(optional("BILLING_WORKER_URL")),
   /** Shared secret for billing Worker internal routes. */
   billingInternalToken: optional("BILLING_INTERNAL_TOKEN"),
+
+  /** Cloudflare share-gate Worker. Public URL is safe to expose; the token is not. */
+  shareWorkerUrl: normalizeBaseUrl(
+    optional("SHARE_WORKER_URL") || optional("NEXT_PUBLIC_SHARE_WORKER_URL"),
+  ),
+  shareWorkerPublicUrl: normalizeBaseUrl(
+    optional("NEXT_PUBLIC_SHARE_WORKER_URL") || optional("SHARE_WORKER_URL"),
+  ),
+  shareWorkerInternalToken: optional("SHARE_WORKER_INTERNAL_TOKEN"),
+  turnstileSiteKey: optional("NEXT_PUBLIC_TURNSTILE_SITE_KEY"),
+  turnstileSecretKey: optional("TURNSTILE_SECRET_KEY"),
   /**
    * Fail closed when the Cloudflare billing Worker is unreachable —
    * never fall back to direct Razorpay calls from Vercel. Production only.

@@ -1344,6 +1344,7 @@ export type Database = {
           metadata: Json
           revoked_at: string | null
           share_token_hash: string
+          snapshot: Json | null
           user_id: string
           visibility: string
         }
@@ -1356,6 +1357,7 @@ export type Database = {
           metadata?: Json
           revoked_at?: string | null
           share_token_hash: string
+          snapshot?: Json | null
           user_id: string
           visibility?: string
         }
@@ -1368,6 +1370,7 @@ export type Database = {
           metadata?: Json
           revoked_at?: string | null
           share_token_hash?: string
+          snapshot?: Json | null
           user_id?: string
           visibility?: string
         }
