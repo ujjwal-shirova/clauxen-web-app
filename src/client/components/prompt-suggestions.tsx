@@ -102,7 +102,7 @@ export function PromptSuggestions({
       }}
       className="w-full overflow-hidden"
     >
-      <div className="w-full bg-[var(--popup-bg)] border border-[var(--popup-border)] rounded-[var(--popup-radius)] shadow-[var(--popup-shadow)] font-sans">
+      <div className="edge-sheen w-full rounded-[var(--popup-radius)] shadow-[var(--popup-shadow)] font-sans">
         <div className="flex h-9 items-center justify-between pl-3 pr-1.5">
           <div className="flex items-center gap-2 text-[var(--ui-fg-muted)]">
             <Icon className="size-3.5 shrink-0 icon-muted" />

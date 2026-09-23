@@ -207,6 +207,7 @@
     --popup-bg: #ffffff;
     --popup-border: rgba(20, 21, 26, 0.1);
     --popup-shadow:
+      inset 0 1px 0 var(--edge-sheen),
       0 1px 2px rgba(20, 21, 26, 0.05), 0 14px 38px -16px rgba(20, 21, 26, 0.22);
     --popup-radius: 12px;
     --popup-radius-lg: 14px;
@@ -224,8 +225,10 @@
     --prompt-control-size: 28px;
     --prompt-editor-min-height: 24px;
     --prompt-shadow:
+      inset 0 1px 0 var(--edge-sheen),
       0 0 0 1px rgba(20, 21, 26, 0.09), 0 3px 12px rgba(20, 21, 26, 0.045);
     --prompt-shadow-focus:
+      inset 0 1px 0 var(--edge-sheen),
       0 0 0 1px rgba(20, 21, 26, 0.18), 0 4px 18px rgba(20, 21, 26, 0.07);
 
     --panel-shadow:
@@ -353,14 +356,17 @@
     --popup-bg: #232326;
     --popup-border: rgba(255, 255, 255, 0.12);
     --popup-shadow:
+      inset 0 1px 0 var(--edge-sheen),
       0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px -14px rgba(0, 0, 0, 0.55);
     --menu-icon-fg: rgba(244, 244, 245, 0.74);
     --menu-chevron-fg: rgba(244, 244, 245, 0.52);
     --menu-hover-wash: rgba(255, 255, 255, 0.06);
     --prompt-shadow:
+      inset 0 1px 0 var(--edge-sheen),
       0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.2),
       0 6px 20px -10px rgba(0, 0, 0, 0.45);
     --prompt-shadow-focus:
+      inset 0 1px 0 var(--edge-sheen),
       0 0 0 1px rgba(255, 255, 255, 0.12), 0 2px 4px rgba(0, 0, 0, 0.25),
       0 12px 32px -12px rgba(0, 0, 0, 0.55);
     --panel-shadow:
@@ -5396,7 +5402,14 @@ button[data-speed-toggle][data-state="open"] {
 
 .ui-menu [role="separator"] {
   margin-block: 4px !important;
-  background: var(--ui-border-subtle, rgba(24, 24, 27, 0.08)) !important;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ui-border-subtle, rgba(24, 24, 27, 0.08)) var(--edge-line-fade),
+    var(--ui-border-subtle, rgba(24, 24, 27, 0.08))
+      calc(100% - var(--edge-line-fade)),
+    transparent
+  ) !important;
 }
 
 /* User actions live in their own row under the bubble, matching the editing
@@ -7307,4 +7320,158 @@ button.prompt-model-selector[aria-expanded="true"] {
   background: var(--cx-accent);
   color: #fffaf4;
   box-shadow: none;
+}
+
+/* ==========================================================================
+   Soft edge fade — thin white sheen on surface edges, content that washes
+   out near scroll edges, and hairlines that fade out at their ends.
+   ========================================================================== */
+
+:root {
+  --edge-sheen: rgba(255, 255, 255, 0.72);
+  --edge-wash: rgba(255, 255, 255, 0.42);
+  --edge-wash-size: 10px;
+  --edge-fade: 12px;
+  --edge-line-fade: 14%;
+}
+
+.dark {
+  --edge-sheen: rgba(255, 255, 255, 0.07);
+  --edge-wash: rgba(255, 255, 255, 0.035);
+}
+
+.cx-sidebar {
+  --edge-sheen: rgba(255, 255, 255, 0.06);
+  --edge-wash: rgba(255, 255, 255, 0.03);
+}
+
+/* Floating surfaces: the border lightens toward the top edge. */
+.ui-menu,
+[data-prompt-add-menu],
+[data-prompt-add-submenu],
+[data-radix-popper-content-wrapper] > [role="dialog"],
+.edge-sheen {
+  border: 1px solid transparent !important;
+  background:
+    linear-gradient(var(--popup-bg), var(--popup-bg)) padding-box,
+    linear-gradient(
+        180deg,
+        var(--edge-sheen),
+        var(--popup-border) 42%,
+        var(--popup-border)
+      )
+      border-box !important;
+}
+
+/* Tinted surfaces: a white wash along the top edge, over the content. */
+[data-prompt-root] [data-prompt-shell]::after,
+.user-message-card__body::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  height: var(--edge-wash-size);
+  border-radius: inherit;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  background: linear-gradient(180deg, var(--edge-wash), transparent);
+  pointer-events: none;
+}
+
+.user-message-card__body {
+  border-color: transparent !important;
+  background:
+    linear-gradient(
+        var(--chat-user-card-bg, #ffffff),
+        var(--chat-user-card-bg, #ffffff)
+      )
+      padding-box,
+    linear-gradient(
+        180deg,
+        var(--edge-sheen),
+        rgba(24, 24, 27, 0.08) 45%,
+        rgba(24, 24, 27, 0.08)
+      )
+      border-box !important;
+}
+
+.dark .user-message-card__body {
+  background:
+    linear-gradient(
+        var(--chat-user-card-bg, #2e241d),
+        var(--chat-user-card-bg, #2e241d)
+      )
+      padding-box,
+    linear-gradient(
+        180deg,
+        var(--edge-sheen),
+        rgba(255, 255, 255, 0.08) 45%,
+        rgba(255, 255, 255, 0.08)
+      )
+      border-box !important;
+}
+
+/* Scroll regions: content fades out at the top and bottom edges. */
+.sidebar-scrollable,
+.new-chat-hero,
+.ui-menu__layout,
+[data-prompt-add-menu] [data-prompt-add-menu-list],
+.edge-fade-y {
+  --edge-fade-top: var(--edge-fade);
+  --edge-fade-bottom: var(--edge-fade);
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent,
+    #000 var(--edge-fade-top),
+    #000 calc(100% - var(--edge-fade-bottom)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent,
+    #000 var(--edge-fade-top),
+    #000 calc(100% - var(--edge-fade-bottom)),
+    transparent
+  );
+}
+
+.sidebar-scrollable {
+  --edge-fade-top: 6px;
+  --edge-fade-bottom: 16px;
+}
+
+.cx-sidebar .cx-nav {
+  padding-top: 6px;
+}
+
+.ui-menu__layout,
+[data-prompt-add-menu] [data-prompt-add-menu-list] {
+  --edge-fade: 4px;
+}
+
+.new-chat-hero {
+  --edge-fade: 20px;
+}
+
+/* Hairlines fade out at both ends instead of stopping flat. */
+.sidebar-account-footer,
+.ui-menu__search-row {
+  border-image: linear-gradient(
+      90deg,
+      transparent,
+      var(--ui-border-subtle) var(--edge-line-fade),
+      var(--ui-border-subtle) calc(100% - var(--edge-line-fade)),
+      transparent
+    )
+    1;
+}
+
+.edge-line-x {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    currentColor var(--edge-line-fade),
+    currentColor calc(100% - var(--edge-line-fade)),
+    transparent
+  );
 }
