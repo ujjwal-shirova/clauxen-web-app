@@ -384,6 +384,12 @@ export async function streamChatGeneration(input: {
   onPauseForUser?: () => void | Promise<void>;
   /** Correlates browser, Vercel, Worker, and provider-side diagnostics. */
   requestId?: string;
+  /**
+   * When the route received the request. The persisted "Worked for Ns" clock
+   * starts here so it matches the live timer the user watched from send,
+   * instead of excluding rate-limit, lease, and turn-insert time.
+   */
+  requestStartedAtMs?: number;
 }) {
   // Kick ownership + personalization + history immediately so Worker/DB RTTs
   // overlap SSE flush and the DO lease — never block Response headers on them.
@@ -515,6 +521,12 @@ export async function streamChatGeneration(input: {
 
   const modelTurns: TranscriptAgentModelTurn[] = [];
   const started = Date.now();
+  const turnStartedAtMs =
+    typeof input.requestStartedAtMs === "number" &&
+    input.requestStartedAtMs > 0 &&
+    input.requestStartedAtMs <= started
+      ? input.requestStartedAtMs
+      : started;
   let answer = "";
   let thinking = "";
   let streamError: string | null = null;
@@ -750,7 +762,7 @@ export async function streamChatGeneration(input: {
       agentUi: {
         model: modelForTelemetry,
         status: "streaming",
-        startedAtMs: started,
+        startedAtMs: turnStartedAtMs,
         thinkingDurationSeconds:
           thinkingAccumulatedMs > 0
             ? Math.max(1, Math.round(thinkingAccumulatedMs / 1000))
@@ -990,7 +1002,7 @@ export async function streamChatGeneration(input: {
         agentUi: {
           model: modelForTelemetry,
           status: completionStatus,
-          startedAtMs: started,
+          startedAtMs: turnStartedAtMs,
           completedAtMs,
           thinkingDurationSeconds,
           modelTurns,
@@ -1143,7 +1155,7 @@ export async function streamChatGeneration(input: {
         agentUi: {
           model: modelForTelemetry,
           status: input.signal?.aborted ? "cancelled" : "failed",
-          startedAtMs: started,
+          startedAtMs: turnStartedAtMs,
           completedAtMs: failedAtMs,
           modelTurns,
           segments: streamedSegments,

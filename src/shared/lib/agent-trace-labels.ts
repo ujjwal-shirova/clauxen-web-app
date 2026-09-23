@@ -215,7 +215,12 @@ export function summarizeTraceSteps(steps: AgentStep[]): string | null {
     );
   }
 
-  return parts.length > 0 ? parts.join(", ") : null;
+  if (parts.length === 0) return null;
+  return parts
+    .map((part, index) =>
+      index === 0 ? part : `${part.charAt(0).toLowerCase()}${part.slice(1)}`,
+    )
+    .join(", ");
 }
 
 /** Diff stats for file-edit steps (+N −M lines). */
@@ -237,6 +242,128 @@ export function formatElapsedSeconds(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   if (totalSeconds < 60) return `${totalSeconds}s`;
   const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  if (minutes < 60) {
+    const seconds = totalSeconds % 60;
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  return remMinutes > 0 ? `${hours}h ${remMinutes}m` : `${hours}h`;
+}
+
+/**
+ * Whole-turn duration for the "Working for / Worked for" header. Live turns
+ * measure to `nowMs`; finished turns use the persisted completion stamp so a
+ * reloaded chat shows the same number the user watched.
+ */
+export function traceElapsedMs(input: {
+  startedAtMs?: number;
+  completedAtMs?: number;
+  steps?: AgentStep[];
+  live: boolean;
+  nowMs?: number;
+}): number | null {
+  const { startedAtMs } = input;
+  if (typeof startedAtMs !== "number" || startedAtMs <= 0) return null;
+  if (input.live) {
+    return Math.max(0, (input.nowMs ?? Date.now()) - startedAtMs);
+  }
+  let end = input.completedAtMs;
+  if (typeof end !== "number" || end < startedAtMs) {
+    end = (input.steps ?? []).reduce(
+      (latest, step) =>
+        typeof step.completedAtMs === "number" && step.completedAtMs > latest
+          ? step.completedAtMs
+          : latest,
+      0,
+    );
+  }
+  if (!end || end < startedAtMs) return null;
+  return end - startedAtMs;
+}
+
+/** Wall time of a single step, or null while unknown. */
+export function stepDurationMs(
+  step: AgentStep,
+  nowMs: number = Date.now(),
+): number | null {
+  if (step.kind === "thinking" && !step.isStreaming) {
+    if (typeof step.durationSeconds === "number" && step.durationSeconds > 0) {
+      return step.durationSeconds * 1000;
+    }
+  }
+  if (typeof step.startedAtMs !== "number") return null;
+  const live =
+    (step.kind === "tool" && step.status === "running") ||
+    (step.kind !== "tool" && step.isStreaming === true);
+  const end = live ? nowMs : step.completedAtMs;
+  if (typeof end !== "number" || end < step.startedAtMs) return null;
+  return end - step.startedAtMs;
+}
+
+/** Per-step duration chip: "0.4s", "2.3s", "14s", "1m 3s". */
+export function formatStepDuration(ms: number): string {
+  if (ms < 10_000) return `${(Math.max(0, ms) / 1000).toFixed(1)}s`;
+  return formatElapsedSeconds(ms);
+}
+
+/** What the agent is doing right now, for the live header subtitle. */
+export function activeStepLabel(steps: AgentStep[]): string | null {
+  for (let index = steps.length - 1; index >= 0; index -= 1) {
+    const step = steps[index];
+    if (step.kind === "tool" && step.status === "running") {
+      return runningToolLabel(step);
+    }
+    if (step.kind === "thinking" && step.isStreaming) return "Thinking";
+  }
+  return null;
+}
+
+export type TraceStepIcon =
+  | "thinking"
+  | "search"
+  | "fetch"
+  | "terminal"
+  | "code"
+  | "read"
+  | "edit"
+  | "skill"
+  | "connector"
+  | "places"
+  | "weather"
+  | "image"
+  | "ask"
+  | "tool";
+
+export function traceStepIcon(step: AgentStep): TraceStepIcon {
+  if (step.kind !== "tool") return "thinking";
+  switch (step.name) {
+    case "web_search":
+      return "search";
+    case "web_fetch":
+      return "fetch";
+    case "bash_tool":
+      return "terminal";
+    case "execute_code":
+      return "code";
+    case "create_file":
+    case "file_write":
+    case "present_files":
+      return "edit";
+    case "read_skill":
+      return "skill";
+    case "places_search":
+      return "places";
+    case "weather":
+    case "weather_fetch":
+      return "weather";
+    case "image_search":
+      return "image";
+    case "ask_user_input_v0":
+      return "ask";
+    default:
+      if (EXPLORE_TOOLS.has(step.name)) return "read";
+      if (step.name.startsWith("mcp__")) return "connector";
+      return "tool";
+  }
 }

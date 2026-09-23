@@ -25,6 +25,7 @@ export const maxDuration = 300;
 
 export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, request, params, requestId }) => {
+    const requestStartedAtMs = Date.now();
     const user = requireSession(session);
     await Promise.all([
       assertDurableRateLimit({
@@ -158,6 +159,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           turn,
           vision,
           signal: generationController.signal,
+          requestStartedAtMs,
           ensureLease: () => generation.lease,
           userCountryCode: resolveRequestCountryCode(request.headers),
           generateChatTitle: body.generateChatTitle,

@@ -122,8 +122,7 @@ export function applyAgentStreamEvent(
       // send-time stamp) — overwriting it with Date.now() here is what made
       // "Working for 2s" snap back to "Working for 0s" when the stream opened.
       const prev = message.agentTrace;
-      const isRetry =
-        prev?.complete === true && (prev.steps?.length ?? 0) > 0;
+      const isRetry = prev?.complete === true;
       const startedAtMs = isRetry
         ? Date.now()
         : (prev?.startedAtMs ?? message.createdAt ?? Date.now());

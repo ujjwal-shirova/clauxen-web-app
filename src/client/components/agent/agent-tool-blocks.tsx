@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ChevronRight,
   MapPin,
-  Terminal,
   FileCode2,
   BookOpen,
   FileText,
@@ -210,7 +209,6 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolStep }) {
   return (
     <div className="w-full min-w-0" data-agent-step="analyzing">
       <AgentTraceBlock
-        leading={<Terminal className="h-4 w-4 text-zinc-500" />}
         title={
           <AgentStepTitle
             verb={
@@ -241,7 +239,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolStep }) {
           ) : undefined
         }
         isActive={isRunning}
-        defaultExpanded={false}
+        defaultExpanded={isRunning || failed}
         chevronMode="hover"
         className="agent-bash-block"
         headerClassName="agent-bash-block__header"
@@ -305,7 +303,7 @@ export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolStep }) {
           />
         }
         isActive={isRunning}
-        defaultExpanded={false}
+        defaultExpanded={isRunning || isError}
         chevronMode="hover"
         className="agent-execute-code-block"
         headerClassName="agent-execute-code-block__header"
@@ -564,27 +562,43 @@ function WebSearchSourcesHover({
   );
 }
 
-export function AgentWebSearchBlock({ tool }: { tool: AgentToolStep }) {
+export function AgentWebSearchBlock({
+  tool,
+  variant = "row",
+}: {
+  tool: AgentToolStep;
+  /** "query" drops the verb for rows nested under a grouped search header. */
+  variant?: "row" | "query";
+}) {
   const isRunning = tool.status === "running";
   const query =
     tool.searchQuery ||
     (typeof tool.args?.query === "string" ? tool.args.query : "") ||
     "";
   const results = useMemo(() => tool.searchResults ?? [], [tool.searchResults]);
-  const favicons = useMemo(
-    () => extractFavicons(results),
-    [tool.searchResults],
-  );
+  const favicons = useMemo(() => extractFavicons(results), [results]);
   const resultCount = results.length;
 
-  const title = (
-    <AgentStepTitle
-      verb={isRunning ? "Searching the web" : "Searched the web"}
-      detail={query || undefined}
-      streaming={isRunning}
-      streamKey={`ws-live-${tool.toolCallId}`}
-    />
-  );
+  const title =
+    variant === "query" ? (
+      <AgentShimmerText key={`ws-q-${tool.toolCallId}`} active={isRunning}>
+        <span
+          className={cn(
+            "agent-activity-label--muted",
+            tool.status === "error" && "text-rose-500",
+          )}
+        >
+          {query || "the web"}
+        </span>
+      </AgentShimmerText>
+    ) : (
+      <AgentStepTitle
+        verb={isRunning ? "Searching the web" : "Searched the web"}
+        detail={query || undefined}
+        streaming={isRunning}
+        streamKey={`ws-live-${tool.toolCallId}`}
+      />
+    );
 
   if (isRunning && resultCount === 0) {
     return (
@@ -662,7 +676,7 @@ export function AgentFileReadBlock({ tool }: { tool: AgentToolStep }) {
         }
         trailing={undefined}
         isActive={isRunning}
-        defaultExpanded={false}
+        defaultExpanded={isRunning}
         chevronMode="hover"
         className="agent-file-read"
         headerClassName="agent-file-read__header"
@@ -752,7 +766,7 @@ export function AgentReadSkillBlock({ tool }: { tool: AgentToolStep }) {
         }
         trailing={<BookOpen className="h-3.5 w-3.5 shrink-0 text-zinc-300" />}
         isActive={isRunning}
-        defaultExpanded={false}
+        defaultExpanded={isRunning}
         chevronMode="hover"
         className="agent-read-skill"
         headerClassName="agent-read-skill__header"
@@ -828,7 +842,7 @@ export function AgentMcpToolBlock({ tool }: { tool: AgentToolStep }) {
         }
         trailing={<Plug className="h-3.5 w-3.5 shrink-0 text-zinc-300" />}
         isActive={isRunning}
-        defaultExpanded={false}
+        defaultExpanded={isRunning || isError}
         showChevron
         className="agent-mcp-tool"
         headerClassName="agent-mcp-tool__header"
@@ -1224,7 +1238,7 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolStep }) {
           )
         }
         isActive={isRunning}
-        defaultExpanded={false}
+        defaultExpanded={isRunning || isError}
         showChevron
         className="agent-generic-tool"
         headerClassName="agent-generic-tool__header"

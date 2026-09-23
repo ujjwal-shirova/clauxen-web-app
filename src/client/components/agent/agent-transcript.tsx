@@ -14,7 +14,7 @@ import {
   isAssistantGenerationError,
   toUserFacingChatError,
 } from "@/lib/assistant-generation-error";
-import { AgentTraceView, AgentWorkingRow } from "./agent-trace-view";
+import { AgentTraceView } from "./agent-trace-view";
 
 const EMPTY_AGENT_STEPS: AgentStep[] = [];
 
@@ -71,10 +71,32 @@ export function AgentTranscriptView({
       !answer,
   );
 
-  if (!hasTranscript && !answer && !streaming) return null;
+  const hasTurnClock =
+    typeof (trace?.startedAtMs ?? message.createdAt) === "number";
+  if (!hasTranscript && !answer && !streaming && !trace) return null;
 
   const stableMessageKey = messageUiKey(message);
-  const showWorking = streaming && !answer && !awaitingInput;
+  const isWorking = streaming && active && !awaitingInput;
+  const showTrace =
+    hasTranscript ||
+    isWorking ||
+    (trace?.complete === true && hasTurnClock);
+
+  const renderNarration = (step: AgentNarrationStep) => (
+    <div
+      className="agent-answer-body agent-intermediate-narration agent-narration"
+      data-agent-intermediate-narration="true"
+    >
+      <AssistantContentRenderer
+        content={step.content}
+        messageId={message.id}
+        isStreaming={active && step.isStreaming === true}
+        streamKey={`${stableMessageKey}-narration-${step.id}`}
+        detailLevel={detailLevel}
+        {...({ sources } as any)}
+      />
+    </div>
+  );
 
   return (
     <div
@@ -83,32 +105,13 @@ export function AgentTranscriptView({
       data-assistant-content="true"
       data-agent-transcript-root="true"
     >
-      {narrationSteps.map((step) => (
-        <div
-          key={step.id}
-          className="agent-answer-body agent-intermediate-narration agent-narration"
-          data-agent-intermediate-narration="true"
-        >
-          <AssistantContentRenderer
-            content={step.content}
-            messageId={message.id}
-            isStreaming={active && step.isStreaming === true}
-            streamKey={`${stableMessageKey}-narration-${step.id}`}
-            detailLevel={detailLevel}
-            {...({ sources } as any)}
-          />
-        </div>
-      ))}
-      {showWorking && activitySteps.length === 0 ? (
-        <AgentWorkingRow
-          startedAtMs={trace?.startedAtMs ?? message.createdAt}
-        />
-      ) : null}
-      {activitySteps.length > 0 ? (
+      {showTrace ? (
         <AgentTraceView
-          steps={activitySteps}
-          isActive={active && !answer && !awaitingInput}
-          startedAtMs={trace?.startedAtMs}
+          steps={traceSteps}
+          renderNarration={renderNarration}
+          isActive={isWorking && !answer}
+          isWorking={isWorking}
+          startedAtMs={trace?.startedAtMs ?? message.createdAt}
           completedAtMs={trace?.completedAtMs}
           keepExpanded={awaitingInput}
         />

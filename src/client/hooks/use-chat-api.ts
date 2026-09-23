@@ -1577,10 +1577,16 @@ export function useChatApi(
           // Forked turns (edit/redo/retry) reach the stream without an
           // optimistic trace — seed one so the Working-for clock is stable
           // from the first paint instead of starting at the `start` event.
-          agentTrace: existing?.agentTrace ?? {
-            steps: [],
-            startedAtMs: existing?.createdAt ?? Date.now(),
-          },
+          agentTrace:
+            existing?.agentTrace && existing.agentTrace.complete !== true
+              ? existing.agentTrace
+              : {
+                  steps: [],
+                  startedAtMs:
+                    existing && !existing.agentTrace?.complete
+                      ? (existing.createdAt ?? Date.now())
+                      : Date.now(),
+                },
         });
       }
 

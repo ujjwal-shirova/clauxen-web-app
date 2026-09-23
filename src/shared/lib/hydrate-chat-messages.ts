@@ -394,8 +394,13 @@ export function hydrateMessageFromContentJson(
   const persistedSegments =
     modelSegments.length > 0 ? modelSegments : legacySegments;
 
+  const hasStampedTurnClock =
+    typeof agentUi?.startedAtMs === "number" &&
+    agentUi.startedAtMs > 0 &&
+    typeof agentUi.completedAtMs === "number" &&
+    agentUi.completedAtMs >= agentUi.startedAtMs;
   const trace =
-    persistedSegments.length > 0
+    persistedSegments.length > 0 || hasStampedTurnClock
       ? {
           steps: persistedSegments,
           complete: true,
@@ -410,7 +415,7 @@ export function hydrateMessageFromContentJson(
     thinkingContent: hasThinking ? thinking : base.thinkingContent,
     hasThinking: hasThinking || base.hasThinking,
     thinkingDurationSeconds: thinkingDuration ?? base.thinkingDurationSeconds,
-    agentMode: hasAgentSegments || base.agentMode,
+    agentMode: hasAgentSegments || Boolean(trace) || base.agentMode,
     agentFrameComplete: trace ? true : base.agentFrameComplete,
     agentTrace: trace ?? base.agentTrace,
     agentArtifacts:
