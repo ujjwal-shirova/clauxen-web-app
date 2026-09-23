@@ -15,7 +15,9 @@ import {
   Languages,
   Sparkles,
   X,
+  FolderKanban,
   Library,
+  Puzzle,
   Search,
 } from "lucide-react";
 import { SidebarToggleIcon } from "./icons";
@@ -29,6 +31,7 @@ import {
   readCachedBillingPlan,
   writeCachedBillingPlan,
 } from "@/lib/billing-plan-cache";
+import { ChatSearchDialog } from "./chat-search-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,11 +47,6 @@ import {
 import { TypingDots } from "./ui/typing-dots";
 import { Skeleton } from "./ui/skeleton";
 import { StreamingChatTitle } from "./streaming-chat-title";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
@@ -244,17 +242,6 @@ export function Sidebar({
   const [planLoading, setPlanLoading] = useState(() => !cachedPlan);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [sidebarSearchOpen, setSidebarSearchOpen] = useState(false);
-  const [sidebarSearchQuery, setSidebarSearchQuery] = useState("");
-
-  const sidebarSearchResults = useMemo(() => {
-    const query = sidebarSearchQuery.trim().toLocaleLowerCase();
-    if (!query) return recentChats.slice(0, 8);
-    return recentChats
-      .filter((chat) =>
-        (chat.name || "New Chat").toLocaleLowerCase().includes(query),
-      )
-      .slice(0, 8);
-  }, [recentChats, sidebarSearchQuery]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -506,9 +493,11 @@ export function Sidebar({
         <div
           className={cn(
             "ui-sidebar-top-bar relative flex h-11 shrink-0 items-center px-2",
-            isCollapsed && !isMobileLayout
-              ? "justify-center"
-              : "justify-start",
+            isPeekPreview
+              ? "cx-sidebar-peek-top justify-center"
+              : isCollapsed && !isMobileLayout
+                ? "justify-center"
+                : "justify-start",
           )}
         >
           {!isMobileLayout && !isCollapsed && !isPeekPreview ? (
@@ -550,11 +539,7 @@ export function Sidebar({
           ) : null}
         </div>
 
-        <div
-          className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
-          data-scroll-region=""
-        >
-          <nav className="cx-nav" aria-label="Primary">
+        <nav className="cx-nav cx-nav-sticky shrink-0" aria-label="Primary">
             <AppHref
               href={APP_ROUTES.newChat}
               replace
@@ -595,8 +580,50 @@ export function Sidebar({
               </span>
               {isCollapsed && !isMobileLayout ? null : <span>Library</span>}
             </AppHref>
-          </nav>
+            <AppHref
+              href={APP_ROUTES.projects}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isPlainLeftClick(e)) return;
+                if (isMobileLayout) onNavigate?.();
+              }}
+              aria-label="Projects"
+              aria-current={activeView === "projects" ? "page" : undefined}
+              className={cn(
+                "cx-nav-btn",
+                activeView === "projects" && "is-active",
+              )}
+            >
+              <span className="cx-nav-icon">
+                <FolderKanban strokeWidth={1.75} />
+              </span>
+              {isCollapsed && !isMobileLayout ? null : <span>Projects</span>}
+            </AppHref>
+            <AppHref
+              href={APP_ROUTES.plugins}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isPlainLeftClick(e)) return;
+                if (isMobileLayout) onNavigate?.();
+              }}
+              aria-label="Plugins"
+              aria-current={activeView === "plugins" ? "page" : undefined}
+              className={cn(
+                "cx-nav-btn",
+                activeView === "plugins" && "is-active",
+              )}
+            >
+              <span className="cx-nav-icon">
+                <Puzzle strokeWidth={1.75} />
+              </span>
+              {isCollapsed && !isMobileLayout ? null : <span>Plugins</span>}
+            </AppHref>
+        </nav>
 
+        <div
+          className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+          data-scroll-region=""
+        >
           <div
             className={cn(
               "space-y-px pb-1",
@@ -870,83 +897,38 @@ export function Sidebar({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {!isCollapsed ? (
+              {!isCollapsed && !isPeekPreview ? (
                 <div className="flex shrink-0 items-center gap-0.5">
-                  {!isPeekPreview ? (
-                    <Popover
-                    open={sidebarSearchOpen}
-                    onOpenChange={(open) => {
-                      setSidebarSearchOpen(open);
-                      if (!open) setSidebarSearchQuery("");
+                  <button
+                    type="button"
+                    aria-label="Search chats"
+                    title="Search chats"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSidebarSearchOpen(true);
                     }}
+                    className="cx-sidebar-search ui-icon-button text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                   >
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label="Search chats"
-                        title="Search chats"
-                        className="cx-sidebar-search ui-icon-button text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] data-[state=open]:bg-[var(--ui-hover-wash)] data-[state=open]:text-[var(--ui-fg)]"
-                      >
-                        <Search className="size-4" strokeWidth={1.75} />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      side="top"
-                      align="end"
-                      sideOffset={6}
-                      collisionPadding={10}
-                      className="z-[70] w-[min(calc(92vw-1.5rem),256px)] rounded-[12px] border border-[var(--popup-border)] bg-[var(--popup-bg)] p-1 shadow-[var(--popup-shadow)]"
-                    >
-                      <div className="flex h-8 items-center gap-1.5 rounded-[8px] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-2 focus-within:border-[var(--ui-field-focus-border)]">
-                        <Search
-                          className="size-3.5 shrink-0 text-[var(--ui-fg-placeholder)]"
-                          strokeWidth={1.7}
-                          aria-hidden
-                        />
-                        <input
-                          autoFocus
-                          value={sidebarSearchQuery}
-                          onChange={(event) =>
-                            setSidebarSearchQuery(event.target.value)
-                          }
-                          placeholder="Search chats"
-                          aria-label="Search chat history"
-                          className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)]"
-                        />
-                      </div>
-                      <div className="mt-1 max-h-64 space-y-px overflow-y-auto">
-                        {sidebarSearchResults.length ? (
-                          sidebarSearchResults.map((chat) => (
-                            <AppHref
-                              key={chat.id}
-                              href={APP_ROUTES.chat(chat.id)}
-                              onClick={() => {
-                                setSidebarSearchOpen(false);
-                                onSelectChat(chat);
-                                if (isMobileLayout) onNavigate?.();
-                              }}
-                              className="flex h-[30px] w-full items-center rounded-[7px] px-2 text-left text-[13px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                            >
-                              <span className="truncate">
-                                {chat.name || "New Chat"}
-                              </span>
-                            </AppHref>
-                          ))
-                        ) : (
-                          <p className="px-2 py-4 text-center text-[12px] text-[var(--ui-fg-muted)]">
-                            No chats found
-                          </p>
-                        )}
-                      </div>
-                    </PopoverContent>
-                    </Popover>
-                  ) : null}
+                    <Search className="size-4" strokeWidth={1.75} />
+                  </button>
                 </div>
               ) : null}
             </div>
           </div>
         )}
       </nav>
+      <ChatSearchDialog
+        open={sidebarSearchOpen}
+        onOpenChange={setSidebarSearchOpen}
+        onSelectChat={(chat) => {
+          onSelectChat({
+            id: chat.id,
+            name: chat.name,
+            pinned: false,
+          });
+          if (isMobileLayout) onNavigate?.();
+        }}
+      />
       <RenameChatDialog
         open={renameChatId != null}
         onOpenChange={(open) => {

@@ -15,7 +15,6 @@ import {
   CloudSun,
   Code2,
   FileText,
-  Globe2,
   ImageIcon,
   Link2,
   MapPin,
@@ -35,28 +34,26 @@ import type {
 } from "@/lib/agent-trace";
 import { cn } from "@/lib/utils";
 import {
-  activeStepLabel,
   formatElapsedSeconds,
-  formatStepDuration,
-  stepDurationMs,
-  summarizeTraceSteps,
+  toolTraceFamily,
+  toolTraceFamilyLabel,
   traceElapsedMs,
   traceStepIcon,
+  type ToolTraceFamily,
   type TraceStepIcon,
 } from "@/lib/agent-trace-labels";
 import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 import { StreamingTextFade } from "@/lib/streaming-text-fade";
 import { AgentToolBlock, AgentWebSearchBlock } from "./agent-tool-blocks";
-import { AgentShimmerText } from "./agent-trace-primitives";
+import { AgentShimmerText, AgentTraceBlock } from "./agent-trace-primitives";
+import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
 
 /**
- * Agent trace — the visible "what the agent did" ledger for one turn.
+ * Agent trace for one turn.
  *
- *   header    live "Working for 12s · Searching for …" while the turn runs,
- *             settling into a persisted "Worked for 12s · Ran 2 searches"
- *             receipt that toggles the timeline.
- *   timeline  one row per step on a vertical rail: typed icon node, the
- *             step's own expandable detail block, and its wall time.
+ * Narration stays outside every tree, as prose between tool calls.
+ * Each run of the same kind of tool (web search, command, MCP, …) is its
+ * own collapsible. There is no parent "Worked for" tree.
  */
 
 const STEP_ICONS: Record<TraceStepIcon, LucideIcon> = {
@@ -344,70 +341,6 @@ export function AgentWorkingRow({
   );
 }
 
-/* ─────────────────────────── timeline ─────────────────────────── */
-
-type TraceDisplayRow =
-  | { kind: "step"; id: string; step: AgentStep }
-  | { kind: "searches"; id: string; tools: AgentToolStep[] };
-
-function groupTraceRows(steps: AgentStep[]): TraceDisplayRow[] {
-  const rows: TraceDisplayRow[] = [];
-  for (const step of steps) {
-    if (step.kind === "tool" && step.name === "web_search") {
-      const previous = rows[rows.length - 1];
-      if (previous?.kind === "searches") {
-        previous.tools.push(step);
-      } else {
-        rows.push({ kind: "searches", id: `searches-${step.id}`, tools: [step] });
-      }
-      continue;
-    }
-    rows.push({ kind: "step", id: step.id, step });
-  }
-  return rows;
-}
-
-type NodeStatus = "running" | "done" | "error";
-
-function stepStatus(step: AgentStep): NodeStatus {
-  if (step.kind === "tool") return step.status;
-  return step.isStreaming ? "running" : "done";
-}
-
-function TimelineRow({
-  icon,
-  status,
-  durationMs,
-  children,
-}: {
-  /** null renders a quiet dot — used for interleaved narration prose. */
-  icon: TraceStepIcon | null;
-  status: NodeStatus;
-  durationMs?: number | null;
-  children: ReactNode;
-}) {
-  const Icon = icon ? STEP_ICONS[icon] : null;
-  return (
-    <li
-      className="agent-run__step agent-trace-enter"
-      data-status={status}
-      data-icon={icon ?? "narration"}
-    >
-      <span className="agent-run__node" aria-hidden>
-        {Icon ? (
-          <Icon className="agent-run__node-icon" strokeWidth={1.8} />
-        ) : (
-          <span className="agent-run__node-dot" />
-        )}
-      </span>
-      <div className="agent-run__step-body">{children}</div>
-      <span className="agent-run__step-meta">
-        {typeof durationMs === "number" ? formatStepDuration(durationMs) : null}
-      </span>
-    </li>
-  );
-}
-
 function ThinkingStepContent({ step }: { step: AgentThinkingStep }) {
   const streaming = step.isStreaming === true;
   const content = step.content?.trim() ?? "";
@@ -484,179 +417,113 @@ function ThinkingStepContent({ step }: { step: AgentThinkingStep }) {
   );
 }
 
-function SearchGroupContent({ tools }: { tools: AgentToolStep[] }) {
-  const running = tools.some((tool) => tool.status === "running");
-  const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const expanded = userExpanded ?? running;
-  const sourceCount = tools.reduce(
-    (total, tool) => total + (tool.searchResults?.length ?? 0),
-    0,
-  );
-  const detail =
-    tools.length === 1
-      ? tools[0].searchQuery ||
-        (typeof tools[0].args?.query === "string" ? tools[0].args.query : "")
-      : `${tools.length} queries`;
+/* ─────────────────────────── interleaved segments ─────────────────────────── */
 
-  return (
-    <div className="agent-search-group min-w-0">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() =>
-          preserveScrollAnchorOnToggle(buttonRef.current, () => {
-            setUserExpanded(!expanded);
-          })
-        }
-        className="agent-run__step-title group/search no-hover no-hover-overlay w-full min-w-0"
-        aria-expanded={expanded}
-        title={detail || undefined}
-      >
-        <AgentShimmerText active={running} className="min-w-0 flex-1 truncate">
-          <span className="agent-activity-label--primary">
-            {running ? "Searching the web" : "Searched the web"}
-          </span>
-          {detail ? (
-            <span className="agent-activity-label--subtle"> {detail}</span>
-          ) : null}
-        </AgentShimmerText>
-        {sourceCount > 0 && !running ? (
-          <span className="agent-run__pill">
-            {sourceCount} {sourceCount === 1 ? "source" : "sources"}
-          </span>
-        ) : null}
-        <ChevronRight
-          className={cn(
-            "agent-run__inline-chevron group-hover/search:opacity-100",
-            expanded && "rotate-90 opacity-100",
-          )}
-          aria-hidden
-        />
-      </button>
-      <div
-        className={cn(
-          "grid transition-[grid-template-rows,opacity] duration-200",
-          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
-        )}
-        aria-hidden={!expanded}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <ul className="agent-run__search-list">
-            {tools.map((tool) => (
-              <li key={tool.id} className="flex min-w-0 items-center gap-2">
-                <Globe2
-                  className="size-3.5 shrink-0 text-zinc-400"
-                  strokeWidth={1.8}
-                  aria-hidden
-                />
-                <AgentWebSearchBlock tool={tool} variant="query" />
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
+type TraceSegment =
+  | { kind: "narration"; id: string; step: AgentNarrationStep }
+  | { kind: "thinking"; id: string; step: AgentThinkingStep }
+  | {
+      kind: "tools";
+      id: string;
+      family: ToolTraceFamily;
+      tools: AgentToolStep[];
+    };
+
+/** Split a turn so narration never sits inside a tool tree. */
+function partitionTrace(steps: AgentStep[]): TraceSegment[] {
+  const segments: TraceSegment[] = [];
+  let buffer: AgentToolStep[] = [];
+  let family: ToolTraceFamily | null = null;
+
+  const flush = () => {
+    if (!buffer.length || !family) return;
+    segments.push({
+      kind: "tools",
+      id: `tools-${buffer[0].id}`,
+      family,
+      tools: buffer,
+    });
+    buffer = [];
+    family = null;
+  };
+
+  for (const step of steps) {
+    if (step.kind === "narration") {
+      flush();
+      if (!step.isFinal && step.content.trim()) {
+        segments.push({ kind: "narration", id: step.id, step });
+      }
+      continue;
+    }
+    if (step.kind === "thinking") {
+      flush();
+      segments.push({ kind: "thinking", id: step.id, step });
+      continue;
+    }
+    const nextFamily = toolTraceFamily(step.name);
+    if (family && nextFamily !== family) flush();
+    family = nextFamily;
+    buffer.push(step);
+  }
+  flush();
+  return segments;
 }
 
-function TraceTimeline({
-  steps,
-  nowMs,
-  renderNarration,
+function ToolGroupTree({
+  family,
+  tools,
+  forceOpen,
 }: {
-  steps: AgentStep[];
-  nowMs: number;
-  renderNarration?: (step: AgentNarrationStep) => ReactNode;
+  family: ToolTraceFamily;
+  tools: AgentToolStep[];
+  forceOpen?: boolean;
 }) {
-  const rows = useMemo(() => groupTraceRows(steps), [steps]);
-  if (rows.length === 0) return null;
+  const live = tools.some((tool) => tool.status === "running");
+  const failed = tools.some((tool) => tool.status === "error");
+  const label = toolTraceFamilyLabel(family, tools.length, live);
+  const iconName = traceStepIcon(tools[0]);
+  const Icon = STEP_ICONS[iconName];
+
   return (
-    <ol className="agent-run__timeline" data-agent-trace-steps="true">
-      {rows.map((row) => {
-        if (row.kind === "searches") {
-          const status: NodeStatus = row.tools.some((t) => t.status === "running")
-            ? "running"
-            : row.tools.every((t) => t.status === "error")
-              ? "error"
-              : "done";
-          const started = Math.min(
-            ...row.tools.map((t) => t.startedAtMs ?? Number.POSITIVE_INFINITY),
-          );
-          const ended =
-            status === "running"
-              ? nowMs
-              : Math.max(...row.tools.map((t) => t.completedAtMs ?? 0));
-          const durationMs =
-            Number.isFinite(started) && ended >= started ? ended - started : null;
-          if (row.tools.length === 1) {
-            return (
-              <TimelineRow
-                key={row.id}
-                icon="search"
-                status={status}
-                durationMs={durationMs}
-              >
-                <AgentWebSearchBlock tool={row.tools[0]} />
-              </TimelineRow>
-            );
-          }
-          return (
-            <TimelineRow
-              key={row.id}
-              icon="search"
-              status={status}
-              durationMs={durationMs}
-            >
-              <SearchGroupContent tools={row.tools} />
-            </TimelineRow>
-          );
-        }
-        const step = row.step;
-        const status = stepStatus(step);
-        if (step.kind === "thinking") {
-          return (
-            <TimelineRow key={row.id} icon="thinking" status={status}>
-              <ThinkingStepContent step={step} />
-            </TimelineRow>
-          );
-        }
-        if (step.kind === "narration") {
-          if (!renderNarration) return null;
-          return (
-            <TimelineRow key={row.id} icon={null} status={status}>
-              {renderNarration(step)}
-            </TimelineRow>
-          );
-        }
-        return (
-          <TimelineRow
-            key={row.id}
-            icon={traceStepIcon(step)}
-            status={status}
-            durationMs={stepDurationMs(step, nowMs)}
-          >
-            <AgentToolBlock tool={step} />
-          </TimelineRow>
-        );
-      })}
-    </ol>
+    <AgentTraceBlock
+      className="agent-tool-tree"
+      title={
+        <AgentShimmerText active={live}>
+          <span className={failed ? "text-rose-500" : "agent-activity-label--primary"}>
+            {failed && !live ? `${label} failed` : label}
+          </span>
+        </AgentShimmerText>
+      }
+      leading={<Icon className="size-4" strokeWidth={1.8} aria-hidden />}
+      chevronMode="always"
+      defaultExpanded={Boolean(forceOpen) || live}
+      isActive={live}
+    >
+      <div className="flex min-w-0 flex-col gap-2 pt-1">
+        {tools.map((tool) =>
+          tool.name === "web_search" ? (
+            <AgentWebSearchBlock key={tool.id} tool={tool} />
+          ) : (
+            <AgentToolBlock key={tool.id} tool={tool} />
+          ),
+        )}
+      </div>
+    </AgentTraceBlock>
   );
 }
 
 /* ─────────────────────────── trace view ─────────────────────────── */
 
 /**
- * The whole agent trace for a turn. `isWorking` drives the header clock (the
- * turn has not finished); `isActive` keeps the timeline open while steps are
- * still streaming and no answer has started.
+ * Ordered agent activity for one turn. Narration renders as prose between
+ * tool trees. Each tree covers one kind of tool call and collapses on its own.
  */
 export function AgentTraceView({
   steps,
   isActive,
   isWorking = isActive,
-  startedAtMs,
-  completedAtMs,
+  startedAtMs: _startedAtMs,
+  completedAtMs: _completedAtMs,
   keepExpanded,
   renderNarration,
 }: {
@@ -667,7 +534,7 @@ export function AgentTraceView({
   completedAtMs?: number;
   /** Actionable traces (for example ask-user-input) must remain visible. */
   keepExpanded?: boolean;
-  /** When provided, interim narration renders in order inside the timeline. */
+  /** Interim narration, rendered outside every tool tree. */
   renderNarration?: (step: AgentNarrationStep) => ReactNode;
 }) {
   const visibleSteps = useMemo(
@@ -681,91 +548,54 @@ export function AgentTraceView({
       ),
     [renderNarration, steps],
   );
-  const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const latchedStart = useLatchedStartedAtMs(startedAtMs);
-  const now = useTickingNow(isWorking);
+  const segments = useMemo(
+    () => partitionTrace(visibleSteps),
+    [visibleSteps],
+  );
 
-  const elapsedMs = traceElapsedMs({
-    startedAtMs: latchedStart,
-    completedAtMs,
-    steps: visibleSteps,
-    live: isWorking,
-    nowMs: now,
-  });
-  const hasSteps = visibleSteps.length > 0;
-
-  if (!hasSteps) {
-    if (isWorking) {
-      return (
-        <div className="agent-run agent-trace-enter" data-agent-trace-view="true">
-          <AgentRunHeader
-            live
-            elapsedMs={elapsedMs}
-            expandable={false}
-            expanded={false}
-          />
-        </div>
-      );
-    }
-    if (elapsedMs === null) return null;
+  if (segments.length === 0) {
+    if (!isWorking) return null;
     return (
-      <div className="agent-run" data-agent-completed-trace="true">
-        <AgentRunHeader
-          live={false}
-          elapsedMs={elapsedMs}
-          expandable={false}
-          expanded={false}
-        />
+      <div className="flex items-center py-1" data-agent-trace-view="true">
+        <StreamingOrbCursor />
       </div>
     );
   }
 
-  const expanded = keepExpanded || (userExpanded ?? isActive);
-  const failedCount = visibleSteps.filter(
-    (step) => step.kind === "tool" && step.status === "error",
-  ).length;
-  const subtitle = isWorking
-    ? (activeStepLabel(visibleSteps) ?? (isActive ? null : "Writing answer"))
-    : summarizeTraceSteps(visibleSteps);
-
   return (
     <div
-      className="agent-run"
+      className="agent-trace-flow flex w-full min-w-0 flex-col gap-3"
       data-agent-trace-view="true"
       data-agent-completed-trace={!isWorking || undefined}
-      data-expanded={expanded || undefined}
-      data-live={isWorking || undefined}
+      data-live={isWorking || isActive || undefined}
     >
-      <AgentRunHeader
-        live={isWorking}
-        elapsedMs={elapsedMs}
-        subtitle={subtitle}
-        failedCount={failedCount}
-        expandable={!keepExpanded}
-        expanded={expanded}
-        buttonRef={buttonRef}
-        onToggle={() =>
-          preserveScrollAnchorOnToggle(buttonRef.current, () => {
-            setUserExpanded(!expanded);
-          })
+      {segments.map((segment) => {
+        if (segment.kind === "narration") {
+          return (
+            <div
+              key={segment.id}
+              className="agent-trace-narration min-w-0"
+              data-agent-narration="true"
+            >
+              {renderNarration?.(segment.step)}
+            </div>
+          );
         }
-      />
-      <div
-        className={cn(
-          "grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
-        )}
-        aria-hidden={!expanded}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <TraceTimeline
-            steps={visibleSteps}
-            nowMs={now}
-            renderNarration={renderNarration}
+        if (segment.kind === "thinking") {
+          return <ThinkingStepContent key={segment.id} step={segment.step} />;
+        }
+        const askOpen = segment.tools.some(
+          (tool) => tool.name === "ask_user_input_v0",
+        );
+        return (
+          <ToolGroupTree
+            key={segment.id}
+            family={segment.family}
+            tools={segment.tools}
+            forceOpen={Boolean(keepExpanded) && askOpen}
           />
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
 }

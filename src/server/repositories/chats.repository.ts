@@ -60,6 +60,37 @@ export async function listChatsForUser(
   );
 }
 
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/** Title search across the user's chats. Empty query returns the recent window. */
+export async function searchChatsForUser(
+  userId: string,
+  rawQuery: string,
+  options?: { limit?: number },
+) {
+  const queryText = rawQuery.trim().slice(0, 80);
+  const rawLimit = options?.limit ?? 40;
+  const limit = Math.min(
+    MAX_LIST_LIMIT,
+    Math.max(1, Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 40),
+  );
+  if (!queryText) {
+    return listChatsForUser(userId, { limit });
+  }
+  return query<ChatRow>(
+    `select id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at
+     from public.chats
+     where user_id = $1
+       and status != 'deleted'
+       and title ilike $2 escape '\\'
+     order by updated_at desc
+     limit $3`,
+    [userId, `%${escapeLike(queryText)}%`, limit],
+  );
+}
+
 export async function getChatForUser(chatId: string, userId: string) {
   return queryOne<ChatRow>(
     `select id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at

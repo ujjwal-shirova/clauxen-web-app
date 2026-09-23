@@ -84,6 +84,8 @@ export const APP_ROUTES = {
   newChat: "/new",
   home: "/new",
   library: "/library",
+  projects: "/projects",
+  plugins: "/plugins",
   /** @deprecated Removed — Customize nav opens settings Skills. Kept for redirects. */
   customize: "/customize",
   myClauxen: "/my-clauxen",

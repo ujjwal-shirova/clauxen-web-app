@@ -140,13 +140,12 @@ function dedupeTranscriptSources(
   return [...byUrl.values()];
 }
 
-export async function listRecentChats(userId: string) {
-  const [chats, pinned] = await Promise.all([
-    chatsRepo.listChatsForUser(userId),
-    pinnedChatsRepo.listPinnedChats(userId),
-  ]);
+async function mapChatsWithPins(
+  userId: string,
+  chats: Awaited<ReturnType<typeof chatsRepo.listChatsForUser>>,
+) {
+  const pinned = await pinnedChatsRepo.listPinnedChats(userId);
   const pinnedIds = new Set(pinned.map((p) => p.chat_id));
-
   return chats.map((chat) => ({
     id: chat.id,
     name: chat.title,
@@ -154,6 +153,16 @@ export async function listRecentChats(userId: string) {
     pinned: pinnedIds.has(chat.id),
     updatedAt: chat.updated_at,
   }));
+}
+
+export async function listRecentChats(userId: string) {
+  const chats = await chatsRepo.listChatsForUser(userId);
+  return mapChatsWithPins(userId, chats);
+}
+
+export async function searchChats(userId: string, query: string, limit = 40) {
+  const chats = await chatsRepo.searchChatsForUser(userId, query, { limit });
+  return mapChatsWithPins(userId, chats);
 }
 
 export async function getChatWithMessages(chatId: string, userId: string) {

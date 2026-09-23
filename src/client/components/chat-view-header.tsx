@@ -103,7 +103,7 @@ export function ChatViewHeader({
                 className="-ml-0.5 shrink-0"
               />
             ) : null}
-            <div className="flex h-full min-w-0 flex-1 flex-nowrap items-center gap-0 overflow-hidden">
+            <div className="content-pane-title-cluster flex h-full min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-hidden">
               <button
                 type="button"
                 onClick={() => setRenameDialogOpen(true)}

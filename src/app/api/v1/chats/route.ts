@@ -9,9 +9,17 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const GET = withApiHandler(
-  async ({ session }) => {
+  async ({ session, request }) => {
     const user = requireSession(session);
-    const chats = await chatService.listRecentChats(user.id);
+    const params = new URL(request.url).searchParams;
+    const q = params.get("q") ?? "";
+    const limitRaw = Number(params.get("limit"));
+    const limit = Number.isFinite(limitRaw) ? limitRaw : undefined;
+    const chats = q.trim()
+      ? await chatService.searchChats(user.id, q, limit ?? 40)
+      : limit
+        ? await chatService.searchChats(user.id, "", limit)
+        : await chatService.listRecentChats(user.id);
     return jsonData({ chats });
   },
   { requireAuth: true, requireChatAuth: true },

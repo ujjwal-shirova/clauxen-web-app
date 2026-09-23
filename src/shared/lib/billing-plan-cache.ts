@@ -10,14 +10,19 @@ export type CachedBillingPlan = {
   updatedAt: number;
 };
 
+function stripPlanSuffix(name: string): string {
+  return name.replace(/\s+plan$/i, "").trim();
+}
+
 export function formatPlanLabel(
   planId: string | null | undefined,
   displayName?: string | null,
 ): string {
   const id = (planId || "").trim().toLowerCase();
-  if (!id || id === "free" || id === "go" || id === "plus") return "Free Plan";
-  const name = (displayName || planId || "Free Plan").trim();
-  return name.toLowerCase().includes("plan") ? name : `${name} plan`;
+  if (!id || id === "free" || id === "go") return "Free";
+  if (id === "plus") return "Plus";
+  const name = stripPlanSuffix((displayName || planId || "Free").trim());
+  return name || "Free";
 }
 
 export function readCachedBillingPlan(): CachedBillingPlan | null {

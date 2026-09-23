@@ -64,6 +64,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     sidebarHydrated,
   } = useSidebarState();
   const [isSidebarPeekOpen, setIsSidebarPeekOpen] = React.useState(false);
+  const [sidebarPeekArmed, setSidebarPeekArmed] = React.useState(true);
   const sidebarPeekCloseTimerRef = React.useRef<number | null>(null);
 
   const cancelSidebarPeekClose = useCallback(() => {
@@ -73,10 +74,15 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const openSidebarPeek = useCallback(() => {
-    if (isMobile || !isSidebarCollapsed) return;
+    if (isMobile || !isSidebarCollapsed || !sidebarPeekArmed) return;
     cancelSidebarPeekClose();
     setIsSidebarPeekOpen(true);
-  }, [cancelSidebarPeekClose, isMobile, isSidebarCollapsed]);
+  }, [
+    cancelSidebarPeekClose,
+    isMobile,
+    isSidebarCollapsed,
+    sidebarPeekArmed,
+  ]);
 
   const closeSidebarPeekSoon = useCallback(() => {
     if (isMobile || !isSidebarCollapsed) return;
@@ -91,10 +97,24 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     (collapsed: boolean) => {
       cancelSidebarPeekClose();
       setIsSidebarPeekOpen(false);
+      // A click that collapses while the pointer is still on the control
+      // must not immediately open the hover sidebar.
+      setSidebarPeekArmed(!collapsed);
       setIsSidebarCollapsed(collapsed);
     },
     [cancelSidebarPeekClose, setIsSidebarCollapsed],
   );
+
+  React.useEffect(() => {
+    if (sidebarPeekArmed || isMobile || !isSidebarCollapsed) return;
+    const onMove = (event: PointerEvent) => {
+      const hit = document.elementFromPoint(event.clientX, event.clientY);
+      if (hit?.closest(".app-sidebar-peek-toggle, .app-sidebar-slot")) return;
+      setSidebarPeekArmed(true);
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [isMobile, isSidebarCollapsed, sidebarPeekArmed]);
 
   React.useEffect(() => {
     if (!isSidebarCollapsed || isMobile) setIsSidebarPeekOpen(false);
@@ -504,6 +524,8 @@ function computeActiveView(
   if (!pathname) return "chat";
   if (pathname.startsWith("/my-clauxen")) return "my-clauxen";
   if (pathname.startsWith("/library")) return "library";
+  if (pathname.startsWith("/projects")) return "projects";
+  if (pathname.startsWith("/plugins")) return "plugins";
   if (pathname === "/new" || pathname === "/") return "chat";
   return "chat";
 }

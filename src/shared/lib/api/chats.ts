@@ -62,6 +62,16 @@ async function listChatsViaWorker(): Promise<{
   }
 }
 
+export async function searchChatTitles(query: string, limit = 40) {
+  const params = new URLSearchParams();
+  if (query.trim()) params.set("q", query.trim());
+  if (limit) params.set("limit", String(limit));
+  const suffix = params.toString();
+  return apiFetch<{ chats: ApiChat[] }>(
+    suffix ? `/api/v1/chats?${suffix}` : "/api/v1/chats",
+  );
+}
+
 export async function listChats() {
   const nextPromise = apiFetch<{ chats: ApiChat[] }>("/api/v1/chats");
   const workerPromise = listChatsViaWorker();

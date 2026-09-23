@@ -22,6 +22,93 @@ export const EXPLORE_TOOLS = new Set([
 ]);
 export const SHELL_TOOLS = new Set(["bash_tool", "execute_code"]);
 
+export type ToolTraceFamily =
+  | "search"
+  | "fetch"
+  | "image"
+  | "places"
+  | "weather"
+  | "command"
+  | "code"
+  | "read"
+  | "edit"
+  | "skill"
+  | "ask"
+  | "mcp"
+  | "tool";
+
+/** Bucket a tool so consecutive calls of the same kind share one trace. */
+export function toolTraceFamily(name: string): ToolTraceFamily {
+  if (name === "web_search") return "search";
+  if (name === "web_fetch") return "fetch";
+  if (name === "image_search") return "image";
+  if (name === "places_search") return "places";
+  if (name === "weather_fetch") return "weather";
+  if (name === "bash_tool") return "command";
+  if (name === "execute_code") return "code";
+  if (EXPLORE_TOOLS.has(name)) return "read";
+  if (EDIT_TOOLS.has(name)) return "edit";
+  if (name === "read_skill") return "skill";
+  if (name === "ask_user_input_v0") return "ask";
+  if (name.startsWith("mcp__")) return "mcp";
+  return "tool";
+}
+
+/** Collapsible label for one tool trace. Narration never uses this. */
+export function toolTraceFamilyLabel(
+  family: ToolTraceFamily,
+  count: number,
+  live: boolean,
+): string {
+  const many = count > 1;
+  switch (family) {
+    case "search":
+      return live
+        ? many
+          ? "Searching the web"
+          : "Web search"
+        : many
+          ? "Web searches"
+          : "Web search";
+    case "fetch":
+      return live ? "Reading a page" : many ? "Read pages" : "Read a page";
+    case "image":
+      return live ? "Searching images" : "Image search";
+    case "places":
+      return live ? "Looking up places" : "Places";
+    case "weather":
+      return live ? "Checking the weather" : "Weather";
+    case "command":
+      return live
+        ? many
+          ? "Running commands"
+          : "Tool execution"
+        : many
+          ? "Tool executions"
+          : "Tool execution";
+    case "code":
+      return live ? "Running code" : "Code execution";
+    case "read":
+      return live ? "Reading files" : many ? "Read files" : "Read a file";
+    case "edit":
+      return live ? "Editing files" : many ? "File edits" : "File edit";
+    case "skill":
+      return live ? "Loading guidance" : "Guidance";
+    case "ask":
+      return live ? "Waiting for your answer" : "Asked for input";
+    case "mcp":
+      return live
+        ? many
+          ? "Using MCP tools"
+          : "MCP tool"
+        : many
+          ? "MCP tools"
+          : "MCP tool";
+    default:
+      return live ? "Running a tool" : many ? "Tools" : "Tool";
+  }
+}
+
 function pluralize(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural;
 }

@@ -4290,7 +4290,8 @@ button.user-message-card__body:not(:disabled):hover,
 .app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
   .content-pane-top-bar
   > div {
-  padding-left: 40px !important;
+  padding-left: 52px !important;
+  align-items: center;
 }
 
 .content-pane-top-bar .ui-chrome-text-btn {
@@ -5059,6 +5060,8 @@ button[data-speed-toggle][data-state="open"] {
 @media (min-width: 1024px) {
   .app-sidebar-peek-toggle {
     box-sizing: border-box;
+    left: 8px !important;
+    top: calc((var(--chat-header-height, 44px) - 32px) / 2) !important;
     width: 32px !important;
     min-width: 32px !important;
     height: 32px !important;
@@ -5811,7 +5814,7 @@ button[data-speed-toggle][data-state="open"] {
   background: var(--app-panel-bg, #18181b) !important;
 }
 
-/* Sit the title next to the collapsed-sidebar trigger (32px at 10px). */
+/* Sit the title on the same row as the collapsed-sidebar trigger. */
 .app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
   .content-pane-top-bar {
   padding-left: 0 !important;
@@ -5820,7 +5823,72 @@ button[data-speed-toggle][data-state="open"] {
 .app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
   .content-pane-top-bar
   > div {
-  padding-left: 40px !important;
+  padding-left: 52px !important;
+  align-items: center;
+}
+
+.content-pane-title-cluster {
+  align-items: center;
+}
+
+.cx-sidebar-peek-top {
+  justify-content: center;
+  padding-left: 48px;
+  padding-right: 48px;
+}
+
+.cx-sidebar-peek-top .clauxen-wordmark {
+  width: 100%;
+  text-align: center;
+}
+
+.cx-nav-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--cx-sidebar-bg, var(--app-sidebar-bg));
+}
+
+.chat-search-dialog {
+  border-radius: 12px;
+  border: 0.5px solid rgba(11, 11, 11, 0.2);
+  background: #fff;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.dark .chat-search-dialog {
+  background: var(--popup-bg, #18181b);
+  border-color: rgba(247, 241, 232, 0.16);
+}
+
+.chat-search-skeleton span {
+  background: rgba(11, 11, 11, 0.06);
+  animation: cx-fade-in 0.8s ease-in-out infinite alternate;
+}
+
+.dark .chat-search-skeleton span {
+  background: rgba(247, 241, 232, 0.08);
+}
+
+.chat-search-kbd {
+  display: inline-flex;
+  height: 20px;
+  min-width: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 0.5px solid rgba(11, 11, 11, 0.1);
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+@media (max-width: 1023px) {
+  .app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
+    .content-pane-top-bar
+    > div {
+    padding-left: 8px !important;
+  }
 }
 
 .app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
