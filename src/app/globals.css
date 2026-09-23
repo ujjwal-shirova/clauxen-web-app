@@ -1727,8 +1727,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 .dark .sticky-user-msg-host {
   background-color: var(--chat-canvas-bg, hsl(var(--background)));
 }
-.dark [data-prompt-root] [data-prompt-shell],
-.dark [data-prompt-root] [data-composer-stack="with-project"] {
+.dark [data-prompt-root] [data-prompt-shell] {
   background: var(--chat-user-card-bg, #1c1c1f) !important;
 }
 
@@ -2393,55 +2392,12 @@ nav.sidebar-hover-area {
 }
 
 /* Expanded uses the same radius — never start as a pill then shrink */
-[data-prompt-root] [data-prompt-shell][data-prompt-expanded="true"],
-[data-prompt-root]
-  [data-composer-stack="with-project"][data-prompt-expanded="true"] {
+[data-prompt-root] [data-prompt-shell][data-prompt-expanded="true"] {
   border-radius: var(--prompt-radius-expanded, 12px) !important;
-}
-
-/* Unified composer + project strip — one bordered stack, clipped round corners. */
-[data-prompt-root] [data-composer-stack="with-project"] {
-  border: 0;
-  border-radius: var(--prompt-radius, 12px);
-  background: var(--chat-user-card-bg, #ffffff);
-  box-shadow: var(--prompt-shadow);
-  overflow: hidden;
-  isolation: isolate;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-[data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell] {
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  overflow: visible;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-[data-prompt-root]
-  [data-composer-stack="with-project"]
-  [data-composer-project-strip] {
-  border-radius: 0;
-  border-top: 1px solid rgba(24, 24, 27, 0.08);
-}
-
-[data-prompt-root] [data-composer-stack="with-project"]:focus-within {
-  box-shadow: var(--prompt-shadow-focus);
 }
 
 [data-prompt-root] [data-prompt-shell]:focus-within {
   box-shadow: var(--prompt-shadow-focus) !important;
-}
-
-[data-prompt-root]
-  [data-composer-stack="with-project"]
-  [data-prompt-shell]:focus-within {
-  border-color: transparent !important;
-  box-shadow: none !important;
 }
 
 /* Legacy outer wrappers only — never [data-composer-stack] / [data-prompt-shell]

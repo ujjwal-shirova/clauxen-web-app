@@ -1,16 +1,10 @@
 import { AppError, notFound } from "@/server/db/errors";
 import * as chatsRepo from "@/server/repositories/chats.repository";
-import * as projectsRepo from "@/server/repositories/projects.repository";
 import * as pinnedChatsRepo from "@/server/repositories/pinned-chats.repository";
 import * as messagesRepo from "@/server/repositories/messages.repository";
 import type { MessageTranscriptLine } from "@/server/repositories/messages.repository";
 import * as branchesRepo from "@/server/repositories/branches.repository";
 import * as transcriptRepo from "@/server/repositories/transcript.repository";
-import {
-  buildRagContextBlock,
-  retrieveProjectContext,
-} from "@/server/services/project-rag.service";
-import { assembleSystemPrompt } from "@/server/inference/system-prompt";
 import {
   createChatStream,
   loadChatStreamPersonalization,
@@ -146,11 +140,9 @@ function dedupeTranscriptSources(
   return [...byUrl.values()];
 }
 
-export async function listRecentChats(userId: string, projectId?: string) {
+export async function listRecentChats(userId: string) {
   const [chats, pinned] = await Promise.all([
-    chatsRepo.listChatsForUser(userId, {
-      projectId: projectId ?? undefined,
-    }),
+    chatsRepo.listChatsForUser(userId),
     pinnedChatsRepo.listPinnedChats(userId),
   ]);
   const pinnedIds = new Set(pinned.map((p) => p.chat_id));
@@ -158,7 +150,6 @@ export async function listRecentChats(userId: string, projectId?: string) {
   return chats.map((chat) => ({
     id: chat.id,
     name: chat.title,
-    projectId: chat.project_id,
     starred: chat.starred,
     pinned: pinnedIds.has(chat.id),
     updatedAt: chat.updated_at,
@@ -214,18 +205,13 @@ export async function getRecentMessagesForInference(
 
 export async function createChatForUser(
   userId: string,
-  input?: { id?: string; title?: string; projectId?: string | null },
+  input?: { id?: string; title?: string },
 ) {
-  if (input?.projectId) {
-    const project = await projectsRepo.getProject(input.projectId, userId);
-    if (!project) throw notFound("Project not found.");
-  }
   // Single round-trip: allocate id + insert with workspace from profiles subquery.
   const chat = await chatsRepo.createChatFast({
     userId,
     id: input?.id,
     title: input?.title,
-    projectId: input?.projectId,
   });
   if (chat) {
     const { invalidateChatHistoryCache } =
@@ -362,18 +348,6 @@ export async function appendUserMessage(
     await import("@/server/chat/warm-history-cache");
   await invalidateChatHistoryCache({ userId, chatId });
   return message;
-}
-
-export async function linkChatToProject(
-  chatId: string,
-  userId: string,
-  projectId: string,
-) {
-  const chat = await chatsRepo.getChatForUser(chatId, userId);
-  if (!chat) throw notFound("Chat not found.");
-  const updated = await chatsRepo.updateChat(chatId, userId, { projectId });
-  if (!updated) throw notFound("Chat not found.");
-  return updated;
 }
 
 export async function streamChatGeneration(input: {
@@ -724,27 +698,9 @@ export async function streamChatGeneration(input: {
           );
         }
 
-        let projectPromptAppend: string | undefined;
-        if (chat.project_id) {
-          const project = await projectsRepo.getProject(
-            chat.project_id,
-            input.userId,
-          );
-          const chunks = await retrieveProjectContext(
-            chat.project_id,
-            input.userId,
-            preferredUserContent,
-          ).catch(() => []);
-          projectPromptAppend = assembleSystemPrompt(
-            project?.system_prompt,
-            buildRagContextBlock(chunks),
-          );
-        }
-
         return {
           modelMessages: conversationForAgent,
           personalization,
-          projectPromptAppend,
           userMessageId: turnState.userMessageId ?? undefined,
           assistantMessageId: turnState.assistant?.id ?? undefined,
         };

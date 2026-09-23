@@ -60,10 +60,8 @@ export type CreateScheduledTaskInput = {
   source?: "manual" | "chat";
   notificationMode?: "email_app" | "email_only" | "app_only" | "off";
   modelMode?: "fast" | "thinking";
-  connectorIds?: string[];
   skillIds?: string[];
   attachmentRefs?: Array<Record<string, unknown>>;
-  projectId?: string | null;
 };
 
 function cleanIds(values: string[] | undefined, label: string): string[] {
@@ -173,12 +171,10 @@ export function validateCreateInput(raw: CreateScheduledTaskInput) {
     source: raw.source ?? ("manual" as const),
     notificationMode,
     modelMode,
-    connectorIds: cleanIds(raw.connectorIds, "Connector"),
     skillIds: cleanIds(raw.skillIds, "Skill"),
     attachmentRefs: Array.isArray(raw.attachmentRefs)
       ? raw.attachmentRefs.slice(0, 20)
       : [],
-    projectId: raw.projectId ?? null,
   };
 }
 
@@ -261,11 +257,8 @@ export async function updateTask(
       patch.expiresAt !== undefined ? patch.expiresAt : existing.expires_at,
     notificationMode: patch.notificationMode ?? existing.notification_mode,
     modelMode: patch.modelMode ?? existing.model_mode,
-    connectorIds: patch.connectorIds ?? existing.connector_ids,
     skillIds: patch.skillIds ?? existing.skill_ids,
     attachmentRefs: patch.attachmentRefs ?? existing.attachment_refs,
-    projectId:
-      patch.projectId !== undefined ? patch.projectId : existing.project_id,
   };
 
   const validated = validateCreateInput(merged);
@@ -283,10 +276,8 @@ export async function updateTask(
     status: patch.status ?? existing.status,
     notificationMode: validated.notificationMode,
     modelMode: validated.modelMode,
-    connectorIds: validated.connectorIds,
     skillIds: validated.skillIds,
     attachmentRefs: validated.attachmentRefs,
-    projectId: validated.projectId,
   });
   if (!updated) throw new AppError("Scheduled task not found.", 404);
   return updated;

@@ -13,7 +13,6 @@ import {
 
 export type CapabilitiesSettingsState = {
   generateMemory: boolean;
-  connectorSearch: boolean;
   switchModelsWhenFlagged: boolean;
   artifacts: boolean;
   aiPoweredArtifacts: boolean;
@@ -59,7 +58,7 @@ export function CapabilitiesSettings({
       <SettingsSection title="Memory" description="What Clauxen retains.">
         <SettingsToggleRow
           label="Remember from chats"
-          description="Save relevant context from chats and projects."
+          description="Save relevant context from chats."
           checked={capabilities.generateMemory}
           onCheckedChange={(generateMemory) => onChange({ generateMemory })}
         />

@@ -125,16 +125,6 @@ const GiftView = dynamic(
   () => import("@/components/gift-view").then((m) => m.GiftView),
   { ssr: false, loading: () => <OverlayPageLoadingShell label="Loading gift" /> },
 );
-const AppsExtensionsView = dynamic(
-  () =>
-    import("@/components/apps-extensions-view").then(
-      (m) => m.AppsExtensionsView,
-    ),
-  {
-    ssr: false,
-    loading: () => <OverlayPageLoadingShell label="Loading apps" />,
-  },
-);
 const SettingsModal = dynamic(
   () => import("@/components/settings-page").then((m) => m.SettingsModal),
   { ssr: false, loading: () => <SettingsLoadingShell /> },
@@ -156,7 +146,6 @@ export function AppOverlayHost() {
       import("@/components/upgrade-view"),
       import("@/components/settings-page"),
       import("@/components/gift-view"),
-      import("@/components/apps-extensions-view"),
     ]);
   }, []);
 
@@ -174,17 +163,6 @@ export function AppOverlayHost() {
     return (
       <SoftErrorBoundary name="gift">
         <GiftView onClose={overlays.closeOverlay} />
-      </SoftErrorBoundary>
-    );
-  }
-
-  if (overlays.currentOverlay.type === "apps") {
-    return (
-      <SoftErrorBoundary name="apps">
-        <AppsExtensionsView
-          onClose={overlays.closeOverlay}
-          onUpgradeClick={() => overlays.openPricing()}
-        />
       </SoftErrorBoundary>
     );
   }

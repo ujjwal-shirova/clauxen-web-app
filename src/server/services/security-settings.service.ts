@@ -1,6 +1,4 @@
-import { AppError, notFound } from "@/server/db/errors";
 import { query } from "@/server/db/pool";
-import * as connectedAccountsRepo from "@/server/repositories/connected-accounts.repository";
 
 export type SecuritySession = {
   id: string;
@@ -12,32 +10,9 @@ export type SecuritySession = {
 };
 
 export async function getSecuritySettings(userId: string) {
-  const [sessions, linkedProviders, connectorInstallations] = await Promise.all([
-    listSecuritySessions(userId),
-    connectedAccountsRepo.listConnectedAccounts(userId),
-    connectedAccountsRepo.listConnectorInstallations(userId),
-  ]);
+  const sessions = await listSecuritySessions(userId);
 
-  return {
-    sessions,
-    linkedProviders: linkedProviders.map((account) => ({
-      id: account.id,
-      provider: account.provider,
-      providerAccountId: account.provider_account_id,
-      scopes: account.scopes,
-      status: account.status,
-      connectedAt: account.connected_at,
-    })),
-    connectorInstallations: connectorInstallations.map((row) => ({
-      id: row.id,
-      connectorId: row.connector_id,
-      connectorKey: row.connector_key,
-      connectorName: row.connector_name,
-      status: row.status,
-      lastSyncedAt: row.last_synced_at,
-      connectedAt: row.created_at,
-    })),
-  };
+  return { sessions };
 }
 
 async function listSecuritySessions(userId: string, limit = 25) {
@@ -69,35 +44,3 @@ async function listSecuritySessions(userId: string, limit = 25) {
   );
 }
 
-export async function listConnectedAccountsForUser(userId: string) {
-  const [accounts, installations] = await Promise.all([
-    connectedAccountsRepo.listConnectedAccounts(userId),
-    connectedAccountsRepo.listConnectorInstallations(userId),
-  ]);
-  return { accounts, installations };
-}
-
-export async function disconnectAccount(
-  userId: string,
-  input: { accountId?: string; installationId?: string },
-) {
-  if (input.accountId) {
-    const revoked = await connectedAccountsRepo.revokeConnectedAccount(
-      input.accountId,
-      userId,
-    );
-    if (!revoked) throw notFound("Connected account not found.");
-    return { type: "account" as const, id: revoked.id };
-  }
-
-  if (input.installationId) {
-    const revoked = await connectedAccountsRepo.revokeConnectorInstallation(
-      input.installationId,
-      userId,
-    );
-    if (!revoked) throw notFound("Connector installation not found.");
-    return { type: "connector" as const, id: revoked.id };
-  }
-
-  throw new AppError("accountId or installationId is required.", 400);
-}

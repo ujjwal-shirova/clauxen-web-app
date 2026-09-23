@@ -1,6 +1,6 @@
 import type { RecentChat } from "@/lib/types";
 
-export type ChatGroupBy = "none" | "date" | "project";
+export type ChatGroupBy = "none" | "date";
 
 export type ChatGroup = {
   label: string;
@@ -35,45 +35,22 @@ function dateGroupLabel(timestamp: number): string {
 export function groupChats(
   chats: RecentChat[],
   groupBy: ChatGroupBy,
-  projectNames: Record<string, string> = {},
 ): ChatGroup[] {
   if (groupBy === "none" || chats.length === 0) {
     return [{ label: "", chats }];
   }
 
-  if (groupBy === "date") {
-    const buckets = new Map<string, RecentChat[]>();
-    const order = ["Today", "Yesterday", "Previous 7 days", "Older"];
-
-    for (const chat of chats) {
-      const label = dateGroupLabel(resolveUpdatedAt(chat));
-      const bucket = buckets.get(label) ?? [];
-      bucket.push(chat);
-      buckets.set(label, bucket);
-    }
-
-    return order
-      .filter((label) => buckets.has(label))
-      .map((label) => ({ label, chats: buckets.get(label)! }));
-  }
-
   const buckets = new Map<string, RecentChat[]>();
+  const order = ["Today", "Yesterday", "Previous 7 days", "Older"];
+
   for (const chat of chats) {
-    const projectId = chat.projectId ?? "";
-    const label = projectId
-      ? (projectNames[projectId] ?? "Project")
-      : "Unassigned";
+    const label = dateGroupLabel(resolveUpdatedAt(chat));
     const bucket = buckets.get(label) ?? [];
     bucket.push(chat);
     buckets.set(label, bucket);
   }
 
-  return Array.from(buckets.entries()).map(([label, grouped]) => ({
-    label,
-    chats: grouped,
-  }));
-}
-
-export function hasProjectAssignments(chats: RecentChat[]): boolean {
-  return chats.some((chat) => Boolean(chat.projectId));
+  return order
+    .filter((label) => buckets.has(label))
+    .map((label) => ({ label, chats: buckets.get(label)! }));
 }

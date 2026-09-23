@@ -1,11 +1,9 @@
-import { NextRequest } from "next/server";
 import { z } from "zod";
 import {
   registerUser,
   signAuthToken,
-  ProjectsAuthError,
-} from "@/projects/lib/auth";
-import { jsonData, jsonError } from "@/projects/lib/api-response";
+} from "@/server/services/auth-credentials.service";
+import { jsonData, jsonError } from "@/shared/lib/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,9 +31,6 @@ export async function POST(request: Request) {
     const token = signAuthToken(user);
     return jsonData({ user, token }, 201);
   } catch (error) {
-    if (error instanceof ProjectsAuthError) {
-      return jsonError(error.message, error.status);
-    }
     if (error instanceof Error && error.message.includes("already registered")) {
       return jsonError(error.message, 400);
     }

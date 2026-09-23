@@ -23,12 +23,6 @@ export type SecuritySettingsData = {
     userAgent: string | null;
     createdAt: string;
   }>;
-  linkedProviders: Array<{
-    id: string;
-    provider: string;
-    status: string;
-    connectedAt: string;
-  }>;
 };
 
 export async function getSecuritySettings() {
@@ -55,21 +49,4 @@ export async function requestDataDeletion() {
     "/api/v1/settings/data-deletion",
     { method: "POST" },
   );
-}
-
-export async function listConnectedAccounts() {
-  return apiFetch<{
-    accounts: Array<{ id: string; provider: string; status: string }>;
-    installations: Array<{ id: string; connectorName: string; status: string }>;
-  }>("/api/v1/settings/connected-accounts");
-}
-
-export async function disconnectConnectedAccount(input: {
-  accountId?: string;
-  installationId?: string;
-}) {
-  return apiFetch<{ ok: boolean }>("/api/v1/settings/connected-accounts", {
-    method: "DELETE",
-    body: JSON.stringify(input),
-  });
 }

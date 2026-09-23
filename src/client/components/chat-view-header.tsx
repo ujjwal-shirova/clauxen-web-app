@@ -15,8 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
-import { AppHref } from "@/components/app-href";
-import { ProjectAvatar } from "@/components/projects/project-avatar";
 
 interface ChatViewHeaderProps {
   isConversationStarted: boolean;
@@ -33,23 +31,11 @@ interface ChatViewHeaderProps {
   onUnpinChat?: () => void;
   onDeleteChat?: () => void;
   onOpenSettings?: () => void;
-  onMoveToProject?: () => void;
-  onMoveChatToProject?: (projectId: string | null) => void;
-  projects?: import("@/lib/api/projects").ApiProject[];
-  currentProjectId?: string | null;
-  moveToProjectHref?: string;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
   /** Show the centered free-plan upgrade prompt on the new-chat surface. */
   showFreePlanUpgrade?: boolean;
   className?: string;
-  projectBreadcrumb?: {
-    label: string;
-    href?: string;
-    onClick?: () => void;
-    icon?: string | null;
-    color?: string | null;
-  };
   /** Hide interactive header controls until the chat id exists on the server (no shimmer). */
   headerControlsLoading?: boolean;
 }
@@ -69,16 +55,10 @@ export function ChatViewHeader({
   onUnpinChat,
   onDeleteChat,
   onOpenSettings,
-  onMoveToProject,
-  onMoveChatToProject,
-  projects,
-  currentProjectId,
-  moveToProjectHref,
   onOpenMobileNav,
   showMobileMenu = false,
   showFreePlanUpgrade = false,
   className,
-  projectBreadcrumb,
   headerControlsLoading = false,
 }: ChatViewHeaderProps) {
   const isClient = useIsClient();
@@ -104,11 +84,6 @@ export function ChatViewHeader({
         isPinned={isChatPinned}
         onShare={onShareClick}
         onRename={() => setRenameDialogOpen(true)}
-        onMoveToProject={onMoveToProject}
-        onMoveChatToProject={onMoveChatToProject}
-        projects={projects}
-        currentProjectId={currentProjectId}
-        moveToProjectHref={moveToProjectHref}
         onPin={onPinChat}
         onUnpin={onUnpinChat}
         onDelete={() => setDeleteDialogOpen(true)}
@@ -134,49 +109,6 @@ export function ChatViewHeader({
               />
             ) : null}
             <div className="flex h-full min-w-0 flex-1 flex-nowrap items-center gap-0 overflow-hidden">
-              {projectBreadcrumb ? (
-                <>
-                  {projectBreadcrumb.href ? (
-                    <AppHref
-                      href={projectBreadcrumb.href}
-                      onClick={projectBreadcrumb.onClick}
-                      className="flex min-w-0 max-w-[42%] items-center gap-1.5 overflow-hidden whitespace-nowrap text-[13px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:text-[var(--ui-fg)] sm:max-w-[38%]"
-                    >
-                      <ProjectAvatar
-                        icon={projectBreadcrumb.icon}
-                        color={projectBreadcrumb.color}
-                        size="xs"
-                        className="shrink-0"
-                      />
-                      <span className="min-w-0 truncate">
-                        {projectBreadcrumb.label}
-                      </span>
-                    </AppHref>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={projectBreadcrumb.onClick}
-                      className="flex min-w-0 max-w-[42%] items-center gap-1.5 overflow-hidden whitespace-nowrap text-[13px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:text-[var(--ui-fg)] sm:max-w-[38%]"
-                    >
-                      <ProjectAvatar
-                        icon={projectBreadcrumb.icon}
-                        color={projectBreadcrumb.color}
-                        size="xs"
-                        className="shrink-0"
-                      />
-                      <span className="min-w-0 truncate">
-                        {projectBreadcrumb.label}
-                      </span>
-                    </button>
-                  )}
-                  <span
-                    className="mx-1 shrink-0 text-[13px] font-medium text-[var(--ui-fg-placeholder)]"
-                    aria-hidden
-                  >
-                    /
-                  </span>
-                </>
-              ) : null}
               <button
                 type="button"
                 onClick={() => setRenameDialogOpen(true)}

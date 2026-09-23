@@ -1,10 +1,9 @@
-// tables: instruction_profiles, connector_installations, user_memories
+// tables: instruction_profiles, user_memories
 // =============================================================================
 
 import { query, queryOne } from "@/server/db/pool";
 
 const INSTRUCTION_PROFILE_LIST_LIMIT = 100;
-const CONNECTOR_LIST_LIMIT = 100;
 const SKILL_TITLE_MAX_LENGTH = 128;
 const SKILL_FIELD_MAX_LENGTH = 50_000;
 
@@ -22,22 +21,6 @@ export async function listInstructionProfiles(userId: string) {
      order by is_default desc, created_at desc
      limit $2`, // archived profiles exclude
     [userId, INSTRUCTION_PROFILE_LIST_LIMIT],
-  );
-}
-
-export async function listConnectorInstallations(userId: string) {
-  return query<{
-    id: string;
-    connector_id: string; // catalog connector slug/id
-    status: string;
-    created_at: string;
-  }>(
-    `select id, connector_id, status, created_at
-     from public.connector_installations
-     where user_id = $1 and status = 'active'
-     order by created_at desc
-     limit $2`,
-    [userId, CONNECTOR_LIST_LIMIT],
   );
 }
 

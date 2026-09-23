@@ -205,19 +205,6 @@ export const env = {
    */
   billingRequireWorker: optional("BILLING_REQUIRE_WORKER") === "true",
 
-  /** Cloudflare connector gateway (OAuth, token vault, tool execution). */
-  get connectorGatewayUrl() {
-    return normalizeBaseUrl(
-      optional(
-        "CONNECTOR_GATEWAY_URL",
-        "https://clauxen-connector-gateway.ujjwal-8fc.workers.dev",
-      ),
-    );
-  },
-  /** Shared Vercel → connector gateway authentication secret. */
-  get connectorGatewayInternalToken() {
-    return optional("CONNECTOR_GATEWAY_INTERNAL_TOKEN");
-  },
   /**
    * AES-256 key for encrypting Razorpay card/token refs at rest.
    * Prefer 64-char hex (32 bytes). Passphrases are SHA-256 hashed.

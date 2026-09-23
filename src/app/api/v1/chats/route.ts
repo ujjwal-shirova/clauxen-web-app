@@ -9,11 +9,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const GET = withApiHandler(
-  async ({ session, request }) => {
+  async ({ session }) => {
     const user = requireSession(session);
-    const projectId =
-      new URL(request.url).searchParams.get("projectId") ?? undefined;
-    const chats = await chatService.listRecentChats(user.id, projectId);
+    const chats = await chatService.listRecentChats(user.id);
     return jsonData({ chats });
   },
   { requireAuth: true, requireChatAuth: true },
@@ -25,7 +23,6 @@ export const POST = withApiHandler(
     const body = (await request.json().catch(() => ({}))) as {
       id?: string;
       title?: string;
-      projectId?: string;
     };
     const requestedId =
       typeof body.id === "string" && isValidChatId(body.id.trim())
@@ -34,7 +31,6 @@ export const POST = withApiHandler(
     const chat = await chatService.createChatForUser(user.id, {
       id: requestedId,
       title: body.title,
-      projectId: body.projectId ?? null,
     });
     if (!chat) throw new AppError("Failed to create chat.", 500);
     return jsonData({ chat }, 201);

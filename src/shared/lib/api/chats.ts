@@ -5,7 +5,6 @@ import { getSupabaseAccessTokenSingleflight } from "@/lib/supabase-session-singl
 export type ApiChat = {
   id: string;
   name: string;
-  projectId: string | null;
   starred: boolean;
   pinned?: boolean;
   updatedAt: string;
@@ -31,7 +30,7 @@ function chatHistoryWorkerBase(): string {
 }
 
 /** Prefer Cloudflare Worker (Hyperdrive + cache ladder) when configured. */
-async function listChatsViaWorker(projectId?: string): Promise<{
+async function listChatsViaWorker(): Promise<{
   chats: ApiChat[];
 } | null> {
   const base = chatHistoryWorkerBase();
@@ -42,7 +41,6 @@ async function listChatsViaWorker(projectId?: string): Promise<{
     if (!accessToken) return null;
 
     const params = new URLSearchParams({ limit: "50", fresh: "0" });
-    if (projectId) params.set("projectId", projectId);
     const response = await fetch(`${base}/v1/chats?${params}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -64,10 +62,9 @@ async function listChatsViaWorker(projectId?: string): Promise<{
   }
 }
 
-export async function listChats(projectId?: string) {
-  const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
-  const nextPromise = apiFetch<{ chats: ApiChat[] }>(`/api/v1/chats${qs}`);
-  const workerPromise = listChatsViaWorker(projectId);
+export async function listChats() {
+  const nextPromise = apiFetch<{ chats: ApiChat[] }>("/api/v1/chats");
+  const workerPromise = listChatsViaWorker();
 
   // Race Worker vs Next — first usable result wins.
   const first = await Promise.race([
@@ -84,7 +81,6 @@ export async function listChats(projectId?: string) {
 export async function createChat(input?: {
   id?: string;
   title?: string;
-  projectId?: string;
 }) {
   return apiFetch<{ chat: { id: string; title: string } }>("/api/v1/chats", {
     method: "POST",
@@ -230,7 +226,7 @@ export async function appendMessage(
 
 export async function updateChat(
   chatId: string,
-  patch: { title?: string; starred?: boolean; projectId?: string | null },
+  patch: { title?: string; starred?: boolean },
 ) {
   return apiFetch<{ chat: unknown }>(
     `/api/v1/chats/${encodeURIComponent(chatId)}`,

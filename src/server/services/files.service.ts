@@ -11,7 +11,6 @@ import {
 import {
   bucketForPurpose,
   buildImageKey,
-  buildProjectFileKey,
   buildUserAttachmentKey,
   buildUserLibraryKey,
   createPresignedGetUrl,
@@ -200,7 +199,6 @@ export async function presignUserFileUpload(
     mimeType?: string | null;
     sizeBytes?: number;
     workspaceId?: string | null;
-    projectId?: string | null;
     folderId?: string | null;
     purpose?: "avatar" | "library" | "chat-attachment";
     chatId?: string | null;
@@ -214,13 +212,6 @@ export async function presignUserFileUpload(
   if (input.folderId) {
     const folder = await userFilesRepo.getLibraryFolder(input.folderId, userId);
     if (!folder) throw notFound("Folder not found.");
-  }
-
-  if (input.projectId) {
-    const { getProject } =
-      await import("@/server/repositories/projects.repository");
-    const project = await getProject(input.projectId, userId);
-    if (!project) throw notFound("Project not found.");
   }
 
   const isAvatar = input.purpose === "avatar";
@@ -251,14 +242,11 @@ export async function presignUserFileUpload(
     ? buildAvatarKey(userId, originalName)
     : isChatAttachment
       ? buildUserAttachmentKey(userId, originalName, input.chatId)
-      : input.projectId
-        ? buildProjectFileKey(userId, input.projectId, originalName)
-        : buildStorageKey(userId, originalName, input.mimeType, input.folderId);
+      : buildStorageKey(userId, originalName, input.mimeType, input.folderId);
 
   const file = await userFilesRepo.createUserFile({
     userId,
     workspaceId: input.workspaceId,
-    projectId: input.projectId,
     folderId: input.folderId,
     originalName,
     mimeType: input.mimeType,
@@ -272,7 +260,6 @@ export async function presignUserFileUpload(
         : isChatAttachment
           ? "chat-attachment"
           : purpose,
-      ...(input.projectId ? { projectKnowledge: true } : {}),
       ...(input.chatId ? { chatId: input.chatId } : {}),
     },
   });

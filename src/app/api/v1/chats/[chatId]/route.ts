@@ -36,7 +36,6 @@ export const PATCH = withApiRouteParams<{ chatId: string }>(
     const body = (await request.json()) as {
       title?: string;
       starred?: boolean;
-      projectId?: string | null;
     };
     const chat = await chatsRepo.updateChat(params.chatId, user.id, body); // WHERE chat_id AND user_id — scoped update
     if (!chat) throw notFound("Chat not found.");

@@ -53,12 +53,8 @@ export type LegacySettingsTab =
   | "Trusted contact"
   | "Storage"
   | "Keyboard"
-  | "Extensions"
-  | "Connectors"
-  | "Plugins"
   | "Data controls"
   | "Enterprise"
-  | "Apps"
   | "Voice";
 
 export type SettingsTab = VisibleSettingsTab | LegacySettingsTab;
@@ -95,11 +91,6 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
     case "Enterprise":
     case "Voice":
       return "General";
-    case "Connectors":
-    case "Plugins":
-    case "Apps":
-    case "Extensions":
-      return "Skills";
     default:
       return "General";
   }
@@ -125,12 +116,8 @@ export const settingsTabDescriptions: Record<SettingsTab, string> = {
   "Trusted contact": "Your data, content safety, and family.",
   Storage: "Plan, usage, invoices, and payment.",
   Keyboard: "Theme, reading, and shortcuts.",
-  Extensions: "Reusable instructions Clauxen follows.",
-  Connectors: "Reusable instructions Clauxen follows.",
-  Plugins: "Reusable instructions Clauxen follows.",
   "Data controls": "Your data, content safety, and family.",
   Enterprise: "Theme, reading, and shortcuts.",
-  Apps: "Reusable instructions Clauxen follows.",
   Voice: "Theme, reading, and shortcuts.",
 };
 
@@ -166,12 +153,8 @@ const LEGACY_TAB_SET = new Set<string>([
   "Trusted contact",
   "Storage",
   "Keyboard",
-  "Extensions",
-  "Connectors",
-  "Plugins",
   "Data controls",
   "Enterprise",
-  "Apps",
   "Voice",
 ]);
 

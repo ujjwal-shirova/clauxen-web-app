@@ -39,8 +39,6 @@ export type ChatStreamPersonalizationBundle = {
 export type ResolvedChatStreamContext = {
   modelMessages: AgentStreamOptions["messages"];
   personalization: ChatStreamPersonalizationBundle;
-  /** Project instructions and retrieved knowledge for this turn. */
-  projectPromptAppend?: string;
   /** Durable ids once the turn row is written (may arrive after SSE start). */
   userMessageId?: string;
   assistantMessageId?: string;
@@ -208,7 +206,6 @@ export async function createChatStream(
 
       const append = [
         temporalInstr,
-        resolved.projectPromptAppend ?? "",
         personalizationForPrompt,
         incognitoInstr,
         titleInstr,

@@ -23,10 +23,8 @@ export type ScheduledTaskRow = {
   metadata: Record<string, unknown>;
   notification_mode: "email_app" | "email_only" | "app_only" | "off";
   model_mode: "fast" | "thinking";
-  connector_ids: string[];
   skill_ids: string[];
   attachment_refs: Array<Record<string, unknown>>;
-  project_id: string | null;
   lease_until: string | null;
   lease_run_id: string | null;
   created_at: string;
@@ -63,8 +61,8 @@ const TASK_COLUMNS = `
   id, user_id, name, requirement, frequency, time_local, timezone,
   run_date::text, day_of_week, day_of_month, expires_at::text,
   status, next_run_at, last_run_at, last_run_status, last_chat_id,
-  run_count, source, metadata, notification_mode, model_mode, connector_ids,
-  skill_ids, attachment_refs, project_id, lease_until, lease_run_id,
+  run_count, source, metadata, notification_mode, model_mode,
+  skill_ids, attachment_refs, lease_until, lease_run_id,
   created_at, updated_at
 `;
 
@@ -119,20 +117,18 @@ export async function createScheduledTask(input: {
   metadata?: Record<string, unknown>;
   notificationMode?: ScheduledTaskRow["notification_mode"];
   modelMode?: ScheduledTaskRow["model_mode"];
-  connectorIds?: string[];
   skillIds?: string[];
   attachmentRefs?: Array<Record<string, unknown>>;
-  projectId?: string | null;
 }) {
   return queryOne<ScheduledTaskRow>(
     `insert into public.scheduled_tasks (
        user_id, name, requirement, frequency, time_local, timezone,
        run_date, day_of_week, day_of_month, expires_at, next_run_at, source, metadata,
-       notification_mode, model_mode, connector_ids, skill_ids, attachment_refs, project_id
+       notification_mode, model_mode, skill_ids, attachment_refs
      ) values (
        $1, $2, $3, $4, $5, $6,
        $7::date, $8, $9, $10::date, $11::timestamptz, $12, coalesce($13::jsonb, '{}'::jsonb),
-       $14, $15, $16::text[], $17::text[], $18::jsonb, $19::uuid
+       $14, $15, $16::text[], $17::jsonb
      )
      returning ${TASK_COLUMNS}`,
     [
@@ -151,10 +147,8 @@ export async function createScheduledTask(input: {
       JSON.stringify(input.metadata ?? {}),
       input.notificationMode ?? "email_app",
       input.modelMode ?? "fast",
-      input.connectorIds ?? [],
       input.skillIds ?? [],
       JSON.stringify(input.attachmentRefs ?? []),
-      input.projectId ?? null,
     ],
   );
 }
@@ -176,10 +170,8 @@ export async function updateScheduledTask(
     status?: string;
     notificationMode?: ScheduledTaskRow["notification_mode"];
     modelMode?: ScheduledTaskRow["model_mode"];
-    connectorIds?: string[];
     skillIds?: string[];
     attachmentRefs?: Array<Record<string, unknown>>;
-    projectId?: string | null;
   },
 ) {
   return queryOne<ScheduledTaskRow>(
@@ -197,10 +189,8 @@ export async function updateScheduledTask(
        status = coalesce($18, status),
        notification_mode = coalesce($19, notification_mode),
        model_mode = coalesce($20, model_mode),
-       connector_ids = coalesce($21::text[], connector_ids),
-       skill_ids = coalesce($22::text[], skill_ids),
-       attachment_refs = coalesce($23::jsonb, attachment_refs),
-       project_id = case when $24::boolean then $25::uuid else project_id end,
+       skill_ids = coalesce($21::text[], skill_ids),
+       attachment_refs = coalesce($22::jsonb, attachment_refs),
        updated_at = now()
      where id = $1 and user_id = $2 and status <> 'deleted'
      returning ${TASK_COLUMNS}`,
@@ -225,13 +215,10 @@ export async function updateScheduledTask(
       patch.status ?? null,
       patch.notificationMode ?? null,
       patch.modelMode ?? null,
-      patch.connectorIds ?? null,
       patch.skillIds ?? null,
       patch.attachmentRefs === undefined
         ? null
         : JSON.stringify(patch.attachmentRefs),
-      patch.projectId !== undefined,
-      patch.projectId ?? null,
     ],
   );
 }

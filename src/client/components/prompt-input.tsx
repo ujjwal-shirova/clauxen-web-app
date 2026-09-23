@@ -30,7 +30,6 @@ import {
   type ThinkingMode,
   type WebSearchMode,
 } from "./prompt-add-menu";
-import { ComposerProjectStrip } from "./composer-project-strip";
 import {
   PromptInlineModeChip,
   type PromptInlineMode,
@@ -100,10 +99,6 @@ interface PromptInputProps {
   showModelSelector?: boolean;
   chatModel?: ChatModelId;
   onChatModelChange?: (model: ChatModelId) => void;
-  /** When the active chat already belongs to a project. */
-  lockedProjectId?: string | null;
-  /** Show the attached project strip under the composer (default on). */
-  showProjectStrip?: boolean;
   /** Override the default “Ask anything” placeholder. */
   placeholder?: string;
   /** When false, hide file attach / drag-drop (Incognito). */
@@ -189,8 +184,6 @@ export function PromptInput({
   showModelSelector = true,
   chatModel = DEFAULT_CHAT_MODEL_ID,
   onChatModelChange,
-  lockedProjectId = null,
-  showProjectStrip = true,
   placeholder = "Ask anything",
   allowAttachments = true,
   composerVariant = "default",
@@ -999,12 +992,10 @@ export function PromptInput({
     scheduleResizeTextarea();
   };
 
-  const withProjectStrip = showProjectStrip;
   const promptIsExpanded =
     isMultiline || showComposeControls || hasPromptAddons;
   const promptShellClass = cn(
     "relative w-full max-w-full bg-[var(--chat-user-card-bg,#ffffff)] transition-[min-height,border-color,background-color,box-shadow] duration-300 ease-out rounded-xl",
-    withProjectStrip && "composer-shell--with-project-strip",
     showComposeControls && "min-h-[40px]",
     composerVariant === "incognito" &&
       "rounded-xl border border-dashed border-zinc-300/90 shadow-none",
@@ -1326,11 +1317,8 @@ export function PromptInput({
           ) : null}
 
           <div
-            className={cn(
-              "composer-stack w-full",
-              withProjectStrip && "composer-stack--with-project",
-            )}
-            data-composer-stack={withProjectStrip ? "with-project" : "solo"}
+            className="composer-stack w-full"
+            data-composer-stack="solo"
             data-prompt-expanded={promptIsExpanded || undefined}
             data-add-menu-open={isAddMenuOpen || undefined}
           >
@@ -1443,9 +1431,6 @@ export function PromptInput({
                   )
                 : renderPromptBody(placeholder)}
             </div>
-            {withProjectStrip ? (
-              <ComposerProjectStrip lockedProjectId={lockedProjectId} />
-            ) : null}
           </div>
         </div>
       </div>

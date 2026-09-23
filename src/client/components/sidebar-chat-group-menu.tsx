@@ -18,7 +18,6 @@ const groupOptions: Array<{
 }> = [
   { value: "none", label: "None" },
   { value: "date", label: "Date" },
-  { value: "project", label: "Project" },
 ];
 
 const sidebarGroupTriggerClass =
@@ -27,12 +26,10 @@ const sidebarGroupTriggerClass =
 export function SidebarChatGroupMenu({
   value,
   onChange,
-  projectGroupingEnabled,
   onClick,
 }: {
   value: ChatGroupBy;
   onChange: (value: ChatGroupBy) => void;
-  projectGroupingEnabled: boolean;
   onClick?: (event: React.MouseEvent) => void;
 }) {
   return (
@@ -58,20 +55,14 @@ export function SidebarChatGroupMenu({
           Group by
         </DropdownMenuLabel>
         {groupOptions.map((option) => {
-          const isDisabled =
-            option.value === "project" && !projectGroupingEnabled;
           const isSelected = value === option.value;
 
           return (
             <DropdownMenuItem
               key={option.value}
-              disabled={isDisabled}
-              onClick={() => {
-                if (!isDisabled) onChange(option.value);
-              }}
+              onClick={() => onChange(option.value)}
               className={cn(
                 "flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-[13px] font-medium text-zinc-800 focus:bg-zinc-100",
-                isDisabled && "cursor-default text-zinc-400 opacity-70",
               )}
             >
               <span>{option.label}</span>

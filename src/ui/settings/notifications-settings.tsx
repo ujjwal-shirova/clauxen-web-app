@@ -32,7 +32,6 @@ interface NotificationsSettingsProps {
   responseChannel: string;
   groupChatChannel: string;
   tasksChannel: string;
-  projectsChannel: string;
   recommendationsChannel: string;
   usageChannel: string;
   desktopAlerts: boolean;
@@ -41,7 +40,6 @@ interface NotificationsSettingsProps {
   setResponseChannel: (value: string) => void;
   setGroupChatChannel: (value: string) => void;
   setTasksChannel: (value: string) => void;
-  setProjectsChannel: (value: string) => void;
   setRecommendationsChannel: (value: string) => void;
   setUsageChannel: (value: string) => void;
   setDesktopAlerts: (value: boolean) => void;
@@ -55,7 +53,6 @@ export function NotificationsSettings({
   responseChannel,
   groupChatChannel,
   tasksChannel,
-  projectsChannel,
   recommendationsChannel,
   usageChannel,
   desktopAlerts,
@@ -64,7 +61,6 @@ export function NotificationsSettings({
   setResponseChannel,
   setGroupChatChannel,
   setTasksChannel,
-  setProjectsChannel,
   setRecommendationsChannel,
   setUsageChannel,
   setDesktopAlerts,
@@ -98,13 +94,6 @@ export function NotificationsSettings({
             value={tasksChannel}
             onValueChange={setTasksChannel}
             aria-label="Tasks delivery"
-          />
-        </SettingsRow>
-        <SettingsRow label="Projects" description="Project invitations.">
-          <NotificationDeliveryPicker
-            value={projectsChannel}
-            onValueChange={setProjectsChannel}
-            aria-label="Projects delivery"
           />
         </SettingsRow>
         <SettingsRow label="Group chats" description="New group messages.">

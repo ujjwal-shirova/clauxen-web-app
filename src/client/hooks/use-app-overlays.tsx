@@ -32,13 +32,11 @@ type AppOverlaysValue = {
   currentOverlay: AppOverlayPath | null;
   isOpen: {
     pricing: boolean;
-    apps: boolean;
     gift: boolean;
     settings: boolean;
   };
   settingsTab: SettingsTab | null;
   openPricing: () => void;
-  openApps: () => void;
   openGift: () => void;
   openSettings: (tab?: SettingsTab) => void;
   closeOverlay: () => void;
@@ -51,8 +49,6 @@ const AppOverlaysContext = createContext<AppOverlaysValue | null>(null);
 const PREFETCH_PATHS = [
   APP_ROUTES.newChat,
   APP_ROUTES.library,
-  APP_ROUTES.projects,
-  APP_ROUTES.projectNew,
   APP_ROUTES.myClauxen,
 ] as const;
 
@@ -264,10 +260,6 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
     () => openOverlay({ type: "pricing" }),
     [openOverlay],
   );
-  const openApps = useCallback(
-    () => openOverlay({ type: "apps" }),
-    [openOverlay],
-  );
   const openGift = useCallback(
     () => openOverlay({ type: "gift" }),
     [openOverlay],
@@ -282,13 +274,11 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
       currentOverlay: overlay,
       isOpen: {
         pricing: overlay?.type === "pricing",
-        apps: overlay?.type === "apps",
         gift: overlay?.type === "gift",
         settings: overlay?.type === "settings",
       },
       settingsTab: overlay?.type === "settings" ? overlay.tab : null,
       openPricing,
-      openApps,
       openGift,
       openSettings,
       closeOverlay,
@@ -297,7 +287,6 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
     [
       overlay,
       openPricing,
-      openApps,
       openGift,
       openSettings,
       closeOverlay,
