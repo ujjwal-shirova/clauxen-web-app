@@ -70,19 +70,19 @@
     --radius: 10px;
     --radius-sm: 8px;
     --radius-md: 14px;
-    --radius-lg: 18px;
-    --radius-composer: 20px;
+    --radius-lg: 16px;
+    --radius-composer: 16px;
 
     /* App chrome icon/button scale — compact product density */
-    --icon-size: 16px;
+    --icon-size: 15px;
     --icon-stroke: 1.5;
-    --icon-btn-size: 28px;
-    --nav-row-height: 36px;
-    --nav-gap-tight: 8px;
-    --nav-gap-loose: 8px;
-    --nav-label-size: 14px;
-    --nav-label-line: 20px;
-    --section-label-size: 13px;
+    --icon-btn-size: 26px;
+    --nav-row-height: 30px;
+    --nav-gap-tight: 6px;
+    --nav-gap-loose: 6px;
+    --nav-label-size: 13px;
+    --nav-label-line: 18px;
+    --section-label-size: 11px;
 
     /* Product surfaces — compact type + control scale */
     --ui-font-size: 13px;
@@ -159,15 +159,15 @@
     --chat-user-line-height: 22px;
     --chat-assistant-line-height: 25px;
     /* Compact popup / dropdown chrome */
-    --menu-icon-size: 16px;
-    --menu-row-height: 38px;
-    --menu-item-radius: 10px;
-    --menu-pad: 8px;
-    --menu-item-gap: 2px;
-    --menu-item-pad-y: 8px;
-    --menu-item-pad-x: 10px;
-    --menu-font-size: 14px;
-    --menu-line-height: 20px;
+    --menu-icon-size: 15px;
+    --menu-row-height: 30px;
+    --menu-item-radius: 7px;
+    --menu-pad: 4px;
+    --menu-item-gap: 1px;
+    --menu-item-pad-y: 6px;
+    --menu-item-pad-x: 8px;
+    --menu-font-size: 13px;
+    --menu-line-height: 18px;
     --menu-letter-spacing: -0.01em;
     --menu-icon-fg: rgba(20, 21, 26, 0.72);
     --menu-chevron-fg: rgba(20, 21, 26, 0.5);
@@ -200,7 +200,7 @@
     --overlay-scrim-soft: rgba(232, 234, 238, 0.88);
 
     /* Shared chat / composer column breadth */
-    --chat-column-max-width: 752px;
+    --chat-column-max-width: 720px;
     --chat-reading-column-max-width: 704px;
     --glass-chat-surface-background: #fcfcfb;
     /* Solid popup surface — no glass/blur */
@@ -208,20 +208,20 @@
     --popup-border: rgba(20, 21, 26, 0.1);
     --popup-shadow:
       0 1px 2px rgba(20, 21, 26, 0.05), 0 14px 38px -16px rgba(20, 21, 26, 0.22);
-    --popup-radius: 16px;
-    --popup-radius-lg: 18px;
-    --popup-max-height: 400px;
-    --popup-min-width: 128px;
-    --popup-width: 240px;
-    --popup-max-width: 360px;
+    --popup-radius: 12px;
+    --popup-radius-lg: 14px;
+    --popup-max-height: 380px;
+    --popup-min-width: 160px;
+    --popup-width: 212px;
+    --popup-max-width: 320px;
     --popup-z: 3000;
     --popup-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
     /* Prompt composer */
-    --prompt-radius: 24px;
-    --prompt-radius-lg: 24px;
-    --prompt-radius-expanded: 24px;
-    --prompt-control-size: 32px;
+    --prompt-radius: 16px;
+    --prompt-radius-lg: 16px;
+    --prompt-radius-expanded: 16px;
+    --prompt-control-size: 28px;
     --prompt-editor-min-height: 24px;
     --prompt-shadow:
       0 0 0 1px rgba(20, 21, 26, 0.09), 0 3px 12px rgba(20, 21, 26, 0.045);
@@ -1020,8 +1020,8 @@ textarea.app-field {
   height: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 6px;
-  border-radius: var(--radius-sm);
+  padding: 5px;
+  border-radius: 7px;
   flex-shrink: 0;
   color: var(--icon-muted);
   transition:
@@ -2150,7 +2150,7 @@ svg.lucide.icon-2xl {
   height: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 6px;
+  padding: 5px;
   border-radius: 6px;
   flex-shrink: 0;
   color: var(--icon-subtle);
@@ -2922,7 +2922,7 @@ button.user-message-card__body:not(:disabled):hover,
 
 [data-prompt-add-menu-row] [data-prompt-add-menu-icon] {
   display: inline-flex;
-  width: 14px;
+  width: 16px;
   height: 16px;
   flex-shrink: 0;
   align-items: center;
@@ -2988,8 +2988,8 @@ button.user-message-card__body:not(:disabled):hover,
   grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-areas: "add editor trailing";
   align-items: center;
-  column-gap: 8px;
-  padding: 4px 8px;
+  column-gap: 6px;
+  padding: 6px;
   min-height: 40px;
   box-sizing: border-box;
   /* No align-items/padding transition — prevents text starting top then sliding to center */
@@ -3003,7 +3003,7 @@ button.user-message-card__body:not(:disabled):hover,
   [data-prompt-shell]
   .prompt-body-grid[data-prompt-layout="stacked"] {
   align-items: end;
-  padding: 8px 8px 6px;
+  padding: 8px 6px 6px;
   min-height: 0;
 }
 
@@ -3046,10 +3046,10 @@ button.user-message-card__body:not(:disabled):hover,
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 2px;
 }
 
-/* Prompt control buttons — 24px density */
+/* Prompt control buttons — compact density */
 [data-prompt-root] .prompt-control-filled,
 [data-prompt-root] .prompt-control-ghost {
   box-sizing: border-box;
@@ -3120,8 +3120,8 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 [data-prompt-root] .prompt-control-ghost svg {
-  width: 14px !important;
-  height: 14px !important;
+  width: 15px !important;
+  height: 15px !important;
 }
 
 [data-prompt-root]
@@ -5383,7 +5383,7 @@ button[data-speed-toggle][data-state="open"] {
   padding: var(--menu-item-pad-y) var(--menu-item-pad-x) !important;
   font-size: var(--menu-font-size) !important;
   line-height: var(--menu-line-height) !important;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ui-menu [role="menuitem"] > svg,
@@ -5395,7 +5395,7 @@ button[data-speed-toggle][data-state="open"] {
 }
 
 .ui-menu [role="separator"] {
-  margin-block: 6px !important;
+  margin-block: 4px !important;
   background: var(--ui-border-subtle, rgba(24, 24, 27, 0.08)) !important;
 }
 
@@ -7134,7 +7134,7 @@ button.prompt-model-selector[aria-expanded="true"] {
 
 .cx-sidebar .clauxen-wordmark,
 .cx-wordmark {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.04em;
   color: var(--cx-sidebar-fg);
@@ -7143,45 +7143,55 @@ button.prompt-model-selector[aria-expanded="true"] {
 .cx-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 10px 8px;
+  gap: 1px;
+  padding: 2px 8px 4px;
 }
 
 .cx-sidebar.is-collapsed .cx-nav {
   align-items: center;
-  padding-inline: 8px;
+  padding-inline: 10px;
 }
 
 .cx-nav-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  min-height: 40px;
-  padding: 0 12px;
+  height: 32px;
+  padding: 0 10px;
   border: 0;
-  border-radius: var(--cx-radius);
+  border-radius: var(--cx-radius-sm);
   background: transparent;
   color: var(--cx-sidebar-fg);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  line-height: 20px;
-  letter-spacing: -0.01em;
+  line-height: 18px;
+  letter-spacing: -0.006em;
   text-decoration: none;
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.cx-nav-btn:focus-visible {
+  outline: 2px solid var(--brand-ring);
+  outline-offset: 1px;
 }
 
 .cx-sidebar.is-collapsed .cx-nav-btn {
-  width: 40px;
+  width: 32px;
   justify-content: center;
   padding: 0;
 }
 
 .cx-nav-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex: none;
   stroke-width: 1.75;
+}
+
+.cx-nav-btn--primary {
+  margin-bottom: 4px;
 }
 
 .cx-nav-btn:hover {
@@ -7207,6 +7217,27 @@ button.prompt-model-selector[aria-expanded="true"] {
 .cx-sidebar .sidebar-account-footer {
   border-top-color: var(--cx-sidebar-line);
   background: transparent;
+}
+
+/* Sidebar row actions sit inside a 30px row: 22px hit targets, sidebar ink. */
+.cx-sidebar .ui-row-icon-button {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 4px;
+  color: var(--cx-sidebar-muted);
+}
+
+.cx-sidebar .ui-row-icon-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cx-sidebar .ui-row-icon-button:hover:not(:disabled),
+.cx-sidebar .ui-row-icon-button[data-state="open"] {
+  background-color: var(--cx-sidebar-hover) !important;
+  color: var(--cx-sidebar-fg) !important;
 }
 
 .cx-settings {

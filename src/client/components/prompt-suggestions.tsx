@@ -102,24 +102,24 @@ export function PromptSuggestions({
       }}
       className="w-full overflow-hidden"
     >
-      <div className="w-full bg-[var(--popup-bg)] border border-[var(--popup-border)] rounded-[16px] shadow-[var(--popup-shadow)] font-sans mt-2">
-        <div className="flex items-center justify-between p-2 px-4">
+      <div className="w-full bg-[var(--popup-bg)] border border-[var(--popup-border)] rounded-[var(--popup-radius)] shadow-[var(--popup-shadow)] font-sans">
+        <div className="flex h-9 items-center justify-between pl-3 pr-1.5">
           <div className="flex items-center gap-2 text-[var(--ui-fg-muted)]">
-            <Icon className="icon-md shrink-0 icon-muted" />
-            <span className="text-[12px] font-medium uppercase tracking-wide">
+            <Icon className="size-3.5 shrink-0 icon-muted" />
+            <span className="text-[11.5px] font-medium">
               {category}
             </span>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--ui-hover-wash)] text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)] transition-all"
+            className="size-6 flex items-center justify-center rounded-[6px] hover:bg-[var(--ui-hover-wash)] text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)] transition-all"
             aria-label="Close suggestions"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
+              width="14"
+              height="14"
               fill="currentColor"
               viewBox="0 0 256 256"
             >
@@ -133,16 +133,16 @@ export function PromptSuggestions({
             <li key={index} className="border-t border-[var(--ui-border-subtle)]">
               <button
                 onClick={() => onSelect(suggestion)}
-                className="w-full flex items-center justify-between py-[10px] px-4 hover:bg-[var(--ui-hover-wash)] transition-colors group text-left"
+                className="w-full flex items-center justify-between py-2 px-3 hover:bg-[var(--ui-hover-wash)] transition-colors group text-left"
               >
-                <span className="text-[14px] text-[var(--ui-fg)] leading-[20px] font-[430]">
+                <span className="text-[13px] text-[var(--ui-fg)] leading-[18px] font-normal">
                   {suggestion}
                 </span>
 
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
+                  width="14"
+                  height="14"
                   fill="currentColor"
                   viewBox="0 0 256 256"
                   className="text-[var(--ui-fg-muted)] opacity-0 group-hover:opacity-100 transition-all"

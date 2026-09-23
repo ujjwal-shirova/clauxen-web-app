@@ -56,7 +56,7 @@ export function HintTooltip({
           side={side}
           align={align}
           sideOffset={sideOffset}
-          className="z-[70] rounded-lg border-0 bg-white px-2.5 py-1.5 text-[12px] font-medium leading-4 text-zinc-800 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)]"
+          className="z-[70] rounded-[7px] border-0 bg-white px-2 py-1 text-[11.5px] font-medium leading-4 text-zinc-800 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)]"
         >
           {content}
         </TooltipContent>

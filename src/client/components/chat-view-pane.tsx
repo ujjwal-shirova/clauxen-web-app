@@ -74,7 +74,7 @@ function WelcomeChips({
     <div
       className={cn(
         "flex w-full flex-col items-center justify-start transition-[min-height] duration-200 ease-out",
-        compact ? "min-h-0" : "min-h-[96px]",
+        compact ? "min-h-0" : "min-h-[72px]",
       )}
     >
       <AnimatePresence mode="wait" initial={false}>
@@ -104,8 +104,8 @@ function WelcomeChips({
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
             className={cn(
-              "mt-1 flex w-full flex-wrap justify-center gap-1.5 sm:mt-2 sm:gap-2",
-              compact && "gap-1 sm:gap-1",
+              "flex w-full flex-wrap justify-center gap-1.5",
+              compact && "gap-1",
             )}
           >
             {allChips.map((chip) => (
@@ -114,12 +114,11 @@ function WelcomeChips({
                 type="button"
                 onClick={() => onActiveChipChange(chip.label)}
                 className={cn(
-                  "flex h-8 items-center gap-1.5 rounded-full border border-[var(--ui-border)] bg-transparent px-3 text-[12.5px] leading-5 text-[var(--ui-fg-muted)] transition-all duration-150 hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] sm:h-9 sm:gap-2 sm:px-4 sm:text-[14px]",
-                  compact &&
-                    "h-7 px-2.5 text-[11.5px] sm:h-7 sm:px-2.5 sm:text-[12px]",
+                  "flex h-7 items-center gap-1.5 rounded-[8px] border border-[var(--ui-border)] bg-transparent px-2.5 text-[12.5px] leading-[18px] text-[var(--ui-fg-muted)] transition-colors duration-150 hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                  compact && "h-6 gap-1 px-2 text-[11.5px]",
                 )}
               >
-                <chip.icon className="h-4 w-4 shrink-0" aria-hidden />
+                <chip.icon className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
                 <span>{chip.label}</span>
               </button>
             ))}
@@ -301,12 +300,12 @@ export function ChatViewPane({
     >
       {!hasConversation && !composerOnlyWelcome && !incognitoWelcome ? (
         <div className="new-chat-hero flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="m-auto flex w-full max-w-[var(--chat-column-max-width,720px)] flex-col items-center px-4 py-8 sm:px-6">
+          <div className="new-chat-hero__inner m-auto flex w-full max-w-[var(--chat-column-max-width,720px)] flex-col items-center px-4 py-6 sm:px-6">
             {showNewChatUpgradeCard ? (
               <button
                 type="button"
                 onClick={onUpgradeClick}
-                className="mb-6 inline-flex h-8 items-center gap-1.5 rounded-xl bg-[var(--ui-muted-surface)] px-3 text-[14px] font-normal leading-5 text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+                className="mb-4 inline-flex h-7 items-center gap-1.5 rounded-[8px] bg-[var(--ui-muted-surface)] px-2.5 text-[12.5px] font-normal leading-[18px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
               >
                 <span className="text-[var(--link)] underline decoration-[var(--link-decoration)] underline-offset-[3px]">
                   Upgrade to Pro
@@ -315,15 +314,15 @@ export function ChatViewPane({
             ) : null}
             <Image
               src="/assets/icons/clauxen-icon.png"
-              width={64}
-              height={64}
+              width={44}
+              height={44}
               alt=""
               aria-hidden="true"
               priority
-              className="h-14 w-14 shrink-0 object-contain drop-shadow-sm sm:h-16 sm:w-16"
+              className="size-10 shrink-0 object-contain sm:size-11"
             />
             <h2
-              className="new-chat-greeting mt-5 w-full max-w-full truncate text-center text-[28px] leading-[36px] text-[var(--ui-fg)] sm:text-[32px] sm:leading-[40px]"
+              className="new-chat-greeting mt-3 w-full max-w-full truncate text-center text-[22px] leading-[30px] text-[var(--ui-fg)] sm:text-[26px] sm:leading-[34px]"
               suppressHydrationWarning
             >
               {greeting
@@ -332,8 +331,8 @@ export function ChatViewPane({
                   : greeting
                 : "\u00a0"}
             </h2>
-            <div className="mt-7 w-full">{promptInput}</div>
-            <div className="mt-3 w-full">
+            <div className="mt-5 w-full">{promptInput}</div>
+            <div className="mt-2.5 w-full">
               <WelcomeChips
                 hasPromptDraft={hasPromptDraft}
                 activeChip={activeChip}
@@ -341,7 +340,7 @@ export function ChatViewPane({
                 onSendMessage={onSendMessage}
               />
             </div>
-            <p className="mt-6 text-center text-[12px] leading-5 text-[var(--ui-fg-muted)]">
+            <p className="mt-3 text-center text-[11px] leading-4 text-[var(--ui-fg-subtle)]">
               Clauxen can make mistakes. Check important info.
             </p>
           </div>

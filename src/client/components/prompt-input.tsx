@@ -995,10 +995,10 @@ export function PromptInput({
   const promptIsExpanded =
     isMultiline || showComposeControls || hasPromptAddons;
   const promptShellClass = cn(
-    "relative w-full max-w-full bg-[var(--chat-user-card-bg,#ffffff)] transition-[min-height,border-color,background-color,box-shadow] duration-300 ease-out rounded-xl",
+    "relative w-full max-w-full bg-[var(--chat-user-card-bg,#ffffff)] transition-[min-height,border-color,background-color,box-shadow] duration-300 ease-out rounded-[var(--prompt-radius)]",
     showComposeControls && "min-h-[40px]",
     composerVariant === "incognito" &&
-      "rounded-xl border border-dashed border-zinc-300/90 shadow-none",
+      "border border-dashed border-zinc-300/90 shadow-none",
   );
 
   const renderMicButton = () => (
@@ -1297,7 +1297,7 @@ export function PromptInput({
                 <button
                   type="button"
                   onClick={onScrollToBottom}
-                  className="absolute -top-11 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-field-bg)]/95 text-[var(--ui-fg-muted)] shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                  className="absolute -top-10 right-2 z-20 flex size-7 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-field-bg)]/95 text-[var(--ui-fg-muted)] shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                 >
                   <ArrowDown className="icon-md" />
                 </button>
@@ -1346,14 +1346,14 @@ export function PromptInput({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center gap-1.5 overflow-hidden px-3 pt-2 pb-0"
+                    className="flex items-center gap-1 overflow-hidden px-2.5 pt-2 pb-0"
                   >
                     {selectedQuickActions.map((action) => (
                       <button
                         key={action}
                         type="button"
                         onClick={() => handleQuickActionRemove(action)}
-                        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[var(--ui-border)] bg-transparent px-2.5 text-[12px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                        className="inline-flex h-6 items-center gap-1 rounded-[7px] border border-[var(--ui-border)] bg-transparent px-2 text-[12px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                       >
                         <span>{quickActionLabelMap[action]}</span>
                         <X className="icon-sm" />
@@ -1419,7 +1419,7 @@ export function PromptInput({
                       onMouseEnter={() => setComposeChipHovered(true)}
                       onMouseLeave={() => setComposeChipHovered(false)}
                       onClick={handleComposeActionRemove}
-                      className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[var(--ui-field-focus-border)] bg-[var(--brand-soft)] px-2.5 text-[12px] font-medium text-[var(--link)] transition-colors hover:bg-[var(--ui-hover-wash)]"
+                      className="inline-flex h-6 items-center gap-1 rounded-[7px] border border-[var(--ui-field-focus-border)] bg-[var(--brand-soft)] px-2 text-[12px] font-medium text-[var(--link)] transition-colors hover:bg-[var(--ui-hover-wash)]"
                     >
                       {composeChipHovered ? (
                         <X className="icon-sm" />

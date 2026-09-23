@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 export const APP_SIDEBAR_RAIL_WIDTH_PX = 48;
 /** Expanded primary nav width. */
-export const APP_SIDEBAR_EXPANDED_WIDTH_PX = 288;
+export const APP_SIDEBAR_EXPANDED_WIDTH_PX = 256;
 export const APP_SHELL_GAP = "0.625rem";
 
 /** Shared main-content shell — full-bleed, no contained-panel inset. */
