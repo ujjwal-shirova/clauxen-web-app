@@ -7042,91 +7042,38 @@ button.prompt-model-selector[aria-expanded="true"] {
 /* ==========================================================================
    Clauxen design identity — the only visual source of truth.
    Change tokens here and the sidebar, settings, chat, and overlays follow.
-   Palette: warm ink, paper, and copper. Not a borrowed product skin.
+   Palette: neutral ink on gray paper.
    ========================================================================== */
 
 :root {
-  --cx-accent: #c4622d;
-  --cx-accent-strong: #9a4a1e;
-  --cx-ink: #241c16;
-  --cx-paper: #f4ece3;
-  --cx-paper-raised: #fffaf4;
-  --cx-sidebar-bg: #2a211b;
-  --cx-sidebar-fg: #f7f1e8;
-  --cx-sidebar-muted: rgba(247, 241, 232, 0.7);
-  --cx-sidebar-faint: rgba(247, 241, 232, 0.42);
-  --cx-sidebar-hover: rgba(247, 241, 232, 0.09);
-  --cx-sidebar-active: rgba(196, 98, 45, 0.32);
-  --cx-sidebar-line: rgba(247, 241, 232, 0.14);
+  --cx-accent: #14151a;
+  --cx-accent-strong: #2a2b30;
+  --cx-on-accent: #fcfcfb;
+  --cx-ink: #14151a;
+  --cx-paper: var(--app-sidebar-bg);
+  --cx-paper-raised: var(--app-panel-bg);
+  --cx-sidebar-bg: var(--app-sidebar-bg);
+  --cx-sidebar-fg: #14151a;
+  --cx-sidebar-muted: color-mix(in oklab, #14151a 72%, transparent);
+  --cx-sidebar-faint: color-mix(in oklab, #14151a 50%, transparent);
+  --cx-sidebar-hover: color-mix(in oklab, #14151a 5%, transparent);
+  --cx-sidebar-active: color-mix(in oklab, #14151a 7%, transparent);
+  --cx-sidebar-line: color-mix(in oklab, #14151a 7%, transparent);
   --cx-radius: 12px;
   --cx-radius-sm: 8px;
-
-  --brand: 22 68% 46%;
-  --brand-strong: 22 72% 36%;
-  --brand-soft: color-mix(in oklab, var(--cx-accent) 16%, transparent);
-  --brand-ring: color-mix(in oklab, var(--cx-accent) 36%, transparent);
-  --link: var(--cx-accent-strong);
-  --link-hover: var(--cx-ink);
-  --link-decoration: color-mix(in oklab, var(--cx-accent) 40%, transparent);
-
-  --app-sidebar-bg: var(--cx-sidebar-bg);
-  --app-frame-bg: var(--cx-sidebar-bg);
-  --app-shell-bg: var(--cx-sidebar-bg);
-  --app-panel-bg: var(--cx-paper-raised);
-  --chat-canvas-bg: var(--cx-paper-raised);
-  --chat-user-card-bg: #f3e7da;
-  --ui-fg: var(--cx-ink);
-  --ui-fg-body: #3d3128;
-  --ui-fg-muted: rgba(36, 28, 22, 0.68);
-  --ui-fg-subtle: rgba(36, 28, 22, 0.55);
-  --ui-fg-placeholder: rgba(36, 28, 22, 0.42);
-  --ui-card-bg: var(--cx-paper-raised);
-  --ui-border: rgba(36, 28, 22, 0.12);
-  --ui-border-subtle: rgba(36, 28, 22, 0.08);
-  --ui-hover-wash: rgba(36, 28, 22, 0.05);
-  --ui-muted-surface: rgba(36, 28, 22, 0.04);
-  --icon-color: var(--cx-ink);
-  --pricing-bg: var(--cx-paper);
-  --pricing-card: var(--cx-paper-raised);
-  --settings-card-radius: 14px;
-  --settings-card-shadow: 0 0 0 1px rgba(36, 28, 22, 0.08);
-  --radius: 12px;
 }
 
 .dark {
-  --cx-accent: #e08a52;
-  --cx-accent-strong: #f0a36e;
-  --cx-ink: #f7f1e8;
-  --cx-paper: #1a1512;
-  --cx-paper-raised: #241c17;
-  --cx-sidebar-bg: #120e0c;
-  --cx-sidebar-fg: #f7f1e8;
-  --cx-sidebar-muted: rgba(247, 241, 232, 0.66);
-  --cx-sidebar-hover: rgba(247, 241, 232, 0.08);
-  --cx-sidebar-active: rgba(224, 138, 82, 0.24);
-  --cx-sidebar-line: rgba(247, 241, 232, 0.12);
-  --brand: 24 72% 64%;
-  --brand-strong: 24 80% 74%;
-  --link: var(--cx-accent);
-  --link-hover: var(--cx-accent-strong);
-  --app-sidebar-bg: var(--cx-sidebar-bg);
-  --app-frame-bg: var(--cx-sidebar-bg);
-  --app-shell-bg: var(--cx-sidebar-bg);
-  --app-panel-bg: var(--cx-paper-raised);
-  --chat-canvas-bg: var(--cx-paper-raised);
-  --chat-user-card-bg: #2e241d;
-  --ui-fg: var(--cx-ink);
-  --ui-fg-body: #eadfd3;
-  --ui-fg-muted: rgba(247, 241, 232, 0.68);
-  --ui-card-bg: #2c231c;
-  --ui-border: rgba(247, 241, 232, 0.12);
-  --ui-border-subtle: rgba(247, 241, 232, 0.08);
-  --ui-hover-wash: rgba(247, 241, 232, 0.06);
-  --icon-color: var(--cx-ink);
-  --settings-card-bg: #2c231c;
-  --settings-elevated-bg: #332820;
-  --pricing-bg: var(--cx-paper);
-  --pricing-card: #2c231c;
+  --cx-accent: #f4f4f5;
+  --cx-accent-strong: #ffffff;
+  --cx-on-accent: #18181b;
+  --cx-ink: #fafafa;
+  --cx-sidebar-fg: #fafafa;
+  --cx-sidebar-muted: #a1a1aa;
+  --cx-sidebar-faint: #71717a;
+  --cx-sidebar-hover: rgba(255, 255, 255, 0.07);
+  --cx-sidebar-active: rgba(255, 255, 255, 0.09);
+  --cx-sidebar-line: rgba(255, 255, 255, 0.07);
 }
 
 .cx-sidebar {
@@ -7218,13 +7165,13 @@ button.prompt-model-selector[aria-expanded="true"] {
 }
 
 .cx-nav-btn--primary {
-  background: var(--cx-accent);
-  color: #fffaf4;
+  background: transparent;
+  color: var(--cx-sidebar-fg);
 }
 
 .cx-nav-btn--primary:hover {
-  background: var(--cx-accent-strong);
-  color: #fffaf4;
+  background: var(--cx-sidebar-hover);
+  color: var(--cx-sidebar-fg);
 }
 
 .cx-sidebar .sidebar-account-footer {
@@ -7305,11 +7252,11 @@ button.prompt-model-selector[aria-expanded="true"] {
 .cx-settings .settings-card {
   background: var(--cx-paper-raised);
   border-radius: var(--cx-radius);
-  box-shadow: 0 0 0 1px rgba(36, 28, 22, 0.08);
+  box-shadow: 0 0 0 1px rgba(20, 21, 26, 0.08);
 }
 
 .dark .cx-settings .settings-card {
-  box-shadow: 0 0 0 1px rgba(247, 241, 232, 0.08);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .cx-settings .settings-btn {
@@ -7318,7 +7265,7 @@ button.prompt-model-selector[aria-expanded="true"] {
 
 .cx-settings .settings-btn--primary {
   background: var(--cx-accent);
-  color: #fffaf4;
+  color: var(--cx-on-accent);
   box-shadow: none;
 }
 
@@ -7338,11 +7285,6 @@ button.prompt-model-selector[aria-expanded="true"] {
 .dark {
   --edge-sheen: rgba(255, 255, 255, 0.07);
   --edge-wash: rgba(255, 255, 255, 0.035);
-}
-
-.cx-sidebar {
-  --edge-sheen: rgba(255, 255, 255, 0.06);
-  --edge-wash: rgba(255, 255, 255, 0.03);
 }
 
 /* Floating surfaces: the border lightens toward the top edge. */
