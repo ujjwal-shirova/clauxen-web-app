@@ -32,7 +32,7 @@ const defaultGeneral = {
   motion: "System",
   voiceSpeed: "Normal",
   followUpSuggestions: true,
-  sidebarWidth: 256,
+  sidebarWidth: 288,
 };
 
 const defaultPersonalization = {

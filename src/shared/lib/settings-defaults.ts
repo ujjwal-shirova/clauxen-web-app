@@ -17,7 +17,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     motion: "System",
     voiceSpeed: "Normal",
     followUpSuggestions: true,
-    sidebarWidth: 256,
+    sidebarWidth: 288,
   },
   personalization: {
     personality: "Default",

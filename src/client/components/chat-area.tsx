@@ -408,7 +408,7 @@ function ChatAreaLayout({
               onOpenSettings={onOpenSettings}
               onOpenMobileNav={onOpenMobileNav}
               showMobileMenu={showMobileMenu}
-              showFreePlanUpgrade={false}
+              showFreePlanUpgrade={showFreePlanUpgrade}
               className="relative z-20 shrink-0"
             />
           ) : null}

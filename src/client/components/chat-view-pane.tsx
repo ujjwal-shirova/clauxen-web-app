@@ -127,18 +127,37 @@ function WelcomeChips({
   );
 }
 
-function getTimeOfDayGreeting() {
+const NAMED_WELCOMES = [
+  (name: string) => `What are we thinking about, ${name}?`,
+  (name: string) => `Where should we begin, ${name}?`,
+  (name: string) => `What's on your mind, ${name}?`,
+  (name: string) => `What should we work on, ${name}?`,
+  (name: string) => `Good to see you, ${name}.`,
+  (name: string) => `What can I help with, ${name}?`,
+  (name: string) => `Ready when you are, ${name}.`,
+  (name: string) => `What's the plan today, ${name}?`,
+] as const;
+
+const UNNAMED_WELCOMES = [
+  "What are we thinking about?",
+  "Where should we begin?",
+  "What can I help with?",
+  "What's on your mind?",
+  "What should we explore?",
+] as const;
+
+function pickWelcomeMessage(name: string | null) {
   const hour = new Date().getHours();
-
-  if (hour < 12) {
-    return "Good morning";
+  const time =
+    hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const pool: string[] = [
+    ...UNNAMED_WELCOMES,
+    name ? `${time}, ${name}.` : `${time}.`,
+  ];
+  if (name) {
+    for (const line of NAMED_WELCOMES) pool.push(line(name));
   }
-
-  if (hour < 18) {
-    return "Good afternoon";
-  }
-
-  return "Good evening";
+  return pool[Math.floor(Math.random() * pool.length)] ?? UNNAMED_WELCOMES[0];
 }
 
 /** First name for welcome — prefers what Clauxen calls you, then full name. */
@@ -197,7 +216,7 @@ export function ChatViewPane({
   onUpgradeClick,
   showNewChatUpgradeCard = false,
 }: ChatViewPaneProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const composerOnlyWelcome = welcomeVariant === "composer-only";
   const incognitoWelcome = welcomeVariant === "incognito";
   // Blank new-chat landing — centered hero (icon + greeting + composer + chips).
@@ -206,6 +225,7 @@ export function ChatViewPane({
     !hasConversation && !composerOnlyWelcome && !incognitoWelcome;
   const dockComposer = hasConversation;
   const [greeting, setGreeting] = useState<string | null>(null);
+  const welcomePickedRef = useRef(false);
   const firstName = welcomeFirstName({
     preferredName: userPreferredName ?? user?.preferredName,
     fullName: user?.displayName,
@@ -218,13 +238,10 @@ export function ChatViewPane({
   const composerMeasureRafRef = useRef(0);
 
   useEffect(() => {
-    const updateGreeting = () => setGreeting(getTimeOfDayGreeting());
-
-    updateGreeting();
-    const intervalId = window.setInterval(updateGreeting, 60_000);
-
-    return () => window.clearInterval(intervalId);
-  }, []);
+    if (welcomePickedRef.current || authLoading) return;
+    welcomePickedRef.current = true;
+    setGreeting(pickWelcomeMessage(firstName));
+  }, [authLoading, firstName]);
 
   useEffect(() => {
     if (dockComposer) return;
@@ -297,39 +314,24 @@ export function ChatViewPane({
     >
       {!hasConversation && !composerOnlyWelcome && !incognitoWelcome ? (
         <div className="new-chat-hero flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="new-chat-hero__inner m-auto flex w-full max-w-[var(--chat-column-max-width,720px)] flex-col items-center px-4 py-6 sm:px-6">
-            {showNewChatUpgradeCard ? (
-              <button
-                type="button"
-                onClick={onUpgradeClick}
-                className="mb-4 inline-flex h-7 items-center gap-1.5 rounded-[8px] bg-[var(--ui-muted-surface)] px-2.5 text-[12.5px] font-normal leading-[18px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
-              >
-                <span className="text-[var(--link)] underline decoration-[var(--link-decoration)] underline-offset-[3px]">
-                  Upgrade to Pro
-                </span>
-              </button>
-            ) : null}
-            <Image
-              src="/assets/icons/clauxen-icon.png"
-              width={44}
-              height={44}
-              alt=""
-              aria-hidden="true"
-              priority
-              className="size-10 shrink-0 object-contain sm:size-11"
-            />
+          <div className="new-chat-hero__inner m-auto flex w-full flex-col items-center px-4 py-6 sm:px-6">
             <h2
-              className="new-chat-greeting mt-3 w-full max-w-full truncate text-center text-[22px] leading-[30px] text-[var(--ui-fg)] sm:text-[26px] sm:leading-[34px]"
+              className="new-chat-greeting w-full max-w-full text-center text-[var(--ui-fg)]"
               suppressHydrationWarning
             >
-              {greeting
-                ? firstName
-                  ? `${greeting}, ${firstName}`
-                  : greeting
-                : "\u00a0"}
+              <Image
+                src="/assets/icons/clauxen-icon.png"
+                width={28}
+                height={28}
+                alt=""
+                aria-hidden="true"
+                priority
+                className="new-chat-greeting__mark"
+              />
+              {greeting || "\u00a0"}
             </h2>
-            <div className="mt-5 w-full">{promptInput}</div>
-            <div className="mt-2.5 w-full">
+            <div className="w-full">{promptInput}</div>
+            <div className="w-full">
               <WelcomeChips
                 hasPromptDraft={hasPromptDraft}
                 activeChip={activeChip}
@@ -337,7 +339,7 @@ export function ChatViewPane({
                 onSendMessage={onSendMessage}
               />
             </div>
-            <p className="mt-3 text-center text-[11px] leading-4 text-[var(--ui-fg-subtle)]">
+            <p className="text-center text-[11px] leading-4 text-[var(--ui-fg-subtle)]">
               Clauxen can make mistakes. Check important info.
             </p>
           </div>
@@ -438,20 +440,7 @@ export function ChatViewPane({
                     ) : composerOnlyWelcome ? (
                       "What can I help with?"
                     ) : greeting ? (
-                      <span className="inline-flex max-w-full flex-wrap items-center justify-center gap-2.5 px-1 text-balance sm:flex-nowrap sm:gap-5">
-                        <Image
-                          src="/assets/icons/clauxen-icon.png"
-                          width={70}
-                          height={70}
-                          alt=""
-                          aria-hidden="true"
-                          priority
-                          className="h-10 w-10 shrink-0 object-contain max-[380px]:h-9 max-[380px]:w-9 sm:h-14 sm:w-14 lg:h-[70px] lg:w-[70px]"
-                        />
-                        <span className="min-w-0 max-w-full">
-                          {firstName ? `${greeting}, ${firstName}` : greeting}
-                        </span>
-                      </span>
+                      greeting
                     ) : (
                       "\u00a0"
                     )}

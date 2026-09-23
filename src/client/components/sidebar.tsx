@@ -22,7 +22,7 @@ import { SidebarToggleIcon } from "./icons";
 import { cn } from "@/lib/utils";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
-import { APP_ROUTES, buildOverlayLocation } from "@/lib/app-routes";
+import { APP_ROUTES, buildOverlayLocation, isNewChatPath } from "@/lib/app-routes";
 import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
 import { focusAppSurface } from "@/lib/surface-focus";
 import {
@@ -84,7 +84,7 @@ function writeSectionExpanded(key: SidebarSectionKey, expanded: boolean) {
   }
 }
 
-/** Category label — bold on hover, no button wash; chevron only while sidebar hovered. */
+/** Section label. Chevron stays hidden until this row is hovered, and rotates when expanded. */
 function SidebarSectionLabel({
   label,
   expanded,
@@ -97,7 +97,7 @@ function SidebarSectionLabel({
   trailing?: React.ReactNode;
 }) {
   return (
-    <div className="flex h-6 items-center justify-between gap-1 pl-2.5 pr-1">
+    <div className="cx-section-head">
       <button
         type="button"
         onClick={(event) => {
@@ -105,12 +105,12 @@ function SidebarSectionLabel({
           onToggle();
         }}
         aria-expanded={expanded}
-        className="no-hover-overlay group/section flex min-w-0 items-center gap-1 bg-transparent p-0 text-left text-[11px] font-medium leading-4 tracking-[0.02em] text-[var(--ui-fg-subtle)] transition-colors hover:text-[var(--ui-fg)]"
+        className="cx-section-toggle no-hover-overlay flex min-w-0 flex-1 items-center gap-1 bg-transparent p-0 text-left"
       >
         <span className="truncate">{label}</span>
         <ChevronRight
           className={cn(
-            "sidebar-section-chevron h-3 w-3 shrink-0 text-[var(--ui-fg-placeholder)] transition-[opacity,transform,color] duration-200 ease-out group-hover/section:text-[var(--ui-fg-muted)]",
+            "sidebar-section-chevron h-3 w-3 shrink-0 transition-transform duration-150",
             expanded && "rotate-90",
           )}
           strokeWidth={2}
@@ -231,6 +231,7 @@ export function Sidebar({
   showAccountMenu = true,
 }: SidebarProps) {
   const pathname = useAppPathname() || APP_ROUTES.newChat;
+  const newChatActive = isNewChatPath(pathname);
   const [chatGroupBy, setChatGroupBy] = useState<ChatGroupBy>("none");
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
@@ -398,15 +399,7 @@ export function Sidebar({
         key={chat.id}
         data-active={isActive ? "true" : undefined}
         aria-current={isActive ? "page" : undefined}
-        className={cn(
-          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-[7px] pl-2.5 pr-1 text-[13px] font-normal leading-[18px] tracking-[-0.006em] text-[var(--ui-fg-body)] transition-[background-color,box-shadow,color] duration-150",
-          // One continuous row highlight — never nest hover/selection on
-          // the title button or pin/menu actions. Keep the hover pill while
-          // pin/menu are focused or the overflow menu is open.
-          isActive
-            ? "bg-[var(--brand-soft)] text-[var(--ui-fg)]"
-            : "hover:bg-[var(--ui-hover-wash)] focus-within:bg-[var(--ui-hover-wash)] has-[[data-state=open]]:bg-[var(--ui-hover-wash)]",
-        )}
+        className="group/chat cx-chat-row glass-sidebar-agent-menu-btn relative flex w-full items-center"
       >
         <AppHref
           href={chatHref}
@@ -415,9 +408,20 @@ export function Sidebar({
             onSelectChat(chat);
             if (isMobileLayout) onNavigate?.();
           }}
-          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
         >
-          <span className="min-w-0 flex-1 truncate">
+          <span
+            className="cx-chat-status"
+            role={showSidebarSpinner ? "status" : "img"}
+            aria-label={showSidebarSpinner ? "Generating" : "Idle"}
+          >
+            {showSidebarSpinner ? (
+              <span className="chat-gen-spinner" />
+            ) : (
+              <span className="cx-chat-idle" aria-hidden />
+            )}
+          </span>
+          <span className="cx-chat-title min-w-0 flex-1">
             {chat.isTitleStreaming ? (
               <StreamingChatTitle title={chat.name || "New Chat"} isStreaming />
             ) : (
@@ -428,56 +432,45 @@ export function Sidebar({
             <TypingDots className="mr-0.5 shrink-0" />
           ) : null}
         </AppHref>
-        <div className="ml-0.5 flex shrink-0 items-center">
-          {showSidebarSpinner ? (
-            <span
-              className="flex size-[22px] items-center justify-center"
-              aria-label="Generating"
-              title="Generating"
-              role="status"
+        {!showSidebarSpinner ? (
+          <div className="cx-chat-actions">
+            <button
+              type="button"
+              aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onPinChat?.(chat.id, !chat.pinned);
+              }}
+              className="ui-row-icon-button"
             >
-              <span className="chat-gen-spinner" />
-            </span>
-          ) : (
-            <>
-              <button
-                type="button"
-                aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onPinChat?.(chat.id, !chat.pinned);
-                }}
-                className="ui-row-icon-button opacity-0 group-hover/chat:opacity-100 group-focus-within/chat:opacity-100 group-has-[[data-state=open]]/chat:opacity-100 focus-visible:opacity-100"
-              >
-                {chat.pinned ? (
-                  <PinOff strokeWidth={1.5} />
-                ) : (
-                  <Pin strokeWidth={1.5} />
-                )}
-              </button>
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={`Chat options for ${chat.name || "New Chat"}`}
-                    className="ui-row-icon-button opacity-0 group-hover/chat:opacity-100 group-focus-within/chat:opacity-100 group-has-[[data-state=open]]/chat:opacity-100 data-[state=open]:opacity-100 focus-visible:opacity-100"
-                  >
-                    <MoreVertical className="icon-sm" />
-                  </button>
-                </DropdownMenuTrigger>
-                <ChatRowMenuContent
-                  align="end"
-                  side="right"
-                  isPinned={!!chat.pinned}
-                  onRename={() => setRenameChatId(chat.id)}
-                  onPin={() => onPinChat?.(chat.id, true)}
-                  onUnpin={() => onPinChat?.(chat.id, false)}
-                  onDelete={() => setDeleteChatId(chat.id)}
-                />
-              </DropdownMenu>
-            </>
-          )}
-        </div>
+              {chat.pinned ? (
+                <PinOff strokeWidth={1.5} />
+              ) : (
+                <Pin strokeWidth={1.5} />
+              )}
+            </button>
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Chat options for ${chat.name || "New Chat"}`}
+                  className="ui-row-icon-button"
+                >
+                  <MoreVertical className="icon-sm" />
+                </button>
+              </DropdownMenuTrigger>
+              <ChatRowMenuContent
+                align="end"
+                side="right"
+                isPinned={!!chat.pinned}
+                onRename={() => setRenameChatId(chat.id)}
+                onPin={() => onPinChat?.(chat.id, true)}
+                onUnpin={() => onPinChat?.(chat.id, false)}
+                onDelete={() => setDeleteChatId(chat.id)}
+              />
+            </DropdownMenu>
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -513,21 +506,31 @@ export function Sidebar({
         <div
           className={cn(
             "ui-sidebar-top-bar relative flex h-11 shrink-0 items-center px-2",
-            isMobileLayout && "h-11 px-2",
             isCollapsed && !isMobileLayout
               ? "justify-center"
-              : "justify-between",
+              : "justify-start",
           )}
         >
-          {!isCollapsed && !isPeekPreview ? (
-            <div className="flex min-w-0 items-center px-1.5">
-              <span
-                className="clauxen-wordmark truncate leading-none text-[var(--ui-fg)]"
-                aria-label="Clauxen"
-              >
-                Clauxen
-              </span>
-            </div>
+          {!isMobileLayout && !isCollapsed && !isPeekPreview ? (
+            <button
+              type="button"
+              aria-label="Hide sidebar"
+              className="cx-hide-sidebar"
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsCollapsed(true);
+              }}
+            >
+              <SidebarToggleIcon className="size-4" aria-hidden />
+            </button>
+          ) : null}
+          {!isCollapsed ? (
+            <span
+              className="clauxen-wordmark min-w-0 truncate leading-none"
+              aria-label="Clauxen"
+            >
+              Clauxen
+            </span>
           ) : (
             <span className="sr-only">Clauxen</span>
           )}
@@ -540,7 +543,7 @@ export function Sidebar({
                 setIsCollapsed(true);
               }}
               aria-label="Close menu"
-              className="ui-icon-button !size-8 shrink-0 touch-manipulation text-[var(--ui-fg-muted)] transition-all duration-200 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+              className="ui-icon-button ml-auto !size-8 shrink-0 touch-manipulation text-[var(--ui-fg-muted)] transition-all duration-200 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
             >
               <X className="size-4" />
             </button>
@@ -562,9 +565,15 @@ export function Sidebar({
                 handleNewChat();
               }}
               aria-label="New chat"
-              className="cx-nav-btn cx-nav-btn--primary"
+              aria-current={newChatActive ? "page" : undefined}
+              className={cn(
+                "cx-nav-btn cx-nav-btn--primary",
+                newChatActive && "is-active",
+              )}
             >
-              <Plus strokeWidth={1.75} />
+              <span className="cx-nav-icon">
+                <Plus strokeWidth={1.75} />
+              </span>
               {isCollapsed && !isMobileLayout ? null : <span>New chat</span>}
             </AppHref>
             <AppHref
@@ -581,7 +590,9 @@ export function Sidebar({
                 activeView === "library" && "is-active",
               )}
             >
-              <Library strokeWidth={1.75} />
+              <span className="cx-nav-icon">
+                <Library strokeWidth={1.75} />
+              </span>
               {isCollapsed && !isMobileLayout ? null : <span>Library</span>}
             </AppHref>
           </nav>
@@ -635,7 +646,7 @@ export function Sidebar({
                   {chatsLoading && recentChats.length === 0 ? (
                     <div className="space-y-px" aria-hidden>
                       {[72, 58, 84, 64, 50, 76, 60].map((width, index) => (
-                        <div key={index} className="flex h-[30px] items-center px-2.5">
+                        <div key={index} className="flex h-8 items-center px-2.5">
                           <Skeleton
                             variant="text"
                             className="h-2.5 bg-[var(--ui-hover-wash)]"
@@ -651,7 +662,7 @@ export function Sidebar({
                   {groupedChats.map((group) => (
                     <div key={group.label || "all"}>
                       {group.label ? (
-                        <p className="px-2.5 pb-0.5 pt-1.5 text-[11px] font-medium leading-4 text-[var(--ui-fg-subtle)]">
+                        <p className="cx-chat-group-label px-2.5 pb-0.5 pt-1.5">
                           {group.label}
                         </p>
                       ) : null}
@@ -669,7 +680,7 @@ export function Sidebar({
         {showAccountMenu && (
           <div
             className={cn(
-              "sidebar-account-footer mt-auto shrink-0 flex flex-col border-t border-[var(--ui-border-subtle)] bg-[var(--app-sidebar-bg,var(--app-shell-bg))]",
+              "sidebar-account-footer mt-auto flex shrink-0 flex-col bg-transparent",
               isCollapsed
                 ? "items-center gap-1.5 px-0 pb-2 pt-1.5"
                 : "items-stretch gap-1 px-2 py-1.5",
@@ -697,32 +708,33 @@ export function Sidebar({
                       "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center border-0 bg-transparent outline-none transition-[background-color] duration-150 hover:bg-[var(--ui-hover-wash)] data-[state=open]:bg-[var(--ui-hover-wash)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
                       isCollapsed
                         ? "size-9 shrink-0 items-center justify-center rounded-full !p-0"
-                        : "h-10 min-w-0 flex-1 justify-start gap-2 rounded-[8px] pl-1.5 pr-2",
+                        : "h-8 min-w-0 flex-1 justify-start gap-2 rounded-[8px] pl-0.5 pr-2",
                     )}
                   >
                     <UserAvatarDisplay
                       name={userDisplayName || "?"}
                       avatarUrl={userAvatarUrl}
                       size="sm"
-                      className="size-7 shrink-0 bg-[var(--ui-hover-wash)] text-[11px] leading-none text-[var(--ui-fg-muted)]"
+                      className="size-6 shrink-0 bg-[var(--ui-hover-wash)] text-[10px] leading-none text-[var(--ui-fg-muted)]"
                     />
                     <div
                       className={cn(
-                        "flex min-w-0 flex-1 flex-col items-stretch justify-center gap-0 text-left transition-opacity duration-200",
-                        isCollapsed ? "hidden w-0 opacity-0" : "opacity-100",
+                        "cx-account-line min-w-0 flex-1 text-left",
+                        isCollapsed && "hidden",
                       )}
                     >
                       {!accountLoading && userDisplayName ? (
-                        <p className="truncate text-[13px] font-medium leading-4 text-[var(--ui-fg-body)]">
-                          {userDisplayName}
-                        </p>
+                        <span className="cx-account-name">{userDisplayName}</span>
                       ) : null}
                       {!accountLoading &&
                       !(Boolean(userEmail) && (planLoading || !planLabel)) &&
                       planLabel ? (
-                        <p className="truncate text-[11px] leading-[14px] text-[var(--ui-fg-muted)]">
-                          {planLabel}
-                        </p>
+                        <>
+                          <span className="cx-account-dot" aria-hidden>
+                            ·
+                          </span>
+                          <span className="cx-account-plan">{planLabel}</span>
+                        </>
                       ) : null}
                     </div>
                     {!isCollapsed && (
@@ -873,10 +885,7 @@ export function Sidebar({
                         type="button"
                         aria-label="Search chats"
                         title="Search chats"
-                        className={cn(
-                          "ui-icon-button !rounded-[7px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] data-[state=open]:bg-[var(--ui-hover-wash)] data-[state=open]:text-[var(--ui-fg)]",
-                          isMobileLayout ? "!size-8" : "!size-7",
-                        )}
+                        className="cx-sidebar-search ui-icon-button text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] data-[state=open]:bg-[var(--ui-hover-wash)] data-[state=open]:text-[var(--ui-fg)]"
                       >
                         <Search className="size-4" strokeWidth={1.75} />
                       </button>
@@ -931,18 +940,6 @@ export function Sidebar({
                       </div>
                     </PopoverContent>
                     </Popover>
-                  ) : null}
-
-                  {!isPeekPreview && !isMobileLayout ? (
-                    <button
-                      type="button"
-                      onClick={() => setIsCollapsed(true)}
-                      aria-label="Collapse sidebar"
-                      title="Collapse sidebar"
-                      className="ui-icon-button !size-7 !rounded-[7px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                    >
-                      <SidebarToggleIcon className="size-4" aria-hidden />
-                    </button>
                   ) : null}
                 </div>
               ) : null}

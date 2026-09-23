@@ -190,7 +190,7 @@
 
     /* App shell — sidebar + the inset around the elevated panel share one
        canvas so the main content reads as a pop-out of the sidebar surface. */
-    --app-sidebar-bg: #f4f4f3;
+    --app-sidebar-bg: #fafaf9;
     --app-frame-bg: var(--app-sidebar-bg);
     --app-shell-bg: var(--app-sidebar-bg);
     --app-panel-bg: #fcfcfb;
@@ -1571,8 +1571,18 @@ button.plugin-add-button:disabled,
 /* Default new-chat greeting — Playfair display voice for the empty state. */
 .new-chat-greeting {
   font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-wrap: balance;
+}
+
+.new-chat-greeting__mark {
+  display: inline-block;
+  width: 27px;
+  height: 27px;
+  margin-right: 11px;
+  vertical-align: -3px;
+  object-fit: contain;
 }
 
 .font-sans {
@@ -2295,14 +2305,14 @@ svg.app-icon[fill="currentColor"] {
 }
 
 /* Premium Sidebar layout & design */
-/* Section / More chevrons only while the pointer is over the sidebar. */
+/* Section chevron appears when that section row is hovered. */
 .sidebar-hover-area .sidebar-section-chevron {
   opacity: 0;
   pointer-events: none;
 }
 
-.sidebar-hover-area:hover .sidebar-section-chevron,
-.sidebar-hover-area:focus-within .sidebar-section-chevron {
+.cx-section-head:hover .sidebar-section-chevron,
+.cx-section-head:focus-within .sidebar-section-chevron {
   opacity: 1;
   pointer-events: auto;
 }
@@ -7008,12 +7018,12 @@ button.prompt-model-selector[aria-expanded="true"] {
   --cx-paper: var(--app-sidebar-bg);
   --cx-paper-raised: var(--app-panel-bg);
   --cx-sidebar-bg: var(--app-sidebar-bg);
-  --cx-sidebar-fg: #14151a;
-  --cx-sidebar-muted: color-mix(in oklab, #14151a 72%, transparent);
-  --cx-sidebar-faint: color-mix(in oklab, #14151a 50%, transparent);
-  --cx-sidebar-hover: color-mix(in oklab, #14151a 5%, transparent);
-  --cx-sidebar-active: color-mix(in oklab, #14151a 7%, transparent);
-  --cx-sidebar-line: color-mix(in oklab, #14151a 7%, transparent);
+  --cx-sidebar-fg: #52514e;
+  --cx-sidebar-muted: #898781;
+  --cx-sidebar-faint: #898781;
+  --cx-sidebar-hover: rgba(11, 11, 11, 0.04);
+  --cx-sidebar-active: #edece8;
+  --cx-sidebar-line: rgba(11, 11, 11, 0.1);
   --cx-radius: 12px;
   --cx-radius-sm: 8px;
 }
@@ -7049,9 +7059,10 @@ button.prompt-model-selector[aria-expanded="true"] {
 
 .cx-sidebar .clauxen-wordmark,
 .cx-wordmark {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.04em;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: normal;
   color: var(--cx-sidebar-fg);
 }
 
@@ -8314,7 +8325,7 @@ textarea.cx-field {
 
 /* Sidebar width, edge fade, plan scroller, gift preview, search ellipsis. */
 :root {
-  --app-sidebar-width: 256px;
+  --app-sidebar-width: 288px;
 }
 
 html[data-sidebar-resizing="1"] .app-sidebar-slot,
@@ -8366,25 +8377,22 @@ html[data-sidebar-resizing="1"] .cx-sidebar {
 .app-sidebar-resize::after {
   content: "";
   position: absolute;
-  top: 12px;
-  right: 0;
-  bottom: 12px;
-  width: 1px;
-  background: linear-gradient(
-    180deg,
-    transparent,
-    color-mix(in oklab, var(--cx-sidebar-fg) 42%, transparent) 14%,
-    color-mix(in oklab, var(--cx-sidebar-fg) 42%, transparent) 86%,
-    transparent
-  );
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 48px;
+  translate: -50% -50%;
+  border-radius: 999px;
+  background: #898781;
   opacity: 0;
-  transition: opacity 140ms ease;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) 0.2s;
 }
 
 .app-sidebar-resize:hover::after,
 .app-sidebar-resize:focus-visible::after,
 html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   opacity: 1;
+  transition-delay: 0s;
 }
 
 .app-sidebar-resize:focus-visible {
@@ -8587,4 +8595,325 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
 
 .gift-preview-card__note--empty {
   color: var(--settings-fg-muted);
+}
+
+/* Sidebar chrome — later rules win over the earlier docked-sidebar sizes. */
+.cx-sidebar .ui-sidebar-top-bar {
+  height: 44px;
+  min-height: 44px;
+  padding: 4px 8px 0;
+}
+
+.cx-sidebar .cx-hide-sidebar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cx-sidebar-fg);
+  cursor: pointer;
+  flex: none;
+}
+
+.cx-sidebar .cx-hide-sidebar:hover {
+  background: var(--cx-sidebar-hover);
+}
+
+.cx-sidebar .cx-hide-sidebar svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cx-hide-sidebar + .clauxen-wordmark {
+  margin-left: 6px;
+}
+
+.cx-sidebar:not(.is-collapsed) a.cx-nav-btn {
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 2px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--cx-sidebar-fg) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 21px !important;
+  letter-spacing: normal;
+  gap: 8px;
+}
+
+.cx-sidebar a.cx-nav-btn.is-active,
+.cx-sidebar a.cx-nav-btn[aria-current="page"] {
+  background: var(--cx-sidebar-active) !important;
+}
+
+.cx-sidebar:not(.is-collapsed) a.cx-nav-btn:hover,
+.cx-sidebar:not(.is-collapsed) a.cx-nav-btn:focus-visible {
+  background: var(--cx-sidebar-hover) !important;
+  border-color: transparent !important;
+  color: var(--cx-sidebar-fg) !important;
+}
+
+.cx-sidebar a.cx-nav-btn.is-active:hover,
+.cx-sidebar a.cx-nav-btn[aria-current="page"]:hover,
+.cx-sidebar a.cx-nav-btn.is-active:focus-visible,
+.cx-sidebar a.cx-nav-btn[aria-current="page"]:focus-visible {
+  background: var(--cx-sidebar-active) !important;
+}
+
+.cx-nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+.cx-sidebar .cx-nav-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cx-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 16px 4px 4px 6px;
+  color: var(--cx-sidebar-muted);
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.cx-sidebar .cx-section-toggle,
+.cx-sidebar .cx-section-head button {
+  color: var(--cx-sidebar-muted) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 16px !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+}
+
+.cx-sidebar .cx-section-toggle:hover,
+.cx-sidebar .cx-section-head button:hover,
+.cx-sidebar .cx-section-toggle:focus-visible,
+.cx-sidebar .cx-section-head button:focus-visible {
+  background: transparent !important;
+  color: var(--cx-sidebar-muted) !important;
+}
+
+.cx-chat-group-label {
+  color: var(--cx-sidebar-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.cx-sidebar .glass-sidebar-agent-menu-btn.cx-chat-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 32px !important;
+  min-height: 32px !important;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 21px;
+  font-weight: 400;
+  color: var(--cx-sidebar-fg);
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.cx-sidebar .cx-chat-row:hover,
+.cx-sidebar .cx-chat-row:focus-within,
+.cx-sidebar .cx-chat-row:has([data-state="open"]) {
+  background: var(--cx-sidebar-hover) !important;
+}
+
+.cx-sidebar .cx-chat-row[data-active="true"],
+.cx-sidebar .cx-chat-row[data-active="true"]:hover,
+.cx-sidebar .cx-chat-row[data-active="true"]:focus-within,
+.cx-sidebar .cx-chat-row[data-active="true"]:has([data-state="open"]) {
+  background: var(--cx-sidebar-active) !important;
+}
+
+.cx-chat-status {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.cx-chat-idle {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--cx-sidebar-muted);
+  opacity: 0.5;
+}
+
+.cx-chat-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+}
+
+.cx-chat-row:hover .cx-chat-title,
+.cx-chat-row:focus-within .cx-chat-title,
+.cx-chat-row:has([data-state="open"]) .cx-chat-title {
+  mask-image: linear-gradient(90deg, #000 calc(100% - 52px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 52px), transparent);
+}
+
+.cx-chat-actions {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  translate: 0 -50%;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cx-chat-row:hover .cx-chat-actions,
+.cx-chat-row:focus-within .cx-chat-actions,
+.cx-chat-row:has([data-state="open"]) .cx-chat-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cx-sidebar .sidebar-scrollable button,
+.cx-sidebar .sidebar-scrollable [role="button"] {
+  font-weight: 400 !important;
+  color: var(--cx-sidebar-fg) !important;
+}
+
+.cx-sidebar .sidebar-account-footer {
+  border-top: 0 !important;
+  background: transparent;
+}
+
+.cx-account-line {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 12px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 12px), transparent);
+}
+
+.cx-account-name {
+  flex: none;
+  max-width: 100%;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--cx-sidebar-fg);
+  white-space: nowrap;
+}
+
+.cx-account-dot,
+.cx-account-plan {
+  flex: none;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--cx-sidebar-muted);
+  white-space: nowrap;
+}
+
+.cx-sidebar .cx-sidebar-search {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  border-radius: 8px !important;
+  padding: 0 !important;
+  color: var(--cx-sidebar-fg);
+}
+
+.cx-sidebar .glass-sidebar-footer-account-trigger:not(.size-9) {
+  height: 32px;
+  border-radius: 8px;
+  padding-left: 2px;
+  padding-right: 8px;
+}
+
+.free-plan-upgrade {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f0ec;
+  color: #898781;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  cursor: pointer;
+  gap: 0;
+}
+
+.dark .free-plan-upgrade {
+  background: rgba(255, 255, 255, 0.08);
+  color: #a1a1aa;
+}
+
+.free-plan-upgrade__action {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.free-plan-upgrade:hover .free-plan-upgrade__action {
+  color: var(--link-hover);
+}
+
+.new-chat-hero__inner {
+  max-width: 672px;
+  gap: 28px;
+}
+
+.new-chat-greeting {
+  font-size: 35.2px;
+  line-height: 44px;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .new-chat-greeting {
+    font-size: 38px;
+    line-height: 47.5px;
+  }
+}
+
+/* Hairline divider from the sidebar canvas. The faded edge line sits underneath. */
+.cx-sidebar::after {
+  display: none;
+}
+
+nav.cx-sidebar {
+  border-right: 0.5px solid var(--cx-sidebar-line) !important;
+}
+
+.cx-sidebar .sidebar-scrollable .cx-section-head button,
+.cx-sidebar .sidebar-scrollable .cx-section-toggle {
+  color: var(--cx-sidebar-muted) !important;
+  font-weight: 400 !important;
 }
