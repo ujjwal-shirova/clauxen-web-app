@@ -15,12 +15,10 @@ import {
   Languages,
   Sparkles,
   X,
-  FolderKanban,
-  LayoutGrid,
   Library,
   Search,
 } from "lucide-react";
-import { SidebarToggleIcon, NavProjectsIcon } from "./icons";
+import { SidebarToggleIcon } from "./icons";
 import { cn } from "@/lib/utils";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
@@ -54,19 +52,13 @@ import { RenameChatDialog } from "./rename-chat-dialog";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
 import { SidebarChatGroupMenu } from "./sidebar-chat-group-menu";
-import {
-  groupChats,
-  hasProjectAssignments,
-  type ChatGroupBy,
-} from "@/lib/chat-grouping";
-import type { ApiProject } from "@/lib/api/projects";
+import { groupChats, type ChatGroupBy } from "@/lib/chat-grouping";
 import type { RecentChat } from "@/lib/types";
-import { ProjectAvatar } from "@/components/projects/project-avatar";
 
 const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
 const SECTION_STORAGE_PREFIX = "clauxen_sidebar_section_";
 
-type SidebarSectionKey = "pinned" | "projects" | "recents";
+type SidebarSectionKey = "pinned" | "recents";
 
 function readSectionExpanded(key: SidebarSectionKey, fallback: boolean) {
   if (typeof window === "undefined") return fallback;
@@ -185,9 +177,7 @@ interface SidebarProps {
   onUpgradeClick: () => void;
   onSettingsClick: () => void;
   onPersonalizationClick?: () => void;
-  onAppsExtensionsClick: () => void;
   onGiftClick: () => void;
-  onProjectsClick: () => void;
   activeView?: string;
   recentChats: RecentChat[];
   activeChatId: string | null;
@@ -200,15 +190,6 @@ interface SidebarProps {
   onPinChat?: (chatId: string, pinned: boolean) => void;
   /** Chat IDs with an in-flight assistant generation (sidebar splash). */
   generatingChatIds?: ReadonlySet<string> | string[];
-  projects?: ApiProject[];
-  /** Projects currently pinned into the shared Pinned section. */
-  pinnedProjects?: ApiProject[];
-  projectsLoading?: boolean;
-  activeProjectId?: string | null;
-  onNewProjectClick?: () => void;
-  onSelectProject?: (project: ApiProject) => void;
-  onPinProject?: (projectId: string, pinned: boolean) => void;
-  onMoveChatToProject?: (chatId: string, projectId: string | null) => void;
   userDisplayName?: string | null;
   /** True while auth identity is resolving — show skeletons, not mock labels. */
   accountLoading?: boolean;
@@ -230,9 +211,7 @@ export function Sidebar({
   onUpgradeClick,
   onSettingsClick,
   onPersonalizationClick,
-  onAppsExtensionsClick,
   onGiftClick,
-  onProjectsClick,
   activeView,
   recentChats,
   activeChatId,
@@ -243,14 +222,6 @@ export function Sidebar({
   onRenameChat,
   onPinChat,
   generatingChatIds,
-  projects = [],
-  pinnedProjects = [],
-  projectsLoading: _projectsLoading = false,
-  activeProjectId = null,
-  onNewProjectClick,
-  onSelectProject,
-  onPinProject,
-  onMoveChatToProject,
   userDisplayName = null,
   accountLoading = false,
   userAvatarUrl,
@@ -263,7 +234,6 @@ export function Sidebar({
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
   const [pinnedExpanded, setPinnedExpanded] = useState(true);
-  const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [recentsExpanded, setRecentsExpanded] = useState(true);
   const cachedPlan = readCachedBillingPlan();
   const [planLabel, setPlanLabel] = useState<string | null>(
@@ -288,14 +258,13 @@ export function Sidebar({
     if (typeof window === "undefined") return;
     try {
       const stored = localStorage.getItem(CHAT_GROUP_STORAGE_KEY);
-      if (stored === "none" || stored === "date" || stored === "project") {
+      if (stored === "none" || stored === "date") {
         setChatGroupBy(stored);
       }
     } catch {
       /* ignore */
     }
     setPinnedExpanded(readSectionExpanded("pinned", true));
-    setProjectsExpanded(readSectionExpanded("projects", true));
     setRecentsExpanded(readSectionExpanded("recents", true));
   }, []);
 
@@ -344,7 +313,6 @@ export function Sidebar({
       React.Dispatch<React.SetStateAction<boolean>>
     > = {
       pinned: setPinnedExpanded,
-      projects: setProjectsExpanded,
       recents: setRecentsExpanded,
     };
     setters[key]((prev) => {
@@ -354,7 +322,6 @@ export function Sidebar({
     });
   };
 
-  const projectGroupingEnabled = hasProjectAssignments(recentChats);
   const pinnedChats = useMemo(
     () => recentChats.filter((chat) => chat.pinned),
     [recentChats],
@@ -363,15 +330,7 @@ export function Sidebar({
     () => recentChats.filter((chat) => !chat.pinned),
     [recentChats],
   );
-  const pinnedProjectIdSet = useMemo(
-    () => new Set(pinnedProjects.map((p) => p.id)),
-    [pinnedProjects],
-  );
-  const unpinnedProjects = useMemo(
-    () => projects.filter((p) => !pinnedProjectIdSet.has(p.id)),
-    [projects, pinnedProjectIdSet],
-  );
-  const hasPinnedSection = pinnedChats.length > 0 || pinnedProjects.length > 0;
+  const hasPinnedSection = pinnedChats.length > 0;
   const groupedChats = useMemo(
     () => groupChats(unpinnedChats, chatGroupBy),
     [unpinnedChats, chatGroupBy],
@@ -380,71 +339,6 @@ export function Sidebar({
   const overlayHref = (overlay: Parameters<typeof buildOverlayLocation>[0]) =>
     buildOverlayLocation(overlay, pathname);
 
-  const renderProjectRow = (
-    project: ApiProject,
-    opts?: { pinned?: boolean },
-  ) => {
-    const isActive = activeProjectId === project.id;
-    const showUnpin = Boolean(opts?.pinned);
-    const projectHref = APP_ROUTES.project(project.id);
-    return (
-      <div
-        key={`project-${project.id}`}
-        data-active={isActive ? "true" : undefined}
-        aria-current={isActive ? "page" : undefined}
-        className={cn(
-          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose min-h-8 w-full rounded-lg px-2.5 text-[13px] font-[450] leading-[18px] tracking-[-0.006em] text-[var(--ui-fg-body)] transition-[background-color,box-shadow,color] duration-150",
-          isActive
-            ? "bg-[var(--brand-soft)] text-[var(--ui-fg)]"
-            : "hover:bg-[var(--ui-hover-wash)]",
-        )}
-      >
-        <AppHref
-          href={projectHref}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (!isPlainLeftClick(event)) return;
-            onSelectProject?.(project);
-            if (isMobileLayout) onNavigate?.();
-          }}
-          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
-        >
-          <span className="ui-nav-icon flex size-4 items-center justify-center text-[15px] leading-none text-[var(--ui-fg-muted)]">
-            {project.icon ? (
-              <ProjectAvatar
-                icon={project.icon}
-                color={project.color}
-                size="sm"
-                className="h-4 w-4 text-[10px]"
-              />
-            ) : (
-              <NavProjectsIcon className="size-4" />
-            )}
-          </span>
-          <span className="min-w-0 flex-1 truncate">
-            {project.name || "Untitled project"}
-          </span>
-        </AppHref>
-        {onPinProject ? (
-          <button
-            type="button"
-            aria-label={showUnpin ? "Unpin project" : "Pin project"}
-            onClick={(event) => {
-              event.stopPropagation();
-              onPinProject(project.id, !showUnpin);
-            }}
-            className="ui-row-icon-button ml-1 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 focus-visible:opacity-100"
-          >
-            {showUnpin ? (
-              <PinOff strokeWidth={1.5} />
-            ) : (
-              <Pin strokeWidth={1.5} />
-            )}
-          </button>
-        ) : null}
-      </div>
-    );
-  };
   const renameChat = useMemo(
     () => recentChats.find((chat) => chat.id === renameChatId) ?? null,
     [recentChats, renameChatId],
@@ -489,9 +383,7 @@ export function Sidebar({
   const renderChatRow = (chat: RecentChat) => {
     const isGeneratingChat = generatingSet.has(chat.id);
     const isActive = activeChatId === chat.id;
-    const chatHref = chat.projectId
-      ? APP_ROUTES.projectChat(chat.projectId, chat.id)
-      : APP_ROUTES.chat(chat.id);
+    const chatHref = APP_ROUTES.chat(chat.id);
     // Spinner only when another chat is generating in the background.
     // Never on the active chat, never while creating/starting a new chat.
     const showSidebarSpinner =
@@ -577,13 +469,6 @@ export function Sidebar({
                   side="right"
                   isPinned={!!chat.pinned}
                   onRename={() => setRenameChatId(chat.id)}
-                  projects={projects}
-                  currentProjectId={chat.projectId}
-                  moveToProjectHref={APP_ROUTES.projectNewWithChat(chat.id)}
-                  onMoveChatToProject={(projectId) => {
-                    onMoveChatToProject?.(chat.id, projectId);
-                    if (isMobileLayout) onNavigate?.();
-                  }}
                   onPin={() => onPinChat?.(chat.id, true)}
                   onUnpin={() => onPinChat?.(chat.id, false)}
                   onDelete={() => setDeleteChatId(chat.id)}
@@ -698,24 +583,6 @@ export function Sidebar({
               <Library strokeWidth={1.75} />
               {isCollapsed && !isMobileLayout ? null : <span>Library</span>}
             </AppHref>
-            <AppHref
-              href={APP_ROUTES.projects}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!isPlainLeftClick(e)) return;
-                onProjectsClick?.();
-                if (isMobileLayout) onNavigate?.();
-              }}
-              aria-label="Projects"
-              aria-current={activeView === "projects" ? "page" : undefined}
-              className={cn(
-                "cx-nav-btn",
-                activeView === "projects" && "is-active",
-              )}
-            >
-              <FolderKanban strokeWidth={1.75} />
-              {isCollapsed && !isMobileLayout ? null : <span>Projects</span>}
-            </AppHref>
           </nav>
 
           <div
@@ -724,7 +591,7 @@ export function Sidebar({
               isCollapsed ? "flex flex-col items-center px-0" : "px-1.5",
             )}
           >
-            {/* Order: Pinned (chats + projects) → Projects → Recent */}
+            {/* Order: Pinned → Recent */}
             {!isCollapsed && hasPinnedSection ? (
               <div className="mt-3 mb-1 px-0">
                 <SidebarSectionLabel
@@ -736,55 +603,7 @@ export function Sidebar({
                   expanded={pinnedExpanded}
                   className="mt-0.5 space-y-px"
                 >
-                  {pinnedProjects.map((project) =>
-                    renderProjectRow(project, { pinned: true }),
-                  )}
                   {pinnedChats.map((chat) => renderChatRow(chat))}
-                </SidebarSectionBody>
-              </div>
-            ) : null}
-
-            {!isCollapsed ? (
-              <div className="mt-3 mb-1 px-0">
-                <SidebarSectionLabel
-                  label="Projects"
-                  expanded={projectsExpanded}
-                  onToggle={() => toggleSection("projects")}
-                />
-                <SidebarSectionBody
-                  expanded={projectsExpanded}
-                  className="mt-0.5 space-y-px"
-                >
-                  <AppHref
-                    href={APP_ROUTES.projects}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (!isPlainLeftClick(event)) return;
-                      onProjectsClick?.();
-                      if (isMobileLayout) onNavigate?.();
-                    }}
-                    className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-md px-2 text-[13px] font-medium leading-[18px] text-[var(--ui-fg-body)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                  >
-                    <NavProjectsIcon className="size-4 shrink-0 text-[var(--ui-fg-muted)]" />
-                    <span className="truncate">All projects</span>
-                  </AppHref>
-                  <AppHref
-                    href={APP_ROUTES.projectNew}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (!isPlainLeftClick(event)) return;
-                      onNewProjectClick?.();
-                      if (isMobileLayout) onNavigate?.();
-                    }}
-                    className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-md px-2 text-[13px] font-medium leading-[18px] text-[var(--ui-fg-body)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                  >
-                    <Plus
-                      className="size-4 shrink-0 text-[var(--ui-fg-muted)]"
-                      strokeWidth={1.5}
-                    />
-                    <span className="truncate">New Project</span>
-                  </AppHref>
-                  {unpinnedProjects.map((project) => renderProjectRow(project))}
                 </SidebarSectionBody>
               </div>
             ) : null}
@@ -799,7 +618,6 @@ export function Sidebar({
                     <SidebarChatGroupMenu
                       value={chatGroupBy}
                       onChange={handleChatGroupChange}
-                      projectGroupingEnabled={projectGroupingEnabled}
                       onClick={(e) => e.stopPropagation()}
                     />
                   }
@@ -982,20 +800,6 @@ export function Sidebar({
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <AppHref
-                      href={overlayHref({ type: "apps" })}
-                      onClick={(e) => {
-                        if (!isPlainLeftClick(e)) return;
-                        e.preventDefault();
-                        runAccountOverlayAction(onAppsExtensionsClick);
-                      }}
-                      className="ui-menu-row no-hover-overlay cursor-pointer"
-                    >
-                      <LayoutGrid className="size-4 text-[var(--ui-fg-muted)]" />
-                      <span>Apps and extensions</span>
-                    </AppHref>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <AppHref
                       href={overlayHref({ type: "gift" })}
                       onClick={(e) => {
                         if (!isPlainLeftClick(e)) return;
@@ -1090,14 +894,7 @@ export function Sidebar({
                           sidebarSearchResults.map((chat) => (
                             <AppHref
                               key={chat.id}
-                              href={
-                                chat.projectId
-                                  ? APP_ROUTES.projectChat(
-                                      chat.projectId,
-                                      chat.id,
-                                    )
-                                  : APP_ROUTES.chat(chat.id)
-                              }
+                              href={APP_ROUTES.chat(chat.id)}
                               onClick={() => {
                                 setSidebarSearchOpen(false);
                                 onSelectChat(chat);

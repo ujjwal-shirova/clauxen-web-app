@@ -262,7 +262,6 @@ export function SettingsModal({
             responseChannel={notifications.responseChannel}
             groupChatChannel={notifications.groupChatChannel}
             tasksChannel={notifications.tasksChannel}
-            projectsChannel={notifications.projectsChannel}
             recommendationsChannel={notifications.recommendationsChannel}
             usageChannel={notifications.usageChannel}
             desktopAlerts={notifications.desktopAlerts}
@@ -275,9 +274,6 @@ export function SettingsModal({
               updateNotifications({ groupChatChannel: v })
             }
             setTasksChannel={(v) => updateNotifications({ tasksChannel: v })}
-            setProjectsChannel={(v) =>
-              updateNotifications({ projectsChannel: v })
-            }
             setRecommendationsChannel={(v) =>
               updateNotifications({ recommendationsChannel: v })
             }

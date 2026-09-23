@@ -74,11 +74,6 @@ export const POST = withApiHandler(
         typeof body.modelMode === "string"
           ? (body.modelMode as "fast")
           : undefined,
-      connectorIds: Array.isArray(body.connectorIds)
-        ? body.connectorIds.filter(
-            (value): value is string => typeof value === "string",
-          )
-        : undefined,
       skillIds: Array.isArray(body.skillIds)
         ? body.skillIds.filter(
             (value): value is string => typeof value === "string",
@@ -92,12 +87,6 @@ export const POST = withApiHandler(
               !Array.isArray(value),
           )
         : undefined,
-      projectId:
-        typeof body.projectId === "string"
-          ? body.projectId
-          : body.projectId === null
-            ? null
-            : undefined,
     });
 
     return jsonData({ task }, 201);

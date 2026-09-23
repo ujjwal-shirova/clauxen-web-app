@@ -45,7 +45,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     responseChannel: "Push",
     groupChatChannel: "Push",
     tasksChannel: "Push, Email",
-    projectsChannel: "Email",
     recommendationsChannel: "Push, Email",
     usageChannel: "Push, Email",
   },
@@ -55,7 +54,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   },
   capabilities: {
     generateMemory: true,
-    connectorSearch: false,
     switchModelsWhenFlagged: false,
     artifacts: true,
     aiPoweredArtifacts: false,
@@ -75,10 +73,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   safety: {
     reduceSensitiveContent: true,
     mfaEnabled: false,
-  },
-  plugins: {
-    permissionMode: "allow-low-risk",
-    developerMode: false,
   },
   claw: { deployments: [] },
 };

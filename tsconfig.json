@@ -43,8 +43,6 @@
       "@/utils/*": ["./src/shared/utils/*"],
       "@/types": ["./src/shared/types"],
       "@/types/*": ["./src/shared/types/*"],
-      "@/projects": ["./src/modules/projects"],
-      "@/projects/*": ["./src/modules/projects/*"],
       "@/*": ["./src/*"]
     }
   },

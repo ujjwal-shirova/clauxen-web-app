@@ -35,11 +35,9 @@ const ChatSessionContext = createContext<ChatSessionValue | null>(null);
 export function ChatSessionProvider({
   children,
   apiEnabled: _apiEnabled,
-  projectId = null,
 }: {
   children: React.ReactNode;
   apiEnabled: boolean;
-  projectId?: string | null;
 }) {
   const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
   const [homerReasoningEffort, setHomerReasoningEffort] =
@@ -47,7 +45,6 @@ export function ChatSessionProvider({
   const [extendedThinking, setExtendedThinking] = useState(false);
 
   const chat = useChatApi(
-    projectId,
     chatModel,
     homerReasoningEffort,
     extendedThinking,
@@ -87,7 +84,6 @@ export function ChatSessionProvider({
       chat.handleDeleteChat,
       chat.handleRenameChat,
       chat.handlePinChat,
-      chat.handleMoveChatToProject,
       chat.editMessageWithBranch,
       chat.redoUserMessageWithBranch,
       chat.retryAssistantWithBranch,

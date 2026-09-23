@@ -22,7 +22,6 @@
     "supabase:functions:deploy": "supabase functions deploy",
     "supabase:functions:list": "supabase functions list",
     "strip:annotations": "node .tools/strip-hindi-annotations.mjs",
-    "worker": "tsx scripts/worker.ts",
     "audit:public-env": "node scripts/audit-public-env.mjs",
     "vercel:env:sync": "node scripts/sync-vercel-env-api.mjs"
   },

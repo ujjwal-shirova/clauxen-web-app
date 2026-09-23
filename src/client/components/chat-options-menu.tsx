@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  FolderPlus,
   Pencil,
   Pin,
   PinOff,
@@ -21,7 +20,6 @@ type ChatOptionsMenuContentProps = {
   onRename?: () => void;
   onPin?: () => void;
   onUnpin?: () => void;
-  onAddToProject?: () => void;
   onDelete?: () => void;
   align?: "start" | "end" | "center";
   className?: string;
@@ -32,7 +30,6 @@ export function ChatOptionsMenuContent({
   onRename,
   onPin,
   onUnpin,
-  onAddToProject,
   onDelete,
   align = "start",
   className,
@@ -74,10 +71,6 @@ export function ChatOptionsMenuContent({
           <Pin className="size-4 shrink-0 text-zinc-800" />
         )}
         {isPinned ? "Unpin chat" : "Pin chat"}
-      </DropdownMenuItem>
-      <DropdownMenuItem className={itemClass} onSelect={() => onAddToProject?.()}>
-        <FolderPlus className="size-4 shrink-0 text-zinc-800" />
-        Add to project
       </DropdownMenuItem>
       <DropdownMenuSeparator className="my-1 bg-zinc-900/10" />
       <DropdownMenuItem

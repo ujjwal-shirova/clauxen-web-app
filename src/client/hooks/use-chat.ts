@@ -6,7 +6,6 @@ import type { HomerReasoningEffort } from "@/lib/model-effort";
 
 export type UseChatOptions = {
   apiEnabled?: boolean;
-  projectId?: string | null;
   homerReasoningEffort?: HomerReasoningEffort;
   chatModel?: ChatModelId;
 };
@@ -16,9 +15,5 @@ export type UseChatOptions = {
  * chat generation, streaming, device cache, and Supabase synchronization.
  */
 export function useChat(options: UseChatOptions = {}) {
-  return useChatApi(
-    options.projectId ?? null,
-    options.chatModel,
-    options.homerReasoningEffort,
-  );
+  return useChatApi(options.chatModel, options.homerReasoningEffort);
 }

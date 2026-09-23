@@ -5,7 +5,6 @@ export async function presignUpload(input: {
   originalName: string;
   mimeType: string;
   sizeBytes: number;
-  projectId?: string;
   folderId?: string | null;
   purpose?: "avatar" | "library" | "chat-attachment";
   chatId?: string | null;
@@ -37,7 +36,6 @@ export async function uploadUserFile(
   file: File,
   options?: {
     folderId?: string | null;
-    projectId?: string;
     purpose?: "avatar" | "library" | "chat-attachment";
     chatId?: string | null;
   },
@@ -47,7 +45,6 @@ export async function uploadUserFile(
     mimeType: file.type || "application/octet-stream",
     sizeBytes: file.size,
     folderId: options?.folderId,
-    projectId: options?.projectId,
     purpose: options?.purpose,
     chatId: options?.chatId,
   });

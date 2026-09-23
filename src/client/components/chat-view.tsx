@@ -3,7 +3,6 @@
 import React, {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -17,16 +16,12 @@ import { useAppOverlays } from "@/hooks/use-app-overlays";
 import { useAppLayout } from "@/components/app-layout-context";
 import {
   APP_ROUTES,
-  getProjectIdFromPath,
   isIncognitoPath,
   isIncognitoSessionId,
   isNewChatPath,
-  isProjectHomePath,
 } from "@/lib/app-routes";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
-import { useProjects } from "@/hooks/use-projects";
-import * as projectsApi from "@/lib/api/projects";
 import { getBillingSubscription } from "@/lib/api/billing";
 import {
   readCachedBillingPlan,
@@ -39,18 +34,10 @@ import {
 } from "@/lib/model-effort";
 
 interface ChatViewProps {
-  projectId?: string | null;
   apiEnabled?: boolean;
   /** Full-screen ephemeral chat — no history, files, or sidebar. */
   incognito?: boolean;
-  projectBreadcrumb?: {
-    label: string;
-    href?: string;
-    onClick?: () => void;
-    icon?: string | null;
-    color?: string | null;
-  };
-  /** Optional prompt launched from a plugin example. Sent once on mount. */
+  /** Optional prompt launched from an example. Sent once on mount. */
   initialPrompt?: string;
 }
 
@@ -65,7 +52,6 @@ type ChatController = ReturnType<typeof useChat> & {
 
 function getRouteChatId(pathname: string): string | null {
   return (
-    pathname.match(/^\/project\/[^/]+\/c\/([^/]+)/)?.[1] ??
     pathname.match(/\/conversations\/([^/]+)/)?.[1] ??
     pathname.match(/^\/c\/([^/]+)/)?.[1] ??
     null
@@ -74,14 +60,10 @@ function getRouteChatId(pathname: string): string | null {
 
 function ChatViewBody({
   chat,
-  projectId = null,
-  projectBreadcrumb,
   incognito = false,
   initialPrompt,
 }: {
   chat: ChatController;
-  projectId?: string | null;
-  projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
   incognito?: boolean;
   initialPrompt?: string;
 }) {
@@ -90,7 +72,6 @@ function ChatViewBody({
   const overlays = useAppOverlays();
   const { isMobile, isSidebarCollapsed, openMobileNav } = useAppLayout();
   const auth = useAuth();
-  const projects = useProjects(Boolean(auth.user?.id));
   const isIncognito = incognito || isIncognitoPath(pathname);
 
   const [localEffort, setLocalEffort] = useState<HomerReasoningEffort>(
@@ -100,9 +81,6 @@ function ChatViewBody({
     DEFAULT_CHAT_MODEL_ID,
   );
   const [localExtendedThinking, setLocalExtendedThinking] = useState(false);
-  const [resolvedProjectName, setResolvedProjectName] = useState<string | null>(
-    projectBreadcrumb?.label ?? null,
-  );
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [successPlanName, setSuccessPlanName] = useState<string | null>(null);
   const [showFreePlanUpgrade, setShowFreePlanUpgrade] = useState(false);
@@ -235,26 +213,18 @@ function ChatViewBody({
   ).retryLoadMessages;
 
   const routeChatId = getRouteChatId(pathname);
-  const isProjectHome = isProjectHomePath(pathname);
-  const routeProjectId = getProjectIdFromPath(pathname);
-  const scopedProjectId = projectId ?? routeProjectId;
-
-  // Bind new chats from the project dashboard without filtering the sidebar list.
-  const bindProjectId = scopedProjectId ?? activeChat?.projectId ?? null;
 
   // Keep showing the live conversation as soon as a chat id / messages exist,
-  // even before Next finishes soft-navigating off /new or /project/:id.
+  // even before Next finishes soft-navigating off /new.
   // Incognito stays on /incognito for the whole ephemeral session.
   const blankNewChatComposer = isIncognito
     ? !isIncognitoSessionId(activeChatId) &&
       messages.length === 0 &&
       !creatingChatPending
-    : isProjectHome
-      ? !routeChatId && !creatingChatPending && messages.length === 0
-      : isNewChatPath(pathname) &&
-        !activeChatId &&
-        messages.length === 0 &&
-        !creatingChatPending;
+    : isNewChatPath(pathname) &&
+      !activeChatId &&
+      messages.length === 0 &&
+      !creatingChatPending;
 
   const handleSelectChatRef = useRef(handleSelectChat);
   handleSelectChatRef.current = handleSelectChat;
@@ -274,73 +244,17 @@ function ChatViewBody({
       return;
     }
     // ChatView stays mounted off-route; only clear when the visible surface
-    // is the blank new-chat page. Project dashboards use ProjectHomeView.
+    // is the blank new-chat page.
     if (isNewChatPath(pathname)) {
       startNewChatRef.current();
     }
   }, [isIncognito, activeChatId, routeChatId, pathname]);
 
-  // Resolve project name for breadcrumb when opened via /c?chat_enter_method=project.
-  useEffect(() => {
-    if (projectBreadcrumb?.label) {
-      setResolvedProjectName(projectBreadcrumb.label);
-      return;
-    }
-    const id = bindProjectId;
-    if (!id) {
-      setResolvedProjectName(null);
-      return;
-    }
-    const cached = projects.projects.find((p) => p.id === id);
-    if (cached) {
-      setResolvedProjectName(cached.name);
-      return;
-    }
-    let cancelled = false;
-    void projectsApi.getProject(id).then(
-      ({ project }) => {
-        if (!cancelled) setResolvedProjectName(project.name);
-      },
-      () => {
-        if (!cancelled) setResolvedProjectName(null);
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [bindProjectId, projectBreadcrumb?.label, projects.projects]);
-
-  const breadcrumbProject =
-    projects.projects.find((item) => item.id === bindProjectId) ?? null;
-  const effectiveBreadcrumb = useMemo(() => {
-    if (projectBreadcrumb) return projectBreadcrumb;
-    if (!bindProjectId || !resolvedProjectName) return undefined;
-    return {
-      label: resolvedProjectName,
-      href: APP_ROUTES.project(bindProjectId),
-      icon: breadcrumbProject?.icon,
-      color: breadcrumbProject?.color,
-    };
-  }, [
-    projectBreadcrumb,
-    bindProjectId,
-    resolvedProjectName,
-    breadcrumbProject?.icon,
-    breadcrumbProject?.color,
-  ]);
-
   const openChatRoute = useCallback(
     (chatId: string) => {
-      if (scopedProjectId || bindProjectId) {
-        instantNavigate(
-          APP_ROUTES.projectChat(scopedProjectId ?? bindProjectId!, chatId),
-          { replace: true },
-        );
-        return;
-      }
       instantNavigate(APP_ROUTES.chat(chatId), { replace: true });
     },
-    [instantNavigate, scopedProjectId, bindProjectId],
+    [instantNavigate],
   );
 
   const handleSendMessageAndRoute = useCallback(
@@ -359,19 +273,13 @@ function ChatViewBody({
       }
 
       const forceNew =
-        isProjectHome ||
-        (!activeChatId && (blankNewChatComposer || isNewChatPath(pathname)));
-      const shouldOpenRoute =
-        forceNew ||
-        isNewChatPath(pathname) ||
-        isProjectHome ||
-        Boolean(scopedProjectId);
+        !activeChatId && (blankNewChatComposer || isNewChatPath(pathname));
+      const shouldOpenRoute = forceNew || isNewChatPath(pathname);
 
       const chatId = await handleSendMessage(prompt, {
         forceNewChat: forceNew,
         attachments: options?.attachments,
         bypassQueue: options?.bypassQueue,
-        projectId: scopedProjectId ?? undefined,
         // Swap URL the instant the durable chat id exists.
         ...(shouldOpenRoute ? { onChatCreated: openChatRoute } : {}),
       });
@@ -381,10 +289,7 @@ function ChatViewBody({
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}`
           : pathname;
-      const targetPath =
-        scopedProjectId || bindProjectId
-          ? APP_ROUTES.projectChat(scopedProjectId ?? bindProjectId!, chatId)
-          : APP_ROUTES.chat(chatId);
+      const targetPath = APP_ROUTES.chat(chatId);
       if (shouldOpenRoute && pathNow !== targetPath) {
         openChatRoute(chatId);
       }
@@ -393,10 +298,7 @@ function ChatViewBody({
       handleSendMessage,
       blankNewChatComposer,
       activeChatId,
-      scopedProjectId,
-      bindProjectId,
       pathname,
-      isProjectHome,
       isIncognito,
       openChatRoute,
     ],
@@ -413,13 +315,9 @@ function ChatViewBody({
       // Optimistic delete updates UI sync; navigate away without waiting on API.
       void handleDeleteChat(chatId);
       if (!wasActive) return;
-      const target =
-        scopedProjectId || bindProjectId
-          ? APP_ROUTES.project(scopedProjectId || bindProjectId!)
-          : APP_ROUTES.newChat;
-      instantNavigate(target, { replace: true });
+      instantNavigate(APP_ROUTES.newChat, { replace: true });
     },
-    [activeChatId, handleDeleteChat, scopedProjectId, bindProjectId, instantNavigate],
+    [activeChatId, handleDeleteChat, instantNavigate],
   );
 
   const switchingRouteChat = Boolean(
@@ -468,11 +366,7 @@ function ChatViewBody({
       /^new chat$/i.test(displayActiveChat.name.trim()));
 
   useDocumentTitle(
-    isIncognito
-      ? "Incognito"
-      : blankNewChatComposer
-        ? (resolvedProjectName ?? "Project")
-        : (displayTitleChat?.name ?? null),
+    isIncognito ? "Incognito" : (displayTitleChat?.name ?? null),
     {
       brandOnly: brandOnlyTab,
     },
@@ -517,26 +411,6 @@ function ChatViewBody({
         onPinChat={handlePinChat}
         onDeleteChat={handleDeleteChatAndLeave}
         onOpenSettings={() => overlays.openSettings("General")}
-        onMoveChatToProject={(projectId) => {
-          if (!displayActiveChatId) return;
-          void chat.handleMoveChatToProject?.(displayActiveChatId, projectId);
-          if (projectId) {
-            instantNavigate(
-              APP_ROUTES.projectChat(projectId, displayActiveChatId),
-            );
-          } else {
-            instantNavigate(APP_ROUTES.chat(displayActiveChatId));
-          }
-        }}
-        projects={projects.projects}
-        currentProjectId={
-          displayTitleChat?.projectId ?? scopedProjectId ?? bindProjectId
-        }
-        moveToProjectHref={
-          displayActiveChatId
-            ? APP_ROUTES.projectNewWithChat(displayActiveChatId)
-            : APP_ROUTES.projectNew
-        }
         onOpenMobileNav={openMobileNav}
         showMobileMenu={isMobile && isSidebarCollapsed}
         chatModel={chatModel}
@@ -545,8 +419,6 @@ function ChatViewBody({
         onHomerReasoningEffortChange={setHomerReasoningEffort}
         extendedThinking={extendedThinking}
         onExtendedThinkingChange={setExtendedThinking}
-        projectBreadcrumb={effectiveBreadcrumb}
-        lockedProjectId={scopedProjectId ?? bindProjectId}
         incognito={isIncognito}
         onCloseIncognito={handleCloseIncognito}
       />
@@ -558,14 +430,13 @@ function ChatViewBody({
     </>
   );
 }
+
 /**
- * Prefer the shell ChatSessionProvider so project → `/c` keeps the live stream.
+ * Prefer the shell ChatSessionProvider so route changes keep the live stream.
  */
 export function ChatView({
-  projectId = null,
   apiEnabled,
   incognito = false,
-  projectBreadcrumb,
   initialPrompt,
 }: ChatViewProps) {
   const auth = useAuth();
@@ -575,24 +446,16 @@ export function ChatView({
     return (
       <ChatViewBody
         chat={session}
-        projectId={projectId}
-        projectBreadcrumb={projectBreadcrumb}
         incognito={incognito}
         initialPrompt={initialPrompt}
       />
     );
   }
 
-  if (projectId && auth.loading) {
-    return null;
-  }
-
   return (
     <ChatViewStandalone
-      key={`${auth.user?.id ?? "anon"}:${projectId ?? "home"}:${incognito ? "incognito" : "chat"}`}
-      projectId={projectId}
+      key={`${auth.user?.id ?? "anon"}:${incognito ? "incognito" : "chat"}`}
       apiEnabled={apiEnabled ?? Boolean(auth.user)}
-      projectBreadcrumb={projectBreadcrumb}
       incognito={incognito}
       initialPrompt={initialPrompt}
     />
@@ -600,15 +463,11 @@ export function ChatView({
 }
 
 function ChatViewStandalone({
-  projectId,
   apiEnabled,
-  projectBreadcrumb,
   incognito = false,
   initialPrompt,
 }: {
-  projectId?: string | null;
   apiEnabled: boolean;
-  projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
   incognito?: boolean;
   initialPrompt?: string;
 }) {
@@ -620,7 +479,6 @@ function ChatViewStandalone({
 
   const chat = useChat({
     apiEnabled,
-    projectId,
     chatModel,
     homerReasoningEffort,
   });
@@ -634,8 +492,6 @@ function ChatViewStandalone({
         homerReasoningEffort,
         setHomerReasoningEffort,
       }}
-      projectId={projectId}
-      projectBreadcrumb={projectBreadcrumb}
       incognito={incognito}
       initialPrompt={initialPrompt}
     />

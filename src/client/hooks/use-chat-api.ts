@@ -339,7 +339,6 @@ function setGeneration(
 }
 
 export function useChatApi(
-  projectIdFilter: string | null,
   chatModel: ChatModelId = DEFAULT_CHAT_MODEL_ID,
   homerReasoningEffort: HomerReasoningEffort = DEFAULT_HOMER_REASONING_EFFORT,
   extendedThinking = false,
@@ -452,14 +451,11 @@ export function useChatApi(
         (chatsLoadedOnceRef.current || recentChatsRef.current.length > 0);
       if (!silent) setLoading(true);
       try {
-        const { chats } = await chatsApi.listChats(
-          projectIdFilter ?? undefined,
-        );
+        const { chats } = await chatsApi.listChats();
         const serverChats: RecentChat[] = chats.map((c) => ({
           id: c.id,
           name: c.name,
           titleGenerated: c.name.toLowerCase() !== "new chat",
-          projectId: c.projectId,
           pinned: Boolean(c.pinned),
           updatedAt: new Date(c.updatedAt).getTime(),
         }));
@@ -570,7 +566,7 @@ export function useChatApi(
         setLoading(false);
       }
     },
-    [projectIdFilter, userId],
+    [userId],
   );
 
   useEffect(() => {
@@ -662,7 +658,7 @@ export function useChatApi(
       }, 400);
     };
     const channel = supabase
-      .channel(`chats-sidebar:${projectIdFilter ?? "all"}`)
+      .channel("chats-sidebar:all")
       .on(
         "postgres_changes",
         {
@@ -685,7 +681,7 @@ export function useChatApi(
       window.clearTimeout(debounceTimer);
       void supabase.removeChannel(channel);
     };
-  }, [projectIdFilter, refreshChats]);
+  }, [refreshChats]);
 
   // Live message inserts/updates for the open chat (other devices / tabs).
   // While THIS tab owns an SSE generation, the stream
@@ -2267,8 +2263,6 @@ export function useChatApi(
         bypassQueue?: boolean;
         chatIdOverride?: string;
         attachments?: ComposerAttachment[];
-        /** Bind a new chat to this project (overrides session projectIdFilter). */
-        projectId?: string | null;
         /** Fires the moment a brand-new chat has a durable id (before persist/stream). */
         onChatCreated?: (chatId: string) => void;
         /** Incognito: in-memory only — no DB chat, files, or history. */
@@ -2282,9 +2276,6 @@ export function useChatApi(
       if (creatingChatPending && !options?.chatIdOverride && !ephemeral) {
         return null;
       }
-
-      const bindProjectId =
-        options?.projectId !== undefined ? options.projectId : projectIdFilter;
 
       let chatId = options?.chatIdOverride
         ? options.chatIdOverride
@@ -2418,7 +2409,6 @@ export function useChatApi(
                 name: "New chat",
                 titleGenerated: false,
                 isCreating: true,
-                projectId: bindProjectId ?? undefined,
                 updatedAt: Date.now(),
               },
               ...prev.filter((c) => c.id !== pendingChatId),
@@ -2486,7 +2476,6 @@ export function useChatApi(
           const { chat } = await chatsApi.createChat({
             id: pendingChatId,
             title: "New chat",
-            projectId: bindProjectId ?? undefined,
           });
           const realId = chat.id;
 
@@ -2515,7 +2504,6 @@ export function useChatApi(
                 name: chat.title || "New chat",
                 titleGenerated: false,
                 isCreating: false,
-                projectId: bindProjectId ?? undefined,
                 updatedAt: Date.now(),
               },
               ...prev.filter((c) => c.id !== pendingChatId && c.id !== realId),
@@ -2663,7 +2651,6 @@ export function useChatApi(
     [
       activeChatId,
       creatingChatPending,
-      projectIdFilter,
       streamAssistantResponse,
     ],
   );
@@ -2854,42 +2841,6 @@ export function useChatApi(
           );
         }
       });
-    },
-    [userId],
-  );
-
-  const handleMoveChatToProject = useCallback(
-    async (chatId: string, projectId: string | null) => {
-      const previous =
-        recentChatsRef.current.find((chat) => chat.id === chatId)?.projectId ??
-        null;
-      setRecentChats((prev) => {
-        const next = prev.map((chat) =>
-          chat.id === chatId ? { ...chat, projectId } : chat,
-        );
-        recentChatsRef.current = next;
-        return next;
-      });
-      if (userId) {
-        writeSyncDeviceChatList(userId, recentChatsRef.current);
-        void persistDeviceRecentChatsNow(
-          userId,
-          recentChatsRef.current,
-          useChatStore.getState().activeChatId,
-        );
-      }
-      try {
-        await chatsApi.updateChat(chatId, { projectId });
-      } catch (error) {
-        console.error("Failed to move chat to project:", error);
-        setRecentChats((prev) => {
-          const next = prev.map((chat) =>
-            chat.id === chatId ? { ...chat, projectId: previous } : chat,
-          );
-          recentChatsRef.current = next;
-          return next;
-        });
-      }
     },
     [userId],
   );
@@ -3225,7 +3176,6 @@ export function useChatApi(
     handleDeleteChat,
     handleRenameChat,
     handlePinChat,
-    handleMoveChatToProject,
     editMessageWithBranch,
     redoUserMessageWithBranch,
     retryAssistantWithBranch,

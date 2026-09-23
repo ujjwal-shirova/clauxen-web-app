@@ -19,10 +19,8 @@ export type ApiAutomation = {
   run_count: number;
   notification_mode: AutomationNotificationMode;
   model_mode: AutomationModelMode;
-  connector_ids: string[];
   skill_ids: string[];
   attachment_refs: Array<Record<string, unknown>>;
-  project_id: string | null;
 };
 
 export type AutomationNotificationMode =
@@ -43,10 +41,8 @@ export type AutomationInput = {
   dayOfMonth?: number | null;
   notificationMode?: AutomationNotificationMode;
   modelMode?: AutomationModelMode;
-  connectorIds?: string[];
   skillIds?: string[];
   attachmentRefs?: Array<Record<string, unknown>>;
-  projectId?: string | null;
 };
 
 export type ApiAutomationRun = {

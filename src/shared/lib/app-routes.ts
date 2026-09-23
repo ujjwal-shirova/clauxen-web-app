@@ -1,9 +1,9 @@
 /**
  * Canonical app routes.
  *
- * Main pages (real Next routes): `/`, `/new`, `/c/:id`, `/library`, `/projects`, …
+ * Main pages (real Next routes): `/`, `/new`, `/c/:id`, `/library`, …
  * Sub-pages / overlays (hash fragments): `#settings`, `#settings/Personalization`,
- * `#pricing`, `#gift`, `#apps` — parent page stays loaded underneath.
+ * `#pricing`, `#gift` — parent page stays loaded underneath.
  */
 
 import {
@@ -14,7 +14,6 @@ import {
 const LEGACY_SETTINGS_TABS: Record<string, SettingsTab> = {
   Enterprise: "General",
   "Data controls": "Privacy & safety",
-  Apps: "Skills",
   Voice: "General",
   "Security & login": "Security",
   Security: "Security",
@@ -26,9 +25,6 @@ const LEGACY_SETTINGS_TABS: Record<string, SettingsTab> = {
   "Trusted contact": "Privacy & safety",
   Storage: "Billing",
   Keyboard: "General",
-  Extensions: "Skills",
-  Connectors: "Skills",
-  Plugins: "Skills",
 };
 
 export function normalizeSettingsTab(value: string): SettingsTab {
@@ -66,10 +62,6 @@ export function normalizeSettingsTab(value: string): SettingsTab {
     "clauxen code": "Clauxen Code",
     keyboard: "General",
     skills: "Skills",
-    connectors: "Skills",
-    plugins: "Skills",
-    extensions: "Skills",
-    apps: "Skills",
     "data-controls": "Privacy & safety",
     enterprise: "General",
     voice: "General",
@@ -84,83 +76,37 @@ export function settingsTabToSlug(tab: SettingsTab): string {
   return tab.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
-/** Query flag: chat was started (or opened) from a project dashboard. */
-export const CHAT_ENTER_METHOD_PROJECT = "project";
-
 /** Main (parent) page paths — never use these for overlays. */
 export const APP_ROUTES = {
   root: "/",
   newChat: "/new",
   home: "/new",
   library: "/library",
-  /** Projects library / gallery. */
-  projects: "/projects",
-  /** Create-project surface. */
-  projectNew: "/project",
   /** @deprecated Removed — Customize nav opens settings Skills. Kept for redirects. */
   customize: "/customize",
   myClauxen: "/my-clauxen",
 
   chat: (chatId: string) => `/c/${encodeURIComponent(chatId)}`,
-  /** Open the create form and attach this chat after save. */
-  projectNewWithChat: (chatId: string) =>
-    `/project?chatId=${encodeURIComponent(chatId)}`,
-  /** Project dashboard — blank composer scoped to this project. */
-  project: (projectId: string) => `/project/${encodeURIComponent(projectId)}`,
-  /** Canonical chat surface inside a project. */
-  projectChat: (projectId: string, chatId: string) =>
-    `/project/${encodeURIComponent(projectId)}/c/${encodeURIComponent(chatId)}`,
-  /**
-   * @deprecated Prefer `projectChat(chatId)`. Kept so call sites that still
-   * pass projectId keep compiling; navigates to `/c/…?chat_enter_method=project`.
-   */
-  projectConversation: (projectId: string, chatId: string) =>
-    `/project/${encodeURIComponent(projectId)}/c/${encodeURIComponent(chatId)}`,
   /** @deprecated Prefer overlay hash helpers — kept for legacy path redirects. */
   upgrade: "/upgrade",
   pricing: "/upgrade",
   gift: "/gift",
-  apps: "/apps",
   settings: (tab: SettingsTab | string = "General") =>
     `/settings/${settingsTabToSlug(
       isSettingsTab(tab) ? tab : normalizeSettingsTab(String(tab)),
     )}`,
 } as const;
 
-/** True when pathname is a project dashboard (blank composer), not create. */
-export function isProjectHomePath(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return /^\/project\/[^/]+\/?$/.test(pathname);
-}
-
-/** True when pathname is the create-project surface. */
-export function isProjectCreatePath(pathname: string | null): boolean {
-  return pathname === "/project" || pathname === "/project/";
-}
-
-/** Project id from `/project/:id` or `/project/:id/c/:chatId`. */
-export function getProjectIdFromPath(pathname: string | null): string | null {
-  if (!pathname || isProjectCreatePath(pathname)) return null;
-  const match = pathname.match(/^\/project\/([^/]+)/);
-  if (!match?.[1]) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return match[1];
-  }
-}
-
-/** Chat thread surfaces — `/`, `/new`, `/c/:id`, project chats, incognito. */
+/** Chat thread surfaces — `/`, `/new`, `/c/:id`, incognito. */
 export function isChatSurfacePath(pathname: string | null): boolean {
   if (!pathname) return false;
   if (isNewChatPath(pathname) || isIncognitoPath(pathname)) return true;
   if (pathname.startsWith("/c/")) return true;
-  return /^\/project\/[^/]+\/c\//.test(pathname);
+  return false;
 }
 
 export type AppOverlayPath =
   | { type: "pricing" }
-  | { type: "apps" }
   | { type: "gift" }
   | { type: "settings"; tab: SettingsTab };
 
@@ -175,7 +121,6 @@ export function parseOverlayHash(
   if (clean === "pricing" || clean === "upgrade") {
     return { type: "pricing" };
   }
-  if (clean === "apps") return { type: "apps" };
   if (clean === "gift") return { type: "gift" };
 
   if (clean === "settings" || clean.startsWith("settings/")) {
@@ -194,8 +139,6 @@ export function overlayToHash(overlay: AppOverlayPath): string {
   switch (overlay.type) {
     case "pricing":
       return "#pricing";
-    case "apps":
-      return "#apps";
     case "gift":
       return "#gift";
     case "settings":
@@ -219,7 +162,6 @@ export function parseOverlayPath(
     return { type: "pricing" };
   }
   if (pathname === "/gift") return { type: "gift" };
-  if (pathname === "/apps") return { type: "apps" };
   const settingsMatch = pathname.match(/^\/settings(?:\/([^/]+))?\/?$/);
   if (settingsMatch) {
     return {
@@ -235,8 +177,6 @@ export function overlayToPath(overlay: AppOverlayPath): string {
   switch (overlay.type) {
     case "pricing":
       return APP_ROUTES.upgrade;
-    case "apps":
-      return APP_ROUTES.apps;
     case "gift":
       return APP_ROUTES.gift;
     case "settings":
@@ -277,10 +217,6 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname.startsWith("/library/") ||
     pathname === "/scheduled" ||
     pathname.startsWith("/scheduled/") ||
-    pathname === "/project" ||
-    pathname.startsWith("/project/") ||
-    pathname === "/projects" ||
-    pathname.startsWith("/projects/") ||
     pathname === "/my-clauxen" ||
     pathname.startsWith("/my-clauxen/")
   );

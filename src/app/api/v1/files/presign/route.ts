@@ -14,7 +14,6 @@ export const POST = withApiHandler(
       mimeType?: string | null;
       sizeBytes?: number;
       workspaceId?: string | null;
-      projectId?: string | null;
       folderId?: string | null;
       purpose?: "avatar" | "library" | "chat-attachment";
       chatId?: string | null;
@@ -25,7 +24,6 @@ export const POST = withApiHandler(
       mimeType: body.mimeType,
       sizeBytes: body.sizeBytes,
       workspaceId: body.workspaceId,
-      projectId: body.projectId,
       folderId: body.folderId,
       purpose: body.purpose,
       chatId: body.chatId,

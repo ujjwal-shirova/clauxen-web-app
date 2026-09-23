@@ -81,11 +81,6 @@ interface ChatAreaProps {
   onPinChat?: (chatId: string, pinned: boolean) => void;
   onDeleteChat?: (chatId: string) => void;
   onOpenSettings?: () => void;
-  onMoveToProject?: () => void;
-  onMoveChatToProject?: (projectId: string | null) => void;
-  projects?: import("@/lib/api/projects").ApiProject[];
-  currentProjectId?: string | null;
-  moveToProjectHref?: string;
   homerReasoningEffort: import("@/lib/model-effort").HomerReasoningEffort;
   onHomerReasoningEffortChange: (
     effort: import("@/lib/model-effort").HomerReasoningEffort,
@@ -96,15 +91,6 @@ interface ChatAreaProps {
   onChatModelChange: (model: import("@/lib/chat-models").ChatModelId) => void;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
-  projectBreadcrumb?: {
-    label: string;
-    href?: string;
-    onClick?: () => void;
-    icon?: string | null;
-    color?: string | null;
-  };
-  /** When the chat already belongs to a project, lock the composer strip. */
-  lockedProjectId?: string | null;
   /** Full-screen Incognito mode — no history chrome / attachments. */
   incognito?: boolean;
   onCloseIncognito?: () => void;
@@ -147,11 +133,6 @@ function ChatAreaLayout({
   onPinChat,
   onDeleteChat,
   onOpenSettings,
-  onMoveToProject,
-  onMoveChatToProject,
-  projects,
-  currentProjectId,
-  moveToProjectHref,
   homerReasoningEffort,
   onHomerReasoningEffortChange,
   extendedThinking = false,
@@ -160,8 +141,6 @@ function ChatAreaLayout({
   onChatModelChange,
   onOpenMobileNav,
   showMobileMenu = false,
-  projectBreadcrumb,
-  lockedProjectId = null,
   incognito = false,
   onCloseIncognito,
 }: ChatAreaProps) {
@@ -465,8 +444,6 @@ function ChatAreaLayout({
       onExtendedThinkingChange={onExtendedThinkingChange}
       chatModel={chatModel}
       onChatModelChange={onChatModelChange}
-      lockedProjectId={incognito ? null : lockedProjectId}
-      showProjectStrip={!incognito && !composerAsConversation}
       allowAttachments={!incognito}
       placeholder={incognito ? "How can I help you today?" : undefined}
       composerVariant={incognito ? "incognito" : "default"}
@@ -612,14 +589,8 @@ function ChatAreaLayout({
               }}
               onDeleteChat={handleDeleteActiveChat}
               onOpenSettings={onOpenSettings}
-              onMoveToProject={onMoveToProject}
-              onMoveChatToProject={onMoveChatToProject}
-              projects={projects}
-              currentProjectId={currentProjectId}
-              moveToProjectHref={moveToProjectHref}
               onOpenMobileNav={onOpenMobileNav}
               showMobileMenu={showMobileMenu}
-              projectBreadcrumb={projectBreadcrumb}
               className="z-40"
             />
           ) : null}

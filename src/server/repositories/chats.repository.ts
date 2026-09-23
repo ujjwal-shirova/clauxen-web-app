@@ -6,7 +6,6 @@ export type ChatRow = {
   id: string;
   user_id: string;
   workspace_id: string | null; // enterprise workspace link — optional
-  project_id: string | null; // project folder — optional filter
   title: string;
   status: string;
   model_id: string | null; // last selected inference model
@@ -41,7 +40,7 @@ export async function allocateUniqueChatId(
 
 export async function listChatsForUser(
   userId: string,
-  options?: { projectId?: string; limit?: number },
+  options?: { limit?: number },
 ) {
   const rawLimit = options?.limit ?? DEFAULT_LIST_LIMIT;
   const limit = Math.min(
@@ -51,27 +50,19 @@ export async function listChatsForUser(
       Number.isFinite(rawLimit) ? Math.floor(rawLimit) : DEFAULT_LIST_LIMIT,
     ),
   ); // clamp — negative/NaN/huge values reject
-  const params: unknown[] = [userId];
-  let sql = `
-    select id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at
-    from public.chats
-    where user_id = $1 and status != 'deleted'
-  `;
 
-  if (options?.projectId) {
-    params.push(options.projectId); // dynamic $n — project scope
-    sql += ` and project_id = $${params.length}`;
-  }
-
-  params.push(limit);
-  sql += ` order by updated_at desc limit $${params.length}`;
-
-  return query<ChatRow>(sql, params);
+  return query<ChatRow>(
+    `select id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at
+     from public.chats
+     where user_id = $1 and status != 'deleted'
+     order by updated_at desc limit $2`,
+    [userId, limit],
+  );
 }
 
 export async function getChatForUser(chatId: string, userId: string) {
   return queryOne<ChatRow>(
-    `select id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at
+    `select id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at
      from public.chats where id = $1 and user_id = $2 and status != 'deleted'`,
     [chatId, userId],
   );
@@ -83,7 +74,7 @@ export async function getChatForUserIncludingDeleted(
   userId: string,
 ) {
   return queryOne<ChatRow>(
-    `select id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at
+    `select id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at
      from public.chats where id = $1 and user_id = $2`,
     [chatId, userId],
   );
@@ -92,19 +83,17 @@ export async function getChatForUserIncludingDeleted(
 export async function createChat(input: {
   userId: string;
   title?: string;
-  projectId?: string | null;
   workspaceId?: string | null;
   id?: string;
 }) {
   const id = input.id ?? (await allocateUniqueChatId());
   return queryOne<ChatRow>(
-    `insert into public.chats (id, user_id, project_id, workspace_id, title)
-     values ($1, $2, $3, $4, $5)
-     returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
+    `insert into public.chats (id, user_id, workspace_id, title)
+     values ($1, $2, $3, $4)
+     returning id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at`,
     [
       id,
       input.userId,
-      input.projectId ?? null,
       input.workspaceId ?? null,
       input.title ?? "New chat",
     ],
@@ -115,27 +104,20 @@ export async function createChat(input: {
 export async function createChatFast(input: {
   userId: string;
   title?: string;
-  projectId?: string | null;
   id?: string;
 }) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const id = input.id ?? generateChatId();
     try {
       return await queryOne<ChatRow>(
-        `insert into public.chats (id, user_id, project_id, workspace_id, title)
+        `insert into public.chats (id, user_id, workspace_id, title)
          select
            $1,
            $2,
-           $3,
            (select default_workspace_id from public.profiles where id = $2 limit 1),
-           $4
-         where $3::uuid is null
-            or exists (
-              select 1 from public.projects p
-              where p.id = $3::uuid and p.user_id = $2::uuid and p.status = 'active'
-            )
-         returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
-        [id, input.userId, input.projectId ?? null, input.title ?? "New chat"],
+           $3
+         returning id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at`,
+        [id, input.userId, input.title ?? "New chat"],
       );
     } catch (error) {
       if (
@@ -154,23 +136,20 @@ export async function createChatFast(input: {
 export async function updateChat(
   chatId: string,
   userId: string,
-  patch: { title?: string; starred?: boolean; projectId?: string | null },
+  patch: { title?: string; starred?: boolean },
 ) {
   return queryOne<ChatRow>(
     `update public.chats set
        title = coalesce($3, title),
        starred = coalesce($4, starred),
-       project_id = case when $6::boolean then $5::uuid else project_id end,
        updated_at = now()
      where id = $1 and user_id = $2 and status != 'deleted'
-     returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
+     returning id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at`,
     [
       chatId,
       userId,
       patch.title ?? null, // null → coalesce skip — field unchanged
       patch.starred ?? null,
-      patch.projectId ?? null,
-      patch.projectId !== undefined,
     ],
   );
 }
@@ -205,7 +184,7 @@ export async function restoreChat(
        title = coalesce($3, title),
        updated_at = now()
      where id = $1 and user_id = $2 and status = 'archived'
-     returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
+     returning id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at`,
     [chatId, userId, patch?.title ?? null],
   );
 }

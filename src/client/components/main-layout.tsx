@@ -6,7 +6,6 @@ import { useAppPathname } from "@/hooks/use-app-pathname";
 import { SoftErrorBoundary } from "@/components/soft-error-boundary";
 import { useAuth } from "@/hooks/use-auth";
 import { sidebarDisplayNameOrNull } from "@/lib/profile-names";
-import { useProjects } from "@/hooks/use-projects";
 import { useSidebarState } from "@/hooks/use-sidebar-state";
 import {
   appAgentPanelClassName,
@@ -15,14 +14,12 @@ import {
 } from "@/lib/app-shell-layout";
 import { cn } from "@/lib/utils";
 import type { SettingsTab } from "@/components/settings/constants";
-import type { ApiProject } from "@/lib/api/projects";
 import type { RecentChat } from "@/lib/types";
 import { AppLayoutProvider } from "@/components/app-layout-context";
 import {
   ChatSessionProvider,
   useChatSession,
 } from "@/contexts/chat-session-context";
-import { CLAUXEN_OPEN_CREATE_PROJECT_EVENT } from "@/components/composer-project-strip";
 import { AppOverlayHost } from "@/components/app-overlay-host";
 import { AppOverlaysProvider, useAppOverlays } from "@/hooks/use-app-overlays";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
@@ -36,16 +33,12 @@ import { SidebarToggleIcon } from "@/components/icons";
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
   "/my-clauxen",
-  "/project",
-  "/projects",
   "/incognito",
 ] as const;
 
 const APP_SHELL_PREFETCH_ROUTES = [
   APP_ROUTES.newChat,
   APP_ROUTES.library,
-  APP_ROUTES.projects,
-  APP_ROUTES.projectNew,
   APP_ROUTES.myClauxen,
 ] as const;
 
@@ -175,20 +168,15 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     handleDeleteChat,
     handleRenameChat,
     handlePinChat,
-    handleMoveChatToProject,
     startNewChat,
   } = chat;
 
-  const projects = useProjects(auth.isAuthenticated);
   const overlays = useAppOverlays();
 
   React.useEffect(() => {
     if (!auth.user?.id) return;
     router.prefetch(APP_ROUTES.newChat);
-    for (const project of projects.projects.slice(0, 12)) {
-      router.prefetch(APP_ROUTES.project(project.id));
-    }
-  }, [auth.user?.id, projects.projects, router]);
+  }, [auth.user?.id, router]);
 
   const closeMobileNav = useCallback(() => {
     if (isMobile) setIsSidebarCollapsed(true);
@@ -221,10 +209,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     // cannot be re-selected by the previous route and the new page paints now.
     startNewChat();
   }, [startNewChat, closeMobileNav, overlays, pathname, instantNavigate]);
-
-  const goToProjects = useCallback(() => {
-    closeMobileNav();
-  }, [closeMobileNav]);
 
   const onSelectChatFromSidebar = useCallback(
     (_chatEntry: RecentChat) => {
@@ -267,46 +251,10 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     closeMobileNav();
   }, [overlays, closeMobileNav]);
 
-  const onAppsExtensionsClick = useCallback(() => {
-    overlays.openApps();
-    closeMobileNav();
-  }, [overlays, closeMobileNav]);
-
   const onGiftClick = useCallback(() => {
     overlays.openGift();
     closeMobileNav();
   }, [overlays, closeMobileNav]);
-
-  const goToCreateProject = useCallback(() => {
-    closeMobileNav();
-  }, [closeMobileNav]);
-
-  React.useEffect(() => {
-    const onOpenCreate = () => {
-      instantNavigate(APP_ROUTES.projectNew);
-      closeMobileNav();
-    };
-    window.addEventListener(CLAUXEN_OPEN_CREATE_PROJECT_EVENT, onOpenCreate);
-    return () => {
-      window.removeEventListener(
-        CLAUXEN_OPEN_CREATE_PROJECT_EVENT,
-        onOpenCreate,
-      );
-    };
-  }, [instantNavigate, closeMobileNav]);
-
-  const openProjectDetail = useCallback(
-    (_project: ApiProject) => {
-      closeMobileNav();
-    },
-    [closeMobileNav],
-  );
-
-  const activeProjectId = React.useMemo(() => {
-    if (!pathname) return null;
-    const match = pathname.match(/^\/project\/([^/?#]+)/);
-    return match?.[1] ?? null;
-  }, [pathname]);
 
   const isMobileFullBleed = isMobile && shouldMobileFullBleed(pathname);
 
@@ -320,13 +268,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p === "/new" ||
       p === "/incognito" ||
       p.startsWith("/incognito/") ||
-      p === "/library" ||
-      p === "/project" ||
-      p === "/projects" ||
-      (p.startsWith("/project/") &&
-        !p.includes("/c/") &&
-        !p.includes("/conversations/")) ||
-      (p.startsWith("/projects") && !p.includes("/conversations/"))
+      p === "/library"
     ) {
       return null;
     }
@@ -425,9 +367,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               onUpgradeClick={onUpgradeClick}
               onSettingsClick={() => onSettingsClick("General")}
               onPersonalizationClick={onPersonalizationClick}
-              onAppsExtensionsClick={onAppsExtensionsClick}
               onGiftClick={onGiftClick}
-              onProjectsClick={goToProjects}
               activeView={computeActiveView(
                 pathname,
                 overlays.currentOverlay?.type ?? null,
@@ -441,25 +381,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               onDeleteChat={onDeleteChatFromSidebar}
               onRenameChat={handleRenameChat}
               onPinChat={handlePinChat}
-              onMoveChatToProject={(chatId, projectId) => {
-                void handleMoveChatToProject(chatId, projectId);
-                if (activeChatId === chatId) {
-                  if (projectId) {
-                    instantNavigate(APP_ROUTES.projectChat(projectId, chatId));
-                  } else {
-                    instantNavigate(APP_ROUTES.chat(chatId));
-                  }
-                }
-                closeMobileNav();
-              }}
               generatingChatIds={generatingChatIds}
-              projects={projects.projects}
-              pinnedProjects={projects.pinnedProjects}
-              projectsLoading={projects.loading}
-              activeProjectId={activeProjectId}
-              onNewProjectClick={goToCreateProject}
-              onSelectProject={openProjectDetail}
-              onPinProject={projects.pinProject}
               userDisplayName={
                 auth.loading && !auth.user
                   ? null
@@ -569,15 +491,11 @@ function computeActiveView(
 ): string {
   if (overlayType === "pricing") return "upgrade";
   if (overlayType === "gift") return "gift";
-  if (overlayType === "apps") return "apps";
   if (overlayType === "settings" && settingsTab === "Clauxen Code") {
     return "clauxen-code";
   }
   if (!pathname) return "chat";
   if (pathname.startsWith("/my-clauxen")) return "my-clauxen";
-  if (pathname.startsWith("/project") || pathname.startsWith("/projects")) {
-    return "projects";
-  }
   if (pathname.startsWith("/library")) return "library";
   if (pathname === "/new" || pathname === "/") return "chat";
   return "chat";
@@ -587,9 +505,5 @@ function getRouteChatIdForSidebar(pathname: string | null): string | null {
   if (!pathname) return null;
   const cMatch = pathname.match(/^\/c\/([^/?#]+)/);
   if (cMatch) return cMatch[1];
-  const projectChatMatch = pathname.match(/^\/project\/[^/?#]+\/c\/([^/?#]+)/);
-  if (projectChatMatch) return projectChatMatch[1];
-  const pMatch = pathname.match(/\/conversations\/([^/?#]+)/);
-  if (pMatch) return pMatch[1];
   return null;
 }

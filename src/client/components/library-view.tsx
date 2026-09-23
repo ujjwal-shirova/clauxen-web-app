@@ -34,7 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ProjectsMobileHeader } from "@/components/projects/projects-mobile-header";
+import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -307,7 +307,7 @@ export function LibraryView() {
         event.currentTarget.value = "";
       }} />
 
-      {isMobile ? <ProjectsMobileHeader title="Library" onOpenMobileNav={openMobileNav} isNavOpen={!isSidebarCollapsed} trailing={newMenu} /> : null}
+      {isMobile ? <MobilePageHeader title="Library" onOpenMobileNav={openMobileNav} isNavOpen={!isSidebarCollapsed} trailing={newMenu} /> : null}
 
       <header>
         <div className="mobile-page-inset mx-auto flex w-full max-w-[var(--ui-page-max-width-wide,1120px)] flex-wrap items-center gap-3 px-4 py-4 sm:px-8 sm:py-5">

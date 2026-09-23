@@ -2,9 +2,8 @@ import { z } from "zod";
 import {
   authenticateUser,
   signAuthToken,
-  ProjectsAuthError,
-} from "@/projects/lib/auth";
-import { jsonData, jsonError } from "@/projects/lib/api-response";
+} from "@/server/services/auth-credentials.service";
+import { jsonData, jsonError } from "@/shared/lib/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,9 +35,6 @@ export async function POST(request: Request) {
     const token = signAuthToken(user);
     return jsonData({ user, token });
   } catch (error) {
-    if (error instanceof ProjectsAuthError) {
-      return jsonError(error.message, error.status);
-    }
     console.error("[auth/login]", error);
     return jsonError("Internal server error.", 500);
   }

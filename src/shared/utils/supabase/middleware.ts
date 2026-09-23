@@ -23,7 +23,6 @@ const PUBLIC_PREFIXES = [
   "/share/",
   "/gift/",
   "/legal/",
-  "/about",
 ] as const;
 
 const SESSION_COOKIE_NAME = "clauxen_session";
@@ -37,7 +36,6 @@ function authDevBypassEnabled() {
 }
 
 function isPublicPath(pathname: string) {
-  if (pathname === "/about") return true;
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return true;
   }

@@ -69,11 +69,6 @@ export const PATCH = withApiRouteParams<{ taskId: string }>(
     if (typeof body.modelMode === "string") {
       patch.modelMode = body.modelMode as "fast";
     }
-    if (Array.isArray(body.connectorIds)) {
-      patch.connectorIds = body.connectorIds.filter(
-        (value): value is string => typeof value === "string",
-      );
-    }
     if (Array.isArray(body.skillIds)) {
       patch.skillIds = body.skillIds.filter(
         (value): value is string => typeof value === "string",
@@ -84,9 +79,6 @@ export const PATCH = withApiRouteParams<{ taskId: string }>(
         (value): value is Record<string, unknown> =>
           Boolean(value) && typeof value === "object" && !Array.isArray(value),
       );
-    }
-    if (body.projectId === null || typeof body.projectId === "string") {
-      patch.projectId = body.projectId;
     }
 
     const task = await scheduledTasks.updateTask(params.taskId, user.id, patch);

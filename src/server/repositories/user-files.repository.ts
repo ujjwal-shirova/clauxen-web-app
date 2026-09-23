@@ -4,7 +4,6 @@ export type UserFileRow = {
   id: string;
   user_id: string;
   workspace_id: string | null;
-  project_id: string | null;
   folder_id: string | null;
   original_name: string;
   mime_type: string | null;
@@ -28,7 +27,7 @@ export type LibraryFolderRow = {
   updated_at: string;
 };
 
-const USER_FILE_COLUMNS = `id, user_id, workspace_id, project_id, folder_id,
+const USER_FILE_COLUMNS = `id, user_id, workspace_id, folder_id,
   original_name, mime_type, size_bytes, storage_bucket, storage_path,
   content_hash, status, metadata, storage_url, created_at, updated_at`;
 
@@ -73,34 +72,6 @@ export async function getPublicAvatarFile(userId: string) {
      order by updated_at desc
      limit 1`,
     [userId],
-  );
-}
-
-export async function listProjectFiles(projectId: string, userId: string) {
-  return query<UserFileRow>(
-    `select ${USER_FILE_COLUMNS}
-     from public.user_files
-     where project_id = $1::uuid
-       and user_id = $2::uuid
-       and status != 'deleted'
-     order by created_at desc`,
-    [projectId, userId],
-  );
-}
-
-export async function getProjectFile(
-  fileId: string,
-  projectId: string,
-  userId: string,
-) {
-  return queryOne<UserFileRow>(
-    `select ${USER_FILE_COLUMNS}
-     from public.user_files
-     where id = $1::uuid
-       and project_id = $2::uuid
-       and user_id = $3::uuid
-       and status != 'deleted'`,
-    [fileId, projectId, userId],
   );
 }
 
@@ -186,7 +157,6 @@ export async function getFolderBreadcrumbs(folderId: string, userId: string) {
 export async function createUserFile(input: {
   userId: string;
   workspaceId?: string | null;
-  projectId?: string | null;
   folderId?: string | null;
   originalName: string;
   mimeType?: string | null;
@@ -200,15 +170,14 @@ export async function createUserFile(input: {
 }) {
   return queryOne<UserFileRow>(
     `insert into public.user_files (
-       user_id, workspace_id, project_id, folder_id, original_name, mime_type,
+       user_id, workspace_id, folder_id, original_name, mime_type,
        size_bytes, storage_bucket, storage_path, content_hash, status, metadata,
        storage_url
-     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
+     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
      returning ${USER_FILE_COLUMNS}`,
     [
       input.userId,
       input.workspaceId ?? null,
-      input.projectId ?? null,
       input.folderId ?? null,
       input.originalName,
       input.mimeType ?? null,

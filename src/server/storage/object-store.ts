@@ -183,16 +183,6 @@ export async function moveObject(input: {
   );
 }
 
-export function buildProjectFileKey(
-  userId: string,
-  projectId: string,
-  filename: string,
-) {
-  const safe = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const ts = Date.now();
-  return `users/${userId}/projects/${projectId}/${ts}-${safe}`;
-}
-
 export function buildUserLibraryKey(
   userId: string,
   filename: string,

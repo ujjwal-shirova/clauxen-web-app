@@ -27,7 +27,6 @@ function titleForPath(
   }
   if (overlay?.type === "pricing") return `Upgrade - ${BRAND}`;
   if (overlay?.type === "gift") return `Gift - ${BRAND}`;
-  if (overlay?.type === "apps") return `Apps - ${BRAND}`;
 
   if (!pathname) return BRAND;
 
@@ -43,22 +42,6 @@ function titleForPath(
     return `${name} - ${BRAND}`;
   }
 
-  const projectConv = pathname.match(
-    /^\/projects\/[^/]+\/conversations\/([^/]+)/,
-  );
-  if (projectConv) {
-    const name = chatTitle?.trim();
-    if (!name || /^new chat$/i.test(name)) return BRAND;
-    return `${name} - ${BRAND}`;
-  }
-
-  if (
-    pathname === "/project" ||
-    pathname.startsWith("/project/") ||
-    pathname.startsWith("/projects")
-  ) {
-    return `Projects - ${BRAND}`;
-  }
   if (pathname.startsWith("/library")) return `Library - ${BRAND}`;
   if (pathname.startsWith("/scheduled")) return `Scheduled Tasks - ${BRAND}`;
   if (pathname.startsWith("/my-clauxen")) return `My Clauxen - ${BRAND}`;

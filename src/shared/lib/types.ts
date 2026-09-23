@@ -62,7 +62,6 @@ export type RecentChat = {
   readonly isTitleStreaming?: boolean;
   readonly titleGenerated?: boolean;
   readonly updatedAt?: number;
-  readonly projectId?: string | null;
   readonly pinned?: boolean;
   /** Sidebar placeholder while the server allocates a unique chat id. */
   readonly isCreating?: boolean;

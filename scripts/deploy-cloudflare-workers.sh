@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Deploy Clauxen Cloudflare Workers (all 7: chat-history, r2-gateway,
-# auth-email, chat-coord, scheduled-tasks, billing, connector-gateway).
+# Deploy Clauxen Cloudflare Workers (all 6: chat-history, r2-gateway,
+# auth-email, chat-coord, scheduled-tasks, billing).
 # Accepts either CLOUDFLARE_API_TOKEN or Cloudflare_Token (Cursor runtime secret name).
 # No API token? Just run `npx wrangler login` first (OAuth, zero permission
 # setup) and this script uses that session. For headless CI, create ONE token
@@ -130,40 +130,6 @@ if [[ -n "${SCHEDULED_TASKS_INTERNAL_TOKEN:-}" ]]; then
   )
 else
   echo "==> Skipping clauxen-scheduled-tasks (set SCHEDULED_TASKS_INTERNAL_TOKEN to deploy)"
-fi
-
-# --- connector-gateway (MCP installs, OAuth vault, tool execution) ---
-# CONNECTOR_ENCRYPTION_KEY seals every stored OAuth secret/token. It is NEVER
-# generated or overwritten here: rotating it bricks existing installs. Provide
-# it only for a first-ever deploy (generate once with
-# `openssl rand -base64 32` and vault it), otherwise leave the worker's
-# secret untouched — wrangler deploy preserves existing secrets.
-if [[ -n "${CONNECTOR_GATEWAY_INTERNAL_TOKEN:-}" ]]; then
-  echo "==> Deploying clauxen-connector-gateway (MCP + OAuth)"
-  (
-    cd "$ROOT/workers/connector-gateway"
-    if [[ -n "${CONNECTOR_ENCRYPTION_KEY:-}" ]]; then
-      put_worker_secret CONNECTOR_ENCRYPTION_KEY "$CONNECTOR_ENCRYPTION_KEY"
-    else
-      echo "    keeping existing CONNECTOR_ENCRYPTION_KEY (set env to rotate; rotation invalidates stored tokens)"
-    fi
-    put_worker_secret CONNECTOR_GATEWAY_INTERNAL_TOKEN "$CONNECTOR_GATEWAY_INTERNAL_TOKEN"
-    if [[ -n "${CONNECTOR_GATEWAY_ADMIN_TOKEN:-}" ]]; then
-      put_worker_secret CONNECTOR_GATEWAY_ADMIN_TOKEN "$CONNECTOR_GATEWAY_ADMIN_TOKEN"
-    else
-      CONNECTOR_GATEWAY_ADMIN_TOKEN="$(openssl rand -hex 32)"
-      put_worker_secret CONNECTOR_GATEWAY_ADMIN_TOKEN "$CONNECTOR_GATEWAY_ADMIN_TOKEN"
-      printf '%s' "$CONNECTOR_GATEWAY_ADMIN_TOKEN" > /tmp/clauxen-connector-gateway-admin-token.txt
-      chmod 600 /tmp/clauxen-connector-gateway-admin-token.txt
-      echo "    generated CONNECTOR_GATEWAY_ADMIN_TOKEN (saved to /tmp/clauxen-connector-gateway-admin-token.txt)"
-    fi
-    npx wrangler deploy
-  )
-  printf '%s' "$CONNECTOR_GATEWAY_INTERNAL_TOKEN" > /tmp/clauxen-connector-gateway-internal-token.txt
-  chmod 600 /tmp/clauxen-connector-gateway-internal-token.txt
-else
-  echo "==> Skipping clauxen-connector-gateway (set CONNECTOR_GATEWAY_INTERNAL_TOKEN to deploy;"
-  echo "    generate one with: openssl rand -hex 32 — and set the SAME value on Vercel)"
 fi
 
 # --- billing (Razorpay proxy + invoice PDFs) ---

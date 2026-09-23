@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
 
-type ProjectsMobileHeaderProps = {
+type MobilePageHeaderProps = {
   title?: string;
   subtitle?: string;
   onOpenMobileNav?: () => void;
@@ -17,7 +17,7 @@ type ProjectsMobileHeaderProps = {
   borderless?: boolean;
 };
 
-export function ProjectsMobileHeader({
+export function MobilePageHeader({
   title,
   subtitle,
   onOpenMobileNav,
@@ -28,7 +28,7 @@ export function ProjectsMobileHeader({
   trailing,
   className,
   borderless = false,
-}: ProjectsMobileHeaderProps) {
+}: MobilePageHeaderProps) {
   return (
     <header
       className={cn(

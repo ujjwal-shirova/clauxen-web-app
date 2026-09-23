@@ -1,10 +1,8 @@
-import { after } from "next/server";
 import { withApiHandler } from "@/server/http/api-handler";
 import { jsonData } from "@/server/http/api-response";
 import { requireSession } from "@/server/auth/require-session";
 import * as filesService from "@/server/services/files.service";
 import * as avatarService from "@/server/services/avatar.service";
-import * as userFilesRepo from "@/server/repositories/user-files.repository";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,20 +32,6 @@ export const POST = withApiHandler(
 
     if (purpose === "avatar") {
       await avatarService.attachUploadedAvatar(user.id, file.id);
-    }
-
-    if (file.project_id) {
-      file =
-        (await userFilesRepo.updateUserFile(file.id, user.id, {
-          status: "processing",
-        })) ?? file;
-      const { enqueueFileIngestion } =
-        await import("@/server/services/project-ingestion.service");
-      after(() => {
-        return enqueueFileIngestion(file.id).catch((error) => {
-          console.error("[project-ingestion] enqueue failed", error);
-        });
-      });
     }
 
     return jsonData({ file });
