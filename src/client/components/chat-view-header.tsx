@@ -6,7 +6,6 @@ import { ChevronDown, MoreHorizontal, Share } from "lucide-react";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
-import { ChatRightRailControls } from "./chat-right-rail-controls";
 import { cn } from "@/lib/utils";
 import { resolveDisplayChatTitle } from "@/lib/chat-title";
 import {
@@ -21,8 +20,6 @@ interface ChatViewHeaderProps {
   isGenerating?: boolean;
   onUpgradeClick: () => void;
   onShareClick?: () => void;
-  onToggleArtifactsPanel?: () => void;
-  isArtifactsPanelOpen?: boolean;
   chatTitle?: string;
   isTitleStreaming?: boolean;
   isChatPinned?: boolean;
@@ -45,8 +42,6 @@ export function ChatViewHeader({
   isGenerating: _isGenerating = false,
   onUpgradeClick,
   onShareClick,
-  onToggleArtifactsPanel,
-  isArtifactsPanelOpen = false,
   chatTitle = "New Chat",
   isTitleStreaming = false,
   isChatPinned = false,
@@ -138,11 +133,6 @@ export function ChatViewHeader({
                       <Share className="size-[17px]" strokeWidth={1.8} />
                     </button>
                   ) : null}
-                  <ChatRightRailControls
-                    isArtifactsPanelOpen={isArtifactsPanelOpen}
-                    onToggleArtifactsPanel={onToggleArtifactsPanel}
-                    menu={undefined}
-                  />
                 </>
               )}
             </div>

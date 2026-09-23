@@ -10,7 +10,6 @@ import { ShareDialog } from "./share-dialog";
 import { ChatViewHeader } from "./chat-view-header";
 import { IncognitoChatHeader } from "./incognito-chat-header";
 import { ChatViewPane } from "./chat-view-pane";
-import { ChatArtifactsPanel } from "./chat-artifacts-panel";
 import { ArtifactViewerPanel } from "./artifact-viewer-panel";
 import {
   ArtifactViewerProvider,
@@ -96,13 +95,9 @@ interface ChatAreaProps {
   onCloseIncognito?: () => void;
 }
 
-const ARTIFACTS_LIST_PANEL_WIDTH = 384;
+const SOURCES_PANEL_WIDTH = 384;
 /** Desktop file viewer rail — fixed px so open/close doesn't hard-cut the chat. */
 const ARTIFACT_VIEWER_WIDTH = 560;
-/** Right sidebar (artifacts/files) rail — user-resizable within these bounds. */
-const ARTIFACTS_RAIL_DEFAULT_WIDTH = 480;
-const ARTIFACTS_RAIL_MIN_WIDTH = 360;
-const ARTIFACTS_RAIL_MAX_WIDTH = 880;
 
 function ChatAreaLayout({
   messages,
@@ -150,15 +145,9 @@ function ChatAreaLayout({
   isViewerOpenRef.current = isViewerOpen;
   const isMobile = useIsMobile();
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
-  const artifactPanelOpenTimerRef = React.useRef<number | null>(null);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
-  const [isArtifactsPanelOpen, setIsArtifactsPanelOpen] = useState(false);
-  const [artifactsRailWidth, setArtifactsRailWidth] = useState(
-    ARTIFACTS_RAIL_DEFAULT_WIDTH,
-  );
-  const [isArtifactsRailResizing, setIsArtifactsRailResizing] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isSourcesPanelOpen, setIsSourcesPanelOpen] = useState(false);
   const [sourcesMessageId, setSourcesMessageId] = useState<string | null>(null);
@@ -197,8 +186,6 @@ function ChatAreaLayout({
     Boolean(activeChatId) ||
     showMessageSkeleton ||
     showMessageLoadError;
-  const showDesktopArtifactsRail =
-    isConversationStarted && !isMobile && !isViewerOpen && !isSourcesPanelOpen;
 
   const hasScrollableConversation =
     isConversationStarted || showMessageSkeleton || showMessageLoadError;
@@ -230,13 +217,6 @@ function ChatAreaLayout({
     setIsAddMenuOpen(false);
   }, [activeChatId]);
 
-  React.useEffect(() => {
-    return () => {
-      if (artifactPanelOpenTimerRef.current != null) {
-        window.clearTimeout(artifactPanelOpenTimerRef.current);
-      }
-    };
-  }, []);
 
   React.useEffect(() => {
     if (!isConversationStarted) return;
@@ -331,64 +311,10 @@ function ChatAreaLayout({
       window.removeEventListener(CLAUXEN_CHAT_SEND_EVENT, onChatSend);
   }, [handleSendMessageAndScroll]);
 
-  const toggleArtifactsPanel = React.useCallback(() => {
-    if (artifactPanelOpenTimerRef.current != null) {
-      window.clearTimeout(artifactPanelOpenTimerRef.current);
-      artifactPanelOpenTimerRef.current = null;
-    }
-    setIsSourcesPanelOpen(false);
-    if (isViewerOpen) {
-      closeViewer();
-      artifactPanelOpenTimerRef.current = window.setTimeout(
-        () => {
-          setIsArtifactsPanelOpen(true);
-          artifactPanelOpenTimerRef.current = null;
-        },
-        isMobile ? 360 : 220,
-      );
-      return;
-    }
-    setIsArtifactsPanelOpen((open) => !open);
-  }, [closeViewer, isMobile, isViewerOpen]);
-
   const openSourcesPanel = React.useCallback((messageId?: string) => {
     setSourcesMessageId(messageId ?? null);
     setIsSourcesPanelOpen(true);
-    setIsArtifactsPanelOpen(false);
   }, []);
-
-  /** Drag the right sidebar's left edge to resize it; chat column follows. */
-  const handleArtifactsRailResizeStart = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
-      event.preventDefault();
-      const startX = event.clientX;
-      const startWidth = artifactsRailWidth;
-      setIsArtifactsRailResizing(true);
-      const onMove = (moveEvent: PointerEvent) => {
-        const max = Math.min(
-          ARTIFACTS_RAIL_MAX_WIDTH,
-          Math.round(window.innerWidth * 0.62),
-        );
-        const next = Math.min(
-          max,
-          Math.max(
-            ARTIFACTS_RAIL_MIN_WIDTH,
-            startWidth + (startX - moveEvent.clientX),
-          ),
-        );
-        setArtifactsRailWidth(next);
-      };
-      const onUp = () => {
-        setIsArtifactsRailResizing(false);
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-      };
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
-    },
-    [artifactsRailWidth],
-  );
 
   const handleDeleteActiveChat = React.useCallback(() => {
     if (!activeChatId) return;
@@ -467,20 +393,8 @@ function ChatAreaLayout({
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <div
           className={cn(
-            "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0 pb-1.5 transition-[padding-right] duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] sm:pb-1.5",
-            showDesktopArtifactsRail &&
-              isArtifactsPanelOpen &&
-              "lg:pr-[var(--chat-right-rail-w,0px)]",
-            isArtifactsRailResizing && "transition-none",
+            "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0 pb-1.5",
           )}
-          style={
-            {
-              "--chat-right-rail-w":
-                showDesktopArtifactsRail && isArtifactsPanelOpen
-                  ? `${artifactsRailWidth}px`
-                  : "0px",
-            } as React.CSSProperties
-          }
         >
           {!incognito &&
           !composerAsConversation &&
@@ -491,8 +405,6 @@ function ChatAreaLayout({
               isGenerating={isGenerating}
               onUpgradeClick={onUpgradeClick}
               onShareClick={() => setIsShareDialogOpen(true)}
-              onToggleArtifactsPanel={toggleArtifactsPanel}
-              isArtifactsPanelOpen={isArtifactsPanelOpen}
               chatTitle={activeChatTitle}
               isTitleStreaming={isActiveChatTitleStreaming}
               onDeleteChat={handleDeleteActiveChat}
@@ -569,8 +481,6 @@ function ChatAreaLayout({
               isGenerating={isGenerating}
               onUpgradeClick={onUpgradeClick}
               onShareClick={() => setIsShareDialogOpen(true)}
-              onToggleArtifactsPanel={toggleArtifactsPanel}
-              isArtifactsPanelOpen={isArtifactsPanelOpen}
               chatTitle={activeChatTitle}
               isTitleStreaming={isActiveChatTitleStreaming}
               isChatPinned={isActiveChatPinned}
@@ -656,9 +566,7 @@ function ChatAreaLayout({
         </AnimatePresence>
 
         <AnimatePresence initial={false}>
-          {!isViewerOpen &&
-          (isArtifactsPanelOpen || isSourcesPanelOpen) &&
-          isMobile ? (
+          {!isViewerOpen && isSourcesPanelOpen && isMobile ? (
             <>
               <motion.div
                 key="right-panel-backdrop"
@@ -669,17 +577,12 @@ function ChatAreaLayout({
                 className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]"
                 aria-hidden
                 onClick={() => {
-                  setIsArtifactsPanelOpen(false);
                   setIsSourcesPanelOpen(false);
                   setSourcesMessageId(null);
                 }}
               />
               <motion.div
-                key={
-                  isSourcesPanelOpen
-                    ? "sources-panel-mobile"
-                    : "artifacts-panel-mobile"
-                }
+                key="sources-panel-mobile"
                 initial={{ x: "100%", opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: "100%", opacity: 0 }}
@@ -687,21 +590,14 @@ function ChatAreaLayout({
                 className="fixed inset-y-0 right-0 z-50 flex h-full w-[min(100vw,360px)] shrink-0 overflow-hidden rounded-l-[18px] border-l border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] shadow-[-18px_0_40px_-24px_rgba(24,24,27,0.28)] will-change-[transform,opacity]"
               >
                 <div className="h-full w-full min-w-0 shrink-0 bg-[var(--app-panel-bg)]">
-                  {isSourcesPanelOpen ? (
-                    <ChatSourcesPanel
-                      messages={messages}
-                      messageId={sourcesMessageId}
-                      onClose={() => {
-                        setIsSourcesPanelOpen(false);
-                        setSourcesMessageId(null);
-                      }}
-                    />
-                  ) : (
-                    <ChatArtifactsPanel
-                      messages={messages}
-                      onClose={() => setIsArtifactsPanelOpen(false)}
-                    />
-                  )}
+                  <ChatSourcesPanel
+                    messages={messages}
+                    messageId={sourcesMessageId}
+                    onClose={() => {
+                      setIsSourcesPanelOpen(false);
+                      setSourcesMessageId(null);
+                    }}
+                  />
                 </div>
               </motion.div>
             </>
@@ -714,7 +610,7 @@ function ChatAreaLayout({
               <motion.div
                 key="sources-panel-desktop"
                 initial={{ width: 0, opacity: 0 }}
-                animate={{ width: ARTIFACTS_LIST_PANEL_WIDTH, opacity: 1 }}
+                animate={{ width: SOURCES_PANEL_WIDTH, opacity: 1 }}
                 exit={{ width: 0, opacity: 0 }}
                 transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
                 className="hidden shrink-0 overflow-hidden lg:flex lg:h-full lg:min-h-0 lg:py-2 lg:pr-2 lg:pl-1"
@@ -734,43 +630,6 @@ function ChatAreaLayout({
           ) : null}
         </AnimatePresence>
 
-        {showDesktopArtifactsRail ? (
-          <div
-            className="pointer-events-none absolute inset-y-0 right-0 z-30 hidden lg:block"
-            style={{ width: artifactsRailWidth }}
-            aria-hidden={!isArtifactsPanelOpen}
-          >
-            <AnimatePresence initial={false}>
-              {isArtifactsPanelOpen ? (
-                <motion.div
-                  key="desktop-artifacts-panel"
-                  initial={{ x: 72, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: 72, opacity: 0 }}
-                  transition={{
-                    duration: isArtifactsRailResizing ? 0 : 0.34,
-                    ease: [0.32, 0.72, 0, 1],
-                  }}
-                  className="pointer-events-auto relative flex h-full min-h-0 flex-col bg-[var(--chat-canvas-bg,#f2f3f6)]"
-                >
-                  {/* Left-edge grip — drag to resize the right sidebar. */}
-                  <div
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label="Resize right sidebar"
-                    onPointerDown={handleArtifactsRailResizeStart}
-                    className="absolute inset-y-0 -left-2 z-40 w-4 cursor-col-resize touch-none"
-                  />
-                  <ChatArtifactsPanel
-                    messages={messages}
-                    onClose={() => setIsArtifactsPanelOpen(false)}
-                    className="h-full min-h-0"
-                  />
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </div>
-        ) : null}
       </div>
 
       <ShareDialog

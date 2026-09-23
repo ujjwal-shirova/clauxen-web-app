@@ -9,12 +9,12 @@ function delay(ms: number): CSSProperties {
 
 /**
  * Conversation hydrate placeholder — user bubbles on the right, assistant
- * copy on the left, with a left-to-right shimmer (never a static gray wash).
+ * copy on the left, all sweeping with the same soft shimmer.
  */
 export function ConversationLoadingSkeleton() {
   return (
     <div
-      className="mx-auto flex w-full max-w-[var(--chat-reading-column-max-width,704px)] flex-1 flex-col gap-7 px-4 pt-8 sm:px-6"
+      className="mx-auto flex w-full max-w-[var(--chat-reading-column-max-width,704px)] flex-1 flex-col gap-6 px-4 pt-14 sm:px-6"
       aria-busy="true"
       aria-live="polite"
       role="status"
@@ -22,24 +22,27 @@ export function ConversationLoadingSkeleton() {
       <span className="sr-only">Loading conversation</span>
 
       <div className="flex justify-end">
-        <Skeleton className="chat-skeleton-bubble chat-skeleton-bubble--user h-12 w-[min(72%,28rem)]" />
+        <Skeleton className="chat-skeleton-bubble chat-skeleton-bubble--user h-9 w-[min(62%,22rem)]" />
       </div>
 
-      <div className="flex w-full max-w-[min(80%,34rem)] flex-col gap-2.5">
-        <Skeleton className="h-3.5 w-[94%]" variant="text" style={delay(70)} />
-        <Skeleton className="h-3.5 w-[88%]" variant="text" style={delay(140)} />
-        <Skeleton className="h-3.5 w-[76%]" variant="text" style={delay(210)} />
-        <Skeleton
-          className="chat-skeleton-bubble mt-1.5 h-[72px] w-full"
-          style={delay(280)}
-        />
+      <div className="flex w-full flex-col gap-2">
+        <Skeleton className="h-3 w-[92%]" variant="text" style={delay(80)} />
+        <Skeleton className="h-3 w-[86%]" variant="text" style={delay(160)} />
+        <Skeleton className="h-3 w-[64%]" variant="text" style={delay(240)} />
+        <Skeleton className="mt-2 h-3 w-[78%]" variant="text" style={delay(320)} />
+        <Skeleton className="h-3 w-[48%]" variant="text" style={delay(400)} />
       </div>
 
       <div className="flex justify-end">
         <Skeleton
-          className="chat-skeleton-bubble chat-skeleton-bubble--user h-10 w-[min(56%,22rem)]"
-          style={delay(350)}
+          className="chat-skeleton-bubble chat-skeleton-bubble--user h-9 w-[min(44%,16rem)]"
+          style={delay(480)}
         />
+      </div>
+
+      <div className="flex w-full flex-col gap-2">
+        <Skeleton className="h-3 w-[88%]" variant="text" style={delay(560)} />
+        <Skeleton className="h-3 w-[72%]" variant="text" style={delay(640)} />
       </div>
     </div>
   );

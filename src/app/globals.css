@@ -235,9 +235,9 @@
       0 1px 2px rgba(20, 21, 26, 0.04), 0 12px 28px -16px rgba(20, 21, 26, 0.12);
     --field-shadow: 0 1px 2px rgba(20, 21, 26, 0.04);
 
-    --skeleton-base: #e8e8eb;
-    --skeleton-highlight: rgba(255, 255, 255, 0.92);
-    --skeleton-duration: 1.35s;
+    --skeleton-base: #ededee;
+    --skeleton-highlight: rgba(255, 255, 255, 0.62);
+    --skeleton-duration: 1.6s;
     --skeleton-delay: 0ms;
 
     --syntax-plain: #24292f;
@@ -372,9 +372,9 @@
     --panel-shadow:
       0 1px 2px rgba(0, 0, 0, 0.25), 0 14px 36px -18px rgba(0, 0, 0, 0.55);
     --field-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    --skeleton-base: #2e2e33;
-    --skeleton-highlight: rgba(255, 255, 255, 0.16);
-    --skeleton-duration: 1.35s;
+    --skeleton-base: #26262a;
+    --skeleton-highlight: rgba(255, 255, 255, 0.07);
+    --skeleton-duration: 1.6s;
     --syntax-plain: #e6edf3;
     --syntax-comment: #8b949e;
     --syntax-keyword: #ff7b72;
@@ -4509,19 +4509,16 @@ html[data-reduce-motion="1"] .orb-cursor-core {
 .shimmer-bg::after {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 55%;
-  transform: translate3d(-120%, 0, 0);
+  inset: 0;
+  transform: translate3d(-100%, 0, 0);
   background: linear-gradient(
     90deg,
-    transparent 0%,
+    transparent 30%,
     var(--skeleton-highlight) 50%,
-    transparent 100%
+    transparent 70%
   );
-  animation: skeleton-shimmer var(--skeleton-duration, 1.35s) ease-in-out
-    infinite;
+  animation: skeleton-shimmer var(--skeleton-duration, 1.6s)
+    cubic-bezier(0.4, 0, 0.2, 1) infinite;
   pointer-events: none;
   will-change: transform;
 }
@@ -4648,18 +4645,16 @@ html[data-reduce-motion="1"] .orb-cursor-core {
 .skeleton--shimmer::after {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 55%;
-  transform: translate3d(-130%, 0, 0);
+  inset: 0;
+  transform: translate3d(-100%, 0, 0);
   background: linear-gradient(
-    105deg,
-    transparent 0%,
+    90deg,
+    transparent 30%,
     var(--skeleton-highlight) 50%,
-    transparent 100%
+    transparent 70%
   );
-  animation: skeleton-shimmer var(--skeleton-duration) ease-in-out infinite;
+  animation: skeleton-shimmer var(--skeleton-duration)
+    cubic-bezier(0.4, 0, 0.2, 1) infinite;
   animation-delay: var(--skeleton-delay, 0ms);
   pointer-events: none;
   will-change: transform;
@@ -4667,19 +4662,19 @@ html[data-reduce-motion="1"] .orb-cursor-core {
 
 @keyframes skeleton-shimmer {
   0% {
-    transform: translate3d(-130%, 0, 0);
+    transform: translate3d(-100%, 0, 0);
   }
   100% {
-    transform: translate3d(240%, 0, 0);
+    transform: translate3d(100%, 0, 0);
   }
 }
 
 .chat-skeleton-bubble {
-  border-radius: 18px;
+  border-radius: 12px;
 }
 
 .chat-skeleton-bubble--user {
-  border-radius: 20px 20px 6px 20px;
+  border-radius: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -5781,9 +5776,9 @@ button[data-speed-toggle][data-state="open"] {
 .dark .shimmer-bg::after {
   background: linear-gradient(
     90deg,
-    transparent 0%,
-    var(--skeleton-highlight) 48%,
-    transparent 100%
+    transparent 30%,
+    var(--skeleton-highlight) 50%,
+    transparent 70%
   );
 }
 

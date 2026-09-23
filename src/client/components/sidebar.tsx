@@ -42,6 +42,7 @@ import {
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { TypingDots } from "./ui/typing-dots";
+import { Skeleton } from "./ui/skeleton";
 import { StreamingChatTitle } from "./streaming-chat-title";
 import {
   Popover,
@@ -215,7 +216,7 @@ export function Sidebar({
   activeView,
   recentChats,
   activeChatId,
-  chatsLoading: _chatsLoading = false,
+  chatsLoading = false,
   creatingChatPending: _creatingChatPending = false,
   onSelectChat,
   onDeleteChat,
@@ -631,6 +632,22 @@ export function Sidebar({
                   expanded={recentsExpanded}
                   className="space-y-1"
                 >
+                  {chatsLoading && recentChats.length === 0 ? (
+                    <div className="space-y-px" aria-hidden>
+                      {[72, 58, 84, 64, 50, 76, 60].map((width, index) => (
+                        <div key={index} className="flex h-[30px] items-center px-2.5">
+                          <Skeleton
+                            variant="text"
+                            className="h-2.5 bg-[var(--ui-hover-wash)]"
+                            style={{
+                              width: `${width}%`,
+                              ["--skeleton-delay" as string]: `${index * 70}ms`,
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                   {groupedChats.map((group) => (
                     <div key={group.label || "all"}>
                       {group.label ? (
