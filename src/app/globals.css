@@ -839,18 +839,18 @@ html.dark[data-contrast="Increased"] {
 }
 
 .app-overlay-panel {
-  border-radius: var(--radius-md);
-  border: 1px solid var(--ui-border);
-  background: var(--app-panel-bg, #ffffff);
+  border-radius: var(--popup-radius-lg);
+  border: 1px solid var(--popup-border);
+  background: var(--popup-bg);
   box-shadow: var(--popup-shadow);
   font-size: var(--ui-font-size);
   line-height: var(--ui-line-height);
 }
 
 .app-dialog-panel {
-  border-radius: var(--radius-md);
-  border: 1px solid var(--ui-border);
-  background: var(--app-panel-bg);
+  border-radius: var(--popup-radius-lg);
+  border: 1px solid var(--popup-border);
+  background: var(--popup-bg);
   box-shadow: var(--popup-shadow);
   font-size: var(--ui-font-size);
   line-height: var(--ui-line-height);
@@ -1232,11 +1232,17 @@ textarea.app-field {
   .settings-canvas .app-btn-md,
   .app-dialog-panel .app-btn-md,
   [data-checkout-form] .app-btn-md {
-    height: 36px;
-    padding-left: 0.875rem;
-    padding-right: 0.875rem;
-    font-size: 14px;
-    line-height: 20px;
+    height: 32px;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .cx-dialog .app-btn-md {
+    height: 30px;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 
   .app-btn-lg {
@@ -7411,4 +7417,368 @@ button.prompt-model-selector[aria-expanded="true"] {
     currentColor calc(100% - var(--edge-line-fade)),
     transparent
   );
+}
+
+/* ==========================================================================
+   Dialogs — popup surface, soft scrim, centered scale-in.
+   ========================================================================== */
+
+.cx-dialog-overlay {
+  background: rgba(20, 21, 26, 0.18);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.dark .cx-dialog-overlay {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.cx-dialog-overlay[data-state="open"] {
+  animation: cx-fade-in 160ms var(--popup-ease) both;
+}
+
+.cx-dialog-overlay[data-state="closed"] {
+  animation: cx-fade-out 120ms ease-in both;
+}
+
+.cx-dialog {
+  translate: -50% -50%;
+  border: 1px solid transparent;
+  border-radius: var(--popup-radius-lg);
+  background:
+    linear-gradient(var(--popup-bg), var(--popup-bg)) padding-box,
+    linear-gradient(
+        180deg,
+        var(--edge-sheen),
+        var(--popup-border) 42%,
+        var(--popup-border)
+      )
+      border-box;
+  box-shadow:
+    var(--popup-shadow),
+    0 24px 56px -28px rgba(20, 21, 26, 0.28);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+
+.cx-dialog[data-state="open"] {
+  animation: cx-dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.cx-dialog[data-state="closed"] {
+  animation: cx-dialog-out 120ms ease-in both;
+}
+
+@keyframes cx-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes cx-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes cx-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+@keyframes cx-dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-dialog[data-state],
+  .cx-dialog-overlay[data-state] {
+    animation-duration: 1ms;
+  }
+}
+
+/* Shared compact form field for dialogs and settings. */
+.cx-field {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: var(--ui-field-bg, #ffffff);
+  color: var(--ui-fg);
+  font-size: 13px;
+  line-height: 18px;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.cx-field::placeholder {
+  color: var(--ui-fg-placeholder);
+}
+
+.cx-field:focus {
+  border-color: var(--ui-field-focus-border, var(--ui-border));
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}
+
+textarea.cx-field {
+  resize: vertical;
+}
+
+.cx-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--ui-fg-muted);
+}
+
+/* ==========================================================================
+   Library + shared list primitives
+   ========================================================================== */
+
+.cx-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  height: 32px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--ui-muted-surface);
+  box-shadow: inset 0 0 0 1px var(--ui-border-subtle);
+}
+
+.cx-segmented__item {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--ui-fg-muted);
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.cx-segmented__item:hover {
+  color: var(--ui-fg);
+}
+
+.cx-segmented__item[data-active] {
+  background: var(--popup-bg);
+  color: var(--ui-fg);
+  box-shadow:
+    inset 0 1px 0 var(--edge-sheen),
+    0 0 0 1px var(--ui-border-subtle),
+    0 1px 2px rgba(20, 21, 26, 0.06);
+}
+
+.cx-segmented__item:focus-visible {
+  outline: 2px solid var(--brand-ring);
+  outline-offset: 1px;
+}
+
+.cx-crumb {
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  color: var(--ui-fg-muted);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.cx-crumb:hover {
+  background: var(--ui-hover-wash);
+  color: var(--ui-fg);
+}
+
+.cx-crumb:last-of-type {
+  color: var(--ui-fg);
+  font-weight: 500;
+}
+
+.cx-check {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
+  background: var(--ui-field-bg, #ffffff);
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    opacity 0.15s ease;
+}
+
+.cx-check::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  transform: scale(0);
+  transition: transform 0.12s ease;
+  background: var(--app-panel-bg);
+  clip-path: polygon(14% 44%, 0 58%, 38% 96%, 100% 22%, 86% 8%, 38% 68%);
+}
+
+.cx-check:checked,
+.cx-check:indeterminate {
+  border-color: var(--ui-fg);
+  background: var(--ui-fg);
+}
+
+.cx-check:checked::before {
+  transform: scale(1);
+}
+
+.cx-check:indeterminate::before {
+  transform: scale(1);
+  height: 2px;
+  clip-path: none;
+}
+
+.cx-check:hover:not(:checked):not(:indeterminate) {
+  border-color: var(--ui-fg-subtle);
+}
+
+.cx-check:focus-visible {
+  outline: 2px solid var(--brand-ring);
+  outline-offset: 1px;
+}
+
+.cx-table__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 32px;
+  padding: 0 4px;
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(
+      90deg,
+      transparent,
+      var(--ui-border-subtle) var(--edge-line-fade),
+      var(--ui-border-subtle) calc(100% - var(--edge-line-fade)),
+      transparent
+    )
+    1;
+  background: var(--app-panel-bg);
+}
+
+.cx-table__row {
+  position: relative;
+  min-height: 44px;
+  margin-top: 1px;
+  padding: 0 4px;
+  border-radius: 9px;
+  cursor: default;
+  transition: background-color 0.12s ease;
+}
+
+.cx-table__row:hover,
+.cx-table__row:focus-within,
+.cx-table__row:has([data-state="open"]) {
+  background: var(--ui-hover-wash);
+}
+
+.cx-table__row[data-selected] {
+  background: color-mix(in oklab, var(--ui-fg) 6%, transparent);
+}
+
+.cx-table__row[data-selected]:hover {
+  background: color-mix(in oklab, var(--ui-fg) 8%, transparent);
+}
+
+.cx-table__check,
+.cx-table__action {
+  opacity: 0;
+}
+
+.cx-table__row:hover .cx-table__check,
+.cx-table__row:focus-within .cx-table__check,
+.cx-table__row[data-selecting] .cx-table__check,
+.cx-table__check:checked,
+.cx-table__row:hover .cx-table__action,
+.cx-table__row:focus-within .cx-table__action,
+.cx-table__action[data-state="open"] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .cx-table__check,
+  .cx-table__action {
+    opacity: 1;
+  }
+}
+
+.cx-table__action {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  border-radius: 7px !important;
+  transition:
+    opacity 0.12s ease,
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.cx-table__row:hover .cx-table__action:hover,
+.cx-table__action[data-state="open"] {
+  background: color-mix(in oklab, var(--ui-fg) 7%, transparent) !important;
+  color: var(--ui-fg) !important;
+}
+
+.cx-list-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: left;
+  color: var(--ui-fg);
+  transition: background-color 0.12s ease;
+}
+
+.cx-list-row:hover,
+.cx-list-row:focus-visible {
+  background: var(--ui-hover-wash);
+  outline: none;
+}
+
+.cx-selection-bar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  padding: 0 4px 0 8px;
+  translate: -50% 0;
+  border: 1px solid var(--popup-border);
+  border-radius: 12px;
+  background: var(--popup-bg);
+  color: var(--ui-fg);
+  box-shadow: var(--popup-shadow);
+  animation: cx-dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }

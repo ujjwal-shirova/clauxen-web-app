@@ -2,14 +2,17 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronRight,
   Download,
   File as FileIcon,
+  FileCode,
   FileImage,
   FileText,
   Folder,
   FolderInput,
-  Grid2X2,
+  FolderPlus,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -17,10 +20,11 @@ import {
   Trash2,
   Upload,
   X,
+  type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -34,6 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";
 import { useToast } from "@/hooks/use-toast";
@@ -50,17 +55,27 @@ import {
   type LibraryFolder,
   type LibraryListing,
 } from "@/lib/api/library";
-import { chrome, appPage } from "@/lib/app-chrome";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
-import { AppContentLoader } from "@/components/app-content-loader";
 
 type LibraryEntry =
   | { kind: "folder"; id: string; name: string; updatedAt: string; folder: LibraryFolder }
   | { kind: "file"; id: string; name: string; updatedAt: string; size: number; mime: string; file: LibraryFile };
 
-type Filter = "all" | "images" | "files";
-type SortKey = "name" | "modified" | "size";
+type Filter = "all" | "folders" | "images" | "documents";
+type SortKey = "name" | "type" | "modified" | "size";
+
+const FILTERS: Array<{ id: Filter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "folders", label: "Folders" },
+  { id: "images", label: "Images" },
+  { id: "documents", label: "Documents" },
+];
+
+const TEXT_EXTENSIONS = [".txt", ".md", ".json", ".csv"] as const;
+
+const ROW_GRID =
+  "grid grid-cols-[28px_minmax(0,1fr)_40px] items-center gap-x-2 sm:grid-cols-[28px_minmax(0,1fr)_96px_112px_72px_40px] sm:gap-x-3";
 
 function entryKey(entry: Pick<LibraryEntry, "kind" | "id">) {
   return `${entry.kind}:${entry.id}`;
@@ -81,7 +96,9 @@ function formatSize(bytes: number) {
 function formatDate(value: string) {
   const date = new Date(value);
   const today = new Date();
-  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === today.toDateString()) {
+    return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(date);
+  }
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
   if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
@@ -92,11 +109,102 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function iconFor(entry: LibraryEntry) {
+function isImage(entry: LibraryEntry) {
+  return entry.kind === "file" && entry.mime.startsWith("image/");
+}
+
+function typeLabel(entry: LibraryEntry) {
+  if (entry.kind === "folder") return "Folder";
+  if (entry.mime.startsWith("image/")) return "Image";
+  if (entry.mime === "application/pdf") return "PDF";
+  const ext = entry.name.includes(".") ? entry.name.split(".").pop() : "";
+  if (ext && ext.length <= 5) return ext.toUpperCase();
+  if (entry.mime.startsWith("text/")) return "Text";
+  return "File";
+}
+
+function iconFor(entry: LibraryEntry): LucideIcon {
   if (entry.kind === "folder") return Folder;
   if (entry.mime.startsWith("image/")) return FileImage;
-  if (entry.mime.startsWith("text/") || /\.(md|txt|json|csv)$/i.test(entry.name)) return FileText;
+  if (/\.(json|js|ts|tsx|py|html|css)$/i.test(entry.name)) return FileCode;
+  if (entry.mime.startsWith("text/") || /\.(md|txt|csv|pdf|docx?)$/i.test(entry.name)) return FileText;
   return FileIcon;
+}
+
+function splitName(name: string) {
+  const index = name.lastIndexOf(".");
+  if (index <= 0) return { base: name, ext: ".txt" };
+  const ext = name.slice(index).toLowerCase();
+  return (TEXT_EXTENSIONS as readonly string[]).includes(ext)
+    ? { base: name.slice(0, index), ext }
+    : { base: name, ext: ".txt" };
+}
+
+function mimeForExtension(ext: string) {
+  if (ext === ".md") return "text/markdown";
+  if (ext === ".json") return "application/json";
+  if (ext === ".csv") return "text/csv";
+  return "text/plain";
+}
+
+function SortHeader({
+  label,
+  column,
+  sortKey,
+  sortDirection,
+  onSort,
+  align = "left",
+  className,
+}: {
+  label: string;
+  column: SortKey;
+  sortKey: SortKey;
+  sortDirection: "asc" | "desc";
+  onSort: (column: SortKey) => void;
+  align?: "left" | "right";
+  className?: string;
+}) {
+  const active = sortKey === column;
+  const Arrow = sortDirection === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(column)}
+      aria-sort={active ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+      className={cn(
+        "no-hover-overlay group/sort inline-flex h-6 min-w-0 items-center gap-1 rounded-[6px] text-[12px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:text-[var(--ui-fg)]",
+        align === "right" && "justify-self-end",
+        active && "text-[var(--ui-fg)]",
+        className,
+      )}
+    >
+      <span className="truncate">{label}</span>
+      <Arrow
+        className={cn(
+          "size-3 shrink-0 transition-opacity",
+          active ? "opacity-70" : "opacity-0 group-hover/sort:opacity-40",
+        )}
+        strokeWidth={2}
+        aria-hidden
+      />
+    </button>
+  );
+}
+
+function EntryIcon({ entry }: { entry: LibraryEntry }) {
+  const Icon = iconFor(entry);
+  return (
+    <span
+      className={cn(
+        "grid size-7 shrink-0 place-items-center rounded-[7px]",
+        entry.kind === "folder"
+          ? "bg-[color-mix(in_oklab,var(--ui-fg)_7%,transparent)] text-[var(--ui-fg)]"
+          : "bg-[var(--ui-muted-surface)] text-[var(--ui-fg-muted)]",
+      )}
+    >
+      <Icon className="size-[15px]" strokeWidth={1.75} fill={entry.kind === "folder" ? "currentColor" : "none"} fillOpacity={entry.kind === "folder" ? 0.12 : 0} />
+    </span>
+  );
 }
 
 export function LibraryView() {
@@ -114,11 +222,15 @@ export function LibraryView() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pasteOpen, setPasteOpen] = useState(false);
-  const [folderOpen, setFolderOpen] = useState(false);
-  const [moveOpen, setMoveOpen] = useState(false);
-  const [pasteName, setPasteName] = useState("untitled.txt");
+  const [pasteName, setPasteName] = useState("Untitled");
+  const [pasteExt, setPasteExt] = useState<string>(".txt");
   const [pasteContent, setPasteContent] = useState("");
+  const [folderOpen, setFolderOpen] = useState(false);
   const [folderName, setFolderName] = useState("");
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<LibraryEntry | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteTargets, setDeleteTargets] = useState<LibraryEntryRef[] | null>(null);
 
   const load = useCallback(async (folderId?: string | null) => {
     setLoading(true);
@@ -163,14 +275,16 @@ export function LibraryView() {
     return [...folders, ...files]
       .filter((entry) => {
         if (normalizedQuery && !entry.name.toLowerCase().includes(normalizedQuery)) return false;
-        if (filter === "images") return entry.kind === "file" && entry.mime.startsWith("image/");
-        if (filter === "files") return entry.kind === "file" && !entry.mime.startsWith("image/");
+        if (filter === "folders") return entry.kind === "folder";
+        if (filter === "images") return isImage(entry);
+        if (filter === "documents") return entry.kind === "file" && !isImage(entry);
         return true;
       })
       .sort((a, b) => {
         if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1;
         let result = 0;
         if (sortKey === "name") result = a.name.localeCompare(b.name);
+        if (sortKey === "type") result = typeLabel(a).localeCompare(typeLabel(b));
         if (sortKey === "modified") result = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
         if (sortKey === "size") result = (a.kind === "file" ? a.size : 0) - (b.kind === "file" ? b.size : 0);
         return sortDirection === "asc" ? result : -result;
@@ -180,6 +294,10 @@ export function LibraryView() {
   const selectedRefs = useMemo<LibraryEntryRef[]>(() => entries
     .filter((entry) => selected.has(entryKey(entry)))
     .map(({ id, kind }) => ({ id, kind })), [entries, selected]);
+
+  const allSelected = entries.length > 0 && entries.every((entry) => selected.has(entryKey(entry)));
+  const someSelected = selected.size > 0 && !allSelected;
+  const itemCount = (listing?.folders.length ?? 0) + (listing?.files.length ?? 0);
 
   const withBusy = useCallback(async (action: () => Promise<void>) => {
     setBusy(true);
@@ -203,19 +321,26 @@ export function LibraryView() {
     toast({ title: rows.length === 1 ? "File uploaded" : `${rows.length} files uploaded` });
   }), [listing?.folderId, load, toast, withBusy]);
 
-  const createPastedFile = () => withBusy(async () => {
-    const name = pasteName.trim();
-    if (!name || !pasteContent.trim()) throw new Error("Enter a file name and some text.");
-    const type = name.toLowerCase().endsWith(".md") ? "text/markdown" : name.toLowerCase().endsWith(".json") ? "application/json" : "text/plain";
-    await uploadUserFile(new File([pasteContent], name, { type }), { folderId: listing?.folderId });
-    setPasteOpen(false);
+  const openPaste = () => {
+    setPasteName("Untitled");
+    setPasteExt(".txt");
     setPasteContent("");
-    setPasteName("untitled.txt");
+    setPasteOpen(true);
+  };
+
+  const createPastedFile = () => withBusy(async () => {
+    const base = pasteName.trim();
+    if (!base || !pasteContent.trim()) throw new Error("Enter a file name and some text.");
+    const { base: cleanBase } = splitName(base);
+    const name = `${cleanBase}${pasteExt}`;
+    await uploadUserFile(new File([pasteContent], name, { type: mimeForExtension(pasteExt) }), { folderId: listing?.folderId });
+    setPasteOpen(false);
     await load(listing?.folderId);
+    toast({ title: `${name} created` });
   });
 
   const createFolder = () => withBusy(async () => {
-    await createLibraryFolder({ name: folderName, parentId: listing?.folderId });
+    await createLibraryFolder({ name: folderName.trim(), parentId: listing?.folderId });
     setFolderName("");
     setFolderOpen(false);
     await load(listing?.folderId);
@@ -228,9 +353,21 @@ export function LibraryView() {
     await load(listing?.folderId);
   });
 
-  const remove = (items: LibraryEntryRef[]) => withBusy(async () => {
-    if (!items.length) return;
-    await deleteLibraryEntries(items);
+  const confirmDelete = () => withBusy(async () => {
+    if (!deleteTargets?.length) return;
+    await deleteLibraryEntries(deleteTargets);
+    setDeleteTargets(null);
+    await load(listing?.folderId);
+  });
+
+  const confirmRename = () => withBusy(async () => {
+    const name = renameValue.trim();
+    if (!renameTarget || !name || name === renameTarget.name) {
+      setRenameTarget(null);
+      return;
+    }
+    await renameLibraryEntry({ id: renameTarget.id, kind: renameTarget.kind, name });
+    setRenameTarget(null);
     await load(listing?.folderId);
   });
 
@@ -244,40 +381,37 @@ export function LibraryView() {
     );
   };
 
-  const rename = (entry: LibraryEntry) => {
-    const name = window.prompt("Rename", entry.name)?.trim();
-    if (!name || name === entry.name) return;
-    void withBusy(async () => {
-      await renameLibraryEntry({ id: entry.id, kind: entry.kind, name });
-      await load(listing?.folderId);
-    });
-  };
-
   const toggleSort = (next: SortKey) => {
     if (sortKey === next) setSortDirection((value) => value === "asc" ? "desc" : "asc");
     else {
       setSortKey(next);
-      setSortDirection(next === "modified" ? "desc" : "asc");
+      setSortDirection(next === "modified" || next === "size" ? "desc" : "asc");
     }
   };
 
+  const toggleSelected = (key: string) => setSelected((current) => {
+    const next = new Set(current);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
   const newMenu = (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button disabled={busy} className={appPage.primaryCta}>
-          <Plus className="icon-md" /> New
-        </Button>
+        <button type="button" disabled={busy} className={cn(appBtn.primarySm, "gap-1 pl-2 pr-2.5")}>
+          <Plus className="size-4" strokeWidth={2} /> New
+        </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 p-1">
-        <DropdownMenuItem onClick={() => uploadInputRef.current?.click()} className="ui-menu-row gap-2">
-          <Upload className="icon-md" /> Upload files
+      <DropdownMenuContent align="end" sideOffset={6} className="w-[200px]">
+        <DropdownMenuItem onSelect={() => uploadInputRef.current?.click()} className="ui-menu-row">
+          <Upload /> Upload files
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setPasteOpen(true)} className="ui-menu-row gap-2">
-          <FileText className="icon-md" /> Paste text
+        <DropdownMenuItem onSelect={openPaste} className="ui-menu-row">
+          <FileText /> Paste text
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setFolderOpen(true)} className="ui-menu-row gap-2">
-          <Folder className="icon-md" /> New folder
+        <DropdownMenuItem onSelect={() => { setFolderName(""); setFolderOpen(true); }} className="ui-menu-row">
+          <FolderPlus /> New folder
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -285,7 +419,7 @@ export function LibraryView() {
 
   return (
     <div
-      className="app-page-surface relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden font-sans"
+      className="cx-library app-page-surface relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) {
           event.preventDefault();
@@ -309,181 +443,393 @@ export function LibraryView() {
 
       {isMobile ? <MobilePageHeader title="Library" onOpenMobileNav={openMobileNav} isNavOpen={!isSidebarCollapsed} trailing={newMenu} /> : null}
 
-      <header>
-        <div className="mobile-page-inset mx-auto flex w-full max-w-[var(--ui-page-max-width-wide,1120px)] flex-wrap items-center gap-3 px-4 py-4 sm:px-8 sm:py-5">
-          <div className="min-w-0 flex-1 basis-full sm:basis-auto">
-            <h1 className={cn(appPage.title, "hidden sm:block")}>Library</h1>
+      <header className="mx-auto w-full max-w-[960px] px-4 pb-3 pt-5 sm:px-6 sm:pt-7">
+        <div className="hidden items-end justify-between gap-3 sm:flex">
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-semibold leading-7 tracking-[-0.02em] text-[var(--ui-fg)]">Library</h1>
+            <p className="text-[12.5px] leading-[18px] text-[var(--ui-fg-muted)]">
+              Files and folders you can attach to any chat.
+            </p>
           </div>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:flex-none">
-            <div className="flex h-7 shrink-0 items-center gap-0.5 rounded-[var(--radius-sm)] bg-[color-mix(in_oklab,#18181b_6%,transparent)] p-0.5 dark:bg-white/10">
-              {(["all", "images", "files"] as Filter[]).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => { setFilter(value); setSelected(new Set()); }}
-                  className={cn(
-                    "no-hover-overlay h-6 rounded-[5px] px-2.5 text-[12px] font-medium capitalize leading-[18px] transition",
-                    filter === value
-                      ? "bg-[var(--settings-card-bg)] text-[var(--settings-fg)] shadow-[var(--settings-card-shadow)] dark:bg-zinc-800 dark:text-white"
-                      : "text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]",
-                  )}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-            <label className="relative flex w-full max-w-[280px] items-center sm:w-[240px]">
-              <Search className={appPage.searchIcon} />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this folder" aria-label="Search this folder" className={appPage.searchInput} />
-            </label>
-            {!isMobile ? newMenu : null}
+          {newMenu}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <label className="cx-library-search relative flex h-8 min-w-0 flex-1 items-center sm:max-w-[320px]">
+            <Search className="pointer-events-none absolute left-2.5 size-3.5 text-[var(--ui-fg-placeholder)]" strokeWidth={1.75} aria-hidden />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search files"
+              aria-label="Search files"
+              className="cx-field h-8 !pl-8 !pr-7"
+            />
+            {query ? (
+              <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="ui-icon-button no-hover-overlay absolute right-1 !size-6">
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </label>
+          <div className="cx-segmented" role="tablist" aria-label="Filter">
+            {FILTERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={filter === item.id}
+                data-active={filter === item.id || undefined}
+                onClick={() => { setFilter(item.id); setSelected(new Set()); }}
+                className="cx-segmented__item no-hover-overlay"
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
         </div>
+
+        <nav className="mt-3 flex min-h-6 items-center gap-0.5 text-[12.5px] leading-[18px] text-[var(--ui-fg-muted)]" aria-label="Breadcrumb">
+          <button type="button" onClick={() => void load(null)} className="cx-crumb no-hover-overlay">Library</button>
+          {listing?.breadcrumbs.map((crumb) => (
+            <React.Fragment key={crumb.id}>
+              <ChevronRight className="size-3 shrink-0 opacity-50" aria-hidden />
+              <button type="button" onClick={() => void load(crumb.id)} className="cx-crumb no-hover-overlay max-w-40 truncate">{crumb.name}</button>
+            </React.Fragment>
+          ))}
+          {!loading ? (
+            <span className="ml-auto text-[12px] tabular-nums text-[var(--ui-fg-subtle)]">
+              {itemCount} {itemCount === 1 ? "item" : "items"}
+            </span>
+          ) : null}
+        </nav>
       </header>
 
-      <div>
-        <div className="mobile-page-inset mx-auto flex min-h-10 w-full max-w-[1120px] flex-wrap items-center gap-3 px-4 sm:px-8">
-          <nav className="flex items-center gap-1 text-[13px] leading-[18px] text-[var(--settings-fg-muted)]">
-            <button type="button" onClick={() => void load(null)} className="no-hover-overlay rounded-[var(--radius-sm)] px-2 py-1 font-medium hover:bg-[var(--ui-hover-wash)] hover:text-[var(--settings-fg)]">Library</button>
-            {listing?.breadcrumbs.map((crumb) => (
-              <React.Fragment key={crumb.id}>
-                <ChevronRight className="icon-sm text-[var(--settings-fg-muted)] opacity-50" />
-                <button type="button" onClick={() => void load(crumb.id)} className="no-hover-overlay max-w-36 truncate rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--settings-fg)]">{crumb.name}</button>
-              </React.Fragment>
-            ))}
-          </nav>
-        </div>
-      </div>
-
       <main className="app-scrollbar min-h-0 flex-1 overflow-y-auto" data-scroll-region="">
-        <div className="mobile-page-inset mx-auto w-full max-w-[1120px] px-4 pb-24 pt-3 sm:px-8">
-          {selected.size > 0 ? (
-            <div className="mb-3 flex min-h-9 items-center gap-2 rounded-[var(--settings-card-radius)] bg-[var(--settings-card-bg)] px-3 shadow-[var(--settings-card-shadow)]">
-              <span className="text-[13px] font-medium leading-[18px]">{selected.size} selected</span>
-              <Button variant="ghost" size="sm" onClick={() => setMoveOpen(true)} className={cn(appBtn.ghost, "ml-auto h-7 gap-1.5 px-2")}><FolderInput className="icon-md" /> Move</Button>
-              <Button variant="ghost" size="sm" onClick={() => void remove(selectedRefs)} className={cn(appBtn.ghost, "h-7 gap-1.5 px-2 text-red-600 hover:text-red-700")}><Trash2 className="icon-md" /> Delete</Button>
-              <button type="button" onClick={() => setSelected(new Set())} aria-label="Clear selection" className="ui-icon-button no-hover-overlay"><X className="icon-md" /></button>
+        <div className="mx-auto w-full max-w-[960px] px-4 pb-24 sm:px-6">
+          <div className="cx-table" role="table" aria-label="Library files">
+            <div className={cn(ROW_GRID, "cx-table__head")} role="row">
+              <span className="flex justify-center" role="columnheader">
+                <input
+                  type="checkbox"
+                  aria-label="Select all"
+                  className="cx-check"
+                  checked={allSelected}
+                  ref={(node) => { if (node) node.indeterminate = someSelected; }}
+                  onChange={() => setSelected(allSelected ? new Set() : new Set(entries.map(entryKey)))}
+                />
+              </span>
+              <SortHeader label="Name" column="name" sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
+              <SortHeader label="Type" column="type" sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} className="max-sm:hidden" />
+              <SortHeader label="Modified" column="modified" sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} className="max-sm:hidden" />
+              <SortHeader label="Size" column="size" sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} align="right" className="max-sm:hidden" />
+              <span role="columnheader" className="sr-only">Actions</span>
             </div>
-          ) : null}
 
-          <div className="grid grid-cols-[32px_minmax(0,1fr)_150px_90px_44px] items-center border-b border-[var(--settings-hairline)] pb-2 text-[12px] font-medium leading-[18px] text-[var(--settings-fg-muted)] max-sm:grid-cols-[28px_minmax(0,1fr)_44px]">
-            <input type="checkbox" aria-label="Select all" checked={entries.length > 0 && entries.every((entry) => selected.has(entryKey(entry)))} onChange={() => {
-              if (entries.every((entry) => selected.has(entryKey(entry)))) setSelected(new Set());
-              else setSelected(new Set(entries.map(entryKey)));
-            }} className="h-3.5 w-3.5 rounded accent-[var(--settings-fg)]" />
-            <button type="button" onClick={() => toggleSort("name")} className="no-hover-overlay text-left">Name</button>
-            <button type="button" onClick={() => toggleSort("modified")} className="no-hover-overlay text-left max-sm:hidden">Modified</button>
-            <button type="button" onClick={() => toggleSort("size")} className="no-hover-overlay text-right max-sm:hidden">Size</button>
-            <span />
-          </div>
-
-          {loading ? (
-            <AppContentLoader label="Loading library" className="py-24" />
-          ) : entries.length === 0 ? (
-            <div className="mx-auto flex max-w-md flex-col items-center py-24 text-center">
-              <div className={appPage.emptyIconWell}><Folder className="icon-lg" /></div>
-              <h2 className="app-page-section-title mt-1">{query ? "Nothing found" : "This folder is empty"}</h2>
-              {!query ? <Button onClick={() => uploadInputRef.current?.click()} variant="outline" className={cn(appPage.outlineCta, "mt-5")}><Upload className="icon-md" /> Upload files</Button> : null}
-            </div>
-          ) : (
-            <div>
-              {entries.map((entry) => {
-                const Icon = iconFor(entry);
-                const key = entryKey(entry);
-                const checked = selected.has(key);
-                return (
-                  <div
-                    key={key}
-                    draggable
-                    onDragStart={(event) => {
-                      const refs = checked && selectedRefs.length ? selectedRefs : [{ id: entry.id, kind: entry.kind }];
-                      event.dataTransfer.setData("application/x-clauxen-library", JSON.stringify(refs));
-                      event.dataTransfer.effectAllowed = "move";
-                    }}
-                    onDragOver={entry.kind === "folder" ? (event) => { if (event.dataTransfer.types.includes("application/x-clauxen-library")) event.preventDefault(); } : undefined}
-                    onDrop={entry.kind === "folder" ? (event) => {
-                      const payload = event.dataTransfer.getData("application/x-clauxen-library");
-                      if (!payload) return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      void move(JSON.parse(payload) as LibraryEntryRef[], entry.id);
-                    } : undefined}
-                    onDoubleClick={() => openEntry(entry)}
-                    className={cn(
-                      "group grid min-h-[44px] grid-cols-[32px_minmax(0,1fr)_150px_90px_44px] items-center rounded-[var(--radius-sm)] px-0 transition-colors hover:bg-[var(--ui-hover-wash)] max-sm:grid-cols-[28px_minmax(0,1fr)_44px]",
-                      checked && "bg-[color-mix(in_oklab,#18181b_6%,transparent)]",
-                    )}
-                  >
-                    <input type="checkbox" checked={checked} onChange={() => setSelected((current) => {
-                      const next = new Set(current);
-                      if (next.has(key)) next.delete(key); else next.add(key);
-                      return next;
-                    })} aria-label={`Select ${entry.name}`} className="h-3.5 w-3.5 rounded accent-[var(--settings-fg)]" />
-                    <button
-                      type="button"
-                      onClick={() => openEntry(entry)}
-                      className="no-hover-overlay flex min-w-0 items-center gap-2.5 text-left"
-                    >
-                      <span
-                        className={cn(
-                          "grid h-7 w-7 shrink-0 place-items-center rounded-[var(--radius-sm)]",
-                          entry.kind === "folder"
-                            ? "bg-amber-50 text-amber-600 dark:bg-amber-400/10"
-                            : "bg-[color-mix(in_oklab,#18181b_6%,transparent)] text-[var(--settings-fg-muted)]",
-                        )}
-                      >
-                        <Icon className="icon-md" />
-                      </span>
-                      <span className="app-page-body truncate font-medium">{entry.name}</span>
-                    </button>
-                    <span className="app-page-muted max-sm:hidden">{formatDate(entry.updatedAt)}</span>
-                    <span className="app-page-muted text-right tabular-nums max-sm:hidden">{entry.kind === "file" ? formatSize(entry.size) : "—"}</span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label={`Actions for ${entry.name}`}
-                          className="ui-icon-button no-hover-overlay text-[var(--settings-fg-muted)] opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
-                        >
-                          <MoreHorizontal className="icon-md" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44 p-1">
-                        <DropdownMenuItem onClick={() => openEntry(entry)} className="ui-menu-row gap-2"><Grid2X2 className="icon-md" /> Open</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => rename(entry)} className="ui-menu-row gap-2"><Pencil className="icon-md" /> Rename</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setSelected(new Set([key])); setMoveOpen(true); }} className="ui-menu-row gap-2"><FolderInput className="icon-md" /> Move to…</DropdownMenuItem>
-                        {entry.kind === "file" ? <DropdownMenuItem onClick={() => openEntry(entry)} className="ui-menu-row gap-2"><Download className="icon-md" /> Download</DropdownMenuItem> : null}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => void remove([{ id: entry.id, kind: entry.kind }])} className="ui-menu-row gap-2 text-red-600 focus:text-red-600"><Trash2 className="icon-md" /> Delete</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+            {loading ? (
+              <div aria-busy="true" role="status">
+                <span className="sr-only">Loading library</span>
+                {Array.from({ length: 7 }).map((_, index) => (
+                  <div key={index} className={cn(ROW_GRID, "cx-table__row pointer-events-none")}>
+                    <span />
+                    <span className="flex items-center gap-2.5">
+                      <Skeleton className="size-7 rounded-[7px]" style={{ ["--skeleton-delay" as string]: `${index * 60}ms` }} />
+                      <Skeleton variant="text" className="h-3" style={{ width: `${[48, 36, 58, 42, 30, 52, 40][index]}%`, ["--skeleton-delay" as string]: `${index * 60}ms` }} />
+                    </span>
+                    <Skeleton variant="text" className="h-3 w-12 max-sm:hidden" />
+                    <Skeleton variant="text" className="h-3 w-16 max-sm:hidden" />
+                    <Skeleton variant="text" className="h-3 w-10 justify-self-end max-sm:hidden" />
+                    <span />
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </div>
+            ) : entries.length === 0 ? (
+              <div className="flex flex-col items-center px-6 py-16 text-center">
+                <span className="grid size-10 place-items-center rounded-[10px] bg-[var(--ui-muted-surface)] text-[var(--ui-fg-muted)]">
+                  {query ? <Search className="size-[18px]" strokeWidth={1.75} /> : <Folder className="size-[18px]" strokeWidth={1.75} />}
+                </span>
+                <h2 className="mt-3 text-[14px] font-medium leading-5 text-[var(--ui-fg)]">
+                  {query ? "No matching files" : filter !== "all" ? `No ${FILTERS.find((item) => item.id === filter)?.label.toLowerCase()} here` : "This folder is empty"}
+                </h2>
+                <p className="mt-0.5 max-w-xs text-[12.5px] leading-[18px] text-[var(--ui-fg-muted)]">
+                  {query ? "Try a different name." : "Upload files, paste text, or drop files anywhere on this page."}
+                </p>
+                {!query ? (
+                  <div className="mt-4 flex items-center gap-2">
+                    <button type="button" onClick={() => uploadInputRef.current?.click()} className={cn(appBtn.secondarySm, "gap-1.5")}>
+                      <Upload className="size-3.5" /> Upload
+                    </button>
+                    <button type="button" onClick={openPaste} className={cn(appBtn.secondarySm, "gap-1.5")}>
+                      <FileText className="size-3.5" /> Paste text
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div role="rowgroup">
+                {entries.map((entry) => {
+                  const key = entryKey(entry);
+                  const checked = selected.has(key);
+                  return (
+                    <div
+                      key={key}
+                      role="row"
+                      aria-selected={checked}
+                      data-selected={checked || undefined}
+                      data-selecting={selected.size > 0 || undefined}
+                      draggable
+                      onDragStart={(event) => {
+                        const refs = checked && selectedRefs.length ? selectedRefs : [{ id: entry.id, kind: entry.kind }];
+                        event.dataTransfer.setData("application/x-clauxen-library", JSON.stringify(refs));
+                        event.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragOver={entry.kind === "folder" ? (event) => { if (event.dataTransfer.types.includes("application/x-clauxen-library")) event.preventDefault(); } : undefined}
+                      onDrop={entry.kind === "folder" ? (event) => {
+                        const payload = event.dataTransfer.getData("application/x-clauxen-library");
+                        if (!payload) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void move(JSON.parse(payload) as LibraryEntryRef[], entry.id);
+                      } : undefined}
+                      onDoubleClick={() => openEntry(entry)}
+                      className={cn(ROW_GRID, "cx-table__row group/row")}
+                    >
+                      <span className="flex justify-center" role="cell">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSelected(key)}
+                          aria-label={`Select ${entry.name}`}
+                          className="cx-check cx-table__check"
+                        />
+                      </span>
+                      <button
+                        type="button"
+                        role="cell"
+                        onClick={() => openEntry(entry)}
+                        className="no-hover-overlay flex min-w-0 items-center gap-2.5 text-left outline-none"
+                      >
+                        <EntryIcon entry={entry} />
+                        <span className="min-w-0">
+                          <span className="block truncate text-[13px] font-medium leading-[18px] text-[var(--ui-fg)]">{entry.name}</span>
+                          <span className="block truncate text-[11.5px] leading-4 text-[var(--ui-fg-subtle)] sm:hidden">
+                            {typeLabel(entry)} · {formatDate(entry.updatedAt)}{entry.kind === "file" ? ` · ${formatSize(entry.size)}` : ""}
+                          </span>
+                        </span>
+                      </button>
+                      <span role="cell" className="truncate text-[12.5px] text-[var(--ui-fg-muted)] max-sm:hidden">{typeLabel(entry)}</span>
+                      <span role="cell" className="truncate text-[12.5px] tabular-nums text-[var(--ui-fg-muted)] max-sm:hidden">{formatDate(entry.updatedAt)}</span>
+                      <span role="cell" className="text-right text-[12.5px] tabular-nums text-[var(--ui-fg-muted)] max-sm:hidden">{entry.kind === "file" ? formatSize(entry.size) : "—"}</span>
+                      <span role="cell" className="flex justify-end">
+                        <DropdownMenu modal={false}>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label={`Actions for ${entry.name}`}
+                              className="cx-table__action ui-icon-button no-hover-overlay"
+                            >
+                              <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" sideOffset={4} collisionPadding={12} className="w-[184px]">
+                            <DropdownMenuItem onSelect={() => openEntry(entry)} className="ui-menu-row">
+                              {entry.kind === "folder" ? <Folder /> : <Download />} {entry.kind === "folder" ? "Open" : "Download"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => { setRenameTarget(entry); setRenameValue(entry.name); }} className="ui-menu-row">
+                              <Pencil /> Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => { setSelected(new Set([key])); setMoveOpen(true); }} className="ui-menu-row">
+                              <FolderInput /> Move to…
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={() => setDeleteTargets([{ id: entry.id, kind: entry.kind }])} className="ui-menu-row text-destructive focus:text-destructive">
+                              <Trash2 /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
-      {draggingOver ? <div className="pointer-events-none absolute inset-4 z-50 grid place-items-center rounded-[var(--settings-card-radius)] border border-dashed border-[var(--settings-input-border)] bg-[color-mix(in_oklab,var(--settings-canvas-bg)_92%,transparent)] text-center"><div><Upload className="icon-2xl mx-auto text-[var(--settings-fg-muted)]" /><p className="app-page-section-title mt-3">Drop files to upload</p><p className="app-page-muted mt-1">They’ll be saved in this folder.</p></div></div> : null}
+      {selected.size > 0 ? (
+        <div className="cx-selection-bar" role="toolbar" aria-label="Selection actions">
+          <span className="px-1.5 text-[12.5px] font-medium tabular-nums">{selected.size} selected</span>
+          <span className="h-4 w-px bg-[var(--ui-border)]" aria-hidden />
+          <button type="button" onClick={() => setMoveOpen(true)} className={cn(appBtn.ghost, "h-7 gap-1.5 px-2")}>
+            <FolderInput className="size-3.5" /> Move
+          </button>
+          <button type="button" onClick={() => setDeleteTargets(selectedRefs)} className={cn(appBtn.ghost, "h-7 gap-1.5 px-2 !text-destructive")}>
+            <Trash2 className="size-3.5" /> Delete
+          </button>
+          <button type="button" onClick={() => setSelected(new Set())} aria-label="Clear selection" className="ui-icon-button no-hover-overlay !size-7">
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ) : null}
+
+      {draggingOver ? (
+        <div className="pointer-events-none absolute inset-3 z-50 grid place-items-center rounded-[14px] border border-dashed border-[var(--ui-border)] bg-[color-mix(in_oklab,var(--app-panel-bg)_92%,transparent)] text-center">
+          <div>
+            <Upload className="mx-auto size-6 text-[var(--ui-fg-muted)]" strokeWidth={1.75} />
+            <p className="mt-2 text-[14px] font-medium">Drop to upload</p>
+            <p className="mt-0.5 text-[12.5px] text-[var(--ui-fg-muted)]">Files are saved to this folder.</p>
+          </div>
+        </div>
+      ) : null}
 
       <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
-        <DialogContent className={cn(chrome.overlay.panel, "gap-0 overflow-hidden p-0 sm:max-w-[560px]")}>
-          <DialogHeader className="border-b border-[var(--settings-hairline)] px-5 py-3.5 text-left"><DialogTitle className="text-[15px] font-medium">Create text file</DialogTitle><DialogDescription className="settings-muted">Paste text and choose the filename and extension to store in your Library.</DialogDescription></DialogHeader>
-          <div className="space-y-4 px-5 py-4">
-            <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[var(--settings-fg-muted)]">File name</span><input value={pasteName} onChange={(event) => setPasteName(event.target.value)} placeholder="notes.txt" className="app-page-search !pl-3 outline-none" /></label>
-            <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[var(--settings-fg-muted)]">Content</span><textarea value={pasteContent} onChange={(event) => setPasteContent(event.target.value)} placeholder="Paste or type text here…" rows={10} className="app-field w-full resize-y p-3 font-mono text-[13px] leading-5 outline-none" /></label>
-          </div>
-          <DialogFooter className="border-t border-[var(--settings-hairline)] bg-[var(--settings-canvas-bg)] px-5 py-3"><Button variant="ghost" onClick={() => setPasteOpen(false)} className={appBtn.ghost}>Cancel</Button><Button disabled={busy || !pasteName.trim() || !pasteContent.trim()} onClick={() => void createPastedFile()} className={appBtn.primary}>Create file</Button></DialogFooter>
+        <DialogContent className="max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Create text file</DialogTitle>
+            <DialogDescription>Paste or type text and save it to your Library.</DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <div>
+              <label htmlFor="library-paste-name" className="cx-label">File name</label>
+              <div className="flex items-stretch gap-1.5">
+                <input
+                  id="library-paste-name"
+                  autoFocus
+                  value={pasteName}
+                  onChange={(event) => setPasteName(event.target.value)}
+                  placeholder="Untitled"
+                  className="cx-field min-w-0 flex-1"
+                />
+                <div className="cx-segmented shrink-0" role="radiogroup" aria-label="File type">
+                  {TEXT_EXTENSIONS.map((ext) => (
+                    <button
+                      key={ext}
+                      type="button"
+                      role="radio"
+                      aria-checked={pasteExt === ext}
+                      data-active={pasteExt === ext || undefined}
+                      onClick={() => setPasteExt(ext)}
+                      className="cx-segmented__item no-hover-overlay font-mono"
+                    >
+                      {ext}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="library-paste-content" className="cx-label">Content</label>
+                <span className="mb-1 text-[11px] tabular-nums text-[var(--ui-fg-subtle)]">
+                  {pasteContent.length.toLocaleString()} characters
+                </span>
+              </div>
+              <textarea
+                id="library-paste-content"
+                value={pasteContent}
+                onChange={(event) => setPasteContent(event.target.value)}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") void createPastedFile();
+                }}
+                placeholder="Paste or type text here…"
+                rows={10}
+                className="cx-field max-h-[48vh] min-h-[160px] font-mono text-[12.5px] leading-5"
+              />
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <span className="mr-auto hidden text-[11px] text-[var(--ui-fg-subtle)] sm:block">⌘ Enter to save</span>
+            <button type="button" onClick={() => setPasteOpen(false)} className={appBtn.secondary}>Cancel</button>
+            <button type="button" disabled={busy || !pasteName.trim() || !pasteContent.trim()} onClick={() => void createPastedFile()} className={appBtn.primary}>
+              Create file
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={folderOpen} onOpenChange={setFolderOpen}>
-        <DialogContent className={cn(chrome.overlay.panel, "sm:max-w-[420px]")}><DialogHeader><DialogTitle>New folder</DialogTitle><DialogDescription>Create a folder inside the current location.</DialogDescription></DialogHeader><input autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void createFolder(); }} placeholder="Folder name" className="app-page-search !pl-3 outline-none" /><DialogFooter><Button variant="ghost" onClick={() => setFolderOpen(false)} className={appBtn.ghost}>Cancel</Button><Button disabled={busy || !folderName.trim()} onClick={() => void createFolder()} className={appBtn.primary}>Create folder</Button></DialogFooter></DialogContent>
+        <DialogContent className="max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>New folder</DialogTitle>
+            <DialogDescription>Create a folder in {listing?.breadcrumbs.at(-1)?.name ?? "Library"}.</DialogDescription>
+          </DialogHeader>
+          <input
+            autoFocus
+            value={folderName}
+            onChange={(event) => setFolderName(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter" && folderName.trim()) void createFolder(); }}
+            placeholder="Folder name"
+            aria-label="Folder name"
+            className="cx-field"
+          />
+          <DialogFooter>
+            <button type="button" onClick={() => setFolderOpen(false)} className={appBtn.secondary}>Cancel</button>
+            <button type="button" disabled={busy || !folderName.trim()} onClick={() => void createFolder()} className={appBtn.primary}>Create</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={renameTarget != null} onOpenChange={(open) => { if (!open) setRenameTarget(null); }}>
+        <DialogContent className="max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>Rename {renameTarget?.kind === "folder" ? "folder" : "file"}</DialogTitle>
+          </DialogHeader>
+          <input
+            autoFocus
+            value={renameValue}
+            onChange={(event) => setRenameValue(event.target.value)}
+            onFocus={(event) => {
+              const dot = event.currentTarget.value.lastIndexOf(".");
+              if (renameTarget?.kind === "file" && dot > 0) event.currentTarget.setSelectionRange(0, dot);
+              else event.currentTarget.select();
+            }}
+            onKeyDown={(event) => { if (event.key === "Enter") void confirmRename(); }}
+            aria-label="New name"
+            className="cx-field"
+          />
+          <DialogFooter>
+            <button type="button" onClick={() => setRenameTarget(null)} className={appBtn.secondary}>Cancel</button>
+            <button type="button" disabled={busy || !renameValue.trim()} onClick={() => void confirmRename()} className={appBtn.primary}>Rename</button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
 
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent className={cn(chrome.overlay.panel, "sm:max-w-[460px]")}><DialogHeader><DialogTitle>Move {selected.size || 1} item{(selected.size || 1) === 1 ? "" : "s"}</DialogTitle><DialogDescription>Choose a destination folder.</DialogDescription></DialogHeader><div className="max-h-72 space-y-0.5 overflow-y-auto"><button onClick={() => void move(selectedRefs, null)} className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] px-3 py-2 text-left hover:bg-[var(--ui-hover-wash)]"><Folder className="icon-md text-amber-500" /><span className="app-page-body font-medium">Library root</span></button>{listing?.allFolders.filter((folder) => !selected.has(`folder:${folder.id}`)).map((folder) => <button key={folder.id} onClick={() => void move(selectedRefs, folder.id)} className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] px-3 py-2 text-left hover:bg-[var(--ui-hover-wash)]"><Folder className="icon-md text-amber-500" /><span className="app-page-body truncate">{folder.name}</span></button>)}</div><DialogFooter><Button variant="ghost" onClick={() => setMoveOpen(false)} className={appBtn.ghost}>Cancel</Button></DialogFooter></DialogContent>
+        <DialogContent className="max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Move {selectedRefs.length || 1} {(selectedRefs.length || 1) === 1 ? "item" : "items"}</DialogTitle>
+            <DialogDescription>Choose a destination folder.</DialogDescription>
+          </DialogHeader>
+          <div className="-mx-1 max-h-72 space-y-px overflow-y-auto">
+            <button type="button" onClick={() => void move(selectedRefs, null)} className="cx-list-row no-hover-overlay">
+              <Folder className="size-4 text-[var(--ui-fg-muted)]" strokeWidth={1.75} />
+              <span className="truncate font-medium">Library</span>
+            </button>
+            {listing?.allFolders.filter((folder) => !selected.has(`folder:${folder.id}`)).map((folder) => (
+              <button key={folder.id} type="button" onClick={() => void move(selectedRefs, folder.id)} className="cx-list-row no-hover-overlay">
+                <Folder className="size-4 text-[var(--ui-fg-muted)]" strokeWidth={1.75} />
+                <span className="truncate">{folder.name}</span>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <button type="button" onClick={() => setMoveOpen(false)} className={appBtn.secondary}>Cancel</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteTargets != null} onOpenChange={(open) => { if (!open) setDeleteTargets(null); }}>
+        <DialogContent className="max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>Delete {deleteTargets?.length === 1 ? "item" : `${deleteTargets?.length ?? 0} items`}?</DialogTitle>
+            <DialogDescription>
+              Deleted files are removed from your Library and from chats they were attached to. This can’t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button type="button" onClick={() => setDeleteTargets(null)} className={appBtn.secondary}>Cancel</button>
+            <button type="button" disabled={busy} onClick={() => void confirmDelete()} className={cn(appBtn.primary, "!bg-destructive hover:!bg-destructive/90 !text-white")}>Delete</button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   );
