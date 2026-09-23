@@ -5,6 +5,7 @@ import {
   normalizeChatFontId,
   normalizeContrastMode,
 } from "@/lib/app-preferences";
+import { clampSidebarWidth } from "@/lib/sidebar-width";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -30,6 +31,7 @@ export function normalizeAppSettings(raw: unknown): AppSettings {
   general.chatFont = normalizeChatFontId(general.chatFont);
   general.accentColor = normalizeAccentId(general.accentColor);
   general.contrastMode = normalizeContrastMode(general.contrastMode);
+  general.sidebarWidth = clampSidebarWidth(general.sidebarWidth);
 
   return {
     general,

@@ -1140,6 +1140,9 @@ export function PromptInput({
         aria-label="Add content"
         aria-expanded={isAddMenuOpen}
         disabled={isCapturingScreenshot}
+        onMouseDown={(event) => {
+          event.preventDefault();
+        }}
         onClick={() => setAddMenuOpen(!isAddMenuOpen)}
         className={cn(
           addMenuTriggerClass,

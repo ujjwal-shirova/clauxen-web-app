@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   ChevronRight,
   MapPin,
@@ -9,17 +9,10 @@ import {
   FileText,
   Plug,
 } from "lucide-react";
-import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
 import type { AgentToolStep, WebSearchResult } from "@/lib/agent-trace";
-import { domainFromUrl } from "@/lib/agent-trace";
 import { cn } from "@/lib/utils";
 import { AgentFileBlock } from "./agent-file-block";
 import { AgentTraceBlock, AgentShimmerText } from "./agent-trace-primitives";
-
-const HoverCard = HoverCardPrimitive.Root;
-const HoverCardTrigger = HoverCardPrimitive.Trigger;
-const HoverCardPortal = HoverCardPrimitive.Portal;
-const HoverCardContent = HoverCardPrimitive.Content;
 
 function CodePane({
   children,
@@ -365,67 +358,6 @@ const extractFavicons = (results: WebSearchResult[]) =>
     ),
   );
 
-function SearchResultFavicon({
-  favicon,
-  title,
-  size = 14,
-}: {
-  favicon?: string | null;
-  title?: string;
-  size?: number;
-}) {
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setFailed(false);
-  }, [favicon]);
-
-  const shouldShowFallback = !favicon || failed;
-  const dimension = `${size}px`;
-
-  return (
-    <span
-      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/70"
-      style={{ width: dimension, height: dimension }}
-    >
-      {shouldShowFallback ? (
-        <span
-          aria-hidden="true"
-          className="bg-zinc-400/70"
-          style={{
-            WebkitMaskImage: "url(/icons/web.svg)",
-            maskImage: "url(/icons/web.svg)",
-            WebkitMaskRepeat: "no-repeat",
-            maskRepeat: "no-repeat",
-            WebkitMaskPosition: "center",
-            maskPosition: "center",
-            WebkitMaskSize: "contain",
-            maskSize: "contain",
-            width: `${Math.max(10, size - 4)}px`,
-            height: `${Math.max(10, size - 4)}px`,
-            display: "inline-block",
-          }}
-        />
-      ) : (
-        <img
-          src={favicon!}
-          alt={title ?? ""}
-          width={size}
-          height={size}
-          className="h-full w-full object-contain"
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          onError={() => setFailed(true)}
-        />
-      )}
-    </span>
-  );
-}
-
-function resultDomain(row: WebSearchResult): string {
-  return domainFromUrl(row.url);
-}
-
 function WebSearchSourcesMeta({
   favicons,
   count,
@@ -436,7 +368,7 @@ function WebSearchSourcesMeta({
   const shown = favicons.slice(0, 4);
   return (
     <span
-      className="inline-flex items-center gap-1.5"
+      className="inline-flex shrink-0 items-center gap-1.5"
       data-agent-web-search-meta="true"
     >
       {shown.length > 0 ? (
@@ -471,94 +403,6 @@ function WebSearchSourcesMeta({
         </span>
       ) : null}
     </span>
-  );
-}
-
-/** Hover the full “Searched the web …” row → scrollable sources popup. */
-function WebSearchSourcesHover({
-  results,
-  favicons,
-  children,
-}: {
-  results: WebSearchResult[];
-  favicons: string[];
-  children: ReactNode;
-}) {
-  const count = results.length;
-  if (count === 0) return <>{children}</>;
-
-  return (
-    <HoverCard openDelay={100} closeDelay={140}>
-      <HoverCardTrigger asChild>
-        <button
-          type="button"
-          className="no-hover no-hover-overlay agent-web-search__trigger inline-flex max-w-full min-w-0 cursor-default items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none outline-none focus-visible:outline-none"
-          aria-label={`Searched the web, ${count} sources`}
-          onClick={(event) => event.preventDefault()}
-        >
-          {children}
-          <WebSearchSourcesMeta favicons={favicons} count={count} />
-        </button>
-      </HoverCardTrigger>
-      <HoverCardPortal>
-        <HoverCardContent
-          side="bottom"
-          align="start"
-          sideOffset={6}
-          collisionPadding={12}
-          className="agent-web-search-popover z-[3000] w-[min(320px,calc(100vw-2rem))] overflow-hidden p-0"
-          onClick={(event) => event.stopPropagation()}
-          onWheel={(event) => event.stopPropagation()}
-        >
-          <ul
-            className="max-h-[min(280px,42vh)] overflow-y-auto overscroll-contain py-0.5 [scrollbar-width:thin]"
-            data-agent-web-search="popover-results"
-            data-scroll-region=""
-          >
-            {results.map((row, index) => {
-              const domain = resultDomain(row);
-              const href = isValidHttpUrl(row.url) ? row.url : undefined;
-              return (
-                <li key={row.url || index}>
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(
-                      "flex min-w-0 items-start gap-2 px-2.5 py-1.5 transition-colors",
-                      href
-                        ? "hover:bg-zinc-50 dark:hover:bg-zinc-900"
-                        : "pointer-events-none",
-                    )}
-                  >
-                    <span className="mt-0.5 shrink-0">
-                      <SearchResultFavicon
-                        favicon={row.favicon}
-                        title={row.title}
-                        size={14}
-                      />
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-[12px] font-medium leading-[16px] text-zinc-800 dark:text-zinc-100">
-                        {row.title || row.url}
-                      </span>
-                      {row.snippet ? (
-                        <span className="line-clamp-2 text-[11px] leading-[14px] text-zinc-500 dark:text-zinc-400">
-                          {row.snippet}
-                        </span>
-                      ) : null}
-                      <span className="truncate text-[10px] leading-[12px] text-zinc-400 dark:text-zinc-500">
-                        {domain}
-                      </span>
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </HoverCardContent>
-      </HoverCardPortal>
-    </HoverCard>
   );
 }
 
@@ -612,25 +456,21 @@ export function AgentWebSearchBlock({
     );
   }
 
-  const titleSpan = (
-    <span className="agent-trace__title min-w-0 max-w-[min(100%,36rem)] truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]">
-      {title}
-    </span>
-  );
-
   return (
     <div
-      className="agent-web-search inline-flex max-w-full min-w-0 flex-wrap items-center gap-1.5 overflow-anchor-none"
+      className="agent-web-search flex max-w-full min-w-0 items-center gap-1.5 overflow-anchor-none"
       data-agent-web-search="row"
       data-agent-step="web_search"
     >
+      <span
+        className="agent-trace__title min-w-0 flex-1 truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]"
+        title={query || undefined}
+      >
+        {title}
+      </span>
       {resultCount > 0 ? (
-        <WebSearchSourcesHover results={results} favicons={favicons}>
-          {titleSpan}
-        </WebSearchSourcesHover>
-      ) : (
-        titleSpan
-      )}
+        <WebSearchSourcesMeta favicons={favicons} count={resultCount} />
+      ) : null}
     </div>
   );
 }

@@ -3,6 +3,13 @@
  * Chat fonts style assistant markdown only (not app chrome labels).
  */
 
+import {
+  clampSidebarWidth,
+  SIDEBAR_WIDTH_CSS_VAR,
+  SIDEBAR_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_STORAGE_KEY,
+} from "@/lib/sidebar-width";
+
 export const APPEARANCE_STORAGE_KEY = "clauxen.appearance";
 export const CHAT_FONT_STORAGE_KEY = "clauxen.chatFont";
 export const MOTION_STORAGE_KEY = "clauxen.motion";
@@ -243,9 +250,20 @@ export function applyDocumentPreferenceAttrs(input: {
   followUpSuggestions?: boolean | null;
   accentColor?: string | null;
   contrastMode?: string | null;
+  sidebarWidth?: number | null;
 }) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
+
+  if (input.sidebarWidth != null) {
+    const width = clampSidebarWidth(input.sidebarWidth);
+    root.style.setProperty(SIDEBAR_WIDTH_CSS_VAR, `${width}px`);
+    try {
+      localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
+    } catch {
+      /* ignore */
+    }
+  }
 
   if (input.chatFont != null) {
     const fontId = normalizeChatFontId(input.chatFont);
@@ -321,6 +339,7 @@ export function readLocalGeneralPrefs(): {
   followUpSuggestions: boolean;
   accentColor: AccentId;
   contrastMode: ContrastMode;
+  sidebarWidth: number;
 } {
   if (typeof window === "undefined") {
     return {
@@ -330,6 +349,7 @@ export function readLocalGeneralPrefs(): {
       followUpSuggestions: true,
       accentColor: "Blue",
       contrastMode: "System",
+      sidebarWidth: SIDEBAR_WIDTH_DEFAULT,
     };
   }
   try {
@@ -354,6 +374,9 @@ export function readLocalGeneralPrefs(): {
       contrastMode: normalizeContrastMode(
         localStorage.getItem(CONTRAST_STORAGE_KEY),
       ),
+      sidebarWidth: clampSidebarWidth(
+        localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY),
+      ),
     };
   } catch {
     return {
@@ -363,6 +386,7 @@ export function readLocalGeneralPrefs(): {
       followUpSuggestions: true,
       accentColor: "Blue",
       contrastMode: "System",
+      sidebarWidth: SIDEBAR_WIDTH_DEFAULT,
     };
   }
 }

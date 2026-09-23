@@ -509,10 +509,11 @@ function SearchGroupContent({ tools }: { tools: AgentToolStep[] }) {
             setUserExpanded(!expanded);
           })
         }
-        className="agent-run__step-title group/search no-hover no-hover-overlay"
+        className="agent-run__step-title group/search no-hover no-hover-overlay w-full min-w-0"
         aria-expanded={expanded}
+        title={detail || undefined}
       >
-        <AgentShimmerText active={running}>
+        <AgentShimmerText active={running} className="min-w-0 flex-1 truncate">
           <span className="agent-activity-label--primary">
             {running ? "Searching the web" : "Searched the web"}
           </span>

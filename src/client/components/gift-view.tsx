@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { chrome } from "@/lib/app-chrome";
 import { appBtn } from "@/lib/app-buttons";
-import { GiftAnimation } from "./gift-animation";
 import { FullscreenPortal } from "./fullscreen-portal";
 import {
   clearPendingGiftPurchase,
@@ -71,6 +70,77 @@ function buildClaimUrl(claimToken?: string, claimUrl?: string) {
   if (claimUrl) return claimUrl;
   if (!claimToken || typeof window === "undefined") return null;
   return `${window.location.origin}/gift/claim/${encodeURIComponent(claimToken)}`;
+}
+
+function GiftPreviewCard({
+  color,
+  colorLabel,
+  planName,
+  planSubtitle,
+  durationLabel,
+  totalLabel,
+  fromName,
+  toName,
+  note,
+  deliveryLabel,
+}: {
+  color: string;
+  colorLabel: string;
+  planName: string;
+  planSubtitle: string;
+  durationLabel: string;
+  totalLabel: string;
+  fromName: string;
+  toName: string;
+  note: string;
+  deliveryLabel: string;
+}) {
+  return (
+    <div className="gift-preview-pane">
+      <p className="settings-section-label">Gift preview</p>
+      <article className="gift-preview-card" aria-label="Gift preview">
+        <div
+          className="gift-preview-card__swatch"
+          style={{ backgroundColor: color }}
+          aria-hidden
+        >
+          <span className="gift-preview-card__swatch-label">{colorLabel}</span>
+        </div>
+        <div className="gift-preview-card__body">
+          <h2 className="gift-preview-card__title">
+            {durationLabel} of Clauxen {planName}
+          </h2>
+          <p className="gift-preview-card__subtitle">{planSubtitle}</p>
+          <dl className="gift-preview-card__meta">
+            <div>
+              <dt>From</dt>
+              <dd>{fromName || "You"}</dd>
+            </div>
+            <div>
+              <dt>To</dt>
+              <dd>{toName || "Recipient"}</dd>
+            </div>
+            <div>
+              <dt>Send as</dt>
+              <dd>{deliveryLabel}</dd>
+            </div>
+            <div>
+              <dt>Total</dt>
+              <dd>{totalLabel}</dd>
+            </div>
+          </dl>
+          <p
+            className={cn(
+              "gift-preview-card__note",
+              !note && "gift-preview-card__note--empty",
+            )}
+          >
+            {note || "A note you add shows up here."}
+          </p>
+        </div>
+      </article>
+    </div>
+  );
 }
 
 type SuccessState = {
@@ -266,9 +336,7 @@ export function GiftView({ onClose }: GiftViewProps) {
           <div className="mobile-page-inset mx-auto flex min-h-full max-w-[512px] flex-col justify-center pb-8 pt-14 sm:px-8 sm:py-24 lg:pt-16">
             {step === 1 && (
               <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-                <h1 className="mb-2 font-serif text-[28px] font-medium leading-[1.3] text-[var(--settings-fg)] sm:text-[34px] sm:leading-[1.35]">
-                  Give the gift of Clauxen
-                </h1>
+                <h1 className="app-page-title mb-2">Give the gift of Clauxen</h1>
                 <p className="app-page-muted mb-8">
                   Every plan includes Clauxen Code, unlimited projects, and
                   access to our latest models.
@@ -538,85 +606,27 @@ export function GiftView({ onClose }: GiftViewProps) {
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col items-center justify-center bg-[var(--app-frame-bg)] p-5 sm:p-8 lg:sticky lg:top-0 lg:h-full lg:flex-1">
-          <div className="relative flex scale-[0.92] flex-col items-center gap-4 transition-all duration-500 animate-in zoom-in-95 sm:scale-100 lg:scale-[1.2]">
-            <div className="relative w-[min(100%,248px)] sm:w-[300px]">
-              <div
-                className="relative overflow-hidden transition-colors duration-500"
-                style={{
-                  aspectRatio: "3 / 2",
-                  backgroundColor: selectedColor.value,
-                  borderRadius: "12px",
-                  boxShadow:
-                    "0 18px 40px -16px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.18)",
-                }}
-              >
-                {/* Soft horizontal wave bands — follow selected color */}
-                <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                  <svg
-                    viewBox="0 0 300 200"
-                    aria-hidden="true"
-                    className="absolute inset-0 h-full w-full"
-                    preserveAspectRatio="none"
-                  >
-                    <path
-                      d="M-20 52C40 28 90 34 150 52C210 70 250 58 320 40"
-                      fill="none"
-                      stroke="rgba(255,248,240,0.55)"
-                      strokeWidth="18"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M-20 88C50 64 110 70 170 88C230 106 270 94 320 78"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.42)"
-                      strokeWidth="16"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M-20 124C45 104 105 110 165 126C225 142 265 132 320 118"
-                      fill="none"
-                      stroke="rgba(255,245,235,0.48)"
-                      strokeWidth="15"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M-20 158C55 140 115 146 175 160C235 174 270 166 320 152"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.32)"
-                      strokeWidth="13"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 px-4">
-                  <GiftAnimation />
-                  <div className="text-center">
-                    <div className="text-[13px] font-medium leading-[18px] tracking-[-0.01em] text-[var(--settings-fg)]">
-                      {currentDuration.label} of Clauxen {currentPlan.name}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {(deliveryMethod === "email" || deliveryMethod === "link") &&
-              (recipientName || giftNote) && (
-                <div className="w-72 animate-in fade-in slide-in-from-top-2 rounded-[var(--settings-card-radius)] bg-[var(--settings-card-bg)] p-3.5 shadow-[var(--settings-card-shadow)] duration-300">
-                  {recipientName && (
-                    <div className="mb-1 text-[12px] font-medium leading-[18px] text-[var(--settings-fg)]">
-                      To: {recipientName}
-                    </div>
-                  )}
-                  {giftNote && (
-                    <p className="break-words text-[12px] leading-[18px] text-[var(--settings-fg-muted)]">
-                      {giftNote}
-                    </p>
-                  )}
-                </div>
-              )}
-          </div>
+        <div className="flex shrink-0 flex-col items-center justify-center bg-[var(--settings-canvas-bg)] p-5 sm:p-8 lg:sticky lg:top-0 lg:h-full lg:flex-1">
+          <GiftPreviewCard
+            color={selectedColor.value}
+            colorLabel={selectedColor.label}
+            planName={currentPlan.name}
+            planSubtitle={currentPlan.subtitle}
+            durationLabel={currentDuration.label}
+            totalLabel={formatCheckoutAmountFromPaise(
+              total * 100,
+              currency,
+              usdInrRate,
+            )}
+            fromName={yourName.trim()}
+            toName={
+              deliveryMethod === "email" ? recipientName.trim() : ""
+            }
+            note={giftNote.trim()}
+            deliveryLabel={
+              deliveryMethod === "email" ? "Email" : "Share link"
+            }
+          />
         </div>
       </div>
 

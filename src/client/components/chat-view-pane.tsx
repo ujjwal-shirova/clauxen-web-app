@@ -24,8 +24,6 @@ interface ChatViewPaneProps {
   isGenerating?: boolean;
   /** When true, quick action chips stay hidden while the user is typing a draft. */
   hasPromptDraft: boolean;
-  /** @deprecated Menu no longer hides welcome chips — kept for composer resize deps. */
-  isAddMenuOpen?: boolean;
   activeChip: string | null;
   onActiveChipChange: (chip: string | null) => void;
   onSendMessage: (prompt: string) => void;
@@ -187,7 +185,6 @@ export function ChatViewPane({
   hasConversation,
   isGenerating = false,
   hasPromptDraft,
-  isAddMenuOpen = false,
   activeChip,
   onActiveChipChange,
   onSendMessage,
@@ -279,7 +276,7 @@ export function ChatViewPane({
       observer.disconnect();
       cancelAnimationFrame(composerMeasureRafRef.current);
     };
-  }, [dockComposer, scrollAreaRef, isAddMenuOpen]);
+  }, [dockComposer, scrollAreaRef]);
 
   return (
     <section

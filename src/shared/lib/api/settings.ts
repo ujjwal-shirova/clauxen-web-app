@@ -15,6 +15,8 @@ export type GeneralSettings = {
   motion: string;
   voiceSpeed: string;
   followUpSuggestions: boolean;
+  /** Desktop sidebar width in pixels. Default until the user drags the edge. */
+  sidebarWidth: number;
 };
 
 export type PersonalizationSettings = {

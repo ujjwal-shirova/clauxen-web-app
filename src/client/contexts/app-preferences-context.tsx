@@ -29,6 +29,7 @@ import {
   readLocalGeneralPrefs,
 } from "@/lib/app-preferences";
 import { showSavedNotification } from "@/components/saved-notification";
+import { clampSidebarWidth } from "@/lib/sidebar-width";
 
 type AppPreferencesContextValue = {
   general: GeneralSettings;
@@ -56,6 +57,7 @@ function buildGeneralFromLocal(): GeneralSettings {
     followUpSuggestions: local.followUpSuggestions,
     accentColor: local.accentColor,
     contrastMode: local.contrastMode,
+    sidebarWidth: local.sidebarWidth,
   };
 }
 
@@ -100,6 +102,7 @@ function PreferencesInner({ children }: { children: ReactNode }) {
         followUpSuggestions: next.followUpSuggestions ?? true,
         accentColor: normalizeAccentId(next.accentColor),
         contrastMode: normalizeContrastMode(next.contrastMode),
+        sidebarWidth: next.sidebarWidth,
       });
     },
     [setTheme],
@@ -152,6 +155,7 @@ function PreferencesInner({ children }: { children: ReactNode }) {
           accentColor: normalizeAccentId(data.general.accentColor),
           contrastMode: normalizeContrastMode(data.general.contrastMode),
           colorMode: colorModeForAppearance(data.general.appearancePreset),
+          sidebarWidth: data.general.sidebarWidth,
         };
         setGeneral(next);
         applyGeneralToDom(next);
@@ -195,6 +199,9 @@ function PreferencesInner({ children }: { children: ReactNode }) {
             : {}),
           ...(typeof patch.contrastMode === "string"
             ? { contrastMode: normalizeContrastMode(patch.contrastMode) }
+            : {}),
+          ...(typeof patch.sidebarWidth === "number"
+            ? { sidebarWidth: clampSidebarWidth(patch.sidebarWidth) }
             : {}),
           ...(typeof patch.appearancePreset === "string"
             ? {

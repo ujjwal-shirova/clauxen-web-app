@@ -12,6 +12,7 @@ import {
   invalidateUserSettingsCache,
   readCachedUserSettings,
 } from "@/server/cache/runtime-cache";
+import { clampSidebarWidth } from "@/lib/sidebar-width";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ const defaultGeneral = {
   motion: "System",
   voiceSpeed: "Normal",
   followUpSuggestions: true,
+  sidebarWidth: 256,
 };
 
 const defaultPersonalization = {
@@ -280,6 +282,9 @@ export const PATCH = withApiHandler(
           patch.customInstructions = sanitizeCustomInstructions(
             patch.customInstructions,
           );
+        }
+        if (key === "general" && "sidebarWidth" in patch) {
+          patch.sidebarWidth = clampSidebarWidth(patch.sidebarWidth);
         }
         nextSettings[key] = {
           ...((currentSettings[key] as Record<string, unknown>) ?? {}),

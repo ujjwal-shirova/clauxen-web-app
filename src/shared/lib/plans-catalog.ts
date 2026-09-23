@@ -10,9 +10,18 @@ export const GST_RATE = 0.18;
 export type BillingCycle = "monthly" | "yearly";
 export type MaxTier = "5x" | "20x";
 
-export type PersonalPlanId = "pro" | "max";
-export type GiftPlanId = "pro" | "max5x" | "max20x";
-export type CheckoutPlanId = "pro" | "max" | "max5x" | "max20x";
+export type PersonalPlanId = "free" | "go" | "pro" | "max";
+export type GiftPlanId = "go" | "pro" | "max5x" | "max20x";
+export type CheckoutPlanId =
+  | "go"
+  | "pro"
+  | "max"
+  | "max5x"
+  | "max20x"
+  | "team"
+  | "enterprise"
+  | "business-workspace"
+  | "business-code";
 
 export type SeatAssignablePlanId = "plus" | "pro" | "max5x" | "max20x";
 
@@ -101,6 +110,8 @@ export const MAX_TIER_OPTIONS: Record<
 };
 
 export const PLAN_MONTHLY_PRICES_INR = {
+  free: 0,
+  go: 399,
   pro: 1_999,
 } as const;
 
@@ -135,21 +146,28 @@ export const SEAT_ASSIGNABLE_PLANS: Record<
 export const BUSINESS_WORKSPACE_SEAT_MONTHLY_INR = 1_799;
 
 export const PLAN_TOKEN_GRANTS: Record<string, number> = {
+  go: 50_000,
   pro: 1_000_000,
   max5x: 2_000_000,
   max20x: 4_000_000,
   max: 2_000_000,
+  "business-workspace": 1_000_000,
 };
 
 export const CHECKOUT_PLAN_IDS = new Set<string>([
+  "go",
   "pro",
   "max",
   "max5x",
   "max20x",
+  "team",
+  "enterprise",
+  "business-workspace",
+  "business-code",
 ]);
 
 /** Plans with monthly/yearly billing toggle (Max is monthly-only). */
-export const BILLING_CYCLE_PLAN_IDS = new Set<string>(["pro"]);
+export const BILLING_CYCLE_PLAN_IDS = new Set<string>(["go", "pro"]);
 
 export function rupeesToPaise(rupees: number): number {
   return Math.round(rupees * 100);
@@ -332,8 +350,20 @@ export function getCheckoutPlanDetails(
       ? PLAN_MONTHLY_PRICES_INR[planId as keyof typeof PLAN_MONTHLY_PRICES_INR]
       : 0;
 
+  if (planId === "go") {
+    return {
+      name: "Go plan",
+      monthly: PLAN_MONTHLY_PRICES_INR.go,
+      yearly: getYearlyPriceInr(PLAN_MONTHLY_PRICES_INR.go),
+    };
+  }
+
   const names: Record<string, string> = {
+    free: "Free",
+    go: "Go plan",
     pro: "Pro plan",
+    team: "Team plan",
+    enterprise: "Enterprise plan",
   };
 
   return {
@@ -363,6 +393,51 @@ function maxFeatures(maxTier: MaxTier): string[] {
 
 export const PERSONAL_PLANS: PlanCard[] = [
   {
+    id: "free",
+    name: "Free",
+    subtitle: "See what AI can do",
+    description: "Meet Clauxen",
+    monthlyPriceInr: PLAN_MONTHLY_PRICES_INR.free,
+    yearlySupported: false,
+    giftable: false,
+    isCurrent: false,
+    buttonLabel: "Continue with Free",
+    features: [
+      "Core models for everyday chat",
+      "Starter agent credits for everyday tasks",
+      "Work with documents, spreadsheets, and presentations",
+      "Preview deep research with cited results",
+      "Limited memory and context",
+      "Chat on web, iOS, Android, and desktop",
+      "Generate code and visualize data",
+      "Built-in web search",
+      "Extended thinking for complex work",
+    ],
+  },
+  {
+    id: "go",
+    name: "Go",
+    subtitle: "Keep chatting with expanded access",
+    description: "Higher limits for everyday power users",
+    monthlyPriceInr: PLAN_MONTHLY_PRICES_INR.go,
+    yearlySupported: true,
+    giftable: true,
+    highlight: "Everything in Free, plus:",
+    buttonLabel: "Upgrade to Go",
+    features: [
+      "Core models tuned for everyday tasks",
+      "More messages, uploads, and agent credits",
+      "Work across documents, spreadsheets, and presentations",
+      "Expanded deep research",
+      "Build and publish websites with database support",
+      "Agent multitasking with a task dashboard",
+      "Scheduled tasks that run automatically and post results",
+      "Clauxen Code access",
+      "Longer memory",
+      "Expanded voice mode",
+    ],
+  },
+  {
     id: "pro",
     name: "Pro",
     subtitle: "Research, code, and organize at scale",
@@ -371,7 +446,7 @@ export const PERSONAL_PLANS: PlanCard[] = [
     yearlySupported: true,
     giftable: true,
     isRecommended: true,
-    highlight: "Includes:",
+    highlight: "Everything in Go, plus:",
     buttonLabel: "Upgrade to Pro",
     features: [
       "Much higher usage limits and agent credits",
@@ -401,7 +476,131 @@ export const PERSONAL_PLANS: PlanCard[] = [
   },
 ];
 
-export const ORGANIZATION_PLANS: OrganizationPlanCard[] = [];
+function organizationSeatOptions(): OrganizationSeatOption[] {
+  return (Object.keys(SEAT_ASSIGNABLE_PLANS) as SeatAssignablePlanId[]).map(
+    (id) => ({
+      id,
+      label: SEAT_ASSIGNABLE_PLANS[id].label,
+      assignablePlan: id,
+      monthlyPriceInr: SEAT_ASSIGNABLE_PLANS[id].monthlyPriceInr,
+      note: SEAT_ASSIGNABLE_PLANS[id].usageNote,
+    }),
+  );
+}
+
+export const ORGANIZATION_PLANS: OrganizationPlanCard[] = [
+  {
+    id: "team",
+    name: "Team",
+    subtitle: "Predictable usage per seat",
+    userRangeLabel: "4–150 users",
+    minSeats: 4,
+    maxSeats: 150,
+    pricingModel: "per-seat",
+    seatOptions: organizationSeatOptions(),
+    yearlySupported: true,
+    isRecommended: true,
+    highlight: "Each seat can be Plus, Pro, or Max (Go not available):",
+    buttonLabel: "Upgrade to Team",
+    features: [
+      "Configure every seat on Plus, Pro, Max 5x, or Max 20x — mix tiers in one workspace",
+      "200K context window across shared team projects and knowledge",
+      "Clauxen Code and Collabry included per seat tier",
+      "Central billing, seat assignment, and team-wide usage dashboard",
+      "SAML single sign-on (SSO) with work-email domain capture",
+      "Organization search across chats, projects, and uploaded files",
+      "AES-256 encryption in transit and at rest for workspace data",
+      "Shirova never trains on your team data — contractual no-training default",
+      "Data Processing Agreement (DPA) available for GDPR-ready teams",
+    ],
+    footerNote:
+      "Minimum 4 seats. Mix seat tiers freely within your seat limit. Usage limits apply.",
+  },
+  {
+    id: "business-workspace",
+    name: "Business",
+    nameAccent: "Clauxen & Collabry",
+    subtitle: "Get more work done with AI for teams",
+    userRangeLabel: "4–500 users",
+    minSeats: 4,
+    maxSeats: 500,
+    pricingModel: "bundle-seat",
+    bundleSeatMonthlyInr: BUSINESS_WORKSPACE_SEAT_MONTHLY_INR,
+    bundleSeatMonthlyStrikethroughInr: PLAN_MONTHLY_PRICES_INR.pro,
+    yearlySupported: true,
+    isSpecialOffer: true,
+    isHighlight: true,
+    buttonLabel: "Upgrade to Business",
+    features: [
+      "Everything in Team, plus bundled Clauxen & Collabry for every seat",
+      "Advanced models for chat, research, creation, and multi-step agents",
+      "Unlimited core chat and uploads (subject to fair-use guardrails)",
+      "Company knowledge base — documents and wikis in one place",
+      "Clauxen Code coding agent included without a separate dev seat fee",
+      "Projects, custom assistants, and shared skills across departments",
+      "Enforced MFA, SSO, and role-based workspace permissions for admins",
+      "Workspace boundary isolation — no cross-tenant data mixing",
+      "Admin policies to restrict external sharing",
+      "Configurable workspace retention windows; Shirova never trains on your data",
+    ],
+    footerNote:
+      "Minimum 4 seats, billed annually when yearly is selected. GST excluded at checkout with a valid GST ID.",
+  },
+  {
+    id: "business-code",
+    name: "Business",
+    nameAccent: "Clauxen Code",
+    subtitle: "For software development teams",
+    userRangeLabel: "4+ users",
+    minSeats: 4,
+    pricingModel: "usage",
+    usagePricingLabel: "Usage pricing",
+    usagePricingSubtext: "Pay as you go based on agent and API usage",
+    yearlySupported: false,
+    buttonLabel: "Upgrade to Clauxen Code",
+    features: [
+      "Purpose-built for engineering teams — not a general chat add-on",
+      "AI-powered coding across repositories with repo-scoped permissions",
+      "Automated code review, security scanning, and vulnerability surfacing",
+      "Collabry agents for local automation, PRs, and cross-tool workflows",
+      "Built-in worktrees and cloud sandboxes for multi-agent development",
+      "Secrets and credentials never stored in model context or training pipelines",
+      "SAML SSO, role-based repo access, and engineering org billing",
+      "Usage-based pricing — pay for agent and API consumption, not idle seats",
+      "Source code and prompts excluded from Shirova model training by default",
+      "Ideal when your team lives in IDEs and CI/CD, not shared chat workspaces",
+    ],
+    footerNote: "Minimum 4 members. Go plan cannot be assigned to code seats.",
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    subtitle: "Flexible pooled usage",
+    userRangeLabel: "10+ users",
+    minSeats: 10,
+    pricingModel: "seat-plus-usage",
+    seatOptions: organizationSeatOptions(),
+    usagePricingLabel: "Seat + usage",
+    usagePricingSubtext: `₹${PLAN_MONTHLY_PRICES_INR.pro.toLocaleString("en-IN")}/seat platform fee + usage at API rates`,
+    yearlySupported: false,
+    highlight: "All Business features, plus:",
+    buttonLabel: "Contact Sales",
+    features: [
+      "Minimum 10 seats — Plus, Pro, Max 5x, or Max 20x per seat with pooled usage",
+      "Organization-wide spend caps, budgets, and per-team usage guardrails",
+      "500K context window for contracts, codebases, and long-running workflows",
+      "SCIM provisioning — auto onboard and offboard users from your identity provider",
+      "Fine-grained RBAC across workspaces, projects, and admin actions",
+      "Full audit logs with export to SIEM, eDiscovery, and compliance tooling",
+      "Compliance API for programmatic monitoring of AI activity across the org",
+      "Custom data retention, zero-retention modes, and legal hold on request",
+      "IP allowlisting, network-level access control, and private connectivity options",
+      "Custom DPA, SLA, invoicing, and dedicated Shirova security review support",
+    ],
+    footerNote:
+      "Minimum 10 seats. Contact sales for custom pricing, procurement, and regulated-industry deployment.",
+  },
+];
 
 /** @deprecated Use ORGANIZATION_PLANS */
 export const TEAM_PLANS = ORGANIZATION_PLANS;
@@ -415,6 +614,12 @@ export type GiftPlanOption = {
 
 /** Giftable paid personal plans — derived from catalog prices. */
 export const GIFT_PLANS: GiftPlanOption[] = [
+  {
+    id: "go",
+    name: "Go",
+    subtitle: "Keep chatting with expanded access",
+    monthlyPriceInr: PLAN_MONTHLY_PRICES_INR.go,
+  },
   {
     id: "pro",
     name: "Pro",

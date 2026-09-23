@@ -179,15 +179,21 @@ function PlaceholderSubmenu({
   );
 }
 
+const HIDDEN_MENU_STYLE: CSSProperties = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  visibility: "hidden",
+  pointerEvents: "none",
+};
+
 function useAnchoredMenuPosition(
   open: boolean,
   anchorRef: RefObject<HTMLElement | null>,
   menuRef: RefObject<HTMLDivElement | null>,
   placement: "above" | "below",
 ) {
-  const [position, setPosition] = useState<CSSProperties>({
-    visibility: "hidden",
-  });
+  const [position, setPosition] = useState<CSSProperties>(HIDDEN_MENU_STYLE);
 
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
@@ -246,7 +252,7 @@ function useAnchoredMenuPosition(
 
   useLayoutEffect(() => {
     if (!open) {
-      setPosition({ visibility: "hidden" });
+      setPosition(HIDDEN_MENU_STYLE);
       return;
     }
 

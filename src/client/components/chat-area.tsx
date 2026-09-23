@@ -148,7 +148,6 @@ function ChatAreaLayout({
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
-  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isSourcesPanelOpen, setIsSourcesPanelOpen] = useState(false);
   const [sourcesMessageId, setSourcesMessageId] = useState<string | null>(null);
   const [, startTransition] = React.useTransition();
@@ -214,7 +213,6 @@ function ChatAreaLayout({
 
   React.useEffect(() => {
     setHasPromptDraft(false);
-    setIsAddMenuOpen(false);
   }, [activeChatId]);
 
 
@@ -360,7 +358,6 @@ function ChatAreaLayout({
       onSendQueuedMessageNow={onSendQueuedMessageNow}
       onRemoveQueuedMessage={onRemoveQueuedMessage}
       onPromptChange={handlePromptDraftChange}
-      onAddMenuOpenChange={setIsAddMenuOpen}
       focusKey={activeChatId ?? (incognito ? "incognito" : "new")}
       onUpgradeClick={onUpgradeClick}
       isFreePlan={showFreePlanUpgrade}
@@ -425,7 +422,6 @@ function ChatAreaLayout({
             }
             isGenerating={isGenerating}
             hasPromptDraft={hasPromptDraft}
-            isAddMenuOpen={isAddMenuOpen}
             activeChip={activeChip}
             onActiveChipChange={setActiveChip}
             onSendMessage={handleSendMessageAndScroll}

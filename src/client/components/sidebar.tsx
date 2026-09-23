@@ -507,7 +507,7 @@ export function Sidebar({
             !isCollapsed &&
             "translate-x-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]",
           !isMobileLayout && isCollapsed && "w-[52px] cursor-pointer",
-          !isMobileLayout && !isCollapsed && "w-[min(86vw,256px)] lg:w-[256px]",
+          !isMobileLayout && !isCollapsed && "h-full w-full min-w-0",
         )}
       >
         <div

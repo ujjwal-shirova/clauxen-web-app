@@ -7079,12 +7079,16 @@ button.prompt-model-selector[aria-expanded="true"] {
   background: transparent;
   color: var(--cx-sidebar-fg);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 18px;
   letter-spacing: -0.006em;
   text-decoration: none;
   cursor: pointer;
   transition: background-color 0.15s ease;
+}
+
+.cx-sidebar a.cx-nav-btn[aria-label="Library"] {
+  font-weight: 400 !important;
 }
 
 .cx-nav-btn:focus-visible {
@@ -7553,8 +7557,8 @@ button.prompt-model-selector[aria-expanded="true"] {
 }
 
 .sidebar-scrollable {
-  --edge-fade-top: 6px;
-  --edge-fade-bottom: 16px;
+  --edge-fade-top: 8px;
+  --edge-fade-bottom: 24px;
 }
 
 .cx-sidebar .cx-nav {
@@ -8306,4 +8310,281 @@ textarea.cx-field {
   .agent-run__step[data-status="running"] .agent-run__node::after {
     animation: none;
   }
+}
+
+/* Sidebar width, edge fade, plan scroller, gift preview, search ellipsis. */
+:root {
+  --app-sidebar-width: 256px;
+}
+
+html[data-sidebar-resizing="1"] .app-sidebar-slot,
+html[data-sidebar-resizing="1"] .app-sidebar-panel,
+html[data-sidebar-resizing="1"] .cx-sidebar {
+  transition: none !important;
+}
+
+.cx-sidebar::before,
+.cx-sidebar::after {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.cx-sidebar::before {
+  inset: 0 0 auto;
+  height: 16px;
+  background: linear-gradient(180deg, var(--edge-wash), transparent);
+}
+
+.cx-sidebar::after {
+  top: 10px;
+  right: 0;
+  bottom: 10px;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklab, var(--cx-sidebar-fg) 18%, transparent) 16%,
+    color-mix(in oklab, var(--cx-sidebar-fg) 18%, transparent) 84%,
+    transparent
+  );
+}
+
+.app-sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  width: 12px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.app-sidebar-resize::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  right: 0;
+  bottom: 12px;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklab, var(--cx-sidebar-fg) 42%, transparent) 14%,
+    color-mix(in oklab, var(--cx-sidebar-fg) 42%, transparent) 86%,
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.app-sidebar-resize:hover::after,
+.app-sidebar-resize:focus-visible::after,
+html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
+  opacity: 1;
+}
+
+.app-sidebar-resize:focus-visible {
+  outline: none;
+}
+
+.agent-web-search {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.agent-web-search .agent-trace__title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-search-group .agent-run__step-title {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.agent-search-group .agent-run__step-title > .shimmer-text,
+.agent-search-group .agent-run__step-title > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-tier-scroller {
+  position: relative;
+  min-width: 0;
+}
+
+.plan-tier-scroller__row {
+  align-items: stretch;
+  scroll-snap-type: x proximity;
+  padding-inline: 2px;
+}
+
+.plan-tier-scroller__card {
+  display: flex;
+  flex: 0 0 300px;
+  width: 300px;
+  align-self: stretch;
+  scroll-snap-align: start;
+}
+
+.plan-tier-scroller__card > * {
+  width: 100%;
+  min-height: 100%;
+  flex: 1;
+}
+
+.plan-tier-scroller__fade {
+  position: absolute;
+  top: 0;
+  bottom: 6px;
+  z-index: 2;
+  width: 56px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.plan-tier-scroller__fade.is-visible {
+  opacity: 1;
+}
+
+.plan-tier-scroller__fade--left {
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    var(--pricing-bg, var(--settings-canvas-bg, #f4f4f3)),
+    transparent
+  );
+}
+
+.plan-tier-scroller__fade--right {
+  right: 0;
+  background: linear-gradient(
+    270deg,
+    var(--pricing-bg, var(--settings-canvas-bg, #f4f4f3)),
+    transparent
+  );
+}
+
+.gift-preview-pane {
+  display: flex;
+  width: min(100%, 360px);
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gift-preview-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  background:
+    linear-gradient(var(--settings-card-bg), var(--settings-card-bg)) padding-box,
+    linear-gradient(
+        180deg,
+        var(--edge-sheen),
+        var(--settings-hairline) 42%,
+        var(--settings-hairline)
+      )
+      border-box;
+  box-shadow: var(--settings-card-shadow);
+}
+
+.gift-preview-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  height: 12px;
+  background: linear-gradient(180deg, var(--edge-wash), transparent);
+  pointer-events: none;
+}
+
+.gift-preview-card__swatch {
+  display: flex;
+  height: 84px;
+  align-items: flex-end;
+  padding: 12px 16px;
+}
+
+.gift-preview-card__swatch-label {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 2px 8px;
+  color: #14151a;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: -0.01em;
+}
+
+.gift-preview-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 16px 18px;
+}
+
+.gift-preview-card__title {
+  margin: 0;
+  color: var(--settings-fg);
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 24px;
+}
+
+.gift-preview-card__subtitle {
+  margin: 0;
+  color: var(--settings-fg-muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.gift-preview-card__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  margin: 8px 0 0;
+}
+
+.gift-preview-card__meta dt {
+  color: var(--settings-fg-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 14px;
+  text-transform: uppercase;
+}
+
+.gift-preview-card__meta dd {
+  margin: 2px 0 0;
+  color: var(--settings-fg);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.gift-preview-card__note {
+  margin: 8px 0 0;
+  border-top: 1px solid var(--settings-hairline);
+  padding-top: 12px;
+  color: var(--settings-fg);
+  font-size: 13px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.gift-preview-card__note--empty {
+  color: var(--settings-fg-muted);
 }

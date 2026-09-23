@@ -37,16 +37,19 @@ interface UpgradePageContentProps {
 }
 
 const PLAN_RANK: Record<string, number> = {
-  pro: 1,
-  max: 2,
+  free: 0,
+  go: 1,
+  pro: 2,
+  max: 3,
 };
 
 function normalizePlanId(planId: string | null | undefined): string {
-  if (!planId) return "";
+  if (!planId) return "free";
   const normalized = planId.replace(/_/g, "").toLowerCase();
   if (normalized === "max5x" || normalized === "max20x") return "max";
+  if (normalized === "free") return "free";
   if (normalized in PLAN_RANK) return normalized;
-  return "";
+  return normalized;
 }
 
 function PlanBadge({
@@ -157,75 +160,55 @@ function PlanCardsScroller({
 }) {
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const items = React.Children.toArray(children);
-  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [edges, setEdges] = React.useState({ left: false, right: false });
 
-  React.useEffect(() => {
+  const syncEdges = React.useCallback(() => {
+    const node = scrollerRef.current;
+    if (!node) return;
+    const max = node.scrollWidth - node.clientWidth;
+    setEdges({
+      left: node.scrollLeft > 8,
+      right: max - node.scrollLeft > 8,
+    });
+  }, []);
+
+  React.useLayoutEffect(() => {
     const node = scrollerRef.current;
     if (!node) return;
     node.scrollTo({ left: 0 });
-    setActiveIndex(0);
-  }, [resetKey]);
-
-  const onScroll = () => {
-    const node = scrollerRef.current;
-    if (!node) return;
-    const cards = Array.from(node.children) as HTMLElement[];
-    if (cards.length === 0) return;
-    const midpoint = node.scrollLeft + node.clientWidth / 2;
-    let best = 0;
-    let bestDistance = Number.POSITIVE_INFINITY;
-    cards.forEach((card, index) => {
-      const center = card.offsetLeft + card.offsetWidth / 2;
-      const distance = Math.abs(center - midpoint);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = index;
-      }
-    });
-    setActiveIndex(best);
-  };
-
-  const scrollToIndex = (index: number) => {
-    const node = scrollerRef.current;
-    const card = node?.children[index] as HTMLElement | undefined;
-    card?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-  };
+    syncEdges();
+    const observer = new ResizeObserver(syncEdges);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [resetKey, items.length, syncEdges]);
 
   return (
-    <div>
+    <div className="plan-tier-scroller relative min-w-0">
+      <div
+        aria-hidden
+        className={cn(
+          "plan-tier-scroller__fade plan-tier-scroller__fade--left",
+          edges.left && "is-visible",
+        )}
+      />
+      <div
+        aria-hidden
+        className={cn(
+          "plan-tier-scroller__fade plan-tier-scroller__fade--right",
+          edges.right && "is-visible",
+        )}
+      />
       <div
         ref={scrollerRef}
-        onScroll={onScroll}
-        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-3"
+        onScroll={syncEdges}
+        className="plan-tier-scroller__row flex items-stretch gap-3 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {items.map((child, index) => (
-          <div
-            key={index}
-            className="flex w-[min(calc(100vw-4.25rem),22rem)] shrink-0 snap-center sm:w-auto sm:min-w-0 sm:snap-align-none"
-          >
+          <div key={index} className="plan-tier-scroller__card flex shrink-0">
             {child}
           </div>
         ))}
       </div>
-      {items.length > 1 ? (
-        <div className="mt-3 flex items-center justify-center gap-1.5 sm:hidden">
-          {items.map((_, index) => (
-            <button
-              key={index}
-              type="button"
-              aria-label={`Show plan ${index + 1}`}
-              onClick={() => scrollToIndex(index)}
-              className={cn(
-                "h-1.5 rounded-full transition-[width,background-color]",
-                index === activeIndex
-                  ? "w-4 bg-zinc-900"
-                  : "w-1.5 bg-zinc-300",
-              )}
-              aria-current={index === activeIndex ? "true" : undefined}
-            />
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -758,7 +741,7 @@ export function PlansCarouselSection({
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg)]" />
           <p className="app-page-muted">
             Work email required. Each seat can be Plus, Pro, Max 5x, or Max 20x
-            — Go is not available on organization plans. Minimum seats: Team 2 ·
+            — Go is not available on organization plans. Minimum seats: Team 4 ·
             Business 4 · Enterprise 10.
           </p>
         </div>
@@ -825,7 +808,8 @@ export default function UpgradePageContent({
           <div className="mx-auto hidden max-w-[36rem] text-center sm:block">
             <h1 className="app-page-title">Plans that grow with you</h1>
             <p className="app-page-subtitle">
-              Pro is ₹1,999 a month. Max is for the highest limits.
+              Free to start. Go is ₹399 a month, Pro is ₹1,999, and Max is for
+              the highest limits.
             </p>
           </div>
 
