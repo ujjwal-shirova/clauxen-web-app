@@ -31,7 +31,8 @@ import {
   SecuritySettings,
   type SecuritySettingsView,
 } from "@/components/settings/security-settings";
-import { PrivacySafetySettings } from "@/components/settings/privacy-settings";
+import { DataControlsSettings } from "@/components/settings/data-controls-settings";
+import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
 import { BillingSettings } from "@/components/settings/billing-settings";
 import { CapabilitiesSettings } from "@/components/settings/capabilities-settings";
 import { ClauxenCodeSettings } from "@/components/settings/clauxen-code-settings";
@@ -302,18 +303,9 @@ export function SettingsModal({
             onLogout={onLogout}
             onLogoutAllDevices={onLogout}
             workspace={workspace}
-            sessions={[
-              {
-                device: "Chrome",
-                location: "—",
-                created: "—",
-                updated: "—",
-                current: true,
-              },
-            ]}
           />
         );
-      case "Security":
+      case "Security & login":
         return (
           <SecuritySettings
             onLogout={onLogout}
@@ -327,9 +319,9 @@ export function SettingsModal({
             }}
           />
         );
-      case "Privacy & safety":
+      case "Data controls":
         return (
-          <PrivacySafetySettings
+          <DataControlsSettings
             privacy={privacy}
             onPrivacyChange={updatePrivacy}
             reduceSensitiveContent={Boolean(safety.reduceSensitiveContent)}
@@ -371,7 +363,7 @@ export function SettingsModal({
         return <ClauxenCodeSettings isAuthenticated={Boolean(user?.id)} />;
       default:
         return (
-          <p className="text-sm text-zinc-500">
+          <p className="text-[13px] text-[var(--settings-fg-muted)]">
             Unknown settings section. Pick another category.
           </p>
         );
@@ -379,7 +371,7 @@ export function SettingsModal({
   };
 
   const showPasskeysSubpage =
-    securityView === "passkeys" && visibleTab === "Security";
+    securityView === "passkeys" && visibleTab === "Security & login";
 
   if (!open) return null;
 
@@ -421,18 +413,18 @@ export function SettingsModal({
           </p>
 
           <div className="cx-settings flex min-h-0 flex-1 flex-col bg-[var(--cx-paper)] md:flex-row md:items-stretch">
-            <div className="shrink-0 border-b border-[var(--settings-hairline)] bg-[var(--settings-sidebar-bg)] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
-              <div className="mb-3 flex h-8 items-center justify-between gap-3">
-                <h2 className="truncate text-[18px] font-semibold tracking-[-0.02em] text-[var(--settings-fg)]">
+            <div className="shrink-0 border-b border-[var(--settings-hairline)] bg-[var(--settings-sidebar-bg)] px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] md:hidden">
+              <div className="mb-2.5 flex h-7 items-center justify-between gap-3 px-1">
+                <h2 className="truncate text-[15px] font-semibold tracking-[-0.015em] text-[var(--settings-fg)]">
                   Settings
                 </h2>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="ui-icon-button no-hover-overlay shrink-0 text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
+                  className="ui-icon-button no-hover-overlay !size-7 shrink-0 text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
                   aria-label="Close settings"
                 >
-                  <X className="icon-lg" strokeWidth={1.8} />
+                  <X className="size-4" strokeWidth={1.8} />
                 </button>
               </div>
               <SettingsNavSidebar
@@ -442,9 +434,9 @@ export function SettingsModal({
               />
             </div>
 
-            <aside className="cx-settings-aside hidden min-h-0 shrink-0 md:flex md:w-[264px] md:flex-col md:px-3 md:pb-3 md:pt-5">
-              <div className="mb-4 flex h-9 items-center px-2">
-                <h2 className="text-[20px] font-semibold tracking-[-0.025em] text-[var(--settings-fg)]">
+            <aside className="cx-settings-aside hidden min-h-0 shrink-0 md:flex md:w-[232px] md:flex-col md:px-2.5 md:pb-2.5 md:pt-3">
+              <div className="mb-2.5 flex h-7 items-center gap-2 px-2">
+                <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-[var(--settings-fg)]">
                   Settings
                 </h2>
               </div>
@@ -452,14 +444,33 @@ export function SettingsModal({
                 activeTab={visibleTab}
                 onTabChange={handleTabChange}
               />
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("Account")}
+                  className="cx-set-user no-hover-overlay"
+                  data-active={visibleTab === "Account" ? "" : undefined}
+                >
+                  <UserAvatarDisplay
+                    name={personalization.fullName || user.displayName || user.email || "U"}
+                    avatarUrl={user.avatarUrl}
+                    className="!size-7 !text-[10.5px]"
+                    size="sm"
+                  />
+                  <span className="min-w-0 flex-1 text-left">
+                    <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--settings-fg)]">
+                      {personalization.fullName || user.displayName || "Your account"}
+                    </span>
+                    <span className="block truncate text-[11.5px] leading-4 text-[var(--settings-fg-muted)]">
+                      {user.email}
+                    </span>
+                  </span>
+                </button>
+              ) : null}
             </aside>
 
             <main className="settings-canvas relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--settings-canvas-bg)]">
-              <header
-                className={cn(
-                  "hidden shrink-0 items-start justify-between gap-8 border-b border-[var(--settings-hairline)] px-8 pb-4 pt-6 md:flex",
-                )}
-              >
+              <header className="cx-set-header hidden shrink-0 items-center justify-between gap-6 px-6 md:flex">
                 {showPasskeysSubpage ? (
                   <div className="flex min-w-0 items-center gap-1">
                     <button
@@ -468,21 +479,26 @@ export function SettingsModal({
                         setSecurityView("main");
                         contentScrollRef.current?.scrollTo({ top: 0 });
                       }}
-                      aria-label="Back"
-                      className="ui-icon-button no-hover-overlay -ml-1.5 h-8 w-8 shrink-0 rounded-lg text-[var(--settings-fg)] hover:bg-[var(--settings-nav-hover-bg)]"
+                      aria-label="Back to Security & login"
+                      className="ui-icon-button no-hover-overlay -ml-1.5 !size-7 shrink-0 text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
                     >
-                      <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
+                      <ChevronLeft className="size-4" strokeWidth={1.8} />
                     </button>
-                    <h2 className="truncate text-[16px] font-semibold leading-6 tracking-[-0.015em] text-[var(--settings-fg)]">
-                      Security keys & passkeys
-                    </h2>
+                    <div className="min-w-0">
+                      <p className="text-[11.5px] leading-4 text-[var(--settings-fg-muted)]">
+                        Security & login
+                      </p>
+                      <h2 className="truncate text-[15px] font-semibold leading-5 tracking-[-0.015em] text-[var(--settings-fg)]">
+                        Passkeys
+                      </h2>
+                    </div>
                   </div>
                 ) : (
                   <div className="min-w-0">
-                    <h2 className="text-[20px] font-semibold leading-7 tracking-[-0.025em] text-[var(--settings-fg)]">
+                    <h2 className="text-[16px] font-semibold leading-6 tracking-[-0.018em] text-[var(--settings-fg)]">
                       {visibleTab}
                     </h2>
-                    <p className="mt-0.5 max-w-[560px] text-[13px] leading-[19px] text-[var(--settings-fg-muted)]">
+                    <p className="max-w-[560px] truncate text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]">
                       {settingsTabDescriptions[visibleTab]}
                     </p>
                   </div>
@@ -490,29 +506,27 @@ export function SettingsModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="ui-icon-button no-hover-overlay mt-0.5 h-8 w-8 shrink-0 rounded-lg text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
+                  className="ui-icon-button no-hover-overlay !size-7 shrink-0 text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
                   aria-label="Close settings"
                 >
-                  <X className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                  <X className="size-4" strokeWidth={1.8} />
                 </button>
               </header>
 
               <div
                 ref={contentScrollRef}
                 data-scroll-region=""
-                className={cn(
-                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 sm:px-6 md:px-8 md:pb-12 md:pt-6",
-                )}
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 sm:px-5 md:px-6 md:pb-10 md:pt-5"
                 aria-busy={contentHydrating || undefined}
               >
                 <div
                   className={cn(
-                    "mx-auto w-full max-w-[680px]",
+                    "mx-auto w-full max-w-[640px]",
                     contentHydrating && "opacity-[0.97]",
                   )}
                 >
                   <SettingsTabErrorBoundary tabLabel={visibleTab}>
-                    <div key={visibleTab} className="settings-panel-enter">
+                    <div key={`${visibleTab}-${securityView}`} className="settings-panel-enter">
                       {renderActiveTab()}
                     </div>
                   </SettingsTabErrorBoundary>

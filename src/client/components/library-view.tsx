@@ -170,7 +170,7 @@ function SortHeader({
     <button
       type="button"
       onClick={() => onSort(column)}
-      aria-sort={active ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+      aria-label={`Sort by ${label}${active ? (sortDirection === "asc" ? ", ascending" : ", descending") : ""}`}
       className={cn(
         "no-hover-overlay group/sort inline-flex h-6 min-w-0 items-center gap-1 rounded-[6px] text-[12px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:text-[var(--ui-fg)]",
         align === "right" && "justify-self-end",
@@ -192,7 +192,7 @@ function SortHeader({
 }
 
 function EntryIcon({ entry }: { entry: LibraryEntry }) {
-  const Icon = iconFor(entry);
+  const isFolder = entry.kind === "folder";
   return (
     <span
       className={cn(
@@ -202,7 +202,12 @@ function EntryIcon({ entry }: { entry: LibraryEntry }) {
           : "bg-[var(--ui-muted-surface)] text-[var(--ui-fg-muted)]",
       )}
     >
-      <Icon className="size-[15px]" strokeWidth={1.75} fill={entry.kind === "folder" ? "currentColor" : "none"} fillOpacity={entry.kind === "folder" ? 0.12 : 0} />
+      {React.createElement(iconFor(entry), {
+        className: "size-[15px]",
+        strokeWidth: 1.75,
+        fill: isFolder ? "currentColor" : "none",
+        fillOpacity: isFolder ? 0.12 : 0,
+      })}
     </span>
   );
 }

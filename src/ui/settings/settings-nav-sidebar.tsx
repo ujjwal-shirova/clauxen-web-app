@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   settingsNavByName,
   settingsNavGroups,
+  settingsNavKeywords,
   type SettingsTab,
   type VisibleSettingsTab,
 } from "@/components/settings/constants";
@@ -36,7 +37,7 @@ function NavButton({
         aria-current={isActive ? "page" : undefined}
         className={cn("cx-set-link", isActive && "is-active")}
       >
-        <Icon className="stroke-[1.7]" aria-hidden />
+        <Icon strokeWidth={1.75} aria-hidden />
         <span className="truncate">{item.name}</span>
       </button>
     </li>
@@ -55,7 +56,7 @@ function SettingsSearchInput({
   return (
     <div className={cn("relative", className)}>
       <Search
-        className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
+        className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
         aria-hidden
       />
       <input
@@ -64,8 +65,18 @@ function SettingsSearchInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder="Search settings"
         aria-label="Search settings"
-        className="h-9 w-full rounded-lg border border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] py-0 pl-8 pr-3 text-[13px] leading-[18px] text-[var(--settings-fg)] outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-[var(--settings-fg-subtle)] focus:border-[var(--settings-input-focus)] focus:shadow-[0_0_0_3px_var(--settings-focus-ring)]"
+        className="cx-field !h-[30px] !pl-8 !pr-7 [&::-webkit-search-cancel-button]:hidden"
       />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Clear search"
+          className="ui-icon-button no-hover-overlay absolute right-1 top-1/2 !size-6 -translate-y-1/2 text-[var(--settings-fg-subtle)] hover:text-[var(--settings-fg)]"
+        >
+          <X className="size-3" aria-hidden />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -83,7 +94,10 @@ export function SettingsNavSidebar({
       .map((group) => ({
         ...group,
         items: group.items.filter((name) =>
-          normalized ? name.toLowerCase().includes(normalized) : true,
+          normalized
+            ? name.toLowerCase().includes(normalized) ||
+              settingsNavKeywords[name].includes(normalized)
+            : true,
         ),
       }))
       .filter((group) => group.items.length > 0);
@@ -96,7 +110,7 @@ export function SettingsNavSidebar({
 
   if (variant === "mobile-toolbar") {
     return (
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2">
         <SettingsSearchInput value={query} onChange={setQuery} />
         <div
           role="tablist"
@@ -116,20 +130,20 @@ export function SettingsNavSidebar({
                 aria-selected={isActive}
                 onClick={() => onTabChange(tab)}
                 className={cn(
-                  "flex h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 text-[13px] font-medium transition-colors",
+                  "flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12.5px] font-medium transition-colors",
                   isActive
                     ? "border-transparent bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)]"
                     : "border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] text-[var(--settings-fg-muted)]",
                 )}
               >
-                <item.icon className="h-3.5 w-3.5" aria-hidden />
+                <item.icon className="size-3.5" strokeWidth={1.75} aria-hidden />
                 {item.name}
               </button>
             );
           })}
         </div>
         {flatMatches.length === 0 ? (
-          <p className="py-2 text-center text-[13px] text-[var(--settings-fg-muted)]">
+          <p className="py-1.5 text-center text-[12.5px] text-[var(--settings-fg-muted)]">
             No matching settings
           </p>
         ) : null}
@@ -139,7 +153,7 @@ export function SettingsNavSidebar({
 
   return (
     <nav
-      className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden"
+      className="flex h-full min-h-0 flex-1 flex-col gap-2.5 overflow-hidden"
       aria-label="Settings"
     >
       <SettingsSearchInput value={query} onChange={setQuery} />
@@ -149,13 +163,13 @@ export function SettingsNavSidebar({
           data-scroll-region=""
           className="flex h-full min-h-0 flex-col overflow-y-auto pb-3 pr-0.5 [scrollbar-color:var(--settings-hairline)_transparent] [scrollbar-width:thin]"
         >
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3.5">
             {filteredByGroup.map((group) => (
-              <div key={group.label} className="flex flex-col gap-1">
-                <p className="px-2.5 pb-1 text-[11px] font-semibold uppercase leading-4 tracking-[0.06em] text-[var(--settings-fg-subtle)]">
+              <div key={group.label} className="flex flex-col">
+                <p className="px-2 pb-1 text-[11px] font-medium leading-4 text-[var(--settings-fg-subtle)]">
                   {group.label}
                 </p>
-                <ul className="flex flex-col gap-0.5">
+                <ul className="flex flex-col gap-px">
                   {group.items.map((tab) => (
                     <NavButton
                       key={tab}
@@ -168,7 +182,7 @@ export function SettingsNavSidebar({
               </div>
             ))}
             {filteredByGroup.length === 0 ? (
-              <p className="px-2 py-4 text-center text-[13px] text-[var(--settings-fg-muted)]">
+              <p className="px-2 py-4 text-center text-[12.5px] text-[var(--settings-fg-muted)]">
                 No matching settings
               </p>
             ) : null}

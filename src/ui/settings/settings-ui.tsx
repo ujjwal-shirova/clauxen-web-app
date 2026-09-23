@@ -11,6 +11,9 @@ import {
   UserPlus,
 } from "lucide-react";
 
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { chrome } from "@/lib/app-chrome";
 import { Switch } from "@/components/ui/switch";
@@ -35,7 +38,7 @@ export function SettingsPage({
   return (
     <div
       className={cn(
-        "flex animate-in fade-in flex-col gap-8 duration-300 text-[var(--settings-fg)]",
+        "flex flex-col gap-6 text-[var(--settings-fg)]",
         className,
       )}
     >
@@ -62,15 +65,15 @@ export function SettingsSection({
   action?: React.ReactNode;
 }) {
   return (
-    <section className={cn("flex flex-col gap-3", className)}>
+    <section className={cn("flex flex-col gap-2", className)}>
       {title || description || action ? (
-        <div className="flex items-start justify-between gap-4 px-0.5">
+        <div className="flex items-end justify-between gap-4 px-1">
           <div className="min-w-0">
             {title ? (
               <h3 className="settings-section-label">{title}</h3>
             ) : null}
             {description ? (
-              <p className="settings-muted mt-1 max-w-[600px] text-pretty text-[13px] leading-5">
+              <p className="mt-0.5 max-w-[600px] text-pretty text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]">
                 {description}
               </p>
             ) : null}
@@ -123,10 +126,10 @@ export function SettingsPanelHeaderWithHelp({
 /* ------------------------------------------------------------------ */
 
 const settingsRowBase =
-  "relative flex flex-col items-stretch gap-3 px-4 py-4 sm:flex-row sm:items-center sm:gap-6 sm:px-5";
+  "relative flex min-h-[52px] flex-col items-stretch gap-2.5 px-3.5 py-2.5 sm:flex-row sm:items-center sm:gap-5 sm:px-4";
 
 const settingsRowHairline =
-  "before:pointer-events-none before:absolute before:left-4 before:right-4 before:top-0 before:h-px before:bg-[var(--settings-hairline)] before:content-[''] first:before:hidden sm:before:left-5 sm:before:right-5";
+  "before:pointer-events-none before:absolute before:left-3.5 before:right-3.5 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,var(--settings-hairline)_var(--edge-line-fade,14%),var(--settings-hairline)_calc(100%-var(--edge-line-fade,14%)),transparent)] before:content-[''] first:before:hidden sm:before:left-4 sm:before:right-4";
 
 export function SettingsRow({
   label,
@@ -151,11 +154,11 @@ export function SettingsRow({
       role="group"
     >
       <div className="min-w-0 flex-1">
-        <div className="text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
+        <div className="text-[13.5px] font-medium leading-5 text-[var(--settings-fg)]">
           {label}
         </div>
         {description ? (
-          <div className="mt-1 max-w-[420px] text-pretty text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+          <div className="mt-0.5 max-w-[440px] text-pretty text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]">
             {description}
           </div>
         ) : null}
@@ -184,10 +187,10 @@ export function SettingsValueRow({
         !borderless && settingsRowHairline,
       )}
     >
-      <span className="min-w-0 flex-1 text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
+      <span className="min-w-0 flex-1 text-[13.5px] font-medium leading-5 text-[var(--settings-fg)]">
         {label}
       </span>
-      <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--settings-fg-muted)] sm:text-right">
+      <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--settings-fg-muted)] sm:text-right">
         {value}
       </span>
     </div>
@@ -281,20 +284,20 @@ export function SettingsChevronRow({
         </span>
       ) : null}
       <span className="min-w-0 flex-1">
-        <span className="block text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
+        <span className="block text-[13.5px] font-medium leading-5 text-[var(--settings-fg)]">
           {label}
         </span>
         {description ? (
-          <span className="mt-0.5 block max-w-[440px] text-pretty text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+          <span className="mt-0.5 block max-w-[440px] text-pretty text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]">
             {description}
           </span>
         ) : null}
       </span>
-      <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--settings-fg-muted)]">
+      <span className="flex shrink-0 items-center gap-1 text-[12.5px] text-[var(--settings-fg-muted)]">
         {value ? (
           <span className="max-w-[11rem] truncate text-right">{value}</span>
         ) : null}
-        <ChevronRight className="icon-md" aria-hidden />
+        <ChevronRight className="size-3.5" aria-hidden />
       </span>
     </button>
   );
@@ -317,7 +320,7 @@ export function SettingsManageRow({
         !borderless && settingsRowHairline,
       )}
     >
-      <span className="min-w-0 flex-1 text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
+      <span className="min-w-0 flex-1 text-[13.5px] font-medium leading-5 text-[var(--settings-fg)]">
         {label}
       </span>
       <SettingsButton onClick={onManage}>Manage</SettingsButton>
@@ -329,7 +332,12 @@ export function SettingsManageRow({
 /* Buttons                                                              */
 /* ------------------------------------------------------------------ */
 
-type SettingsButtonVariant = "default" | "primary" | "danger" | "ghost";
+type SettingsButtonVariant =
+  | "default"
+  | "primary"
+  | "danger"
+  | "dangerSolid"
+  | "ghost";
 
 const settingsFocusReset =
   "outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0";
@@ -356,11 +364,12 @@ export function SettingsButton({
       disabled={disabled}
       className={cn(
         "no-hover-overlay settings-btn shrink-0",
-        size === "sm" && "!h-8 !min-h-[2rem] !px-2.5 !text-[13px]",
-        size === "lg" && "!h-11 !min-h-[2.75rem] !px-5 !text-[15px]",
+        size === "sm" && "!h-7 !min-h-[1.75rem] !gap-1.5 !px-2.5 !text-[12.5px]",
+        size === "lg" && "!h-9 !min-h-[2.25rem] !px-4 !text-[13.5px]",
         variant === "primary" && "settings-btn--primary",
         variant === "danger" &&
           "text-[var(--settings-danger)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--settings-danger)_35%,transparent)] hover:bg-[var(--settings-danger-soft)]",
+        variant === "dangerSolid" && "settings-btn--danger",
         variant === "ghost" && "settings-btn--muted shadow-none",
         settingsFocusReset,
         className,
@@ -430,17 +439,17 @@ function normalizeSettingsOptions(
 
 const settingsOptionMenuContentClass = cn(
   chrome.overlay.panel,
-  "settings-theme z-[220] min-w-[15rem] max-w-[22rem] rounded-xl border border-[var(--settings-modal-border)] bg-[var(--settings-elevated-bg)] p-1.5 text-[var(--settings-fg)] shadow-[var(--settings-modal-shadow)]",
+  "settings-theme z-[220] min-w-[13.5rem] max-w-[20rem] rounded-[var(--popup-radius,12px)] border border-[var(--popup-border,var(--settings-modal-border))] bg-[var(--popup-bg,var(--settings-elevated-bg))] p-[var(--menu-pad,4px)] text-[var(--settings-fg)] shadow-[var(--popup-shadow,var(--settings-modal-shadow))]",
 );
 
 const settingsOptionTriggerClass = cn(
-  "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] w-full shrink-0 justify-between gap-2 px-3 text-[14px] font-medium leading-[20px] sm:w-auto sm:min-w-[10rem] sm:justify-start",
+  "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] w-full shrink-0 justify-between gap-2 px-2.5 text-[13px] font-medium leading-[18px] sm:w-auto sm:min-w-[9rem] sm:justify-start",
   "text-[var(--settings-fg)] data-[state=open]:bg-[var(--settings-elevated-bg)] data-[state=open]:shadow-[inset_0_0_0_1px_var(--settings-input-focus),0_0_0_3px_var(--settings-focus-ring)]",
   settingsFocusReset,
 );
 
 const settingsOptionMenuItemClass = cn(
-  "flex cursor-pointer select-none items-start gap-2.5 rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-[20px] text-[var(--settings-fg)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] focus:bg-[var(--settings-nav-hover-bg)] focus:text-[var(--settings-fg)] data-[highlighted]:bg-[var(--settings-nav-hover-bg)] data-[highlighted]:text-[var(--settings-fg)]",
+  "flex min-h-[var(--menu-row-height,30px)] cursor-pointer select-none items-start gap-2 rounded-[var(--menu-item-radius,7px)] px-2 py-[5px] text-[13px] font-medium leading-[18px] text-[var(--settings-fg)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] focus:bg-[var(--settings-nav-hover-bg)] focus:text-[var(--settings-fg)] data-[highlighted]:bg-[var(--settings-nav-hover-bg)] data-[highlighted]:text-[var(--settings-fg)]",
   settingsFocusReset,
 );
 
@@ -530,18 +539,18 @@ export function SettingsOptionPicker({
                   {item.label ?? item.value}
                 </span>
                 {item.description ? (
-                  <span className="mt-0.5 block text-[12px] leading-4 text-[var(--settings-fg-muted)]">
+                  <span className="mt-px block text-[11.5px] leading-4 text-[var(--settings-fg-muted)]">
                     {item.description}
                   </span>
                 ) : null}
               </span>
               {isSelected ? (
                 <Check
-                  className="icon-md mt-0.5 shrink-0 text-[var(--settings-fg)]"
+                  className="mt-px size-3.5 shrink-0 text-[var(--settings-fg)]"
                   aria-hidden
                 />
               ) : (
-                <span className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <span className="mt-px size-3.5 shrink-0" aria-hidden />
               )}
             </DropdownMenuItem>
           );
@@ -627,7 +636,7 @@ export function SettingsField({
 }) {
   return (
     <label className={cn("flex min-w-0 flex-1 flex-col gap-1.5", className)}>
-      <span className="px-0.5 text-[12px] font-medium leading-4 text-[var(--settings-fg-muted)]">
+      <span className="cx-label px-0.5">
         {label}
       </span>
       {children}
@@ -722,7 +731,7 @@ export function SettingsStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[12px] font-semibold leading-4",
+        "inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[11px] font-semibold leading-4",
         tone === "success" && "app-status-pill--success",
         tone === "info" && "app-status-pill--info",
         tone === "warning" && "app-status-pill--warning",
@@ -747,7 +756,7 @@ export function SettingsProgressBar({
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
+      <p className="text-[13.5px] font-medium leading-5 text-[var(--settings-fg)]">
         {label}
       </p>
       <div
@@ -776,7 +785,7 @@ export function SettingsFieldBlock({
 }) {
   return (
     <div className="border-b border-[var(--settings-hairline)] py-3 last:border-b-0">
-      <p className="text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
+      <p className="text-[13.5px] font-medium leading-5 text-[var(--settings-fg)]">
         {label}
       </p>
       <p className="mt-1 whitespace-pre-line text-[13px] leading-5 text-[var(--settings-fg-muted)]">
@@ -817,12 +826,12 @@ export function SettingsEmpty({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="settings-card flex flex-col items-center gap-1.5 px-6 py-12 text-center">
-      <p className="text-[14px] font-medium text-[var(--settings-fg)]">
+    <div className="settings-card flex flex-col items-center gap-1 px-6 py-9 text-center">
+      <p className="text-[13.5px] font-medium text-[var(--settings-fg)]">
         {title}
       </p>
       {body ? (
-        <p className="max-w-[380px] text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+        <p className="max-w-[380px] text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]">
           {body}
         </p>
       ) : null}
@@ -857,7 +866,7 @@ export function SettingsInlineNote({
   return (
     <p
       className={cn(
-        "px-4 py-3 text-[13px] leading-5 sm:px-5",
+        "px-3.5 py-2.5 text-[12.5px] leading-[18px] sm:px-4",
         tone === "muted" && "text-[var(--settings-fg-muted)]",
         tone === "danger" && "text-[var(--settings-danger)]",
         tone === "success" && "text-[hsl(var(--success))]",
@@ -865,5 +874,168 @@ export function SettingsInlineNote({
     >
       {children}
     </p>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Icon tile, list items, confirm dialog                                */
+/* ------------------------------------------------------------------ */
+
+export function SettingsIconTile({
+  children,
+  tone = "neutral",
+  className,
+}: {
+  children: React.ReactNode;
+  tone?: "neutral" | "danger";
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "cx-set-tile",
+        tone === "danger" && "cx-set-tile--danger",
+        className,
+      )}
+      aria-hidden
+    >
+      {children}
+    </span>
+  );
+}
+
+export function SettingsListItem({
+  icon,
+  title,
+  meta,
+  badge,
+  action,
+  className,
+}: {
+  icon?: React.ReactNode;
+  title: React.ReactNode;
+  meta?: React.ReactNode;
+  badge?: React.ReactNode;
+  action?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("cx-set-item", className)}>
+      {icon ? <SettingsIconTile>{icon}</SettingsIconTile> : null}
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-[13.5px] font-medium leading-5 text-[var(--settings-fg)]">
+            {title}
+          </span>
+          {badge}
+        </div>
+        {meta ? (
+          <div className="truncate text-[12px] leading-4 text-[var(--settings-fg-muted)]">
+            {meta}
+          </div>
+        ) : null}
+      </div>
+      {action ? (
+        <div className="flex shrink-0 items-center gap-1.5">{action}</div>
+      ) : null}
+    </div>
+  );
+}
+
+export function SettingsConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel,
+  cancelLabel = "Cancel",
+  hideCancel = false,
+  tone = "default",
+  busy = false,
+  confirmPhrase,
+  children,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: React.ReactNode;
+  confirmLabel: string;
+  cancelLabel?: string;
+  hideCancel?: boolean;
+  tone?: "default" | "danger";
+  busy?: boolean;
+  /** Require typing this phrase before the confirm button enables. */
+  confirmPhrase?: string;
+  children?: React.ReactNode;
+  onConfirm: () => void | Promise<void>;
+}) {
+  const [typed, setTyped] = React.useState("");
+  React.useEffect(() => {
+    if (!open) setTyped("");
+  }, [open]);
+  const phraseOk = !confirmPhrase || typed.trim() === confirmPhrase;
+
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay
+          data-nested-settings-dialog=""
+          className="cx-dialog-overlay fixed inset-0 z-[220]"
+        />
+        <DialogPrimitive.Content
+          className="settings-theme cx-dialog fixed left-1/2 top-1/2 z-[221] grid w-[calc(100%-1.5rem)] max-w-[400px] gap-3 p-4 font-sans text-[13px] leading-[18px] text-[var(--settings-fg)] outline-none"
+          onEscapeKeyDown={(event) => event.stopPropagation()}
+        >
+          <div className="flex flex-col gap-1 pr-8">
+            <DialogPrimitive.Title className="text-[15px] font-semibold leading-5 tracking-[-0.01em]">
+              {title}
+            </DialogPrimitive.Title>
+            {description ? (
+              <DialogPrimitive.Description className="text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]">
+                {description}
+              </DialogPrimitive.Description>
+            ) : null}
+          </div>
+          {children}
+          {confirmPhrase ? (
+            <label className="flex flex-col gap-1.5">
+              <span className="cx-label">
+                Type <span className="font-mono text-[var(--settings-fg)]">{confirmPhrase}</span> to confirm
+              </span>
+              <input
+                value={typed}
+                onChange={(event) => setTyped(event.target.value)}
+                className="cx-field"
+                autoComplete="off"
+                spellCheck={false}
+                autoFocus
+              />
+            </label>
+          ) : null}
+          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+            {hideCancel ? null : (
+              <SettingsButton size="sm" onClick={() => onOpenChange(false)}>
+                {cancelLabel}
+              </SettingsButton>
+            )}
+            <SettingsButton
+              size="sm"
+              variant={tone === "danger" ? "dangerSolid" : "primary"}
+              disabled={busy || !phraseOk}
+              onClick={() => void onConfirm()}
+            >
+              {busy ? "Working…" : confirmLabel}
+            </SettingsButton>
+          </div>
+          <DialogPrimitive.Close
+            className="ui-icon-button no-hover-overlay absolute right-2.5 top-2.5 !size-7"
+            aria-label="Close"
+          >
+            <X className="size-4" strokeWidth={1.75} />
+          </DialogPrimitive.Close>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

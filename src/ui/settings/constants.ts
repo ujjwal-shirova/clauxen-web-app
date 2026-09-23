@@ -1,40 +1,37 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,
-  Briefcase,
+  Blocks,
   Code2,
   CreditCard,
-  KeyRound,
+  Database,
+  LockKeyhole,
   ScrollText,
-  Settings,
-  Shield,
+  Settings2,
   Sparkles,
-  UserCircle,
+  UserRound,
 } from "lucide-react";
 
 /**
  * Settings IA — 10 sections in 3 groups.
  *
- * Consolidation (was 19 tabs):
  * - General absorbs Keyboard shortcuts.
  * - Personalization absorbs Reflect activity range.
  * - Notifications absorbs Time and focus (breaks + quiet hours).
- * - Account owns profile, org, sessions, and devices.
- * - Security owns sign-in, MFA, passkeys, and advanced protections.
- * - Privacy & safety merges Privacy, Safety, Parental controls, Trusted contact.
- * - Billing absorbs Storage usage.
- * - Skills is the remaining customize surface (connectors/plugins removed).
- * - Clauxen Code stays standalone for developer workflows.
+ * - Account owns profile, organization, linked accounts, and deletion.
+ * - Security & login owns sign-in methods, 2-step, passkeys, sessions.
+ * - Data controls owns model training, history, export, storage, safety.
+ * - Billing absorbs Storage quota.
  */
 export const settingsNav = [
-  { name: "General", icon: Settings },
+  { name: "General", icon: Settings2 },
   { name: "Personalization", icon: Sparkles },
   { name: "Notifications", icon: Bell },
-  { name: "Account", icon: UserCircle },
-  { name: "Security", icon: KeyRound },
-  { name: "Privacy & safety", icon: Shield },
+  { name: "Account", icon: UserRound },
+  { name: "Security & login", icon: LockKeyhole },
+  { name: "Data controls", icon: Database },
   { name: "Billing", icon: CreditCard },
-  { name: "Capabilities", icon: Briefcase },
+  { name: "Capabilities", icon: Blocks },
   { name: "Skills", icon: ScrollText },
   { name: "Clauxen Code", icon: Code2 },
 ] as const satisfies ReadonlyArray<{ name: string; icon: LucideIcon }>;
@@ -43,8 +40,8 @@ export type VisibleSettingsTab = (typeof settingsNav)[number]["name"];
 
 /** Removed top-level tabs — still accepted for deep links and old hashes. */
 export type LegacySettingsTab =
-  | "Security & login"
   | "Security"
+  | "Privacy & safety"
   | "Privacy"
   | "Reflect"
   | "Time and focus"
@@ -53,7 +50,6 @@ export type LegacySettingsTab =
   | "Trusted contact"
   | "Storage"
   | "Keyboard"
-  | "Data controls"
   | "Enterprise"
   | "Voice";
 
@@ -66,21 +62,21 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
     case "Personalization":
     case "Notifications":
     case "Account":
-    case "Security":
-    case "Privacy & safety":
+    case "Security & login":
+    case "Data controls":
     case "Billing":
     case "Capabilities":
     case "Skills":
     case "Clauxen Code":
       return tab;
-    case "Security & login":
-      return "Security";
+    case "Security":
+      return "Security & login";
+    case "Privacy & safety":
     case "Privacy":
     case "Safety":
     case "Parental controls":
     case "Trusted contact":
-    case "Data controls":
-      return "Privacy & safety";
+      return "Data controls";
     case "Reflect":
       return "Personalization";
     case "Time and focus":
@@ -96,29 +92,33 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
   }
 }
 
-export const settingsTabDescriptions: Record<SettingsTab, string> = {
-  General: "Theme, reading, and shortcuts.",
-  Personalization: "How Clauxen talks to you and what it remembers.",
+const visibleDescriptions: Record<VisibleSettingsTab, string> = {
+  General: "Appearance, reading, and keyboard shortcuts.",
+  Personalization: "How Clauxen responds and what it remembers.",
   Notifications: "What you hear about, and when to stay quiet.",
-  Account: "Profile, organization, sessions, and devices.",
-  Security: "Sign-in, two-step verification, and passkeys.",
-  "Privacy & safety": "Your data, content safety, and family.",
-  Billing: "Plan, usage, invoices, and payment.",
-  Capabilities: "Memory, tools, and things Clauxen can do.",
+  Account: "Your profile, organization, and linked accounts.",
+  "Security & login": "Sign-in methods, 2-step verification, and sessions.",
+  "Data controls": "Training, chat history, exports, and content safety.",
+  Billing: "Plan, usage, invoices, and payment methods.",
+  Capabilities: "Memory, tools, and what Clauxen can do.",
   Skills: "Reusable instructions Clauxen follows.",
   "Clauxen Code": "Terminal and IDE coding sessions.",
-  "Security & login": "Sign-in, two-step verification, and passkeys.",
-  Privacy: "Your data, content safety, and family.",
-  Reflect: "How Clauxen talks to you and what it remembers.",
-  "Time and focus": "What you hear about, and when to stay quiet.",
-  Safety: "Your data, content safety, and family.",
-  "Parental controls": "Your data, content safety, and family.",
-  "Trusted contact": "Your data, content safety, and family.",
-  Storage: "Plan, usage, invoices, and payment.",
-  Keyboard: "Theme, reading, and shortcuts.",
-  "Data controls": "Your data, content safety, and family.",
-  Enterprise: "Theme, reading, and shortcuts.",
-  Voice: "Theme, reading, and shortcuts.",
+};
+
+export const settingsTabDescriptions: Record<SettingsTab, string> = {
+  ...visibleDescriptions,
+  Security: visibleDescriptions["Security & login"],
+  "Privacy & safety": visibleDescriptions["Data controls"],
+  Privacy: visibleDescriptions["Data controls"],
+  Safety: visibleDescriptions["Data controls"],
+  "Parental controls": visibleDescriptions["Data controls"],
+  "Trusted contact": visibleDescriptions["Data controls"],
+  Reflect: visibleDescriptions.Personalization,
+  "Time and focus": visibleDescriptions.Notifications,
+  Storage: visibleDescriptions.Billing,
+  Keyboard: visibleDescriptions.General,
+  Enterprise: visibleDescriptions.General,
+  Voice: visibleDescriptions.General,
 };
 
 export const settingsNavByName = Object.fromEntries(
@@ -135,7 +135,7 @@ export const settingsNavGroups: ReadonlyArray<{
   },
   {
     label: "Account",
-    items: ["Account", "Security", "Privacy & safety", "Billing"],
+    items: ["Account", "Security & login", "Data controls", "Billing"],
   },
   {
     label: "Workspace",
@@ -143,8 +143,23 @@ export const settingsNavGroups: ReadonlyArray<{
   },
 ];
 
+/** Extra search terms so "password" finds Security & login, etc. */
+export const settingsNavKeywords: Record<VisibleSettingsTab, string> = {
+  General: "theme appearance dark light font language shortcuts keyboard motion contrast",
+  Personalization: "tone style instructions memory reflect about you",
+  Notifications: "email push alerts quiet hours breaks focus sounds",
+  Account: "profile name avatar email organization delete account linked",
+  "Security & login": "password passkey mfa 2fa two-step authenticator sessions devices log out",
+  "Data controls": "privacy training export history archive delete chats storage cookies safety family parental",
+  Billing: "plan subscription invoices payment card upgrade usage",
+  Capabilities: "tools memory artifacts canvas web search",
+  Skills: "instructions prompts",
+  "Clauxen Code": "terminal cli ide developer",
+};
+
 const LEGACY_TAB_SET = new Set<string>([
-  "Security & login",
+  "Security",
+  "Privacy & safety",
   "Privacy",
   "Reflect",
   "Time and focus",
@@ -153,7 +168,6 @@ const LEGACY_TAB_SET = new Set<string>([
   "Trusted contact",
   "Storage",
   "Keyboard",
-  "Data controls",
   "Enterprise",
   "Voice",
 ]);
