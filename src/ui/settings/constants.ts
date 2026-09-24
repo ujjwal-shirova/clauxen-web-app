@@ -125,21 +125,33 @@ export const settingsNavByName = Object.fromEntries(
   settingsNav.map((item) => [item.name, item]),
 ) as Record<VisibleSettingsTab, (typeof settingsNav)[number]>;
 
+/** Short labels in the settings rail. Tab ids stay stable for deep links. */
+export const settingsNavLabel: Partial<Record<VisibleSettingsTab, string>> = {
+  Personalization: "Preferences",
+  Capabilities: "Plugins",
+  "Security & login": "Security",
+  "Clauxen Code": "Code",
+};
+
+export function settingsItemLabel(tab: VisibleSettingsTab): string {
+  return settingsNavLabel[tab] ?? tab;
+}
+
 export const settingsNavGroups: ReadonlyArray<{
   label: string;
   items: readonly VisibleSettingsTab[];
 }> = [
   {
-    label: "Preferences",
-    items: ["General", "Personalization", "Notifications"],
-  },
-  {
     label: "Account",
-    items: ["Account", "Security & login", "Data controls", "Billing"],
+    items: ["Account", "Personalization", "Notifications"],
   },
   {
     label: "Workspace",
-    items: ["Capabilities", "Skills", "Clauxen Code"],
+    items: ["General", "Capabilities", "Skills", "Clauxen Code"],
+  },
+  {
+    label: "Data",
+    items: ["Data controls", "Security & login", "Billing"],
   },
 ];
 

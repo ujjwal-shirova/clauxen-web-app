@@ -5,6 +5,7 @@ import { ChevronLeft, X } from "lucide-react";
 import {
   isSettingsTab,
   resolveVisibleTab,
+  settingsItemLabel,
   settingsTabDescriptions,
   type SettingsTab,
   type VisibleSettingsTab,
@@ -32,7 +33,6 @@ import {
   type SecuritySettingsView,
 } from "@/components/settings/security-settings";
 import { DataControlsSettings } from "@/components/settings/data-controls-settings";
-import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
 import { BillingSettings } from "@/components/settings/billing-settings";
 import { CapabilitiesSettings } from "@/components/settings/capabilities-settings";
 import { ClauxenCodeSettings } from "@/components/settings/clauxen-code-settings";
@@ -300,6 +300,7 @@ export function SettingsModal({
             onFullNameChange={(fullName) =>
               updatePersonalization({ fullName })
             }
+            onOpenSecurity={() => handleTabChange("Security & login")}
             onLogout={onLogout}
             onLogoutAllDevices={onLogout}
             workspace={workspace}
@@ -434,43 +435,32 @@ export function SettingsModal({
               />
             </div>
 
-            <aside className="cx-settings-aside hidden min-h-0 shrink-0 md:flex md:w-[232px] md:flex-col md:px-2.5 md:pb-2.5 md:pt-3">
-              <div className="mb-2.5 flex h-7 items-center gap-2 px-2">
-                <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-[var(--settings-fg)]">
-                  Settings
-                </h2>
-              </div>
+            <aside className="cx-settings-aside hidden min-h-0 shrink-0 md:flex md:w-[248px] md:flex-col md:px-2 md:pb-3 md:pt-3">
               <SettingsNavSidebar
                 activeTab={visibleTab}
                 onTabChange={handleTabChange}
+                accountName={
+                  personalization.fullName || user?.displayName || user?.email
+                }
+                accountAvatarUrl={user?.avatarUrl}
               />
-              {user ? (
-                <button
-                  type="button"
-                  onClick={() => handleTabChange("Account")}
-                  className="cx-set-user no-hover-overlay"
-                  data-active={visibleTab === "Account" ? "" : undefined}
-                >
-                  <UserAvatarDisplay
-                    name={personalization.fullName || user.displayName || user.email || "U"}
-                    avatarUrl={user.avatarUrl}
-                    className="!size-7 !text-[10.5px]"
-                    size="sm"
-                  />
-                  <span className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--settings-fg)]">
-                      {personalization.fullName || user.displayName || "Your account"}
-                    </span>
-                    <span className="block truncate text-[11.5px] leading-4 text-[var(--settings-fg-muted)]">
-                      {user.email}
-                    </span>
-                  </span>
-                </button>
-              ) : null}
             </aside>
 
             <main className="settings-canvas relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--settings-canvas-bg)]">
-              <header className="cx-set-header hidden shrink-0 items-center justify-between gap-6 px-6 md:flex">
+              <button
+                type="button"
+                onClick={onClose}
+                className="ui-icon-button no-hover-overlay absolute right-3 top-3 z-10 hidden !size-7 text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)] md:inline-flex"
+                aria-label="Close settings"
+              >
+                <X className="size-4" strokeWidth={1.8} />
+              </button>
+              <header
+                className={cn(
+                  "cx-set-header shrink-0 items-center gap-6 px-8",
+                  showPasskeysSubpage ? "hidden md:flex" : "hidden",
+                )}
+              >
                 {showPasskeysSubpage ? (
                   <div className="flex min-w-0 items-center gap-1">
                     <button
@@ -503,28 +493,30 @@ export function SettingsModal({
                     </p>
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="ui-icon-button no-hover-overlay !size-7 shrink-0 text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
-                  aria-label="Close settings"
-                >
-                  <X className="size-4" strokeWidth={1.8} />
-                </button>
               </header>
 
               <div
                 ref={contentScrollRef}
                 data-scroll-region=""
-                className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 sm:px-5 md:px-6 md:pb-10 md:pt-5"
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 sm:px-5 md:px-10 md:pb-12 md:pt-8"
                 aria-busy={contentHydrating || undefined}
               >
                 <div
                   className={cn(
-                    "mx-auto w-full max-w-[640px]",
+                    "mx-auto w-full max-w-[720px]",
                     contentHydrating && "opacity-[0.97]",
                   )}
                 >
+                  {!showPasskeysSubpage ? (
+                    <div className="mb-7">
+                      <h2 className="text-[22px] font-semibold leading-7 tracking-[-0.03em] text-[var(--settings-fg)]">
+                        {settingsItemLabel(visibleTab)}
+                      </h2>
+                      <p className="mt-1 max-w-[36rem] text-[14px] leading-5 text-[var(--settings-fg-muted)]">
+                        {settingsTabDescriptions[visibleTab]}
+                      </p>
+                    </div>
+                  ) : null}
                   <SettingsTabErrorBoundary tabLabel={visibleTab}>
                     <div key={`${visibleTab}-${securityView}`} className="settings-panel-enter">
                       {renderActiveTab()}

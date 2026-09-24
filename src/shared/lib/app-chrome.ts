@@ -53,7 +53,7 @@ const overlay = {
     "app-surface-shell fixed inset-0 z-[200] flex min-h-0 flex-col overflow-hidden outline-none",
   /** Centered modal shell on desktop (Settings). */
   modalShell:
-    "app-surface-panel fixed z-[201] flex min-h-0 flex-col overflow-hidden inset-0 h-[100dvh] w-full md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(740px,calc(100dvh-2rem))] md:w-[min(1040px,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[18px] md:border md:border-[var(--settings-modal-border,var(--ui-border))] md:shadow-[var(--settings-modal-shadow,var(--popup-shadow))]",
+    "app-surface-panel fixed z-[201] flex min-h-0 flex-col overflow-hidden inset-0 h-[100dvh] w-full md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(860px,calc(100dvh-3rem))] md:w-[min(1180px,calc(100vw-3rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[16px] md:border md:border-[var(--settings-modal-border,var(--ui-border))] md:shadow-[var(--settings-modal-shadow,var(--popup-shadow))]",
 } as const;
 
 const field = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, LogOut, Mail, Trash2 } from "lucide-react";
+import { Check, Copy, LogOut, Trash2 } from "lucide-react";
 import {
   SettingsButton,
   SettingsConfirmDialog,
@@ -27,6 +27,7 @@ interface AccountSettingsProps {
   onAvatarUpdated?: (profile: UserProfile) => void;
   fullName: string;
   onFullNameChange: (value: string) => void;
+  onOpenSecurity?: () => void;
   onLogout?: () => void;
   onLogoutAllDevices?: () => void;
   workspace?: Workspace | null;
@@ -87,6 +88,7 @@ export function AccountSettings({
   onAvatarUpdated,
   fullName,
   onFullNameChange,
+  onOpenSecurity,
   onLogout,
   onLogoutAllDevices,
   workspace,
@@ -131,39 +133,18 @@ export function AccountSettings({
     <SettingsPage>
       <SettingsPanelTitle>Account</SettingsPanelTitle>
 
-      <div className="cx-set-hero">
-        <ProfileAvatarUpload
-          name={displayName}
-          avatarUrl={avatarUrl}
-          onUpdated={onAvatarUpdated}
-          size="lg"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[16px] font-semibold leading-6 tracking-[-0.015em] text-[var(--settings-fg)]">
-            {displayName}
-          </p>
-          <p className="truncate text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]">
-            {userEmail || "Not signed in"}
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <SettingsStatusBadge tone="neutral">
-              {workspace?.plan_id ? workspace.plan_id : "Free plan"}
-            </SettingsStatusBadge>
-            {workspace?.created_at ? (
-              <span className="text-[11.5px] leading-4 text-[var(--settings-fg-subtle)]">
-                Member since {formatDate(workspace.created_at)}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      <SettingsSection
-        title="Profile"
-        description="Your name appears on shared chats and in the sidebar."
-      >
-        <SettingsRow label="Full name" description="Used to address you in replies.">
-          <div className="flex w-full items-center gap-1.5 sm:max-w-[18rem]">
+      <SettingsSection title="Profile">
+        <div className="flex items-center gap-4 px-1 py-3">
+          <ProfileAvatarUpload
+            name={displayName}
+            avatarUrl={avatarUrl}
+            onUpdated={onAvatarUpdated}
+            size="lg"
+          />
+          <div className="min-w-0 flex-1">
+            <label className="mb-1 block text-[12px] leading-4 text-[var(--settings-fg-muted)]">
+              Preferred name
+            </label>
             <input
               type="text"
               value={nameDraft}
@@ -175,21 +156,44 @@ export function AccountSettings({
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
               }}
               placeholder="Your name"
-              className="cx-field"
+              className="cx-field max-w-[280px]"
               autoComplete="name"
               maxLength={120}
             />
+            <p className="mt-2 text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+              Add a photo from the portrait, or keep the initial.
+            </p>
           </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title="Account security">
+        <SettingsRow label="Email" description={userEmail || "Not signed in"}>
+          <SettingsButton size="sm" onClick={onOpenSecurity}>
+            Manage emails
+          </SettingsButton>
+        </SettingsRow>
+        <SettingsRow label="Password" description="Set a password for your account">
+          <SettingsButton size="sm" onClick={onOpenSecurity}>
+            Add password
+          </SettingsButton>
         </SettingsRow>
         <SettingsRow
-          label="Email address"
-          description="Sign-in and billing receipts go here."
+          label="Two-step verification"
+          description="Add another layer of security to your account"
+        >
+          <SettingsButton size="sm" onClick={onOpenSecurity}>
+            Add verification method
+          </SettingsButton>
+        </SettingsRow>
+        <SettingsRow
+          label="Passkeys"
+          description="Sign in with on-device biometric authentication"
           borderless
         >
-          <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] text-[var(--settings-fg-muted)]">
-            <Mail className="size-3.5 shrink-0" aria-hidden />
-            <span className="truncate">{userEmail || "—"}</span>
-          </span>
+          <SettingsButton size="sm" onClick={onOpenSecurity}>
+            Add passkey
+          </SettingsButton>
         </SettingsRow>
       </SettingsSection>
 

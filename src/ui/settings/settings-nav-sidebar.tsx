@@ -4,17 +4,21 @@ import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  settingsItemLabel,
   settingsNavByName,
   settingsNavGroups,
   settingsNavKeywords,
   type SettingsTab,
   type VisibleSettingsTab,
 } from "@/components/settings/constants";
+import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
 
 interface SettingsNavSidebarProps {
   activeTab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
   variant?: "sidebar" | "mobile-toolbar";
+  accountName?: string | null;
+  accountAvatarUrl?: string | null;
 }
 
 function NavButton({
@@ -38,7 +42,7 @@ function NavButton({
         className={cn("cx-set-link", isActive && "is-active")}
       >
         <Icon strokeWidth={1.75} aria-hidden />
-        <span className="truncate">{item.name}</span>
+        <span className="truncate">{settingsItemLabel(tab)}</span>
       </button>
     </li>
   );
@@ -85,6 +89,8 @@ export function SettingsNavSidebar({
   activeTab,
   onTabChange,
   variant = "sidebar",
+  accountName,
+  accountAvatarUrl,
 }: SettingsNavSidebarProps) {
   const [query, setQuery] = useState("");
 
@@ -96,6 +102,7 @@ export function SettingsNavSidebar({
         items: group.items.filter((name) =>
           normalized
             ? name.toLowerCase().includes(normalized) ||
+              settingsItemLabel(name).toLowerCase().includes(normalized) ||
               settingsNavKeywords[name].includes(normalized)
             : true,
         ),
@@ -137,7 +144,7 @@ export function SettingsNavSidebar({
                 )}
               >
                 <item.icon className="size-3.5" strokeWidth={1.75} aria-hidden />
-                {item.name}
+                {settingsItemLabel(visible)}
               </button>
             );
           })}
@@ -170,14 +177,35 @@ export function SettingsNavSidebar({
                   {group.label}
                 </p>
                 <ul className="flex flex-col gap-px">
-                  {group.items.map((tab) => (
-                    <NavButton
-                      key={tab}
-                      tab={tab}
-                      isActive={activeTab === tab}
-                      onSelect={() => onTabChange(tab)}
-                    />
-                  ))}
+                  {group.items.map((tab) =>
+                    tab === "Account" && group.label === "Account" ? (
+                      <li key={tab}>
+                        <button
+                          type="button"
+                          onClick={() => onTabChange(tab)}
+                          aria-current={activeTab === tab ? "page" : undefined}
+                          className={cn("cx-set-link", activeTab === tab && "is-active")}
+                        >
+                          <UserAvatarDisplay
+                            name={accountName || "You"}
+                            avatarUrl={accountAvatarUrl}
+                            className="!size-[18px] !text-[9px]"
+                            size="sm"
+                          />
+                          <span className="truncate">
+                            {accountName?.trim() || "Your account"}
+                          </span>
+                        </button>
+                      </li>
+                    ) : (
+                      <NavButton
+                        key={tab}
+                        tab={tab}
+                        isActive={activeTab === tab}
+                        onSelect={() => onTabChange(tab)}
+                      />
+                    ),
+                  )}
                 </ul>
               </div>
             ))}
