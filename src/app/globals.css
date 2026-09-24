@@ -3101,6 +3101,19 @@ button.user-message-card__body:not(:disabled):hover,
     opacity 0.16s ease !important;
 }
 
+[data-prompt-root] .prompt-add-nav-match {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  border-radius: 8px !important;
+}
+
+[data-prompt-root] .prompt-add-nav-match svg {
+  width: 20px;
+  height: 20px;
+}
+
 [data-prompt-root] .prompt-control-filled,
 [data-prompt-root] .prompt-control-filled:hover,
 [data-prompt-root] .prompt-control-filled:focus,
@@ -5064,19 +5077,35 @@ button[data-speed-toggle][data-state="open"] {
   padding: 8px 10px 4px;
 }
 
-/* The collapsed-sidebar trigger lives in main-layout.tsx and stays fixed at
-   10px/14px from the viewport edge. Lock its hit area geometry here so it
-   does not shift when the sidebar panel slides in on hover. */
+/* Collapsed chat-header toggle uses the same box as .cx-hide-sidebar:
+   24×24, 8px from the left edge, 4px from the top of the 44px bar. */
+.app-sidebar-peek-toggle {
+  box-sizing: border-box;
+  left: 8px;
+  top: 4px;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 6px;
+}
+
+.app-sidebar-peek-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
 @media (min-width: 1024px) {
   .app-sidebar-peek-toggle {
-    box-sizing: border-box;
     left: 8px !important;
-    top: calc((var(--chat-header-height, 44px) - 32px) / 2) !important;
-    width: 32px !important;
-    min-width: 32px !important;
-    height: 32px !important;
-    min-height: 32px !important;
+    top: 4px !important;
+    width: 24px !important;
+    min-width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
     padding: 0 !important;
+    border-radius: 6px !important;
   }
 }
 
@@ -8711,7 +8740,8 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   margin-right: 6px;
 }
 
-.cx-sidebar:not(.is-collapsed) a.cx-nav-btn {
+.cx-sidebar:not(.is-collapsed) a.cx-nav-btn,
+.cx-sidebar:not(.is-collapsed) button.cx-nav-btn {
   height: 32px !important;
   min-height: 32px !important;
   padding: 0 2px !important;
@@ -8951,6 +8981,12 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
 
 .free-plan-upgrade:hover .free-plan-upgrade__action {
   color: var(--link-hover);
+}
+
+.free-plan-upgrade--card {
+  height: 28px;
+  border-radius: 8px;
+  gap: 6px;
 }
 
 .new-chat-hero__inner {

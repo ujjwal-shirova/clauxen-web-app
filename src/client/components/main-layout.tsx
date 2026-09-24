@@ -440,7 +440,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           onBlur={closeSidebarPeekSoon}
           onClick={() => setSidebarCollapsedFromNav(false)}
           className={cn(
-            "app-sidebar-peek-toggle fixed left-[10px] top-[14px] z-50 flex size-8 items-center justify-center rounded-[9px] border-0 bg-transparent text-[#52514e] shadow-none transition-[background-color,color,opacity,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-black/[0.05] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07] motion-reduce:transition-none",
+            "app-sidebar-peek-toggle fixed z-50 flex items-center justify-center border-0 bg-transparent text-[var(--cx-sidebar-fg,#52514e)] shadow-none transition-[background-color,color,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--cx-sidebar-hover,rgba(0,0,0,0.05))] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07] motion-reduce:transition-none",
             overlayOpen && "pointer-events-none opacity-0",
           )}
         >

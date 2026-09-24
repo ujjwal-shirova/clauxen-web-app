@@ -125,6 +125,13 @@ const COMPOSE_ACTION_META: Record<
 const addMenuTriggerClass =
   "menu-trigger-active no-hover-overlay prompt-control-ghost shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
 
+const WELCOME_HINTS = [
+  "Ask anything",
+  "Type / for skills",
+  "Type @ for files",
+  "Type # for plugins",
+] as const;
+
 const promptFilledControlClass =
   "no-hover-overlay prompt-control-filled shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-app-button";
 
@@ -191,6 +198,9 @@ export function PromptInput({
   const activeChatId = useActiveChatId();
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
+  const [composerMode, setComposerMode] = useState<"chat" | "collabry">("chat");
+  const [hintIndex, setHintIndex] = useState(0);
+  const [hintVisible, setHintVisible] = useState(true);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const draftNotifyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -1132,8 +1142,20 @@ export function PromptInput({
     );
   };
 
+  useEffect(() => {
+    if (isConversationStarted || hasDraft) return;
+    const cycle = window.setInterval(() => {
+      setHintVisible(false);
+      window.setTimeout(() => {
+        setHintIndex((index) => (index + 1) % WELCOME_HINTS.length);
+        setHintVisible(true);
+      }, 280);
+    }, 3400);
+    return () => window.clearInterval(cycle);
+  }, [hasDraft, isConversationStarted]);
+
   const renderAddMenuButton = () => (
-    <div className="relative shrink-0" data-prompt-add-anchor>
+    <div className="relative flex shrink-0 items-center gap-1" data-prompt-add-anchor>
       <button
         ref={addMenuTriggerRef}
         type="button"
@@ -1146,11 +1168,41 @@ export function PromptInput({
         onClick={() => setAddMenuOpen(!isAddMenuOpen)}
         className={cn(
           addMenuTriggerClass,
+          !isConversationStarted && "prompt-add-nav-match",
           isCapturingScreenshot && "opacity-50",
         )}
       >
-        <Plus className="icon-md shrink-0" strokeWidth={1.75} />
+        <Plus
+          className={cn("shrink-0", isConversationStarted ? "icon-md" : "icon-xl")}
+          strokeWidth={1.75}
+        />
       </button>
+      {!isConversationStarted ? (
+        <div
+          className="ml-0.5 inline-flex h-7 items-center rounded-lg bg-black/[0.04] p-0.5 dark:bg-white/[0.06]"
+          role="tablist"
+          aria-label="Composer mode"
+        >
+          {(["chat", "collabry"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              role="tab"
+              aria-selected={composerMode === mode}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setComposerMode(mode)}
+              className={cn(
+                "h-6 rounded-md px-2.5 text-[13px] font-medium leading-none transition-colors",
+                composerMode === mode
+                  ? "bg-white text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.08)] dark:bg-zinc-800 dark:text-zinc-100"
+                  : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400",
+              )}
+            >
+              {mode === "chat" ? "Chat" : "Collabry"}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <PromptAddMenuPanel
         open={isAddMenuOpen}
         placement="above"
@@ -1223,9 +1275,26 @@ export function PromptInput({
   const renderTextareaField = (placeholder: string, className?: string) => {
     const listeningEmpty =
       dictation.status === "listening" && !hasDraft && !readDraft().trim();
-    const editorPlaceholder = listeningEmpty ? "Listening…" : placeholder;
+    const editorPlaceholder = listeningEmpty
+      ? "Listening…"
+      : !isConversationStarted && !hasDraft
+        ? ""
+        : placeholder;
     return (
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-0">
+      <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-0">
+        {!isConversationStarted && !hasDraft && !listeningEmpty ? (
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-[14px] font-[430] leading-[21px] text-black/36 transition-opacity duration-300",
+              hintVisible ? "opacity-100" : "opacity-0",
+            )}
+          >
+            {composerMode === "collabry" && hintIndex === 0
+              ? "What should we work on together?"
+              : WELCOME_HINTS[hintIndex]}
+          </span>
+        ) : null}
         {activeInlineMode ? (
           <PromptInlineModeChip mode={activeInlineMode} />
         ) : null}

@@ -11,8 +11,19 @@ import {
   MoreVertical,
   Pin,
   PinOff,
-  Plus,
+  SquarePen,
   Languages,
+  Code2,
+  CalendarClock,
+  Presentation,
+  Telescope,
+  FileText,
+  Table2,
+  Hammer,
+  Bot,
+  Palette,
+  LayoutGrid,
+  ChevronDown,
   Sparkles,
   X,
   FolderKanban,
@@ -234,6 +245,7 @@ export function Sidebar({
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
   const [pinnedExpanded, setPinnedExpanded] = useState(true);
+  const [appsOpen, setAppsOpen] = useState(false);
   const [recentsExpanded, setRecentsExpanded] = useState(true);
   const cachedPlan = readCachedBillingPlan();
   const [planLabel, setPlanLabel] = useState<string | null>(
@@ -557,7 +569,7 @@ export function Sidebar({
               )}
             >
               <span className="cx-nav-icon">
-                <Plus strokeWidth={1.75} />
+                <SquarePen strokeWidth={1.75} />
               </span>
               {isCollapsed && !isMobileLayout ? null : <span>New chat</span>}
             </AppHref>
@@ -618,6 +630,79 @@ export function Sidebar({
               </span>
               {isCollapsed && !isMobileLayout ? null : <span>Plugins</span>}
             </AppHref>
+            <button
+              type="button"
+              aria-expanded={appsOpen}
+              aria-label="Apps"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (isCollapsed && !isMobileLayout) {
+                  setIsCollapsed(false);
+                  setAppsOpen(true);
+                  return;
+                }
+                setAppsOpen((open) => !open);
+              }}
+              className={cn("cx-nav-btn w-full", appsOpen && "is-active")}
+            >
+              <span className="cx-nav-icon">
+                <LayoutGrid strokeWidth={1.75} />
+              </span>
+              {isCollapsed && !isMobileLayout ? null : (
+                <>
+                  <span className="min-w-0 flex-1 text-left">Apps</span>
+                  <ChevronDown
+                    className={cn(
+                      "size-3.5 shrink-0 text-[var(--cx-sidebar-muted)] transition-transform",
+                      appsOpen && "rotate-180",
+                    )}
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                </>
+              )}
+            </button>
+            {appsOpen && (!isCollapsed || isMobileLayout) ? (
+              <div className="grid grid-cols-2 gap-0.5 px-1 pb-1">
+                {(
+                  [
+                    {
+                      label: "Code",
+                      icon: Code2,
+                      href: overlayHref({
+                        type: "settings",
+                        tab: "Clauxen Code",
+                      }),
+                    },
+                    { label: "Scheduled", icon: CalendarClock, href: "/new?app=scheduled" },
+                    { label: "Slides", icon: Presentation, href: "/new?app=slides" },
+                    { label: "Research", icon: Telescope, href: "/new?app=research" },
+                    { label: "Docs", icon: FileText, href: "/new?app=docs" },
+                    { label: "Sheets", icon: Table2, href: "/new?app=sheets" },
+                    { label: "Build", icon: Hammer, href: "/new?app=build" },
+                    { label: "Agent", icon: Bot, href: "/new?app=agent" },
+                    { label: "Design", icon: Palette, href: "/new?app=design" },
+                  ] as const
+                ).map((item) => (
+                  <AppHref
+                    key={item.label}
+                    href={item.href}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!isPlainLeftClick(event)) return;
+                      if (isMobileLayout) onNavigate?.();
+                    }}
+                    aria-label={item.label}
+                    className="cx-nav-btn !h-8 !min-h-8 !px-1"
+                  >
+                    <span className="cx-nav-icon !h-6 !w-6">
+                      <item.icon strokeWidth={1.75} />
+                    </span>
+                    <span className="truncate text-[13px]">{item.label}</span>
+                  </AppHref>
+                ))}
+              </div>
+            ) : null}
         </nav>
 
         <div

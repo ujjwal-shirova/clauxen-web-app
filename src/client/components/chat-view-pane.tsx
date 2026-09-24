@@ -396,11 +396,10 @@ export function ChatViewPane({
                     <button
                       type="button"
                       onClick={onUpgradeClick}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#f6f6f4] px-3 text-[14px] font-normal leading-5 text-[#898781] transition-colors hover:bg-[#f1f1ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+                      className="free-plan-upgrade free-plan-upgrade--card outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                     >
-                      <span className="text-[var(--link)] underline decoration-[var(--link-decoration)] underline-offset-[3px]">
-                        Upgrade to Pro
-                      </span>
+                      Free plan <span aria-hidden>·</span>{" "}
+                      <span className="free-plan-upgrade__action">Upgrade</span>
                     </button>
                   ) : null}
 
