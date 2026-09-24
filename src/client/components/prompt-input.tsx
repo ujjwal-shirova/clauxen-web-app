@@ -13,6 +13,9 @@ import {
   ArrowUp,
   Check,
   LoaderCircle,
+  AudioLines,
+  Bot,
+  ChevronDown,
   Mic,
   Plus,
   Square,
@@ -126,6 +129,7 @@ const addMenuTriggerClass =
   "menu-trigger-active no-hover-overlay prompt-control-ghost shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
 
 const WELCOME_HINTS = [
+  "How can I help you today?",
   "Ask anything",
   "Type / for skills",
   "Type @ for files",
@@ -198,7 +202,7 @@ export function PromptInput({
   const activeChatId = useActiveChatId();
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
-  const [composerMode, setComposerMode] = useState<"chat" | "collabry">("chat");
+  const [composerMode, setComposerMode] = useState<"chat" | "cowork">("chat");
   const [hintIndex, setHintIndex] = useState(0);
   const [hintVisible, setHintVisible] = useState(true);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
@@ -1055,7 +1059,7 @@ export function PromptInput({
     </HintTooltip>
   );
 
-  const renderTrailingActions = () => {
+  const renderTrailingActions = (sendOnly = false) => {
     if (showDictationActions) {
       return (
         <>
@@ -1095,8 +1099,8 @@ export function PromptInput({
 
     return (
       <>
-        {!isConversationStarted ? renderModelSelector() : null}
-        {renderMicButton()}
+        {!sendOnly && !isConversationStarted ? renderModelSelector() : null}
+        {!sendOnly ? renderMicButton() : null}
         {isGenerating ? (
           hasDraft || attachments.length > 0 ? (
             <HintTooltip content="Send (queue while generating)">
@@ -1183,7 +1187,7 @@ export function PromptInput({
           role="tablist"
           aria-label="Composer mode"
         >
-          {(["chat", "collabry"] as const).map((mode) => (
+          {(["chat", "cowork"] as const).map((mode) => (
             <button
               key={mode}
               type="button"
@@ -1198,7 +1202,7 @@ export function PromptInput({
                   : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400",
               )}
             >
-              {mode === "chat" ? "Chat" : "Collabry"}
+              {mode === "chat" ? "Chat" : "Cowork"}
             </button>
           ))}
         </div>
@@ -1246,6 +1250,49 @@ export function PromptInput({
   );
 
   const renderPromptBody = (placeholder: string, centerSlot?: ReactNode) => {
+    if (!isConversationStarted) {
+      return (
+        <div className="prompt-welcome" data-prompt-welcome="true">
+          <div className="prompt-welcome__input">
+            {renderTextareaField(placeholder, "py-1")}
+            <button
+              type="button"
+              aria-label="Cowork"
+              aria-pressed={composerMode === "cowork"}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() =>
+                setComposerMode((mode) => (mode === "cowork" ? "chat" : "cowork"))
+              }
+              className="prompt-welcome__mark"
+            >
+              <Bot className="size-4" strokeWidth={1.75} aria-hidden />
+            </button>
+          </div>
+          <div className="prompt-welcome__bar">
+            {renderAddMenuButton()}
+            <div className="min-w-0 flex-1" />
+            {renderModelSelector()}
+            {renderMicButton()}
+            <button
+              type="button"
+              aria-label="Voice"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                if (!dictation.isActive) void dictation.start();
+              }}
+              className="prompt-welcome__voice"
+            >
+              <AudioLines className="size-4" strokeWidth={1.75} aria-hidden />
+              <ChevronDown className="size-3" strokeWidth={2} aria-hidden />
+            </button>
+            {hasDraft || attachments.length > 0 || isGenerating
+              ? renderTrailingActions(true)
+              : null}
+          </div>
+          {centerSlot}
+        </div>
+      );
+    }
     return (
       <div
         className="prompt-body-grid w-full"
@@ -1290,7 +1337,7 @@ export function PromptInput({
               hintVisible ? "opacity-100" : "opacity-0",
             )}
           >
-            {composerMode === "collabry" && hintIndex === 0
+            {composerMode === "cowork" && hintIndex === 0
               ? "What should we work on together?"
               : WELCOME_HINTS[hintIndex]}
           </span>

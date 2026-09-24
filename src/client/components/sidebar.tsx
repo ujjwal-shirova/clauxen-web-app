@@ -22,8 +22,9 @@ import {
   Hammer,
   Bot,
   Palette,
-  LayoutGrid,
+  Ellipsis,
   ChevronDown,
+  Hand,
   Sparkles,
   X,
   FolderKanban,
@@ -69,6 +70,45 @@ const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
 const SECTION_STORAGE_PREFIX = "clauxen_sidebar_section_";
 
 type SidebarSectionKey = "pinned" | "recents";
+
+const PIN_TIP_STORAGE_KEY = "clauxen_sidebar_pin_tip_dismissed";
+
+function SidebarPinTip() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    try {
+      setVisible(localStorage.getItem(PIN_TIP_STORAGE_KEY) !== "1");
+    } catch {
+      setVisible(true);
+    }
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div className="cx-pin-tip" role="note">
+      <Hand className="cx-pin-tip__icon" strokeWidth={1.75} aria-hidden />
+      <p>Tip: you can drag tasks here to pin them</p>
+      <button
+        type="button"
+        aria-label="Dismiss tip"
+        className="cx-pin-tip__close"
+        onClick={(event) => {
+          event.stopPropagation();
+          setVisible(false);
+          try {
+            localStorage.setItem(PIN_TIP_STORAGE_KEY, "1");
+          } catch {
+            /* ignore */
+          }
+        }}
+      >
+        <X className="size-3.5" strokeWidth={2} />
+      </button>
+    </div>
+  );
+}
 
 function readSectionExpanded(key: SidebarSectionKey, fallback: boolean) {
   if (typeof window === "undefined") return fallback;
@@ -510,7 +550,7 @@ export function Sidebar({
               : "justify-start",
           )}
         >
-          {!isMobileLayout && !isCollapsed && !isPeekPreview ? (
+          {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
             <button
               type="button"
               aria-label="Hide sidebar"
@@ -522,10 +562,8 @@ export function Sidebar({
             >
               <SidebarToggleIcon className="size-5" aria-hidden />
             </button>
-          ) : isPeekPreview ? (
-            <span className="cx-hide-sidebar-spacer" aria-hidden />
           ) : null}
-          {!isCollapsed ? (
+          {!isCollapsed || isPeekPreview ? (
             <span
               className="clauxen-wordmark min-w-0 truncate leading-none"
               aria-label="Clauxen"
@@ -633,7 +671,7 @@ export function Sidebar({
             <button
               type="button"
               aria-expanded={appsOpen}
-              aria-label="Apps"
+              aria-label="More"
               onClick={(event) => {
                 event.stopPropagation();
                 if (isCollapsed && !isMobileLayout) {
@@ -646,11 +684,11 @@ export function Sidebar({
               className={cn("cx-nav-btn w-full", appsOpen && "is-active")}
             >
               <span className="cx-nav-icon">
-                <LayoutGrid strokeWidth={1.75} />
+                <Ellipsis strokeWidth={1.75} />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
                 <>
-                  <span className="min-w-0 flex-1 text-left">Apps</span>
+                  <span className="min-w-0 flex-1 text-left">More</span>
                   <ChevronDown
                     className={cn(
                       "size-3.5 shrink-0 text-[var(--cx-sidebar-muted)] transition-transform",
@@ -739,6 +777,7 @@ export function Sidebar({
                   !hasPinnedSection && "mt-2.5",
                 )}
               >
+                <SidebarPinTip />
                 <SidebarSectionLabel
                   label="Recents"
                   expanded={recentsExpanded}

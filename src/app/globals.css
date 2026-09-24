@@ -3081,6 +3081,64 @@ button.user-message-card__body:not(:disabled):hover,
   gap: 2px;
 }
 
+.prompt-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 12px 8px;
+  box-sizing: border-box;
+}
+
+.prompt-welcome__input {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.prompt-welcome__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  background: #1f8a4c;
+  color: #fff;
+  cursor: pointer;
+}
+
+.prompt-welcome__mark[aria-pressed="true"] {
+  background: #166534;
+}
+
+.prompt-welcome__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.prompt-welcome__voice {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  height: 28px;
+  padding: 0 4px 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ui-fg-muted, #71717a);
+  cursor: pointer;
+}
+
+.prompt-welcome__voice:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
 /* Prompt control buttons — compact density */
 [data-prompt-root] .prompt-control-filled,
 [data-prompt-root] .prompt-control-ghost {
@@ -8697,6 +8755,8 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
 .cx-sidebar .ui-sidebar-top-bar {
   height: 44px;
   min-height: 44px;
+  align-items: center;
+  gap: 6px;
   padding: 4px 8px 0;
 }
 
@@ -8727,7 +8787,65 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
 }
 
 .cx-hide-sidebar + .clauxen-wordmark {
-  margin-left: 6px;
+  margin-left: 0;
+}
+
+.cx-pin-tip {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 8px 8px 14px;
+  padding: 10px 8px 10px 12px;
+  border-radius: 12px;
+  background: #2f6bff;
+  color: #fff;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(47, 107, 255, 0.28);
+}
+
+.cx-pin-tip::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 16px;
+  border-width: 6px 6px 6px 0;
+  border-style: solid;
+  border-color: transparent #2f6bff transparent transparent;
+}
+
+.cx-pin-tip p {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.cx-pin-tip__icon {
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  flex: none;
+}
+
+.cx-pin-tip__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  flex: none;
+}
+
+.cx-pin-tip__close:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .cx-hide-sidebar-spacer {
