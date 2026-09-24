@@ -8791,11 +8791,13 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
 }
 
 .cx-pin-tip {
-  position: relative;
+  position: fixed;
+  z-index: 80;
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin: 4px 8px 8px 14px;
+  width: 220px;
+  margin: 0;
   padding: 10px 8px 10px 12px;
   border-radius: 12px;
   background: #2f6bff;
@@ -8846,6 +8848,77 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
 
 .cx-pin-tip__close:hover {
   background: rgba(255, 255, 255, 0.16);
+}
+
+.cx-pin-drop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  margin: 2px 4px 4px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--cx-sidebar-muted, #a1a1aa);
+  font-size: 13px;
+}
+
+.cx-pin-drop svg {
+  width: 15px;
+  height: 15px;
+  opacity: 0.4;
+}
+
+.cx-pin-drop.is-hot {
+  color: var(--cx-sidebar-fg, #18181b);
+}
+
+.cx-pin-drop.is-hot svg {
+  opacity: 1;
+}
+
+.cx-unpin-badge {
+  position: absolute;
+  left: 50%;
+  top: 36px;
+  z-index: 5;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f3c1c1;
+  color: #9f1239;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.cx-section-head .cx-section-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cx-view-all {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: #18181b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cx-section-head:hover .cx-view-all,
+.cx-section-head:focus-within .cx-view-all {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .cx-hide-sidebar-spacer {

@@ -13,9 +13,7 @@ import {
   ArrowUp,
   Check,
   LoaderCircle,
-  AudioLines,
   Bot,
-  ChevronDown,
   Mic,
   Plus,
   Square,
@@ -1202,7 +1200,7 @@ export function PromptInput({
                   : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400",
               )}
             >
-              {mode === "chat" ? "Chat" : "Cowork"}
+              {mode === "chat" ? "Chat" : "Collabry"}
             </button>
           ))}
         </div>
@@ -1273,21 +1271,7 @@ export function PromptInput({
             <div className="min-w-0 flex-1" />
             {renderModelSelector()}
             {renderMicButton()}
-            <button
-              type="button"
-              aria-label="Voice"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => {
-                if (!dictation.isActive) void dictation.start();
-              }}
-              className="prompt-welcome__voice"
-            >
-              <AudioLines className="size-4" strokeWidth={1.75} aria-hidden />
-              <ChevronDown className="size-3" strokeWidth={2} aria-hidden />
-            </button>
-            {hasDraft || attachments.length > 0 || isGenerating
-              ? renderTrailingActions(true)
-              : null}
+            {renderTrailingActions(true)}
           </div>
           {centerSlot}
         </div>

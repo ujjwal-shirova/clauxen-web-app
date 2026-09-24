@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Settings,
   ArrowUpCircle,
@@ -10,7 +11,6 @@ import {
   LogOut,
   MoreVertical,
   Pin,
-  PinOff,
   SquarePen,
   Languages,
   Code2,
@@ -73,8 +73,13 @@ type SidebarSectionKey = "pinned" | "recents";
 
 const PIN_TIP_STORAGE_KEY = "clauxen_sidebar_pin_tip_dismissed";
 
-function SidebarPinTip() {
+function SidebarPinTip({
+  anchorRef,
+}: {
+  anchorRef: React.RefObject<HTMLElement | null>;
+}) {
   const [visible, setVisible] = useState(false);
+  const [box, setBox] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     try {
@@ -84,10 +89,36 @@ function SidebarPinTip() {
     }
   }, []);
 
-  if (!visible) return null;
+  useLayoutEffect(() => {
+    if (!visible) return;
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const update = () => {
+      const rect = anchor.getBoundingClientRect();
+      if (rect.width < 8) {
+        setBox(null);
+        return;
+      }
+      setBox({ top: rect.top, left: rect.right + 12 });
+    };
+    update();
+    const scroller = anchor.closest("[data-scroll-region]");
+    scroller?.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      scroller?.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [anchorRef, visible]);
 
-  return (
-    <div className="cx-pin-tip" role="note">
+  if (!visible || !box || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="cx-pin-tip"
+      role="note"
+      style={{ top: box.top, left: box.left }}
+    >
       <Hand className="cx-pin-tip__icon" strokeWidth={1.75} aria-hidden />
       <p>Tip: you can drag tasks here to pin them</p>
       <button
@@ -106,7 +137,8 @@ function SidebarPinTip() {
       >
         <X className="size-3.5" strokeWidth={2} />
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -372,6 +404,12 @@ export function Sidebar({
     [recentChats],
   );
   const hasPinnedSection = pinnedChats.length > 0;
+  const [draggingChatId, setDraggingChatId] = useState<string | null>(null);
+  const [pinDropHot, setPinDropHot] = useState(false);
+  const [unpinDropHot, setUnpinDropHot] = useState(false);
+  const chatsSectionRef = useRef<HTMLDivElement>(null);
+  const draggingChat = recentChats.find((chat) => chat.id === draggingChatId);
+  const draggingPinned = Boolean(draggingChat?.pinned);
   const groupedChats = useMemo(
     () => groupChats(unpinnedChats, chatGroupBy),
     [unpinnedChats, chatGroupBy],
@@ -438,6 +476,17 @@ export function Sidebar({
         key={chat.id}
         data-active={isActive ? "true" : undefined}
         aria-current={isActive ? "page" : undefined}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", chat.id);
+          setDraggingChatId(chat.id);
+        }}
+        onDragEnd={() => {
+          setDraggingChatId(null);
+          setPinDropHot(false);
+          setUnpinDropHot(false);
+        }}
         className="group/chat cx-chat-row glass-sidebar-agent-menu-btn relative flex w-full items-center"
       >
         <AppHref
@@ -473,21 +522,6 @@ export function Sidebar({
         </AppHref>
         {!showSidebarSpinner ? (
           <div className="cx-chat-actions">
-            <button
-              type="button"
-              aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}
-              onClick={(event) => {
-                event.stopPropagation();
-                onPinChat?.(chat.id, !chat.pinned);
-              }}
-              className="ui-row-icon-button"
-            >
-              {chat.pinned ? (
-                <PinOff strokeWidth={1.5} />
-              ) : (
-                <Pin strokeWidth={1.5} />
-              )}
-            </button>
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <button
@@ -754,17 +788,39 @@ export function Sidebar({
             )}
           >
             {/* Order: Pinned → Recent */}
-            {!isCollapsed && hasPinnedSection ? (
-              <div className="mt-2.5 mb-1 px-0">
+            {!isCollapsed && (hasPinnedSection || (draggingChatId && !draggingPinned)) ? (
+              <div
+                className="relative mt-2.5 mb-1 px-0"
+                onDragOver={(event) => {
+                  if (!draggingChatId || draggingPinned) return;
+                  event.preventDefault();
+                  setPinDropHot(true);
+                }}
+                onDragLeave={() => setPinDropHot(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (draggingChatId && !draggingPinned) {
+                    onPinChat?.(draggingChatId, true);
+                  }
+                  setDraggingChatId(null);
+                  setPinDropHot(false);
+                }}
+              >
                 <SidebarSectionLabel
                   label="Pinned"
-                  expanded={pinnedExpanded}
+                  expanded={pinnedExpanded || Boolean(draggingChatId)}
                   onToggle={() => toggleSection("pinned")}
                 />
                 <SidebarSectionBody
-                  expanded={pinnedExpanded}
+                  expanded={pinnedExpanded || Boolean(draggingChatId)}
                   className="space-y-px"
                 >
+                  {draggingChatId && !draggingPinned ? (
+                    <div className={cn("cx-pin-drop", pinDropHot && "is-hot")}>
+                      <Pin strokeWidth={1.75} aria-hidden />
+                      <span>{pinDropHot ? "Let go" : "Drop here"}</span>
+                    </div>
+                  ) : null}
                   {pinnedChats.map((chat) => renderChatRow(chat))}
                 </SidebarSectionBody>
               </div>
@@ -772,24 +828,51 @@ export function Sidebar({
 
             {!isCollapsed && (
               <div
+                ref={chatsSectionRef}
                 className={cn(
                   "relative mb-2 px-0",
                   !hasPinnedSection && "mt-2.5",
                 )}
+                onDragOver={(event) => {
+                  if (!draggingChatId || !draggingPinned) return;
+                  event.preventDefault();
+                  setUnpinDropHot(true);
+                }}
+                onDragLeave={() => setUnpinDropHot(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (draggingChatId && draggingPinned) {
+                    onPinChat?.(draggingChatId, false);
+                  }
+                  setDraggingChatId(null);
+                  setUnpinDropHot(false);
+                }}
               >
-                <SidebarPinTip />
+                <SidebarPinTip anchorRef={chatsSectionRef} />
                 <SidebarSectionLabel
-                  label="Recents"
+                  label="Chats and tasks"
                   expanded={recentsExpanded}
                   onToggle={() => toggleSection("recents")}
                   trailing={
-                    <SidebarChatGroupMenu
-                      value={chatGroupBy}
-                      onChange={handleChatGroupChange}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                    <span className="cx-section-tools">
+                      <AppHref
+                        href={APP_ROUTES.library}
+                        className="cx-view-all"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        View all
+                      </AppHref>
+                      <SidebarChatGroupMenu
+                        value={chatGroupBy}
+                        onChange={handleChatGroupChange}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </span>
                   }
                 />
+                {unpinDropHot ? (
+                  <div className="cx-unpin-badge">Release to unpin</div>
+                ) : null}
                 <SidebarSectionBody
                   expanded={recentsExpanded}
                   className="space-y-1"
