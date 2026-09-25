@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Settings - Clauxen",
+  title: "Clauxen",
 };
 
 export default function SettingsLayout({

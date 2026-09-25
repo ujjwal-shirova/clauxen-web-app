@@ -2,12 +2,10 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { parseOverlayHash } from "@/lib/app-routes";
 import {
   DOCUMENT_TITLE_BRAND,
   formatChatTabTitle,
 } from "@/lib/document-title";
-import { projectTabTitle } from "@/lib/project-drafts";
 
 const BRAND = DOCUMENT_TITLE_BRAND;
 
@@ -24,42 +22,18 @@ function isChatPath(pathname: string | null | undefined): boolean {
 function titleForPath(
   pathname: string | null,
   chatTitle?: string | null,
-  hash?: string | null,
 ): string {
-  const overlay = parseOverlayHash(hash ?? null);
-  if (overlay?.type === "settings") {
-    return `${overlay.tab} - ${BRAND}`;
-  }
-  if (overlay?.type === "pricing") return `Upgrade - ${BRAND}`;
-  if (overlay?.type === "gift") return `Gift - ${BRAND}`;
-
   if (!pathname) return BRAND;
 
-  // New-chat / home shell: brand only. Titled chats use "Title - Clauxen".
-  if (pathname === "/new" || pathname === "/") {
-    return BRAND;
-  }
-
-  const chatMatch = pathname.match(/^\/c\/([^/]+)/);
-  if (chatMatch) return formatChatTabTitle(chatTitle);
-
-  if (pathname === "/projects") return `Projects - ${BRAND}`;
-  const projectMatch = pathname.match(/^\/projects\/([^/]+)/);
-  if (projectMatch) {
-    const name = projectTabTitle(decodeURIComponent(projectMatch[1]));
-    return name ? `${name} - ${BRAND}` : `Project - ${BRAND}`;
-  }
-  if (pathname.startsWith("/library")) return `Library - ${BRAND}`;
-  if (pathname.startsWith("/scheduled")) return `Scheduled Tasks - ${BRAND}`;
-  if (pathname.startsWith("/my-clauxen")) return `My Clauxen - ${BRAND}`;
+  // Named chats keep their title. Every other app surface is just "Clauxen".
+  if (/^\/c\/[^/]+/.test(pathname)) return formatChatTabTitle(chatTitle);
 
   return BRAND;
 }
 
 /**
- * Keeps the browser tab title in sync with the current surface / chat title.
- * Use hyphen separators for titled surfaces: "Settings - Clauxen".
- * `/new` and `/` stay brand-only ("Clauxen").
+ * Keeps the browser tab title in sync. The app title is always "Clauxen".
+ * Named chats use "Title - Clauxen".
  *
  * ChatView owns `/c/*` titles (pass `chatTitle`). Layout calls without a title
  * must not clobber those routes.
@@ -82,7 +56,6 @@ export function useDocumentTitle(
 
       const livePath =
         typeof window !== "undefined" ? window.location.pathname : pathname;
-      const hash = typeof window !== "undefined" ? window.location.hash : "";
 
       // Layout / non-chat owners: never overwrite a ChatView-owned tab title.
       if (!ownsChatTitle && isChatPath(livePath)) {
@@ -95,11 +68,7 @@ export function useDocumentTitle(
         return true;
       }
 
-      const next = titleForPath(
-        livePath,
-        ownsChatTitle ? chatTitle : null,
-        hash,
-      );
+      const next = titleForPath(livePath, ownsChatTitle ? chatTitle : null);
       if (document.title !== next) document.title = next;
       return true;
     };

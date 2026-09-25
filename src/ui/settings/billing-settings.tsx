@@ -40,6 +40,7 @@ import {
   SettingsPage,
   SettingsPanelTitle,
   SettingsProgressBar,
+  SettingsRow,
   SettingsSection,
   SettingsStatusBadge,
 } from "@/components/settings/settings-ui";

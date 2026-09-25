@@ -49,10 +49,6 @@ export function getProjectDraft(id: string): ProjectDraft | null {
   return readAll().find((project) => project.id === id) ?? null;
 }
 
-export function projectTabTitle(id: string): string | null {
-  return getProjectDraft(id)?.name?.trim() || null;
-}
-
 export function saveProjectDraft(project: ProjectDraft) {
   const next = readAll().filter((row) => row.id !== project.id);
   next.unshift(project);

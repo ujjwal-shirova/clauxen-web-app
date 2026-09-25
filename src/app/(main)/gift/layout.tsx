@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Gift - Clauxen",
+  title: "Clauxen",
 };
 
 export default function GiftLayout({
