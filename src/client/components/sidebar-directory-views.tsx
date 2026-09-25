@@ -3,11 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { apiFetch } from "@/lib/api/client";
 
-type ProjectRow = {
-  id: string;
-  name: string;
-  description: string | null;
-};
+export { ProjectsView } from "@/components/projects/projects-view";
 
 type SkillRow = {
   id: string;
@@ -54,51 +50,6 @@ function DirectoryShell({
         )}
       </div>
     </div>
-  );
-}
-
-export function ProjectsView() {
-  const [rows, setRows] = useState<ProjectRow[] | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void apiFetch<{ projects: ProjectRow[] }>("/api/v1/projects")
-      .then((result) => {
-        if (!cancelled) setRows(result.projects ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setRows([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return (
-    <DirectoryShell
-      title="Projects"
-      subtitle="Folders for related chats and files."
-      loading={rows === null}
-      empty="No projects yet."
-    >
-      {rows && rows.length
-        ? rows.map((project) => (
-            <div
-              key={project.id}
-              className="rounded-xl px-3 py-2.5 transition-colors hover:bg-[var(--ui-hover-wash)]"
-            >
-              <p className="truncate text-[14px] font-medium text-[var(--ui-fg)]">
-                {project.name}
-              </p>
-              {project.description ? (
-                <p className="truncate text-[13px] text-[var(--ui-fg-muted)]">
-                  {project.description}
-                </p>
-              ) : null}
-            </div>
-          ))
-        : null}
-    </DirectoryShell>
   );
 }
 

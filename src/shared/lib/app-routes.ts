@@ -85,6 +85,8 @@ export const APP_ROUTES = {
   home: "/new",
   library: "/library",
   projects: "/projects",
+  project: (projectId: string) =>
+    `/projects/${encodeURIComponent(projectId)}`,
   plugins: "/plugins",
   /** @deprecated Removed — Customize nav opens settings Skills. Kept for redirects. */
   customize: "/customize",
@@ -222,7 +224,9 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname === "/scheduled" ||
     pathname.startsWith("/scheduled/") ||
     pathname === "/my-clauxen" ||
-    pathname.startsWith("/my-clauxen/")
+    pathname.startsWith("/my-clauxen/") ||
+    pathname === "/projects" ||
+    pathname.startsWith("/projects/")
   );
 }
 

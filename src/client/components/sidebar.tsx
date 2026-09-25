@@ -15,13 +15,9 @@ import {
   Languages,
   Code2,
   CalendarClock,
-  Presentation,
   Telescope,
-  FileText,
-  Table2,
   Hammer,
   Bot,
-  Palette,
   Ellipsis,
   ChevronDown,
   Hand,
@@ -743,7 +739,7 @@ export function Sidebar({
               )}
             >
               <div className="min-h-0 overflow-hidden">
-              <div className="grid grid-cols-2 gap-0.5 px-1 pb-1">
+                <div className="flex flex-col gap-px pb-1">
                 {(
                   [
                     {
@@ -755,13 +751,9 @@ export function Sidebar({
                       }),
                     },
                     { label: "Scheduled", icon: CalendarClock, href: "/new?app=scheduled" },
-                    { label: "Slides", icon: Presentation, href: "/new?app=slides" },
                     { label: "Research", icon: Telescope, href: "/new?app=research" },
-                    { label: "Docs", icon: FileText, href: "/new?app=docs" },
-                    { label: "Sheets", icon: Table2, href: "/new?app=sheets" },
                     { label: "Build", icon: Hammer, href: "/new?app=build" },
                     { label: "Agent", icon: Bot, href: "/new?app=agent" },
-                    { label: "Design", icon: Palette, href: "/new?app=design" },
                   ] as const
                 ).map((item) => (
                   <AppHref
@@ -773,15 +765,15 @@ export function Sidebar({
                       if (isMobileLayout) onNavigate?.();
                     }}
                     aria-label={item.label}
-                    className="cx-nav-btn !h-8 !min-h-8 !px-1"
+                    className="cx-nav-btn"
                   >
-                    <span className="cx-nav-icon !h-6 !w-6">
+                    <span className="cx-nav-icon">
                       <item.icon strokeWidth={1.75} />
                     </span>
-                    <span className="truncate text-[13px]">{item.label}</span>
+                    <span className="truncate">{item.label}</span>
                   </AppHref>
                 ))}
-              </div>
+                </div>
               </div>
             </div>
         </nav>
@@ -863,20 +855,11 @@ export function Sidebar({
                   expanded={recentsExpanded}
                   onToggle={() => toggleSection("recents")}
                   trailing={
-                    <span className="cx-section-tools">
-                      <AppHref
-                        href={APP_ROUTES.library}
-                        className="cx-view-all"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        View all
-                      </AppHref>
-                      <SidebarChatGroupMenu
-                        value={chatGroupBy}
-                        onChange={handleChatGroupChange}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </span>
+                    <SidebarChatGroupMenu
+                      value={chatGroupBy}
+                      onChange={handleChatGroupChange}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   }
                 />
                 {unpinDropHot ? (

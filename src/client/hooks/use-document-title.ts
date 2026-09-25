@@ -7,6 +7,7 @@ import {
   DOCUMENT_TITLE_BRAND,
   formatChatTabTitle,
 } from "@/lib/document-title";
+import { projectTabTitle } from "@/lib/project-drafts";
 
 const BRAND = DOCUMENT_TITLE_BRAND;
 
@@ -42,6 +43,12 @@ function titleForPath(
   const chatMatch = pathname.match(/^\/c\/([^/]+)/);
   if (chatMatch) return formatChatTabTitle(chatTitle);
 
+  if (pathname === "/projects") return `Projects - ${BRAND}`;
+  const projectMatch = pathname.match(/^\/projects\/([^/]+)/);
+  if (projectMatch) {
+    const name = projectTabTitle(decodeURIComponent(projectMatch[1]));
+    return name ? `${name} - ${BRAND}` : `Project - ${BRAND}`;
+  }
   if (pathname.startsWith("/library")) return `Library - ${BRAND}`;
   if (pathname.startsWith("/scheduled")) return `Scheduled Tasks - ${BRAND}`;
   if (pathname.startsWith("/my-clauxen")) return `My Clauxen - ${BRAND}`;

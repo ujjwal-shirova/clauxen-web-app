@@ -13,7 +13,6 @@ import {
   ArrowUp,
   Check,
   LoaderCircle,
-  Bot,
   Mic,
   Plus,
   Square,
@@ -1253,18 +1252,6 @@ export function PromptInput({
         <div className="prompt-welcome" data-prompt-welcome="true">
           <div className="prompt-welcome__input">
             {renderTextareaField(placeholder, "py-1")}
-            <button
-              type="button"
-              aria-label="Cowork"
-              aria-pressed={composerMode === "cowork"}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() =>
-                setComposerMode((mode) => (mode === "cowork" ? "chat" : "cowork"))
-              }
-              className="prompt-welcome__mark"
-            >
-              <Bot className="size-4" strokeWidth={1.75} aria-hidden />
-            </button>
           </div>
           <div className="prompt-welcome__bar">
             {renderAddMenuButton()}

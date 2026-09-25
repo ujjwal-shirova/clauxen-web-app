@@ -3097,24 +3097,6 @@ button.user-message-card__body:not(:disabled):hover,
   min-height: 36px;
 }
 
-.prompt-welcome__mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  flex: none;
-  border: 0;
-  border-radius: 999px;
-  background: #1f8a4c;
-  color: #fff;
-  cursor: pointer;
-}
-
-.prompt-welcome__mark[aria-pressed="true"] {
-  background: #166534;
-}
-
 .prompt-welcome__bar {
   display: flex;
   align-items: center;
@@ -5135,12 +5117,12 @@ button[data-speed-toggle][data-state="open"] {
   padding: 8px 10px 4px;
 }
 
-/* Collapsed chat-header toggle uses the same box as .cx-hide-sidebar:
-   24×24, 8px from the left edge, 4px from the top of the 44px bar. */
+/* Collapsed toggle matches .cx-hide-sidebar inside the 44px top bar:
+   24×24, 8px from the left, vertically centered under 4px top padding. */
 .app-sidebar-peek-toggle {
   box-sizing: border-box;
   left: 8px;
-  top: 4px;
+  top: calc(12px + env(safe-area-inset-top, 0px));
   width: 24px;
   min-width: 24px;
   height: 24px;
@@ -5157,7 +5139,7 @@ button[data-speed-toggle][data-state="open"] {
 @media (min-width: 1024px) {
   .app-sidebar-peek-toggle {
     left: 8px !important;
-    top: 4px !important;
+    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
     width: 24px !important;
     min-width: 24px !important;
     height: 24px !important;
@@ -8891,34 +8873,6 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   line-height: 16px;
   pointer-events: none;
   white-space: nowrap;
-}
-
-.cx-section-head .cx-section-tools {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.cx-view-all {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 10px;
-  border-radius: 8px;
-  background: #18181b;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1;
-  text-decoration: none;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.cx-section-head:hover .cx-view-all,
-.cx-section-head:focus-within .cx-view-all {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .cx-hide-sidebar-spacer {
