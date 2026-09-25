@@ -734,7 +734,15 @@ export function Sidebar({
                 </>
               )}
             </button>
-            {appsOpen && (!isCollapsed || isMobileLayout) ? (
+            <div
+              className={cn(
+                "grid transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                appsOpen && (!isCollapsed || isMobileLayout)
+                  ? "grid-rows-[1fr] opacity-100"
+                  : "grid-rows-[0fr] opacity-0",
+              )}
+            >
+              <div className="min-h-0 overflow-hidden">
               <div className="grid grid-cols-2 gap-0.5 px-1 pb-1">
                 {(
                   [
@@ -774,7 +782,8 @@ export function Sidebar({
                   </AppHref>
                 ))}
               </div>
-            ) : null}
+              </div>
+            </div>
         </nav>
 
         <div

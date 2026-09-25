@@ -144,7 +144,8 @@ export function BillingSettings({
   onUpgradeClick,
   userDisplayName,
   userEmail,
-}: BillingSettingsProps) {
+  focus = "full",
+}: BillingSettingsProps & { focus?: "full" | "storage" | "analytics" }) {
   const auth = useAuth();
   const [loading, setLoading] = useState(true);
   const [planId, setPlanId] = useState<string | null>(null);
@@ -303,6 +304,57 @@ export function BillingSettings({
 
   if (loading) {
     return <AppContentLoader label="Loading billing" />;
+  }
+
+  if (focus === "storage") {
+    return (
+      <SettingsPage>
+        <SettingsSection
+          title="Storage"
+          description="Files and images kept with your account."
+        >
+          <div className="px-5 py-5">
+            <SettingsProgressBar
+              value={usedBytes}
+              max={quotaBytes}
+              label={`${formatStorage(usedBytes)} of ${formatStorage(quotaBytes)} used`}
+            />
+          </div>
+        </SettingsSection>
+      </SettingsPage>
+    );
+  }
+
+  if (focus === "analytics") {
+    return (
+      <SettingsPage>
+        <SettingsSection
+          title="Overview"
+          description="A snapshot of how this account is using Clauxen."
+        >
+          <SettingsRow label="Plan" description={planTitle}>
+            <span className="text-[14px] text-[var(--settings-fg-muted)]">
+              {planSubtitle}
+            </span>
+          </SettingsRow>
+          <SettingsRow
+            label="Storage used"
+            description={`${formatStorage(usedBytes)} of ${formatStorage(quotaBytes)}`}
+          >
+            <span className="text-[14px] text-[var(--settings-fg-muted)]">
+              {quotaBytes > 0
+                ? `${Math.min(100, Math.round((usedBytes / quotaBytes) * 100))}%`
+                : "—"}
+            </span>
+          </SettingsRow>
+          <SettingsRow label="Invoices" description="Receipts on this account." borderless>
+            <span className="text-[14px] text-[var(--settings-fg-muted)]">
+              {invoices.length}
+            </span>
+          </SettingsRow>
+        </SettingsSection>
+      </SettingsPage>
+    );
   }
 
   return (

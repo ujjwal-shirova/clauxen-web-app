@@ -7347,17 +7347,17 @@ button.prompt-model-selector[aria-expanded="true"] {
 .cx-set-link {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   width: 100%;
-  min-height: var(--nav-row-height, 30px);
-  padding: 0 8px;
+  min-height: 36px;
+  padding: 0 10px;
   border: 0;
-  border-radius: var(--menu-item-radius, 7px);
+  border-radius: var(--menu-item-radius, 8px);
   background: transparent;
   color: var(--ui-fg-muted);
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 450;
-  line-height: 18px;
+  line-height: 20px;
   text-align: left;
   cursor: pointer;
   transition:
@@ -7366,8 +7366,8 @@ button.prompt-model-selector[aria-expanded="true"] {
 }
 
 .cx-set-link svg {
-  width: var(--icon-size, 15px);
-  height: var(--icon-size, 15px);
+  width: 18px;
+  height: 18px;
   flex: none;
   opacity: 0.85;
 }

@@ -173,9 +173,11 @@ export function SettingsNavSidebar({
           <div className="flex flex-col gap-3.5">
             {filteredByGroup.map((group) => (
               <div key={group.label} className="flex flex-col">
-                <p className="px-2 pb-1 text-[11px] font-medium leading-4 text-[var(--settings-fg-subtle)]">
-                  {group.label}
-                </p>
+                {group.label ? (
+                  <p className="px-2 pb-1 text-[12px] font-medium leading-4 text-[var(--settings-fg-subtle)]">
+                    {group.label}
+                  </p>
+                ) : null}
                 <ul className="flex flex-col gap-px">
                   {group.items.map((tab) =>
                     tab === "Account" && group.label === "Account" ? (
@@ -189,7 +191,7 @@ export function SettingsNavSidebar({
                           <UserAvatarDisplay
                             name={accountName || "You"}
                             avatarUrl={accountAvatarUrl}
-                            className="!size-[18px] !text-[9px]"
+                            className="!size-[22px] !text-[10px]"
                             size="sm"
                           />
                           <span className="truncate">

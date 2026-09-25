@@ -333,8 +333,27 @@ export function SettingsModal({
           />
         );
       case "Billing":
+      case "Usage":
         return (
           <BillingSettings
+            onUpgradeClick={onUpgradeClick}
+            userDisplayName={user?.displayName ?? user?.email}
+            userEmail={user?.email}
+          />
+        );
+      case "Storage":
+        return (
+          <BillingSettings
+            focus="storage"
+            onUpgradeClick={onUpgradeClick}
+            userDisplayName={user?.displayName ?? user?.email}
+            userEmail={user?.email}
+          />
+        );
+      case "Analytics":
+        return (
+          <BillingSettings
+            focus="analytics"
             onUpgradeClick={onUpgradeClick}
             userDisplayName={user?.displayName ?? user?.email}
             userEmail={user?.email}

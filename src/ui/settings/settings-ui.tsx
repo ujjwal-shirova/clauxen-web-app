@@ -38,7 +38,7 @@ export function SettingsPage({
   return (
     <div
       className={cn(
-        "flex flex-col gap-6 text-[var(--settings-fg)]",
+        "flex flex-col gap-8 text-[var(--settings-fg)]",
         className,
       )}
     >

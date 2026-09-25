@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Copy, LogOut, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, Copy, Laptop, Trash2 } from "lucide-react";
 import {
   SettingsButton,
   SettingsConfirmDialog,
   SettingsInlineNote,
-  SettingsListItem,
   SettingsPage,
   SettingsPanelTitle,
   SettingsRow,
   SettingsSection,
-  SettingsStatusBadge,
+  SettingsToggleRow,
 } from "@/components/settings/settings-ui";
 import { ProfileAvatarUpload } from "@/components/settings/profile-avatar-upload";
 import type { UserProfile } from "@/lib/api/profile";
@@ -41,47 +40,7 @@ interface AccountSettingsProps {
   }>;
 }
 
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-[15px]" aria-hidden>
-      <path
-        fill="currentColor"
-        d="M21.35 11.1H12v2.98h5.35c-.23 1.4-1.62 4.1-5.35 4.1a5.9 5.9 0 0 1 0-11.8c1.84 0 3.07.78 3.77 1.45l2.57-2.48A9.43 9.43 0 0 0 12 2.6a9.4 9.4 0 1 0 0 18.8c5.43 0 9.03-3.82 9.03-9.2 0-.62-.07-1.09-.16-1.56Z"
-      />
-    </svg>
-  );
-}
-
-function GitHubMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-[15px]" aria-hidden>
-      <path
-        fill="currentColor"
-        d="M12 2.2a9.8 9.8 0 0 0-3.1 19.1c.5.1.67-.21.67-.47v-1.7c-2.73.6-3.3-1.3-3.3-1.3-.45-1.14-1.1-1.44-1.1-1.44-.9-.61.07-.6.07-.6 1 .07 1.52 1.02 1.52 1.02.88 1.52 2.32 1.08 2.88.83.09-.64.35-1.08.63-1.33-2.18-.25-4.47-1.09-4.47-4.85 0-1.07.38-1.95 1.01-2.63-.1-.25-.44-1.25.1-2.6 0 0 .82-.27 2.7 1a9.3 9.3 0 0 1 4.9 0c1.87-1.27 2.7-1 2.7-1 .53 1.35.2 2.35.1 2.6.62.68 1 1.56 1 2.63 0 3.77-2.3 4.6-4.48 4.84.35.3.67.9.67 1.82v2.7c0 .26.18.58.68.48A9.8 9.8 0 0 0 12 2.2Z"
-      />
-    </svg>
-  );
-}
-
-const LINKED_PROVIDERS = [
-  { id: "google", name: "Google", icon: <GoogleMark /> },
-  { id: "github", name: "GitHub", icon: <GitHubMark /> },
-] as const;
-
-function formatDate(value?: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 export function AccountSettings({
-  copied = false,
-  onCopyOrgId,
   userId,
   userEmail,
   avatarUrl,
@@ -91,11 +50,8 @@ export function AccountSettings({
   onOpenSecurity,
   onLogout,
   onLogoutAllDevices,
-  workspace,
 }: AccountSettingsProps) {
-  const orgId = workspace?.id ?? userId ?? "—";
   const [nameDraft, setNameDraft] = useState(fullName || "");
-  const [linked, setLinked] = useState<Record<string, boolean>>({});
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState<{
@@ -103,6 +59,47 @@ export function AccountSettings({
     text: string;
   } | null>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [supportAccess, setSupportAccess] = useState(false);
+  const [deviceLimit, setDeviceLimit] = useState(3);
+  const [sessions, setSessions] = useState<
+    settingsApi.SecuritySettingsData["sessions"] | null
+  >(null);
+  const [userIdCopied, setUserIdCopied] = useState(false);
+
+  useEffect(() => {
+    void settingsApi
+      .getSecuritySettings()
+      .then(({ security }) => setSessions(security.sessions ?? []))
+      .catch(() => setSessions([]));
+  }, []);
+
+  const devices = useMemo(() => {
+    const currentUa = typeof navigator !== "undefined" ? navigator.userAgent : "";
+    return (sessions ?? []).map((entry, index) => ({
+      id: entry.id,
+      name: /Mac/i.test(entry.userAgent ?? "")
+        ? "macOS"
+        : /Windows/i.test(entry.userAgent ?? "")
+          ? "Windows"
+          : /Android/i.test(entry.userAgent ?? "")
+            ? "Android"
+            : /iPhone|iPad/i.test(entry.userAgent ?? "")
+              ? "iOS"
+              : "Browser",
+      when:
+        index === 0 && entry.userAgent === currentUa
+          ? "Now"
+          : new Date(entry.createdAt).toLocaleString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            }),
+      location: entry.ipAddress || "Unknown",
+      current: index === 0 && entry.userAgent === currentUa,
+    }));
+  }, [sessions]);
 
   useEffect(() => setNameDraft(fullName || ""), [fullName]);
 
@@ -197,96 +194,113 @@ export function AccountSettings({
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection
-        title="Organization"
-        description="Workspace identity used for sharing, billing, and support."
-      >
-        <SettingsRow label="Workspace">
-          <span className="truncate text-[13px] text-[var(--settings-fg-muted)]">
-            {workspace?.name || "Personal"}
-          </span>
-        </SettingsRow>
+      <SettingsSection title="Support">
+        <SettingsToggleRow
+          label="Support access"
+          description="Grant Clauxen support temporary access to help troubleshoot problems or recover content. You can revoke access anytime."
+          checked={supportAccess}
+          onCheckedChange={setSupportAccess}
+        />
         <SettingsRow
-          label="Organization ID"
-          description="Share this with support when asked."
-          borderless
-        >
-          <button
-            type="button"
-            onClick={onCopyOrgId}
-            title={copied ? "Copied" : "Copy organization ID"}
-            className="settings-btn !h-7 !min-h-7 max-w-[min(100%,20rem)] !gap-1.5 !px-2.5 font-mono !text-[11.5px]"
-          >
-            <span className="truncate">{orgId}</span>
-            {copied ? (
-              <Check className="size-3.5 shrink-0" aria-hidden />
-            ) : (
-              <Copy className="size-3.5 shrink-0 text-[var(--settings-fg-muted)]" aria-hidden />
-            )}
-          </button>
-        </SettingsRow>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Linked accounts"
-        description="Sign in faster with an account you already use."
-      >
-        {LINKED_PROVIDERS.map((provider) => {
-          const isLinked = Boolean(linked[provider.id]);
-          return (
-            <SettingsListItem
-              key={provider.id}
-              icon={provider.icon}
-              title={provider.name}
-              meta={isLinked ? `Connected as ${userEmail ?? "you"}` : "Not connected"}
-              badge={
-                isLinked ? (
-                  <SettingsStatusBadge tone="success">Linked</SettingsStatusBadge>
-                ) : null
-              }
-              action={
-                <SettingsButton
-                  size="sm"
-                  variant={isLinked ? "ghost" : "default"}
-                  onClick={() =>
-                    setLinked((prev) => ({ ...prev, [provider.id]: !isLinked }))
-                  }
-                >
-                  {isLinked ? "Disconnect" : "Connect"}
-                </SettingsButton>
-              }
-            />
-          );
-        })}
-      </SettingsSection>
-
-      <SettingsSection title="Danger zone" className="cx-set-danger">
-        <SettingsRow
-          label="Log out of this device"
-          description="You'll need to sign in again here."
-        >
-          <SettingsButton size="sm" onClick={() => setLogoutOpen(true)}>
-            <LogOut className="size-3.5" aria-hidden />
-            Log out
-          </SettingsButton>
-        </SettingsRow>
-        <SettingsRow
-          label="Delete account"
-          description="Permanently removes your chats, files, memory, and billing history."
+          label="Delete my account"
+          description="Permanently delete your account. You'll no longer be able to access your chats or files."
           borderless
         >
           <SettingsButton size="sm" variant="danger" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="size-3.5" aria-hidden />
-            Delete account
+            Delete my account
           </SettingsButton>
         </SettingsRow>
         {deleteMessage ? (
-          <div className="border-t border-[var(--settings-hairline)]">
-            <SettingsInlineNote tone={deleteMessage.tone}>
-              {deleteMessage.text}
-            </SettingsInlineNote>
-          </div>
+          <SettingsInlineNote tone={deleteMessage.tone}>
+            {deleteMessage.text}
+          </SettingsInlineNote>
         ) : null}
+      </SettingsSection>
+
+      <SettingsSection title="Devices">
+        <SettingsRow
+          label="Log out of all devices"
+          description="Log out of active sessions on all your devices, other than this one"
+        >
+          <SettingsButton size="sm" variant="danger" onClick={() => setLogoutOpen(true)}>
+            Log out of all devices
+          </SettingsButton>
+        </SettingsRow>
+        <div className="overflow-x-auto px-4 py-3 sm:px-5">
+          <table className="w-full min-w-[520px] text-left text-[13px]">
+            <thead>
+              <tr className="text-[12px] text-[var(--settings-fg-subtle)]">
+                <th className="pb-2 font-medium">Device Name</th>
+                <th className="pb-2 font-medium">Last Active</th>
+                <th className="pb-2 font-medium">Location</th>
+                <th className="pb-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {devices.slice(0, deviceLimit).map((device) => (
+                <tr key={device.id} className="border-t border-[var(--settings-hairline)]">
+                  <td className="py-3 pr-3">
+                    <span className="inline-flex items-center gap-2">
+                      <Laptop className="size-4 text-[var(--settings-fg-muted)]" aria-hidden />
+                      <span>
+                        <span className="block font-medium">{device.name}</span>
+                        {device.current ? (
+                          <span className="text-[12px] text-[var(--link)]">This Device</span>
+                        ) : null}
+                      </span>
+                    </span>
+                  </td>
+                  <td className="py-3 pr-3 text-[var(--settings-fg-muted)]">{device.when}</td>
+                  <td className="py-3 pr-3 text-[var(--settings-fg-muted)]">{device.location}</td>
+                  <td className="py-3 text-right">
+                    {device.current ? null : (
+                      <SettingsButton
+                        size="sm"
+                        onClick={() =>
+                          setSessions((prev) =>
+                            (prev ?? []).filter((entry) => entry.id !== device.id),
+                          )
+                        }
+                      >
+                        Log out
+                      </SettingsButton>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {devices.length > deviceLimit ? (
+            <button
+              type="button"
+              className="mt-2 text-[13px] text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
+              onClick={() => setDeviceLimit((count) => count + 3)}
+            >
+              ↓ Load {Math.min(3, devices.length - deviceLimit)} more devices
+            </button>
+          ) : null}
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title="User ID">
+        <SettingsRow label="User ID" borderless>
+          <button
+            type="button"
+            className="inline-flex max-w-full items-center gap-2 font-mono text-[12.5px] text-[var(--settings-fg-muted)]"
+            onClick={() => {
+              if (!userId) return;
+              void navigator.clipboard.writeText(userId);
+              setUserIdCopied(true);
+            }}
+          >
+            <span className="truncate">{userId || "—"}</span>
+            {userIdCopied ? (
+              <Check className="size-3.5 shrink-0" aria-hidden />
+            ) : (
+              <Copy className="size-3.5 shrink-0" aria-hidden />
+            )}
+          </button>
+        </SettingsRow>
       </SettingsSection>
 
       <SettingsConfirmDialog

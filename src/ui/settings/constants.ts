@@ -2,14 +2,17 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   Blocks,
+  ChartColumn,
   Code2,
   CreditCard,
   Database,
+  HardDrive,
   LockKeyhole,
   ScrollText,
   Settings2,
   Sparkles,
   UserRound,
+  Gauge,
 } from "lucide-react";
 
 /**
@@ -25,7 +28,10 @@ import {
  */
 export const settingsNav = [
   { name: "General", icon: Settings2 },
+  { name: "Storage", icon: HardDrive },
   { name: "Personalization", icon: Sparkles },
+  { name: "Usage", icon: Gauge },
+  { name: "Analytics", icon: ChartColumn },
   { name: "Notifications", icon: Bell },
   { name: "Account", icon: UserRound },
   { name: "Security & login", icon: LockKeyhole },
@@ -61,6 +67,9 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
     case "General":
     case "Personalization":
     case "Notifications":
+    case "Storage":
+    case "Usage":
+    case "Analytics":
     case "Account":
     case "Security & login":
     case "Data controls":
@@ -70,7 +79,7 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
     case "Clauxen Code":
       return tab;
     case "Security":
-      return "Security & login";
+      return "Account";
     case "Privacy & safety":
     case "Privacy":
     case "Safety":
@@ -81,8 +90,6 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
       return "Personalization";
     case "Time and focus":
       return "Notifications";
-    case "Storage":
-      return "Billing";
     case "Keyboard":
     case "Enterprise":
     case "Voice":
@@ -94,9 +101,12 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
 
 const visibleDescriptions: Record<VisibleSettingsTab, string> = {
   General: "Appearance, reading, and keyboard shortcuts.",
+  Storage: "Files and images kept with your account.",
   Personalization: "How Clauxen responds and what it remembers.",
+  Usage: "Plan, invoices, and payment methods.",
+  Analytics: "How this account is using Clauxen.",
   Notifications: "What you hear about, and when to stay quiet.",
-  Account: "Your profile, organization, and linked accounts.",
+  Account: "Your profile, sign-in security, and devices.",
   "Security & login": "Sign-in methods, 2-step verification, and sessions.",
   "Data controls": "Training, chat history, exports, and content safety.",
   Billing: "Plan, usage, invoices, and payment methods.",
@@ -115,7 +125,8 @@ export const settingsTabDescriptions: Record<SettingsTab, string> = {
   "Trusted contact": visibleDescriptions["Data controls"],
   Reflect: visibleDescriptions.Personalization,
   "Time and focus": visibleDescriptions.Notifications,
-  Storage: visibleDescriptions.Billing,
+  Storage: visibleDescriptions.Storage,
+  Billing: visibleDescriptions.Usage,
   Keyboard: visibleDescriptions.General,
   Enterprise: visibleDescriptions.General,
   Voice: visibleDescriptions.General,
@@ -127,10 +138,9 @@ export const settingsNavByName = Object.fromEntries(
 
 /** Short labels in the settings rail. Tab ids stay stable for deep links. */
 export const settingsNavLabel: Partial<Record<VisibleSettingsTab, string>> = {
-  Personalization: "Preferences",
   Capabilities: "Plugins",
-  "Security & login": "Security",
-  "Clauxen Code": "Code",
+  "Data controls": "Data Controls",
+  Notifications: "Notification",
 };
 
 export function settingsItemLabel(tab: VisibleSettingsTab): string {
@@ -142,23 +152,28 @@ export const settingsNavGroups: ReadonlyArray<{
   items: readonly VisibleSettingsTab[];
 }> = [
   {
-    label: "Account",
-    items: ["Account", "Personalization", "Notifications"],
-  },
-  {
-    label: "Workspace",
-    items: ["General", "Capabilities", "Skills", "Clauxen Code"],
-  },
-  {
-    label: "Data",
-    items: ["Data controls", "Security & login", "Billing"],
+    label: "",
+    items: [
+      "Account",
+      "General",
+      "Storage",
+      "Personalization",
+      "Usage",
+      "Analytics",
+      "Capabilities",
+      "Data controls",
+      "Notifications",
+    ],
   },
 ];
 
 /** Extra search terms so "password" finds Security & login, etc. */
 export const settingsNavKeywords: Record<VisibleSettingsTab, string> = {
   General: "theme appearance dark light font language shortcuts keyboard motion contrast",
+  Storage: "files images quota disk space",
   Personalization: "tone style instructions memory reflect about you",
+  Usage: "plan subscription invoices payment card upgrade",
+  Analytics: "activity stats usage overview",
   Notifications: "email push alerts quiet hours breaks focus sounds",
   Account: "profile name avatar email organization delete account linked",
   "Security & login": "password passkey mfa 2fa two-step authenticator sessions devices log out",

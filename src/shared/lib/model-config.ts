@@ -60,14 +60,14 @@ export const MODEL_CONFIG = {
     helios: {
       label: "Helios",
       shortLabel: "Helios",
-      description: "Balanced for complex tasks",
+      description: "Most Capable Model for Complex Tasks",
       available: true,
       requiresUpgrade: true,
     },
     virgil: {
       label: "Virgil",
       shortLabel: "Virgil",
-      description: "Fast for everyday tasks",
+      description: "Most efficient for everyday task",
       available: true,
       requiresUpgrade: false,
     },
