@@ -48,7 +48,7 @@ export function CodeRenderer(props: {
   children?: React.ReactNode;
   /** @deprecated no-op */
   streamFade?: unknown;
-  /** Keep unfinished code cheap; syntax highlighting runs once after completion. */
+  /** Unfinished fences stay highlighted as tokens arrive. */
   isStreaming?: boolean;
 }) {
   const {
@@ -93,13 +93,7 @@ export function CodeRenderer(props: {
         onDownload={isStreaming ? undefined : handleDownload}
         downloadExtension={extension}
       >
-        {isStreaming ? (
-          <pre className="m-0 min-w-full whitespace-pre bg-transparent px-3.5 py-4 font-mono text-[14px] leading-[1.6] text-zinc-800">
-            <code>{content}</code>
-          </pre>
-        ) : (
-          <HighlightCode code={content} language={resolvedLanguage} />
-        )}
+        <HighlightCode code={content} language={resolvedLanguage} />
       </CodeBlockFrame>
     );
   }

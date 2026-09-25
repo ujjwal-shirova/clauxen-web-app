@@ -1,240 +1,392 @@
 "use client";
 
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import {
-  BookOpen,
-  Bot,
-  Briefcase,
-  CalendarClock,
-  Camera,
-  Code2,
+  Archive,
+  Check,
+  ChevronDown,
   FileText,
-  FlaskConical,
-  FolderKanban,
-  Globe,
-  Hammer,
-  ImagePlus,
-  Languages,
-  Library,
+  Folder,
   Lightbulb,
-  Music,
+  Link2,
+  MoreHorizontal,
   Paperclip,
-  PenLine,
-  Puzzle,
-  Sparkles,
-  Telescope,
+  Pencil,
+  Pin,
+  Search,
+  Settings,
+  Share,
+  Trash2,
+  Upload,
   X,
-  type LucideIcon,
 } from "lucide-react";
 import { AppHref } from "@/components/app-href";
-import { MobilePageHeader } from "@/components/mobile-page-header";
 import { IsolatedChatInput } from "@/components/isolated-chat-input";
+import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
+import { useToast } from "@/hooks/use-toast";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { appBtn } from "@/lib/app-buttons";
 import {
-  createProjectId,
-  getProjectDraft,
-  listProjectDrafts,
-  saveProjectDraft,
+  addProjectChat,
+  addProjectSource,
+  createProjectDraft,
+  deleteProjectDraft,
+  getServerProjectSnapshot,
+  getProjectSnapshot,
+  removeProjectChat,
+  removeProjectSource,
+  subscribeProjects,
+  updateProjectChat,
+  updateProjectDraft,
+  type LibraryAccess,
+  type ProjectChat,
   type ProjectDraft,
-  type ProjectFile,
   type ProjectIcon,
+  type ProjectMemory,
+  type ProjectSource,
+  type ProjectSourceKind,
 } from "@/lib/project-drafts";
 import { cn } from "@/lib/utils";
+import { ProjectIconPicker, ProjectMark } from "./project-icon";
 
-const PRESET_ICONS: Array<{ id: string; label: string; icon: LucideIcon }> = [
-  { id: "folder", label: "Folder", icon: FolderKanban },
-  { id: "spark", label: "Spark", icon: Sparkles },
-  { id: "code", label: "Code", icon: Code2 },
-  { id: "research", label: "Research", icon: Telescope },
-  { id: "agent", label: "Agent", icon: Bot },
-  { id: "library", label: "Library", icon: Library },
-  { id: "plugin", label: "Plugin", icon: Puzzle },
-  { id: "build", label: "Build", icon: Hammer },
-  { id: "schedule", label: "Schedule", icon: CalendarClock },
-  { id: "language", label: "Language", icon: Languages },
-  { id: "notes", label: "Notes", icon: BookOpen },
-  { id: "idea", label: "Idea", icon: Lightbulb },
-  { id: "write", label: "Write", icon: PenLine },
-  { id: "web", label: "Web", icon: Globe },
-  { id: "work", label: "Work", icon: Briefcase },
-  { id: "lab", label: "Lab", icon: FlaskConical },
-  { id: "audio", label: "Audio", icon: Music },
-  { id: "camera", label: "Camera", icon: Camera },
-];
-
-const presetById = new Map(PRESET_ICONS.map((item) => [item.id, item]));
-
-function ProjectMark({
-  icon,
-  className,
-  iconClassName,
-}: {
-  icon: ProjectIcon;
-  className?: string;
-  iconClassName?: string;
-}) {
-  if (icon.kind === "photo") {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={icon.dataUrl}
-        alt=""
-        className={cn("object-cover", className)}
-      />
-    );
-  }
-  const preset = presetById.get(icon.id) ?? PRESET_ICONS[0];
-  const Icon = preset.icon;
-  return <Icon className={iconClassName} strokeWidth={1.75} aria-hidden />;
-}
-
-async function photoDataUrl(file: File) {
-  const bitmap = await createImageBitmap(file);
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("canvas");
-  const scale = Math.max(size / bitmap.width, size / bitmap.height);
-  const width = bitmap.width * scale;
-  const height = bitmap.height * scale;
-  ctx.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height);
-  bitmap.close();
-  return canvas.toDataURL("image/jpeg", 0.86);
-}
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB"];
-  let value = bytes / 1024;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
-}
-
-function IconPicker({
-  icon,
-  onChange,
-}: {
-  icon: ProjectIcon;
-  onChange: (icon: ProjectIcon) => void;
-}) {
-  const inputId = useId();
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Choose project icon"
-          className="group relative flex size-24 items-center justify-center overflow-hidden rounded-[28px] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-[var(--ui-fg)] shadow-[0_1px_2px_rgba(20,21,26,0.04)] transition-colors hover:bg-[var(--ui-hover-wash)]"
-        >
-          <ProjectMark
-            icon={icon}
-            className="size-full"
-            iconClassName="size-9"
-          />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="center"
-        sideOffset={10}
-        className="w-[320px] rounded-2xl border-[var(--ui-border)] bg-[var(--ui-field-bg)] p-3 text-[var(--ui-fg)] shadow-lg"
-      >
-        <p className="px-1 pb-2 text-[12px] font-medium text-[var(--ui-fg-muted)]">
-          Icons
-        </p>
-        <div className="grid grid-cols-6 gap-1">
-          {PRESET_ICONS.map((preset) => {
-            const selected = icon.kind === "preset" && icon.id === preset.id;
-            const Icon = preset.icon;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                aria-label={preset.label}
-                aria-pressed={selected}
-                onClick={() => {
-                  onChange({ kind: "preset", id: preset.id });
-                  setOpen(false);
-                }}
-                className={cn(
-                  "flex size-10 items-center justify-center rounded-xl text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-hover-wash)]",
-                  selected && "bg-[var(--ui-hover-wash)]",
-                )}
-              >
-                <Icon className="size-[18px]" strokeWidth={1.75} />
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-2 border-t border-[var(--ui-border-subtle)] pt-2">
-          <label
-            htmlFor={inputId}
-            className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-[13px] text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-hover-wash)]"
-          >
-            <ImagePlus className="size-4 text-[var(--ui-fg-muted)]" strokeWidth={1.75} />
-            Upload a photo
-          </label>
-          <input
-            id={inputId}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (!file) return;
-              void photoDataUrl(file).then((dataUrl) => {
-                onChange({ kind: "photo", dataUrl });
-                setOpen(false);
-              });
-            }}
-          />
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-[13px] font-medium text-[var(--ui-fg)]">{label}</span>
-      {children}
-    </label>
-  );
-}
+type ProjectTab = "all" | "mine" | "shared";
+type SourceSort = "newest" | "oldest" | "alpha";
+type SourceFilter = "all" | "files" | "saves" | "apps";
 
 const fieldClass =
-  "w-full rounded-xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-3 py-2.5 text-[14px] text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-field-focus-border)]";
+  "h-10 w-full rounded-xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-[14px] text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-field-focus-border)]";
+
+function useProjects() {
+  return useSyncExternalStore(
+    subscribeProjects,
+    getProjectSnapshot,
+    getServerProjectSnapshot,
+  );
+}
+
+function formatModified(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
+async function copyText(value: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function MemoryMenu({
+  value,
+  onChange,
+}: {
+  value: ProjectMemory;
+  onChange: (value: ProjectMemory) => void;
+}) {
+  const label = value === "project" ? "Project-only memory" : "Default memory";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="inline-flex h-9 items-center gap-1 rounded-lg px-1 text-[14px] font-medium text-[var(--ui-fg)] outline-none hover:bg-[var(--ui-hover-wash)]">
+        {label}
+        <ChevronDown className="size-4 text-[var(--ui-fg-muted)]" strokeWidth={1.75} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[280px] p-1">
+        <MemoryOption
+          title="Default memory"
+          body="This project can access memory from outside chats, and vice versa."
+          selected={value === "default"}
+          onSelect={() => onChange("default")}
+        />
+        <MemoryOption
+          title="Project-only memory"
+          body="This project can only access its own memory. Its memory is hidden from outside chats."
+          selected={value === "project"}
+          onSelect={() => onChange("project")}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function MemoryOption({
+  title,
+  body,
+  selected,
+  onSelect,
+}: {
+  title: string;
+  body: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <DropdownMenuItem
+      onSelect={onSelect}
+      className="items-start gap-2 whitespace-normal py-2"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] font-medium text-[var(--ui-fg)]">{title}</span>
+        <span className="mt-0.5 block text-[12px] leading-4 text-[var(--ui-fg-muted)]">{body}</span>
+      </span>
+      {selected ? <Check className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} /> : <span className="size-4" />}
+    </DropdownMenuItem>
+  );
+}
+
+export function CreateProjectDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const navigate = useInstantNavigate();
+  const [name, setName] = useState("");
+  const [icon, setIcon] = useState<ProjectIcon>({ id: "folder", color: "#14151a" });
+  const [memory, setMemory] = useState<ProjectMemory>("default");
+
+  const reset = () => {
+    setName("");
+    setIcon({ id: "folder", color: "#14151a" });
+    setMemory("default");
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) reset();
+        onOpenChange(next);
+      }}
+    >
+      <DialogContent className="max-w-[480px] gap-4 p-5">
+        <DialogHeader>
+          <DialogTitle className="text-[18px] font-medium tracking-[-0.03em]">
+            Create project
+          </DialogTitle>
+        </DialogHeader>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const trimmed = name.trim();
+            if (!trimmed) return;
+            const project = createProjectDraft({ name: trimmed, icon, memory });
+            reset();
+            onOpenChange(false);
+            navigate(APP_ROUTES.project(project.id));
+          }}
+        >
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[14px] font-medium text-[var(--ui-fg)]">Project name</span>
+            <span className="relative">
+              <span className="absolute left-1.5 top-1/2 -translate-y-1/2">
+                <ProjectIconPicker
+                  icon={icon}
+                  onChange={setIcon}
+                  triggerClassName="size-8"
+                  glyphClassName="size-4"
+                />
+              </span>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Copenhagen Trip"
+                autoFocus
+                className={cn(fieldClass, "pl-11 pr-3")}
+              />
+            </span>
+          </label>
+          <div className="flex gap-2 rounded-xl bg-[var(--ui-hover-wash)] px-3 py-2.5 text-[13px] leading-5 text-[var(--ui-fg-muted)]">
+            <Lightbulb className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
+            <p>
+              Projects keep chats, files, and custom instructions in one place. Use them for ongoing work, or just to keep things tidy.
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <MemoryMenu value={memory} onChange={setMemory} />
+            <button
+              type="submit"
+              disabled={!name.trim()}
+              className={cn(appBtn.primary, "disabled:opacity-40")}
+            >
+              Create project
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProjectSettingsDialog({
+  project,
+  open,
+  onOpenChange,
+}: {
+  project: ProjectDraft;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const navigate = useInstantNavigate();
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[480px] gap-4 p-5">
+        <DialogHeader>
+          <DialogTitle className="text-[18px] font-medium tracking-[-0.03em]">
+            Project settings
+          </DialogTitle>
+        </DialogHeader>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[14px] font-medium">Project name</span>
+          <span className="relative">
+            <span className="absolute left-1.5 top-1/2 -translate-y-1/2">
+              <ProjectIconPicker
+                icon={project.icon}
+                onChange={(icon) => updateProjectDraft(project.id, { icon })}
+                triggerClassName="size-8"
+                glyphClassName="size-4"
+              />
+            </span>
+            <input
+              value={project.name}
+              onChange={(event) =>
+                updateProjectDraft(project.id, { name: event.target.value })
+              }
+              className={cn(fieldClass, "pl-11 pr-3")}
+            />
+          </span>
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[14px] font-medium">Instructions</span>
+          <span className="text-[12.5px] leading-5 text-[var(--ui-fg-muted)]">
+            Set context and customize how Clauxen responds in this project.
+          </span>
+          <textarea
+            value={project.instructions}
+            onChange={(event) =>
+              updateProjectDraft(project.id, { instructions: event.target.value })
+            }
+            rows={4}
+            placeholder='e.g. "Respond in Spanish. Reference the latest notes. Keep answers short and focused."'
+            className="w-full resize-none rounded-xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-3 py-2.5 text-[14px] leading-5 text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-field-focus-border)]"
+          />
+        </label>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[14px] font-medium">Memory</span>
+          <MemorySelect
+            value={project.memory}
+            onChange={(memory) => updateProjectDraft(project.id, { memory })}
+          />
+          <p className="text-[12.5px] leading-5 text-[var(--ui-fg-muted)]">
+            {project.memory === "project"
+              ? "This project can only access its own memory. Its memory is hidden from outside chats."
+              : "This project can access memory from outside chats, and vice versa."}
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[14px] font-medium">Library access</span>
+          <LibrarySelect
+            value={project.libraryAccess}
+            onChange={(libraryAccess) => updateProjectDraft(project.id, { libraryAccess })}
+          />
+          <p className="text-[12.5px] leading-5 text-[var(--ui-fg-muted)]">
+            This project can access your file library while it remains private. Sharing this project disables library access.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="mt-1 h-9 w-fit rounded-full border border-red-500/40 px-4 text-[13px] font-medium text-red-600 hover:bg-red-500/10"
+          onClick={() => {
+            deleteProjectDraft(project.id);
+            onOpenChange(false);
+            navigate(APP_ROUTES.projects);
+          }}
+        >
+          Delete project
+        </button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MemorySelect({
+  value,
+  onChange,
+}: {
+  value: ProjectMemory;
+  onChange: (value: ProjectMemory) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex h-10 w-full items-center justify-between rounded-xl border border-[var(--ui-border)] px-3 text-[14px] outline-none">
+        {value === "project" ? "Project-only memory" : "Default memory"}
+        <ChevronDown className="size-4 text-[var(--ui-fg-muted)]" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-[320px]">
+        <MemoryOption
+          title="Default memory"
+          body="This project can access memory from outside chats, and vice versa."
+          selected={value === "default"}
+          onSelect={() => onChange("default")}
+        />
+        <MemoryOption
+          title="Project-only memory"
+          body="This project can only access its own memory. Its memory is hidden from outside chats."
+          selected={value === "project"}
+          onSelect={() => onChange("project")}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function LibrarySelect({
+  value,
+  onChange,
+}: {
+  value: LibraryAccess;
+  onChange: (value: LibraryAccess) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex h-10 w-full items-center justify-between rounded-xl border border-[var(--ui-border)] px-3 text-[14px] outline-none">
+        {value === "enabled" ? "Enabled" : "Disabled"}
+        <ChevronDown className="size-4 text-[var(--ui-fg-muted)]" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-[220px]">
+        <DropdownMenuItem onSelect={() => onChange("enabled")}>
+          Enabled
+          {value === "enabled" ? <Check className="ml-auto size-4" /> : null}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onChange("disabled")}>
+          Disabled
+          {value === "disabled" ? <Check className="ml-auto size-4" /> : null}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export function ProjectsView() {
   const pathname = useAppPathname();
@@ -242,308 +394,620 @@ export function ProjectsView() {
     const match = pathname.match(/^\/projects\/([^/]+)/);
     return match ? decodeURIComponent(match[1]) : null;
   }, [pathname]);
+  const projects = useProjects();
 
-  if (projectId) return <ProjectHome projectId={projectId} />;
-  return <CreateProjectPage />;
+  if (projectId) {
+    const project = projects.find((row) => row.id === projectId) ?? null;
+    return <ProjectHome project={project} />;
+  }
+  return <ProjectsIndex projects={projects} />;
 }
 
-function CreateProjectPage() {
-  const navigate = useInstantNavigate();
+function ProjectsIndex({ projects }: { projects: ProjectDraft[] }) {
   const { isMobile, openMobileNav } = useAppLayout();
-  const [icon, setIcon] = useState<ProjectIcon>({ kind: "preset", id: "folder" });
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [projects, setProjects] = useState<ProjectDraft[]>([]);
+  const { toast } = useToast();
+  const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<ProjectTab>("all");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [settingsId, setSettingsId] = useState<string | null>(null);
+  const settingsProject = projects.find((project) => project.id === settingsId) ?? null;
 
-  useEffect(() => {
-    setProjects(listProjectDrafts());
-  }, []);
-
-  const canCreate = name.trim().length > 0;
+  const visible = projects
+    .filter((project) => {
+      if (tab === "mine") return !project.shared;
+      if (tab === "shared") return project.shared;
+      return true;
+    })
+    .filter((project) => project.name.toLowerCase().includes(query.trim().toLowerCase()))
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return a.updatedAt < b.updatedAt ? 1 : -1;
+    });
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       {isMobile ? (
-        <MobilePageHeader
-          title="Projects"
-          onOpenMobileNav={openMobileNav}
-          borderless
-        />
+        <MobilePageHeader title="Projects" onOpenMobileNav={openMobileNav} borderless />
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[460px] flex-col px-6 pb-16 pt-10 sm:pt-16">
-          <div className="flex flex-col items-center text-center">
-            <IconPicker icon={icon} onChange={setIcon} />
-            <h1 className="mt-5 text-[22px] font-medium tracking-[-0.03em] text-[var(--ui-fg)]">
-              New project
+        <div className="mx-auto w-full max-w-3xl px-6 py-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-[28px] font-medium tracking-[-0.04em] text-[var(--ui-fg)]">
+              Projects
             </h1>
-            <p className="mt-1 max-w-[34ch] text-[14px] leading-relaxed text-[var(--ui-fg-muted)]">
-              Give it a name, a short description, and an icon. You can change these later.
-            </p>
+            <div className="flex items-center gap-2">
+              <label className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--ui-fg-muted)]" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search projects"
+                  className="h-9 w-52 rounded-full border border-[var(--ui-border)] bg-transparent pl-9 pr-3 text-[13px] outline-none placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-field-focus-border)]"
+                />
+              </label>
+              <button type="button" className={cn(appBtn.primarySm, "rounded-full px-4")} onClick={() => setCreateOpen(true)}>
+                New
+              </button>
+            </div>
           </div>
 
-          <form
-            className="mt-8 flex flex-col gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const trimmed = name.trim();
-              if (!trimmed) return;
-              const project: ProjectDraft = {
-                id: createProjectId(),
-                name: trimmed,
-                description: description.trim(),
-                icon,
-                instructions: "",
-                files: [],
-                createdAt: new Date().toISOString(),
-              };
-              saveProjectDraft(project);
-              navigate(APP_ROUTES.project(project.id));
-            }}
-          >
-            <Field label="Project name">
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Launch notes"
-                autoFocus
-                className={fieldClass}
-              />
-            </Field>
-            <Field label="Description">
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="What this project is for"
-                rows={3}
-                className={cn(fieldClass, "resize-none")}
-              />
-            </Field>
-            <button
-              type="submit"
-              disabled={!canCreate}
-              className={cn(appBtn.primaryLg, "mt-1 disabled:opacity-40")}
-            >
-              Create project
-            </button>
-          </form>
+          <div className="mt-6 flex gap-1 text-[14px]">
+            {(
+              [
+                ["all", "All"],
+                ["mine", "Created by you"],
+                ["shared", "Shared with you"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={cn(
+                  "rounded-full px-3 py-1.5",
+                  tab === id
+                    ? "bg-[var(--ui-hover-wash)] font-medium text-[var(--ui-fg)]"
+                    : "text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)]",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-          {projects.length ? (
-            <div className="mt-10">
-              <p className="px-1 text-[12px] font-medium text-[var(--ui-fg-muted)]">
-                Your projects
-              </p>
-              <ul className="mt-2 flex flex-col">
-                {projects.map((project) => (
-                  <li key={project.id}>
-                    <AppHref
-                      href={APP_ROUTES.project(project.id)}
-                      className="flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-[var(--ui-hover-wash)]"
-                    >
-                      <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--ui-field-bg)] text-[var(--ui-fg)]">
-                        <ProjectMark
-                          icon={project.icon}
-                          className="size-full"
-                          iconClassName="size-4"
-                        />
-                      </span>
-                      <span className="min-w-0 text-left">
-                        <span className="block truncate text-[14px] font-medium text-[var(--ui-fg)]">
-                          {project.name}
+          {visible.length ? (
+            <div className="mt-8">
+              <div className="grid grid-cols-[minmax(0,1fr)_88px_36px] px-3 pb-2 text-[13px] text-[var(--ui-fg-muted)]">
+                <span>Name</span>
+                <span>Modified</span>
+                <span />
+              </div>
+              <ul className="flex flex-col">
+                {visible.map((project) => (
+                  <li key={project.id} className="group">
+                    <div className="grid grid-cols-[minmax(0,1fr)_88px_36px] items-center rounded-xl px-3 py-2.5 hover:bg-[var(--ui-hover-wash)]">
+                      <AppHref href={APP_ROUTES.project(project.id)} className="flex min-w-0 items-center gap-3">
+                        <span className="flex size-8 items-center justify-center rounded-lg border border-[var(--ui-border-subtle)]">
+                          <ProjectMark icon={project.icon} glyphClassName="size-4" />
                         </span>
-                        {project.description ? (
-                          <span className="block truncate text-[13px] text-[var(--ui-fg-muted)]">
-                            {project.description}
-                          </span>
-                        ) : null}
+                        <span className="truncate text-[14px] text-[var(--ui-fg)]">{project.name}</span>
+                      </AppHref>
+                      <span className="text-[13px] text-[var(--ui-fg-muted)]">
+                        {formatModified(project.updatedAt)}
                       </span>
-                    </AppHref>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          aria-label={`Actions for ${project.name}`}
+                          className="flex size-8 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] opacity-0 outline-none hover:bg-[var(--ui-field-bg)] group-hover:opacity-100 data-[state=open]:opacity-100"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => updateProjectDraft(project.id, { pinned: !project.pinned })}>
+                            <Pin className="size-4" strokeWidth={1.75} />
+                            {project.pinned ? "Unpin project" : "Pin project"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              const url = `${window.location.origin}${APP_ROUTES.project(project.id)}`;
+                              void copyText(url).then((ok) =>
+                                toast({ title: ok ? "Link copied" : "Could not copy link" }),
+                              );
+                            }}
+                          >
+                            <Share className="size-4" strokeWidth={1.75} />
+                            Share
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => setSettingsId(project.id)}>
+                            <Settings className="size-4" strokeWidth={1.75} />
+                            Project settings
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600"
+                            onSelect={() => deleteProjectDraft(project.id)}
+                          >
+                            <Trash2 className="size-4" strokeWidth={1.75} />
+                            Delete project
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </li>
                 ))}
               </ul>
             </div>
-          ) : null}
+          ) : (
+            <div className="flex flex-col items-center px-6 py-24 text-center">
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-[var(--ui-hover-wash)] text-[var(--ui-fg)]">
+                <Folder className="size-5" strokeWidth={1.75} />
+              </span>
+              <p className="mt-4 text-[16px] font-medium text-[var(--ui-fg)]">No matching projects</p>
+              <p className="mt-1 text-[14px] text-[var(--ui-fg-muted)]">
+                Try a different search or tab.
+              </p>
+              {!query && tab === "all" ? (
+                <button type="button" className={cn(appBtn.primary, "mt-5")} onClick={() => setCreateOpen(true)}>
+                  New project
+                </button>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
+      <CreateProjectDialog open={createOpen} onOpenChange={setCreateOpen} />
+      {settingsProject ? (
+        <ProjectSettingsDialog
+          project={settingsProject}
+          open
+          onOpenChange={(open) => {
+            if (!open) setSettingsId(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
-function ProjectHome({ projectId }: { projectId: string }) {
+function ProjectHome({ project }: { project: ProjectDraft | null }) {
   const { isMobile, openMobileNav } = useAppLayout();
-  const [project, setProject] = useState<ProjectDraft | null | undefined>(
-    undefined,
-  );
-  const [panel, setPanel] = useState<"instructions" | "files" | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setProject(getProjectDraft(projectId));
-    setPanel(null);
-  }, [projectId]);
-
-  const persist = (next: ProjectDraft) => {
-    setProject(next);
-    saveProjectDraft(next);
-  };
-
-  if (project === undefined) return null;
+  const { toast } = useToast();
+  const [tab, setTab] = useState<"chats" | "sources">("chats");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [renameChat, setRenameChat] = useState<ProjectChat | null>(null);
+  const [sort, setSort] = useState<SourceSort>("newest");
+  const [filter, setFilter] = useState<SourceFilter>("all");
 
   if (!project) {
     return (
-      <div className="flex h-full min-h-0 flex-col items-center justify-center bg-background px-6 text-center">
-        <h1 className="text-[20px] font-medium tracking-[-0.03em] text-[var(--ui-fg)]">
-          Project not found
-        </h1>
-        <p className="mt-2 text-[14px] text-[var(--ui-fg-muted)]">
-          This project is not on this device yet.
-        </p>
-        <AppHref href={APP_ROUTES.projects} className={cn(appBtn.secondary, "mt-5")}>
-          New project
-        </AppHref>
+      <div className="flex h-full items-center justify-center px-6 text-center">
+        <div>
+          <h1 className="text-[20px] font-medium text-[var(--ui-fg)]">Project not found</h1>
+          <AppHref href={APP_ROUTES.projects} className={cn(appBtn.secondary, "mt-4 inline-flex")}>
+            Back to projects
+          </AppHref>
+        </div>
       </div>
     );
   }
 
+  const chats = project.chats
+    .filter((chat) => !chat.archived)
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (a.updatedAt < b.updatedAt ? 1 : -1));
+
+  const sources = project.sources
+    .filter((source) => {
+      if (filter === "files") return source.kind === "file";
+      if (filter === "saves") return source.kind === "text" || source.kind === "library";
+      if (filter === "apps") return source.kind === "drive" || source.kind === "slack";
+      return true;
+    })
+    .sort((a, b) => {
+      if (sort === "alpha") return a.name.localeCompare(b.name);
+      if (sort === "oldest") return a.createdAt < b.createdAt ? -1 : 1;
+      return a.createdAt < b.createdAt ? 1 : -1;
+    });
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       {isMobile ? (
-        <MobilePageHeader
-          title={project.name}
-          subtitle={project.description || undefined}
-          onOpenMobileNav={openMobileNav}
-          borderless
-          leading={
-            <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[var(--ui-border-subtle)]">
-              <ProjectMark
-                icon={project.icon}
-                className="size-full"
-                iconClassName="size-4"
-              />
-            </span>
-          }
-        />
-      ) : (
-        <header className="flex shrink-0 items-start gap-3 px-6 pb-2 pt-6 sm:px-8">
-          <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-[var(--ui-fg)]">
-            <ProjectMark
+        <MobilePageHeader title={project.name} onOpenMobileNav={openMobileNav} borderless />
+      ) : null}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-3xl flex-col px-4 py-6 sm:px-6">
+          <div className="flex items-center gap-2">
+            <ProjectIconPicker
               icon={project.icon}
-              className="size-full"
-              iconClassName="size-5"
+              onChange={(icon) => updateProjectDraft(project.id, { icon })}
+              triggerClassName="size-9"
+              glyphClassName="size-6"
             />
-          </span>
-          <div className="min-w-0 pt-0.5">
-            <h1 className="truncate text-[20px] font-medium tracking-[-0.03em] text-[var(--ui-fg)]">
+            <h1 className="min-w-0 flex-1 truncate text-[26px] font-medium tracking-[-0.04em] text-[var(--ui-fg)]">
               {project.name}
             </h1>
-            {project.description ? (
-              <p className="mt-0.5 line-clamp-2 max-w-xl text-[14px] leading-relaxed text-[var(--ui-fg-muted)]">
-                {project.description}
-              </p>
-            ) : (
-              <p className="mt-0.5 text-[14px] text-[var(--ui-fg-subtle)]">
-                No description
-              </p>
-            )}
+            <button
+              type="button"
+              className={cn(appBtn.secondarySm, "rounded-full")}
+              onClick={() => {
+                const url = `${window.location.origin}${APP_ROUTES.project(project.id)}`;
+                void copyText(url).then((ok) =>
+                  toast({ title: ok ? "Link copied" : "Could not copy link" }),
+                );
+              }}
+            >
+              <Share className="size-3.5" strokeWidth={1.75} />
+              Share
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger aria-label="Project actions" className="flex size-8 items-center justify-center rounded-full border border-[var(--ui-border)] outline-none hover:bg-[var(--ui-hover-wash)]">
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
+                  <Settings className="size-4" strokeWidth={1.75} />
+                  Project settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => updateProjectDraft(project.id, { pinned: !project.pinned })}>
+                  <Pin className="size-4" strokeWidth={1.75} />
+                  {project.pinned ? "Unpin project" : "Pin project"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </header>
-      )}
 
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pb-8 sm:px-6">
-        <div className="flex w-full max-w-3xl flex-col items-center">
-          {panel ? (
-            <ProjectPanel
-              project={project}
-              panel={panel}
-              onClose={() => setPanel(null)}
-              onChange={persist}
-              onPickFiles={() => fileInputRef.current?.click()}
-            />
-          ) : null}
-
-          <div className="w-full" data-prompt-root>
+          <div className="mt-4 w-full" data-prompt-root>
             <IsolatedChatInput
-              placeholder={`Message ${project.name}`}
+              placeholder={`New chat in ${project.name}`}
               isConversationStarted={false}
               isGenerating={false}
               focusKey={project.id}
               onStopGeneration={() => {}}
-              onSendMessage={() => {}}
+              onSendMessage={(prompt) => {
+                if (!prompt.trim()) return;
+                addProjectChat(project.id, prompt);
+              }}
             />
           </div>
 
-          <div className="mt-3 flex items-center gap-2">
-            <PanelButton
-              active={panel === "instructions"}
-              label={project.instructions.trim() ? "Instructions" : "Add instructions"}
-              icon={<FileText className="size-4" strokeWidth={1.75} />}
-              onClick={() =>
-                setPanel((current) =>
-                  current === "instructions" ? null : "instructions",
-                )
-              }
-            />
-            <PanelButton
-              active={panel === "files"}
-              label={
-                project.files.length
-                  ? `${project.files.length} file${project.files.length === 1 ? "" : "s"}`
-                  : "Add files"
-              }
-              icon={<Paperclip className="size-4" strokeWidth={1.75} />}
-              onClick={() =>
-                setPanel((current) => (current === "files" ? null : "files"))
-              }
-            />
+          <div className="mt-4 flex gap-1">
+            {(["chats", "sources"] as const).map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-[14px] capitalize",
+                  tab === id
+                    ? "bg-[var(--ui-hover-wash)] font-medium text-[var(--ui-fg)]"
+                    : "text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)]",
+                )}
+              >
+                {id === "chats" ? "Chats" : "Sources"}
+              </button>
+            ))}
           </div>
+
+          {tab === "chats" ? (
+            <ul className="mt-3 flex flex-col">
+              {chats.length ? (
+                chats.map((chat) => (
+                  <ChatRow
+                    key={chat.id}
+                    project={project}
+                    chat={chat}
+                    onRename={() => setRenameChat(chat)}
+                  />
+                ))
+              ) : (
+                <li className="px-2 py-8 text-[14px] text-[var(--ui-fg-muted)]">
+                  Chats in this project will show up here.
+                </li>
+              )}
+            </ul>
+          ) : (
+            <SourcesPanel
+              sources={sources}
+              sort={sort}
+              filter={filter}
+              onSort={setSort}
+              onFilter={setFilter}
+              onAdd={() => setSourcesOpen(true)}
+              onRemove={(sourceId) => removeProjectSource(project.id, sourceId)}
+            />
+          )}
         </div>
       </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        className="sr-only"
-        onChange={(event) => {
-          const list = Array.from(event.target.files ?? []);
-          event.target.value = "";
-          if (!list.length) return;
-          const added: ProjectFile[] = list.map((file) => ({
-            id: createProjectId(),
-            name: file.name,
-            size: file.size,
-            type: file.type || "file",
-          }));
-          persist({ ...project, files: [...project.files, ...added] });
-          setPanel("files");
+      <ProjectSettingsDialog project={project} open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <AddSourcesDialog
+        open={sourcesOpen}
+        onOpenChange={setSourcesOpen}
+        onAdd={(source) => addProjectSource(project.id, source)}
+      />
+      <RenameChatDialog
+        chat={renameChat}
+        onClose={() => setRenameChat(null)}
+        onSave={(title) => {
+          if (!renameChat) return;
+          updateProjectChat(project.id, renameChat.id, { title });
+          setRenameChat(null);
         }}
       />
     </div>
   );
 }
 
-function PanelButton({
+function ChatRow({
+  project,
+  chat,
+  onRename,
+}: {
+  project: ProjectDraft;
+  chat: ProjectChat;
+  onRename: () => void;
+}) {
+  const { toast } = useToast();
+  return (
+    <li className="group grid grid-cols-[minmax(0,1fr)_72px_28px] items-center rounded-xl px-2 py-2.5 hover:bg-[var(--ui-hover-wash)]">
+      <div className="min-w-0">
+        <p className="truncate text-[14px] font-medium text-[var(--ui-fg)]">{chat.title}</p>
+        <p className="truncate text-[13px] text-[var(--ui-fg-muted)]">{chat.preview}</p>
+      </div>
+      <span className="text-[12px] text-[var(--ui-fg-muted)]">{formatModified(chat.updatedAt)}</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger aria-label={`Actions for ${chat.title}`} className="flex size-7 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] opacity-0 outline-none group-hover:opacity-100 data-[state=open]:opacity-100">
+          <MoreHorizontal className="size-4" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem
+            onSelect={() => {
+              const url = `${window.location.origin}${APP_ROUTES.project(project.id)}`;
+              void copyText(url).then((ok) => toast({ title: ok ? "Link copied" : "Could not copy link" }));
+            }}
+          >
+            <Share className="size-4" strokeWidth={1.75} /> Share
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onRename}>
+            <Pencil className="size-4" strokeWidth={1.75} /> Rename
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => updateProjectChat(project.id, chat.id, { pinned: !chat.pinned })}>
+            <Pin className="size-4" strokeWidth={1.75} /> {chat.pinned ? "Unpin chat" : "Pin chat"}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => updateProjectChat(project.id, chat.id, { archived: true })}>
+            <Archive className="size-4" strokeWidth={1.75} /> Archive
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-red-600 focus:text-red-600" onSelect={() => removeProjectChat(project.id, chat.id)}>
+            <Trash2 className="size-4" strokeWidth={1.75} /> Delete
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled className="text-[12px] text-[var(--ui-fg-muted)]">
+            {project.name}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => removeProjectChat(project.id, chat.id)}>
+            <Folder className="size-4" strokeWidth={1.75} /> Remove from project
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </li>
+  );
+}
+
+function SourcesPanel({
+  sources,
+  sort,
+  filter,
+  onSort,
+  onFilter,
+  onAdd,
+  onRemove,
+}: {
+  sources: ProjectSource[];
+  sort: SourceSort;
+  filter: SourceFilter;
+  onSort: (sort: SourceSort) => void;
+  onFilter: (filter: SourceFilter) => void;
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="mt-3">
+      <div className="mb-3 flex justify-end gap-2">
+        <FilterMenu
+          label={sort === "newest" ? "Newest" : sort === "oldest" ? "Oldest" : "Alphabetical"}
+          options={[
+            ["newest", "Newest"],
+            ["oldest", "Oldest"],
+            ["alpha", "Alphabetical"],
+          ]}
+          value={sort}
+          onChange={(value) => onSort(value as SourceSort)}
+        />
+        <FilterMenu
+          label={filter === "all" ? "All" : filter[0].toUpperCase() + filter.slice(1)}
+          options={[
+            ["all", "All"],
+            ["files", "Files"],
+            ["saves", "Saves"],
+            ["apps", "Apps"],
+          ]}
+          value={filter}
+          onChange={(value) => onFilter(value as SourceFilter)}
+        />
+      </div>
+      {sources.length ? (
+        <ul className="flex flex-col">
+          {sources.map((source) => (
+            <li key={source.id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-[var(--ui-hover-wash)]">
+              <FileText className="size-4 text-[var(--ui-fg-muted)]" strokeWidth={1.75} />
+              <span className="min-w-0 flex-1 truncate text-[14px]">{source.name}</span>
+              <span className="text-[12px] capitalize text-[var(--ui-fg-muted)]">{source.kind}</span>
+              <button type="button" aria-label={`Remove ${source.name}`} onClick={() => onRemove(source.id)} className="text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]">
+                <X className="size-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="flex flex-col items-center rounded-2xl border border-dashed border-[var(--ui-border)] px-6 py-16 text-center">
+          <p className="text-[16px] font-medium">Give Clauxen more context</p>
+          <p className="mt-1 max-w-md text-[14px] leading-6 text-[var(--ui-fg-muted)]">
+            Upload sources or add a note so chats in this project have something to work from.
+          </p>
+          <button type="button" className={cn(appBtn.primary, "mt-4 rounded-full")} onClick={onAdd}>
+            Add sources
+          </button>
+        </div>
+      )}
+      {sources.length ? (
+        <button type="button" className={cn(appBtn.secondarySm, "mt-3")} onClick={onAdd}>
+          Add sources
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function FilterMenu({
   label,
-  icon,
-  active,
-  onClick,
+  options,
+  value,
+  onChange,
 }: {
   label: string;
+  options: Array<[string, string]>;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1 rounded-full bg-[var(--ui-hover-wash)] px-3 text-[13px] text-[var(--ui-fg)] outline-none">
+        {label}
+        <ChevronDown className="size-3.5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {options.map(([id, name]) => (
+          <DropdownMenuItem key={id} onSelect={() => onChange(id)}>
+            {name}
+            {value === id ? <Check className="ml-auto size-4" /> : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function AddSourcesDialog({
+  open,
+  onOpenChange,
+  onAdd,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAdd: (source: Omit<ProjectSource, "id" | "createdAt">) => void;
+}) {
+  const [mode, setMode] = useState<"drop" | "text" | "library">("drop");
+  const [text, setText] = useState("");
+  const [libraryName, setLibraryName] = useState("");
+
+  const add = (kind: ProjectSourceKind, name: string, body?: string) => {
+    onAdd({ kind, name, body });
+    setText("");
+    setLibraryName("");
+    setMode("drop");
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[560px] gap-4 p-5">
+        <DialogHeader>
+          <DialogTitle className="text-[18px] font-medium tracking-[-0.03em]">Add sources</DialogTitle>
+        </DialogHeader>
+        {mode === "text" ? (
+          <div className="flex flex-col gap-2">
+            <textarea
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              rows={6}
+              placeholder="Paste or write a note for this project"
+              className="w-full resize-none rounded-xl border border-[var(--ui-border)] px-3 py-2 text-[14px] outline-none"
+            />
+            <button
+              type="button"
+              disabled={!text.trim()}
+              className={cn(appBtn.primarySm, "self-end disabled:opacity-40")}
+              onClick={() => add("text", text.trim().slice(0, 48) || "Note", text.trim())}
+            >
+              Add note
+            </button>
+          </div>
+        ) : mode === "library" ? (
+          <div className="flex flex-col gap-2">
+            <input
+              value={libraryName}
+              onChange={(event) => setLibraryName(event.target.value)}
+              placeholder="Library item name"
+              className={cn(fieldClass, "px-3")}
+            />
+            <button
+              type="button"
+              disabled={!libraryName.trim()}
+              className={cn(appBtn.primarySm, "self-end disabled:opacity-40")}
+              onClick={() => add("library", libraryName.trim())}
+            >
+              Add from library
+            </button>
+          </div>
+        ) : (
+          <label
+            className="flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ui-border)] text-[14px] text-[var(--ui-fg-muted)]"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              const file = event.dataTransfer.files?.[0];
+              if (file) add("file", file.name, undefined);
+            }}
+          >
+            <Paperclip className="mb-2 size-5" strokeWidth={1.75} />
+            Drag sources here
+            <input
+              type="file"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) add("file", file.name);
+              }}
+            />
+          </label>
+        )}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <SourceAction icon={<Upload className="size-4" />} label="Upload" onClick={() => setMode("drop")} />
+          <SourceAction icon={<Folder className="size-4" />} label="Add from library" onClick={() => setMode("library")} />
+          <SourceAction icon={<FileText className="size-4" />} label="Text input" onClick={() => setMode("text")} />
+          <SourceAction icon={<Link2 className="size-4" />} label="Google Drive" onClick={() => add("drive", "Google Drive")} />
+          <SourceAction icon={<Link2 className="size-4" />} label="Slack" onClick={() => add("slack", "Slack")} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SourceAction({
+  icon,
+  label,
+  onClick,
+}: {
   icon: ReactNode;
-  active: boolean;
+  label: string;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      aria-pressed={active}
       onClick={onClick}
-      className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors",
-        active
-          ? "border-[var(--ui-border)] bg-[var(--ui-hover-wash)] text-[var(--ui-fg)]"
-          : "border-[var(--ui-border-subtle)] bg-transparent text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
-      )}
+      className="flex h-20 flex-col items-center justify-center gap-1.5 rounded-xl bg-[var(--ui-hover-wash)] text-[12px] text-[var(--ui-fg)] hover:bg-[var(--ui-border-subtle)]"
     >
       {icon}
       {label}
@@ -551,90 +1015,48 @@ function PanelButton({
   );
 }
 
-function ProjectPanel({
-  project,
-  panel,
+function RenameChatDialog({
+  chat,
   onClose,
-  onChange,
-  onPickFiles,
+  onSave,
 }: {
-  project: ProjectDraft;
-  panel: "instructions" | "files";
+  chat: ProjectChat | null;
   onClose: () => void;
-  onChange: (project: ProjectDraft) => void;
-  onPickFiles: () => void;
+  onSave: (title: string) => void;
 }) {
+  const [title, setTitle] = useState("");
+  useEffect(() => {
+    setTitle(chat?.title ?? "");
+  }, [chat]);
   return (
-    <section className="mb-4 w-full rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] p-3 shadow-[0_1px_2px_rgba(20,21,26,0.04)]">
-      <div className="flex items-center justify-between gap-3 px-1">
-        <h2 className="text-[13px] font-medium text-[var(--ui-fg)]">
-          {panel === "instructions" ? "Instructions" : "Project files"}
-        </h2>
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-          className="flex size-7 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+    <Dialog
+      open={Boolean(chat)}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+        else if (chat) setTitle(chat.title);
+      }}
+    >
+      <DialogContent className="max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>Rename chat</DialogTitle>
+        </DialogHeader>
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (title.trim()) onSave(title.trim());
+          }}
         >
-          <X className="size-4" strokeWidth={1.75} />
-        </button>
-      </div>
-      {panel === "instructions" ? (
-        <textarea
-          value={project.instructions}
-          onChange={(event) =>
-            onChange({ ...project, instructions: event.target.value })
-          }
-          placeholder="Tell Clauxen how to work in this project. Tone, sources, and what to always include."
-          rows={5}
-          className="mt-2 w-full resize-none rounded-xl border border-transparent bg-transparent px-2 py-1.5 text-[14px] leading-relaxed text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-border)]"
-        />
-      ) : (
-        <div className="mt-2">
-          <button
-            type="button"
-            onClick={onPickFiles}
-            className={cn(appBtn.secondarySm, "mb-2")}
-          >
-            Upload files
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            className={cn(fieldClass, "px-3")}
+          />
+          <button type="submit" className={cn(appBtn.primary, "self-end")}>
+            Save
           </button>
-          {project.files.length ? (
-            <ul className="flex flex-col">
-              {project.files.map((file) => (
-                <li
-                  key={file.id}
-                  className="flex items-center gap-2 rounded-xl px-2 py-2 hover:bg-[var(--ui-hover-wash)]"
-                >
-                  <FileText className="size-4 shrink-0 text-[var(--ui-fg-muted)]" strokeWidth={1.75} />
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--ui-fg)]">
-                    {file.name}
-                  </span>
-                  <span className="shrink-0 text-[12px] text-[var(--ui-fg-subtle)]">
-                    {formatSize(file.size)}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={`Remove ${file.name}`}
-                    onClick={() =>
-                      onChange({
-                        ...project,
-                        files: project.files.filter((row) => row.id !== file.id),
-                      })
-                    }
-                    className="flex size-7 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]"
-                  >
-                    <X className="size-3.5" strokeWidth={1.75} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="px-1 py-2 text-[13px] text-[var(--ui-fg-muted)]">
-              Files you add stay with this project and can be used in chats here.
-            </p>
-          )}
-        </div>
-      )}
-    </section>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

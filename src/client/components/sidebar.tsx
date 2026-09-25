@@ -24,6 +24,7 @@ import {
   Sparkles,
   X,
   FolderKanban,
+  Plus,
   Library,
   Puzzle,
   Search,
@@ -40,6 +41,7 @@ import {
   writeCachedBillingPlan,
 } from "@/lib/billing-plan-cache";
 import { ChatSearchDialog } from "./chat-search-dialog";
+import { CreateProjectDialog } from "./projects/projects-view";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -322,6 +324,7 @@ export function Sidebar({
   const [planLoading, setPlanLoading] = useState(() => !cachedPlan);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [sidebarSearchOpen, setSidebarSearchOpen] = useState(false);
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -583,11 +586,13 @@ export function Sidebar({
           {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
             <button
               type="button"
-              aria-label="Hide sidebar"
+              aria-label={isPeekPreview ? "Expand sidebar" : "Hide sidebar"}
               className="cx-hide-sidebar"
               onClick={(event) => {
                 event.stopPropagation();
-                setIsCollapsed(true);
+                // The hover preview is already the full sidebar. Pin it open
+                // instead of dismissing the overlay.
+                setIsCollapsed(isPeekPreview ? false : true);
               }}
             >
               <SidebarToggleIcon className="size-5" aria-hidden />
@@ -660,6 +665,7 @@ export function Sidebar({
               </span>
               {isCollapsed && !isMobileLayout ? null : <span>Library</span>}
             </AppHref>
+            <div className="cx-nav-projects relative">
             <AppHref
               href={APP_ROUTES.projects}
               onClick={(e) => {
@@ -670,15 +676,30 @@ export function Sidebar({
               aria-label="Projects"
               aria-current={activeView === "projects" ? "page" : undefined}
               className={cn(
-                "cx-nav-btn",
+                "cx-nav-btn w-full",
                 activeView === "projects" && "is-active",
               )}
             >
               <span className="cx-nav-icon">
                 <FolderKanban strokeWidth={1.75} />
               </span>
-              {isCollapsed && !isMobileLayout ? null : <span>Projects</span>}
+              {isCollapsed && !isMobileLayout ? null : <span className="min-w-0 flex-1 text-left">Projects</span>}
             </AppHref>
+            {isCollapsed && !isMobileLayout ? null : (
+              <button
+                type="button"
+                aria-label="New project"
+                className="cx-nav-plus"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setCreateProjectOpen(true);
+                }}
+              >
+                <Plus strokeWidth={1.75} />
+              </button>
+            )}
+            </div>
             <AppHref
               href={APP_ROUTES.plugins}
               onClick={(e) => {
@@ -1127,6 +1148,10 @@ export function Sidebar({
           });
           if (isMobileLayout) onNavigate?.();
         }}
+      />
+      <CreateProjectDialog
+        open={createProjectOpen}
+        onOpenChange={setCreateProjectOpen}
       />
       <RenameChatDialog
         open={renameChatId != null}

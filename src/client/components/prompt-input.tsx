@@ -141,31 +141,31 @@ const COLLAPSED_TEXTAREA_HEIGHT_PX = 20;
 const MAX_PROMPT_LINES = 7;
 const PROMPT_NOTIFY_DEBOUNCE_MS = 120;
 
-/** Measure full content height without min-height / max-height constraints. */
+/** Measure content height on a mirror so the live field never collapses. */
 function measureTextareaScrollHeight(textarea: HTMLTextAreaElement): number {
-  const previous = {
-    height: textarea.style.height,
-    minHeight: textarea.style.minHeight,
-    maxHeight: textarea.style.maxHeight,
-    overflow: textarea.style.overflow,
-    transition: textarea.style.transition,
-  };
-  // Disable height transition while probing — otherwise the measure
-  // momentarily collapses to 0 and animates back (hard cut / flicker).
-  textarea.style.transition = "none";
-  textarea.style.height = "0";
-  textarea.style.minHeight = "0";
-  textarea.style.maxHeight = "none";
-  textarea.style.overflow = "hidden";
-  // Force reflow so the zero-height probe is applied before reading.
-  void textarea.offsetHeight;
-  const measured = textarea.scrollHeight;
-  textarea.style.height = previous.height;
-  textarea.style.minHeight = previous.minHeight;
-  textarea.style.maxHeight = previous.maxHeight;
-  textarea.style.overflow = previous.overflow;
-  void textarea.offsetHeight;
-  textarea.style.transition = previous.transition;
+  const mirror = document.createElement("textarea");
+  const style = window.getComputedStyle(textarea);
+  mirror.setAttribute("aria-hidden", "true");
+  mirror.tabIndex = -1;
+  mirror.value = textarea.value;
+  mirror.style.position = "absolute";
+  mirror.style.visibility = "hidden";
+  mirror.style.pointerEvents = "none";
+  mirror.style.height = "0";
+  mirror.style.minHeight = "0";
+  mirror.style.maxHeight = "none";
+  mirror.style.overflow = "hidden";
+  mirror.style.width = `${textarea.clientWidth}px`;
+  mirror.style.boxSizing = style.boxSizing;
+  mirror.style.padding = style.padding;
+  mirror.style.border = style.border;
+  mirror.style.font = style.font;
+  mirror.style.lineHeight = style.lineHeight;
+  mirror.style.letterSpacing = style.letterSpacing;
+  mirror.style.whiteSpace = style.whiteSpace;
+  document.body.appendChild(mirror);
+  const measured = mirror.scrollHeight;
+  mirror.remove();
   return measured;
 }
 
