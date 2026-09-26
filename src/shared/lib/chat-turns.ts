@@ -35,7 +35,12 @@ export function groupMessagesIntoTurns(
     }
 
     if (open) {
-      open.assistantMessages.push(message);
+      const duplicate = open.assistantMessages.some(
+        (existing) =>
+          existing.content.trim().length > 0 &&
+          existing.content.trim() === message.content.trim(),
+      );
+      if (!duplicate) open.assistantMessages.push(message);
     } else {
       groups.push({ userMessage: null, assistantMessages: [message] });
     }

@@ -350,28 +350,24 @@ export function applyAgentStreamEvent(
       const text = event.text.trim();
       if (!text) return message;
       const now = Date.now();
-      const steps = message.agentTrace?.steps ?? [];
-      const nextSteps = event.segmentId
-        ? steps.map((step) =>
-            step.kind === "narration" && step.id === event.segmentId
-              ? { ...step, content: text, isStreaming: false, isFinal: true }
-              : step,
-          )
-        : steps;
+      const steps = (message.agentTrace?.steps ?? []).filter((step) => {
+        if (step.kind !== "narration") return true;
+        if (event.segmentId && step.id === event.segmentId) return false;
+        return step.content.trim() !== text;
+      });
       return {
         ...message,
         content: text,
         isThinkingStreaming: false,
         isStreaming: true,
-        agentTrace:
-          message.agentTrace && nextSteps.length > 0
-            ? {
-                ...message.agentTrace,
-                steps: finalizeStreamingSteps(nextSteps, now),
-                complete: true,
-                completedAtMs: message.agentTrace.completedAtMs ?? now,
-              }
-            : message.agentTrace,
+        agentTrace: message.agentTrace
+          ? {
+              ...message.agentTrace,
+              steps: finalizeStreamingSteps(steps, now),
+              complete: true,
+              completedAtMs: message.agentTrace.completedAtMs ?? now,
+            }
+          : message.agentTrace,
       };
     }
 

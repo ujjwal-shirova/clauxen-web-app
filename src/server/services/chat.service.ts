@@ -140,6 +140,19 @@ function dedupeTranscriptSources(
   return [...byUrl.values()];
 }
 
+/** The promoted answer is stored on the message. Drop a narration copy of it. */
+function segmentsWithoutAnswerCopy(
+  segments: TranscriptAgentSegment[],
+  answer: string,
+): TranscriptAgentSegment[] {
+  const text = answer.trim();
+  if (!text) return segments;
+  return segments.filter(
+    (segment) =>
+      segment.type !== "narration" || segment.content.trim() !== text,
+  );
+}
+
 async function mapChatsWithPins(
   userId: string,
   chats: Awaited<ReturnType<typeof chatsRepo.listChatsForUser>>,
@@ -763,9 +776,10 @@ export async function streamChatGeneration(input: {
       return;
     }
     lastPartialSaveAtMs = now;
-    const snapshotSegments = JSON.parse(
-      JSON.stringify(streamedSegments),
-    ) as TranscriptAgentSegment[];
+    const snapshotSegments = segmentsWithoutAnswerCopy(
+      JSON.parse(JSON.stringify(streamedSegments)) as TranscriptAgentSegment[],
+      snapshotAnswer,
+    );
     const snapshotTools = Array.from(toolsById.values()).map((tool) => ({
       ...tool,
       input: { ...tool.input },
@@ -1021,7 +1035,7 @@ export async function streamChatGeneration(input: {
           completedAtMs,
           thinkingDurationSeconds,
           modelTurns,
-          segments: streamedSegments,
+          segments: segmentsWithoutAnswerCopy(streamedSegments, cleanedAnswer),
           sources: persistedSources,
           actions: tools.map((tool) => ({
             id: tool.id,
@@ -1173,7 +1187,7 @@ export async function streamChatGeneration(input: {
           startedAtMs: turnStartedAtMs,
           completedAtMs: failedAtMs,
           modelTurns,
-          segments: streamedSegments,
+          segments: segmentsWithoutAnswerCopy(streamedSegments, failedContent),
           sources: dedupeTranscriptSources(streamedSegments),
           actions: tools,
         },

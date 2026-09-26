@@ -311,38 +311,28 @@ export function hydrateMessageFromContentJson(
           })
         : [];
 
-  // Prefer durable row content; fall back to transcript text parts. Progress
-  // narration (non-final) that also lingers in content gets blanked so the
-  // same sentence isn't shown twice — but the promoted final segment IS the
-  // answer, so it must never blank content.
-  const narrationTexts = new Set(
-    modelSegments
-      .filter(
-        (segment): segment is Extract<AgentStep, { kind: "narration" }> =>
-          segment.kind === "narration" &&
-          !segment.isFinal &&
-          Boolean(segment.content.trim()),
-      )
-      .map((segment) => segment.content.trim()),
-  );
+  // Prefer durable row content; fall back to transcript text parts.
   const persistedFinalNarration = [...modelSegments]
     .reverse()
     .find(
       (segment): segment is Extract<AgentStep, { kind: "narration" }> =>
         segment.kind === "narration" && segment.isFinal === true,
     );
-  let content =
+  const content =
     (base.content ?? "").trim() ||
     persistedFinalNarration?.content.trim() ||
     contentFromParts;
-  if (content && narrationTexts.has(content)) {
-    content = "";
-  }
+  const visibleSegments = modelSegments.filter((segment) => {
+    if (segment.kind !== "narration") return true;
+    const narration = segment.content.trim();
+    if (!narration || !content) return true;
+    return narration !== content;
+  });
   const hasThinking = Boolean(thinking.trim());
   const hasTools =
     modelSegments.some((segment) => segment.kind === "tool") ||
     tools.length > 0;
-  const hasAgentSegments = modelSegments.length > 0 || hasThinking || hasTools;
+  const hasAgentSegments = visibleSegments.length > 0 || hasThinking || hasTools;
 
   if (!hasAgentSegments && !contentFromParts) return base;
 
@@ -392,7 +382,7 @@ export function hydrateMessageFromContentJson(
     ...tools,
   ];
   const persistedSegments =
-    modelSegments.length > 0 ? modelSegments : legacySegments;
+    visibleSegments.length > 0 ? visibleSegments : legacySegments;
 
   const hasStampedTurnClock =
     typeof agentUi?.startedAtMs === "number" &&
