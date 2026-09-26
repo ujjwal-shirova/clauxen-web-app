@@ -508,6 +508,7 @@ export async function runAutonomousAgent(
             break;
 
           case "error":
+            console.error("[chat] model stream error:", part.error);
             sse.writeError(part.error);
             return;
 
@@ -545,13 +546,28 @@ export async function runAutonomousAgent(
 
       // ── Tool round: the round's text stays as narration; execute tools. ──
       if (!finished || finished.replay.length === 0) {
-        throw new Error(
-          "The model requested a tool without a replayable assistant message.",
-        );
+        if (pendingToolCalls.length === 0) {
+          const finalText = stripChatTitleMarkup(roundText).trim();
+          if (finalText) {
+            sse.writeAnswerFinalize(roundNarrationId ?? undefined, finalText);
+          }
+          break;
+        }
+        conversation.push({
+          role: "assistant",
+          content: roundText.trim() || null,
+          tool_calls: pendingToolCalls.map((call) => ({
+            id: call.id,
+            type: "function" as const,
+            function: {
+              name: call.name,
+              arguments: call.arguments || "{}",
+            },
+          })),
+        });
+      } else {
+        conversation.push(...finished.replay);
       }
-
-      // Replay the assistant tool-call message before its tool results.
-      conversation.push(...finished.replay);
 
       let pauseForUser = false;
       const toolResults: Array<{

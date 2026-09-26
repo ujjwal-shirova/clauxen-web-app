@@ -197,15 +197,19 @@ export async function createChatStream(
       let projectAppend = "";
       let projectOnly = false;
       if (options.userId && options.conversationId && !options.incognito) {
-        const { loadProjectPromptAppend } = await import(
-          "@/server/services/project-context"
-        );
-        const project = await loadProjectPromptAppend(
-          options.userId,
-          options.conversationId,
-        );
-        projectAppend = project.text;
-        projectOnly = project.projectOnly;
+        try {
+          const { loadProjectPromptAppend } = await import(
+            "@/server/services/project-context"
+          );
+          const project = await loadProjectPromptAppend(
+            options.userId,
+            options.conversationId,
+          );
+          projectAppend = project.text;
+          projectOnly = project.projectOnly;
+        } catch (error) {
+          console.error("[chat] project context skipped:", error);
+        }
       }
 
       const personalizationForPrompt = options.incognito || projectOnly
@@ -260,6 +264,7 @@ export async function createChatStream(
 
       await runAutonomousAgent(sse, agentOptions);
     } catch (error) {
+      console.error("[chat] stream failed:", error);
       const message = toUserFacingChatError(
         error instanceof Error && error.message.trim() ? error.message : error,
       );

@@ -1,7 +1,6 @@
 import { getObject } from "@/server/storage/object-store";
 import type { StoragePurpose } from "@/server/storage/object-store";
 import { query } from "@/server/db/pool";
-import { extractTextFromBuffer } from "@/server/services/text-extract.service";
 import * as projectsRepo from "@/server/repositories/projects.repository";
 
 const EXTRACT_BUDGET_MS = 1200;
@@ -15,6 +14,15 @@ function purposeFor(mime: string | null, bucket: string): StoragePurpose {
 }
 
 export async function loadProjectPromptAppend(userId: string, chatId: string) {
+  try {
+    return await loadProjectPromptAppendInner(userId, chatId);
+  } catch (error) {
+    console.error("[chat] project context failed:", error);
+    return { text: "", projectOnly: false };
+  }
+}
+
+async function loadProjectPromptAppendInner(userId: string, chatId: string) {
   const link = await projectsRepo.getProjectForChat(chatId, userId);
   if (!link) return { text: "", projectOnly: false };
 
@@ -54,11 +62,12 @@ export async function loadProjectPromptAppend(userId: string, chatId: string) {
             file.storage_path,
             file.storage_bucket,
           );
-          const text = await extractTextFromBuffer(bytes, file.original_name);
+          const text = bytes.toString("utf8");
           const clipped = text.replace(/\s+/g, " ").trim().slice(0, MAX_CHARS);
-          return clipped
-            ? `${file.original_name}:\n${clipped}`
-            : `${file.original_name}: no readable text`;
+          if (!clipped || clipped.includes("\u0000")) {
+            return `${file.original_name}: binary source`;
+          }
+          return `${file.original_name}:\n${clipped}`;
         } catch {
           return `${file.original_name}: unavailable`;
         }
@@ -70,20 +79,19 @@ export async function loadProjectPromptAppend(userId: string, chatId: string) {
   ]);
 
   const lines = [
-    "<project>",
+    "Project context:",
     `Name: ${mapped.name}`,
     mapped.memory === "project"
-      ? "Memory: project-only. Do not use memories from outside this project, and do not write this project's details into outside memory."
-      : "Memory: default. This project may use memories from outside chats.",
+      ? "Memory is limited to this project. Do not use memories from outside this project."
+      : "This project may use memories from outside chats.",
     mapped.instructions.trim()
-      ? `Instructions:\n${mapped.instructions.trim()}`
+      ? `Instructions: ${mapped.instructions.trim()}`
       : "",
     extracted.length
       ? `Sources:\n${extracted.join("\n\n")}`
       : files.length
         ? `Sources: ${files.map((file) => file.original_name).join(", ")}`
         : "",
-    "</project>",
   ].filter(Boolean);
 
   return { text: lines.join("\n"), projectOnly: mapped.memory === "project" };
