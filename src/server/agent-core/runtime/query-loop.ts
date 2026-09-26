@@ -710,11 +710,11 @@ export async function runAutonomousAgent(
 
       try {
         options.onModelTurn?.({
-          stopReason: finished.reason,
+          stopReason: finished?.reason ?? "tool_calls",
           startedAtMs: modelTurnStartedAtMs,
           assistantCompletedAtMs,
           completedAtMs: Date.now(),
-          assistant: captureOpenAIOutputItems(finished.output),
+          assistant: captureOpenAIOutputItems(finished?.output ?? []),
           toolResults: toolResults.map((result) =>
             toolResultPart(result.toolCallId, result.result, result.isError),
           ),
