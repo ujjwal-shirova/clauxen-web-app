@@ -91,6 +91,7 @@ export async function listChats() {
 export async function createChat(input?: {
   id?: string;
   title?: string;
+  projectId?: string;
 }) {
   return apiFetch<{ chat: { id: string; title: string } }>("/api/v1/chats", {
     method: "POST",

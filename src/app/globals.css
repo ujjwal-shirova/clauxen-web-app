@@ -8979,6 +8979,17 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   display: none;
 }
 
+/* Icon inside a project name field highlights only when the pointer is on the icon. */
+.project-name-icon,
+.project-name-field:hover .project-name-icon,
+.project-name-field:focus-within .project-name-icon {
+  background: transparent;
+}
+
+.project-name-icon:hover {
+  background: var(--ui-hover-wash);
+}
+
 .cx-section-head {
   display: flex;
   align-items: center;

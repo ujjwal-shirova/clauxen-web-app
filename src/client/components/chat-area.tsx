@@ -74,6 +74,7 @@ interface ChatAreaProps {
   /** True while a brand-new chat is being created / first reply boots. */
   creatingChatPending?: boolean;
   activeChatTitle?: string;
+  projectCrumb?: { id: string; name: string } | null;
   isActiveChatTitleStreaming?: boolean;
   isActiveChatPinned?: boolean;
   onRenameChat?: (chatId: string, newTitle: string) => void;
@@ -122,6 +123,7 @@ function ChatAreaLayout({
   onRetryMessages,
   creatingChatPending = false,
   activeChatTitle,
+  projectCrumb = null,
   isActiveChatTitleStreaming,
   isActiveChatPinned,
   onRenameChat,
@@ -345,6 +347,7 @@ function ChatAreaLayout({
   ) : (
     <IsolatedChatInput
       key="prompt-input"
+      projectId={projectCrumb?.id}
       onSendMessage={handleSendMessageAndScroll}
       onStopGeneration={onStopGeneration}
       onScrollToBottom={scrollToBottom}
@@ -403,6 +406,7 @@ function ChatAreaLayout({
               onUpgradeClick={onUpgradeClick}
               onShareClick={() => setIsShareDialogOpen(true)}
               chatTitle={activeChatTitle}
+              projectCrumb={projectCrumb}
               isTitleStreaming={isActiveChatTitleStreaming}
               onDeleteChat={handleDeleteActiveChat}
               onOpenSettings={onOpenSettings}
@@ -480,6 +484,7 @@ function ChatAreaLayout({
               onUpgradeClick={onUpgradeClick}
               onShareClick={() => setIsShareDialogOpen(true)}
               chatTitle={activeChatTitle}
+              projectCrumb={projectCrumb}
               isTitleStreaming={isActiveChatTitleStreaming}
               isChatPinned={isActiveChatPinned}
               headerControlsLoading={headerControlsLoading}

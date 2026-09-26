@@ -17,6 +17,7 @@ export function beginComposerAttachmentWork(
   item: ComposerAttachment,
   options: {
     chatId?: string | null;
+    projectId?: string | null;
     skipUpload?: boolean;
     onUpdate: (id: string, patch: Partial<ComposerAttachment>) => void;
   },
@@ -40,6 +41,7 @@ export function queueComposerUpload(
   item: ComposerAttachment,
   options: {
     chatId?: string | null;
+    projectId?: string | null;
     onUpdate: (id: string, patch: Partial<ComposerAttachment>) => void;
   },
 ): Promise<string | null> {
@@ -51,6 +53,7 @@ export function queueComposerUpload(
   const job = uploadUserFile(item.file, {
     purpose: "chat-attachment",
     chatId: options.chatId,
+    projectId: options.projectId,
   })
     .then((fileId) => {
       if (!cancelledIds.has(item.id)) {
@@ -83,7 +86,7 @@ export function queueComposerUpload(
 /** Resolve fileIds for send. Reuses in-flight attach uploads — never double-PUTs. */
 export async function settleComposerUploads(
   attachments: ComposerAttachment[],
-  options: { chatId?: string | null },
+  options: { chatId?: string | null; projectId?: string | null },
 ): Promise<ComposerAttachment[]> {
   if (attachments.length === 0) return attachments;
   return Promise.all(
@@ -94,6 +97,7 @@ export async function settleComposerUploads(
       if (!item.file) return item;
       const fileId = await queueComposerUpload(item, {
         chatId: options.chatId,
+        projectId: options.projectId,
         onUpdate: () => {},
       });
       if (!fileId) {

@@ -13,6 +13,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AppHref } from "@/components/app-href";
+import { APP_ROUTES } from "@/lib/app-routes";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
 
 interface ChatViewHeaderProps {
@@ -21,6 +23,7 @@ interface ChatViewHeaderProps {
   onUpgradeClick: () => void;
   onShareClick?: () => void;
   chatTitle?: string;
+  projectCrumb?: { id: string; name: string } | null;
   isTitleStreaming?: boolean;
   isChatPinned?: boolean;
   onRenameChat?: (newTitle: string) => void;
@@ -43,6 +46,7 @@ export function ChatViewHeader({
   onUpgradeClick,
   onShareClick,
   chatTitle = "New Chat",
+  projectCrumb = null,
   isTitleStreaming = false,
   isChatPinned = false,
   onRenameChat,
@@ -104,6 +108,17 @@ export function ChatViewHeader({
               />
             ) : null}
             <div className="content-pane-title-cluster flex h-full min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-hidden">
+              {projectCrumb ? (
+                <AppHref
+                  href={APP_ROUTES.project(projectCrumb.id)}
+                  className="min-w-0 max-w-[10rem] truncate px-1 text-[14px] font-medium text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]"
+                >
+                  {projectCrumb.name}
+                </AppHref>
+              ) : null}
+              {projectCrumb ? (
+                <span className="shrink-0 text-[14px] text-[var(--ui-fg-subtle)]">/</span>
+              ) : null}
               <button
                 type="button"
                 onClick={() => setRenameDialogOpen(true)}

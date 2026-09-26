@@ -97,6 +97,8 @@ interface PromptInputProps {
   onExtendedThinkingChange?: (enabled: boolean) => void;
   /** Hide model selector in the toolbar (e.g. when shown in the welcome header). */
   showModelSelector?: boolean;
+  /** Tag uploads with a project without waiting to send. */
+  projectId?: string | null;
   chatModel?: ChatModelId;
   onChatModelChange?: (model: ChatModelId) => void;
   /** Override the default “Ask anything” placeholder. */
@@ -195,6 +197,7 @@ export function PromptInput({
   placeholder = "Ask anything",
   allowAttachments = true,
   composerVariant = "default",
+  projectId = null,
 }: PromptInputProps) {
   const activeChatId = useActiveChatId();
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
@@ -687,12 +690,14 @@ export function PromptInput({
       });
       beginComposerAttachmentWork(attachment, {
         chatId: activeChatId,
+        projectId,
         skipUpload,
         onUpdate: patchAttachment,
       });
     },
     [
       activeChatId,
+      projectId,
       addAttachment,
       allowAttachments,
       composerVariant,

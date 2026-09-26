@@ -15,6 +15,7 @@ import {
   buildUserLibraryKey,
   createPresignedGetUrl,
   createPresignedPutUrl,
+  deleteObject,
   getObject,
   type StoragePurpose,
 } from "@/server/storage/object-store";
@@ -200,8 +201,10 @@ export async function presignUserFileUpload(
     sizeBytes?: number;
     workspaceId?: string | null;
     folderId?: string | null;
-    purpose?: "avatar" | "library" | "chat-attachment";
+    purpose?: "avatar" | "library" | "chat-attachment" | "project-source";
     chatId?: string | null;
+    projectId?: string | null;
+    sourceKind?: string | null;
   },
 ) {
   const originalName = input.originalName.trim();
@@ -216,6 +219,7 @@ export async function presignUserFileUpload(
 
   const isAvatar = input.purpose === "avatar";
   const isChatAttachment = input.purpose === "chat-attachment";
+  const isProjectSource = input.purpose === "project-source";
   const mime = (input.mimeType ?? "").toLowerCase();
   if (isAvatar) {
     if (!AVATAR_MIMES.has(mime)) {
@@ -234,14 +238,14 @@ export async function presignUserFileUpload(
 
   const purpose = isAvatar
     ? "images"
-    : isChatAttachment
+    : isChatAttachment || isProjectSource
       ? "attachments"
       : purposeForMime(input.mimeType);
   const bucket = bucketForPurpose(purpose);
   const storagePath = isAvatar
     ? buildAvatarKey(userId, originalName)
-    : isChatAttachment
-      ? buildUserAttachmentKey(userId, originalName, input.chatId)
+    : isChatAttachment || isProjectSource
+      ? buildUserAttachmentKey(userId, originalName, input.chatId ?? input.projectId)
       : buildStorageKey(userId, originalName, input.mimeType, input.folderId);
 
   const file = await userFilesRepo.createUserFile({
@@ -254,13 +258,20 @@ export async function presignUserFileUpload(
     storageBucket: bucket,
     storagePath,
     status: "pending",
+    projectId: input.projectId,
     metadata: {
       purpose: isAvatar
         ? "avatar"
-        : isChatAttachment
-          ? "chat-attachment"
-          : purpose,
+        : isProjectSource
+          ? "project-source"
+          : isChatAttachment
+            ? "chat-attachment"
+            : purpose,
       ...(input.chatId ? { chatId: input.chatId } : {}),
+      ...(input.projectId ? { projectId: input.projectId } : {}),
+      ...(isProjectSource
+        ? { kind: input.sourceKind || (input.mimeType?.startsWith("text/") ? "text" : "file") }
+        : {}),
     },
   });
 
@@ -368,6 +379,20 @@ export async function getUserStorageSummary(userId: string) {
       },
     ],
   };
+}
+
+export async function deleteUploadedUserFile(userId: string, fileId: string) {
+  const file = await userFilesRepo.deleteUserFile(fileId, userId);
+  if (!file) throw notFound("File not found.");
+  const purpose = file.storage_bucket.includes("attachment")
+    ? "attachments"
+    : file.storage_bucket.includes("image")
+      ? "images"
+      : "documents";
+  await deleteObject(purpose, file.storage_path, file.storage_bucket).catch(
+    () => undefined,
+  );
+  return { id: file.id };
 }
 
 export function hashFileContent(buffer: Buffer) {

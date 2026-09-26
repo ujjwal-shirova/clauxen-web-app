@@ -2271,6 +2271,7 @@ export function useChatApi(
         attachments?: ComposerAttachment[];
         /** Fires the moment a brand-new chat has a durable id (before persist/stream). */
         onChatCreated?: (chatId: string) => void;
+        projectId?: string;
         /** Incognito: in-memory only — no DB chat, files, or history. */
         ephemeral?: boolean;
       },
@@ -2482,6 +2483,7 @@ export function useChatApi(
           const { chat } = await chatsApi.createChat({
             id: pendingChatId,
             title: "New chat",
+            projectId: options?.projectId,
           });
           const realId = chat.id;
 
@@ -2530,7 +2532,10 @@ export function useChatApi(
             collectComposerVision(pendingAttachments),
             ephemeral || pendingAttachments.length === 0
               ? Promise.resolve(pendingAttachments)
-              : settleComposerUploads(pendingAttachments, { chatId }),
+              : settleComposerUploads(pendingAttachments, {
+                  chatId,
+                  projectId: options?.projectId,
+                }),
           ]);
         const fileIds = settledAttachments
           .map((item) => item.fileId)

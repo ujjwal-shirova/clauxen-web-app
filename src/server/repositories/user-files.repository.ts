@@ -167,13 +167,14 @@ export async function createUserFile(input: {
   status?: string;
   metadata?: Record<string, unknown>;
   storageUrl?: string | null;
+  projectId?: string | null;
 }) {
   return queryOne<UserFileRow>(
     `insert into public.user_files (
        user_id, workspace_id, folder_id, original_name, mime_type,
        size_bytes, storage_bucket, storage_path, content_hash, status, metadata,
-       storage_url
-     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
+       storage_url, project_id
+     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)
      returning ${USER_FILE_COLUMNS}`,
     [
       input.userId,
@@ -188,6 +189,7 @@ export async function createUserFile(input: {
       input.status ?? "pending",
       JSON.stringify(input.metadata ?? {}),
       input.storageUrl ?? null,
+      input.projectId ?? null,
     ],
   );
 }

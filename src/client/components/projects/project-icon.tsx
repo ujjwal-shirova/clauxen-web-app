@@ -138,7 +138,7 @@ export function ProjectIconPicker({
           type="button"
           aria-label="Choose project icon"
           className={cn(
-            "inline-flex items-center justify-center rounded-lg text-[var(--ui-fg)] hover:bg-[var(--ui-hover-wash)]",
+            "project-name-icon relative z-10 inline-flex items-center justify-center rounded-lg bg-transparent text-[var(--ui-fg)]",
             triggerClassName,
           )}
         >

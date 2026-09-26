@@ -21,6 +21,7 @@ import {
   isNewChatPath,
 } from "@/lib/app-routes";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { getChatProject } from "@/lib/api/projects";
 import { resolveDisplayChatTitle } from "@/lib/chat-title";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { getBillingSubscription } from "@/lib/api/billing";
@@ -214,6 +215,28 @@ function ChatViewBody({
   ).retryLoadMessages;
 
   const routeChatId = getRouteChatId(pathname);
+  const [projectCrumb, setProjectCrumb] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!routeChatId || isIncognito) {
+      setProjectCrumb(null);
+      return;
+    }
+    let cancelled = false;
+    void getChatProject(routeChatId)
+      .then((result) => {
+        if (!cancelled) setProjectCrumb(result.project);
+      })
+      .catch(() => {
+        if (!cancelled) setProjectCrumb(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isIncognito, routeChatId]);
 
   // Keep showing the live conversation as soon as a chat id / messages exist,
   // even before Next finishes soft-navigating off /new.
@@ -372,7 +395,11 @@ function ChatViewBody({
     (!visibleChatTitle || /^new chat$/i.test(visibleChatTitle.trim()));
 
   useDocumentTitle(
-    isIncognito ? "Incognito" : visibleChatTitle || null,
+    isIncognito
+      ? "Incognito"
+      : projectCrumb && visibleChatTitle
+        ? `${projectCrumb.name} / ${visibleChatTitle}`
+        : visibleChatTitle || null,
     {
       brandOnly: brandOnlyTab,
     },
@@ -408,6 +435,7 @@ function ChatViewBody({
         onRetryMessages={retryLoadMessages}
         creatingChatPending={creatingChatPending && !blankNewChatComposer}
         activeChatTitle={displayTitleChat?.name ?? "New Chat"}
+        projectCrumb={projectCrumb}
         isActiveChatTitleStreaming={
           !!displayActiveChat?.isTitleStreaming &&
           displayActiveChat?.id === displayTitleChat?.id

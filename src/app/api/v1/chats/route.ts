@@ -31,6 +31,7 @@ export const POST = withApiHandler(
     const body = (await request.json().catch(() => ({}))) as {
       id?: string;
       title?: string;
+      projectId?: string;
     };
     const requestedId =
       typeof body.id === "string" && isValidChatId(body.id.trim())
@@ -39,6 +40,7 @@ export const POST = withApiHandler(
     const chat = await chatService.createChatForUser(user.id, {
       id: requestedId,
       title: body.title,
+      projectId: body.projectId?.trim() || null,
     });
     if (!chat) throw new AppError("Failed to create chat.", 500);
     return jsonData({ chat }, 201);

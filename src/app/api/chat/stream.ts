@@ -184,12 +184,6 @@ export async function createChatStream(
         ? buildFollowUpSystemInstruction()
         : "";
 
-      const personalizationForPrompt = options.incognito
-        ? personalization.personalizationAppend
-            .replace(/<memory_and_tools>[\s\S]*?<\/memory_and_tools>/g, "")
-            .trim()
-        : personalization.personalizationAppend;
-
       const incognitoInstr = options.incognito
         ? [
             "<incognito_mode>",
@@ -200,6 +194,26 @@ export async function createChatStream(
           ].join("\n")
         : "";
 
+      let projectAppend = "";
+      let projectOnly = false;
+      if (options.userId && options.conversationId && !options.incognito) {
+        const { loadProjectPromptAppend } = await import(
+          "@/server/services/project-context"
+        );
+        const project = await loadProjectPromptAppend(
+          options.userId,
+          options.conversationId,
+        );
+        projectAppend = project.text;
+        projectOnly = project.projectOnly;
+      }
+
+      const personalizationForPrompt = options.incognito || projectOnly
+        ? personalization.personalizationAppend
+            .replace(/<memory_and_tools>[\s\S]*?<\/memory_and_tools>/g, "")
+            .trim()
+        : personalization.personalizationAppend;
+
       const temporalInstr = buildTemporalContextAppend({
         timezone: options.clientTimezone,
       });
@@ -207,6 +221,7 @@ export async function createChatStream(
       const append = [
         temporalInstr,
         personalizationForPrompt,
+        projectAppend,
         incognitoInstr,
         titleInstr,
         followUpInstr,

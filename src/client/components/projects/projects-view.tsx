@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Archive,
   Check,
   ChevronDown,
   FileText,
   Folder,
+  Eye,
+  Download,
   Lightbulb,
   Link2,
   MoreHorizontal,
@@ -18,7 +20,6 @@ import {
   Share,
   Trash2,
   Upload,
-  X,
 } from "lucide-react";
 import { AppHref } from "@/components/app-href";
 import { IsolatedChatInput } from "@/components/isolated-chat-input";
@@ -40,28 +41,25 @@ import {
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { useToast } from "@/hooks/use-toast";
+import { useChatSession } from "@/contexts/chat-session-context";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { appBtn } from "@/lib/app-buttons";
+import * as chatsApi from "@/lib/api/chats";
+import { deleteUserFile, uploadUserFile } from "@/lib/api/files";
 import {
-  addProjectChat,
-  addProjectSource,
-  createProjectDraft,
-  deleteProjectDraft,
-  getServerProjectSnapshot,
-  getProjectSnapshot,
-  removeProjectChat,
-  removeProjectSource,
-  subscribeProjects,
-  updateProjectChat,
-  updateProjectDraft,
+  createProject,
+  deleteProject,
+  getProject,
+  listProjects,
+  updateProject,
   type LibraryAccess,
   type ProjectChat,
-  type ProjectDraft,
+  type ProjectDetail,
   type ProjectIcon,
   type ProjectMemory,
   type ProjectSource,
-  type ProjectSourceKind,
-} from "@/lib/project-drafts";
+  type ProjectSummary,
+} from "@/lib/api/projects";
 import { cn } from "@/lib/utils";
 import { ProjectIconPicker, ProjectMark } from "./project-icon";
 
@@ -71,14 +69,6 @@ type SourceFilter = "all" | "files" | "saves" | "apps";
 
 const fieldClass =
   "h-10 w-full rounded-xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-[14px] text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-field-focus-border)]";
-
-function useProjects() {
-  return useSyncExternalStore(
-    subscribeProjects,
-    getProjectSnapshot,
-    getServerProjectSnapshot,
-  );
-}
 
 function formatModified(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -191,15 +181,21 @@ export function CreateProjectDialog({
             event.preventDefault();
             const trimmed = name.trim();
             if (!trimmed) return;
-            const project = createProjectDraft({ name: trimmed, icon, memory });
-            reset();
-            onOpenChange(false);
-            navigate(APP_ROUTES.project(project.id));
+            void createProject({
+              name: trimmed,
+              iconId: icon.id,
+              color: icon.color,
+              memory,
+            }).then((result) => {
+              reset();
+              onOpenChange(false);
+              navigate(APP_ROUTES.project(result.project.id));
+            });
           }}
         >
           <label className="flex flex-col gap-1.5">
             <span className="text-[14px] font-medium text-[var(--ui-fg)]">Project name</span>
-            <span className="relative">
+            <span className="project-name-field relative">
               <span className="absolute left-1.5 top-1/2 -translate-y-1/2">
                 <ProjectIconPicker
                   icon={icon}
@@ -243,12 +239,25 @@ function ProjectSettingsDialog({
   project,
   open,
   onOpenChange,
+  onUpdated,
 }: {
-  project: ProjectDraft;
+  project: ProjectSummary;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onUpdated: (project: ProjectSummary) => void;
 }) {
   const navigate = useInstantNavigate();
+  const [name, setName] = useState(project.name);
+  const [instructions, setInstructions] = useState(project.instructions);
+  useEffect(() => {
+    setName(project.name);
+    setInstructions(project.instructions);
+  }, [project.id, project.name, project.instructions]);
+
+  const save = (patch: Parameters<typeof updateProject>[1]) => {
+    void updateProject(project.id, patch).then((result) => onUpdated(result.project));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[480px] gap-4 p-5">
@@ -259,20 +268,22 @@ function ProjectSettingsDialog({
         </DialogHeader>
         <label className="flex flex-col gap-1.5">
           <span className="text-[14px] font-medium">Project name</span>
-          <span className="relative">
+          <span className="project-name-field relative">
             <span className="absolute left-1.5 top-1/2 -translate-y-1/2">
               <ProjectIconPicker
                 icon={project.icon}
-                onChange={(icon) => updateProjectDraft(project.id, { icon })}
+                onChange={(icon) => save({ iconId: icon.id, color: icon.color })}
                 triggerClassName="size-8"
                 glyphClassName="size-4"
               />
             </span>
             <input
-              value={project.name}
-              onChange={(event) =>
-                updateProjectDraft(project.id, { name: event.target.value })
-              }
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              onBlur={() => {
+                const trimmed = name.trim();
+                if (trimmed && trimmed !== project.name) save({ name: trimmed });
+              }}
               className={cn(fieldClass, "pl-11 pr-3")}
             />
           </span>
@@ -283,10 +294,11 @@ function ProjectSettingsDialog({
             Set context and customize how Clauxen responds in this project.
           </span>
           <textarea
-            value={project.instructions}
-            onChange={(event) =>
-              updateProjectDraft(project.id, { instructions: event.target.value })
-            }
+            value={instructions}
+            onChange={(event) => setInstructions(event.target.value)}
+            onBlur={() => {
+              if (instructions !== project.instructions) save({ instructions });
+            }}
             rows={4}
             placeholder='e.g. "Respond in Spanish. Reference the latest notes. Keep answers short and focused."'
             className="w-full resize-none rounded-xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-3 py-2.5 text-[14px] leading-5 text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-field-focus-border)]"
@@ -296,7 +308,7 @@ function ProjectSettingsDialog({
           <span className="text-[14px] font-medium">Memory</span>
           <MemorySelect
             value={project.memory}
-            onChange={(memory) => updateProjectDraft(project.id, { memory })}
+            onChange={(memory) => save({ memory })}
           />
           <p className="text-[12.5px] leading-5 text-[var(--ui-fg-muted)]">
             {project.memory === "project"
@@ -308,7 +320,7 @@ function ProjectSettingsDialog({
           <span className="text-[14px] font-medium">Library access</span>
           <LibrarySelect
             value={project.libraryAccess}
-            onChange={(libraryAccess) => updateProjectDraft(project.id, { libraryAccess })}
+            onChange={(libraryAccess) => save({ libraryAccess })}
           />
           <p className="text-[12.5px] leading-5 text-[var(--ui-fg-muted)]">
             This project can access your file library while it remains private. Sharing this project disables library access.
@@ -318,9 +330,10 @@ function ProjectSettingsDialog({
           type="button"
           className="mt-1 h-9 w-fit rounded-full border border-red-500/40 px-4 text-[13px] font-medium text-red-600 hover:bg-red-500/10"
           onClick={() => {
-            deleteProjectDraft(project.id);
-            onOpenChange(false);
-            navigate(APP_ROUTES.projects);
+            void deleteProject(project.id).then(() => {
+              onOpenChange(false);
+              navigate(APP_ROUTES.projects);
+            });
           }}
         >
           Delete project
@@ -394,22 +407,30 @@ export function ProjectsView() {
     const match = pathname.match(/^\/projects\/([^/]+)/);
     return match ? decodeURIComponent(match[1]) : null;
   }, [pathname]);
-  const projects = useProjects();
 
-  if (projectId) {
-    const project = projects.find((row) => row.id === projectId) ?? null;
-    return <ProjectHome project={project} />;
-  }
-  return <ProjectsIndex projects={projects} />;
+  if (projectId) return <ProjectHome projectId={projectId} />;
+  return <ProjectsIndex />;
 }
 
-function ProjectsIndex({ projects }: { projects: ProjectDraft[] }) {
+function ProjectsIndex() {
   const { isMobile, openMobileNav } = useAppLayout();
   const { toast } = useToast();
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<ProjectTab>("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
+
+  const reload = () => {
+    void listProjects()
+      .then((result) => setProjects(result.projects))
+      .catch(() => setProjects([]));
+  };
+
+  useEffect(() => {
+    reload();
+  }, []);
+
   const settingsProject = projects.find((project) => project.id === settingsId) ?? null;
 
   const visible = projects
@@ -503,7 +524,9 @@ function ProjectsIndex({ projects }: { projects: ProjectDraft[] }) {
                           <MoreHorizontal className="size-4" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onSelect={() => updateProjectDraft(project.id, { pinned: !project.pinned })}>
+                          <DropdownMenuItem onSelect={() => {
+                            void updateProject(project.id, { pinned: !project.pinned }).then(reload);
+                          }}>
                             <Pin className="size-4" strokeWidth={1.75} />
                             {project.pinned ? "Unpin project" : "Pin project"}
                           </DropdownMenuItem>
@@ -525,7 +548,9 @@ function ProjectsIndex({ projects }: { projects: ProjectDraft[] }) {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-red-600 focus:text-red-600"
-                            onSelect={() => deleteProjectDraft(project.id)}
+                            onSelect={() => {
+                              void deleteProject(project.id).then(reload);
+                            }}
                           >
                             <Trash2 className="size-4" strokeWidth={1.75} />
                             Delete project
@@ -560,6 +585,11 @@ function ProjectsIndex({ projects }: { projects: ProjectDraft[] }) {
         <ProjectSettingsDialog
           project={settingsProject}
           open
+          onUpdated={(next) => {
+            setProjects((current) =>
+              current.map((row) => (row.id === next.id ? { ...row, ...next } : row)),
+            );
+          }}
           onOpenChange={(open) => {
             if (!open) setSettingsId(null);
           }}
@@ -569,15 +599,31 @@ function ProjectsIndex({ projects }: { projects: ProjectDraft[] }) {
   );
 }
 
-function ProjectHome({ project }: { project: ProjectDraft | null }) {
+function ProjectHome({ projectId }: { projectId: string }) {
   const { isMobile, openMobileNav } = useAppLayout();
   const { toast } = useToast();
+  const navigate = useInstantNavigate();
+  const session = useChatSession();
+  const [project, setProject] = useState<ProjectDetail | null | undefined>(undefined);
   const [tab, setTab] = useState<"chats" | "sources">("chats");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [renameChat, setRenameChat] = useState<ProjectChat | null>(null);
   const [sort, setSort] = useState<SourceSort>("newest");
   const [filter, setFilter] = useState<SourceFilter>("all");
+
+  const reload = () => {
+    void getProject(projectId)
+      .then((result) => setProject(result.project))
+      .catch(() => setProject(null));
+  };
+
+  useEffect(() => {
+    setProject(undefined);
+    reload();
+  }, [projectId]);
+
+  if (project === undefined) return null;
 
   if (!project) {
     return (
@@ -592,9 +638,9 @@ function ProjectHome({ project }: { project: ProjectDraft | null }) {
     );
   }
 
-  const chats = project.chats
-    .filter((chat) => !chat.archived)
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (a.updatedAt < b.updatedAt ? 1 : -1));
+  const chats = [...project.chats].sort(
+    (a, b) => Number(b.pinned) - Number(a.pinned) || (a.updatedAt < b.updatedAt ? 1 : -1),
+  );
 
   const sources = project.sources
     .filter((source) => {
@@ -619,7 +665,9 @@ function ProjectHome({ project }: { project: ProjectDraft | null }) {
           <div className="flex items-center gap-2">
             <ProjectIconPicker
               icon={project.icon}
-              onChange={(icon) => updateProjectDraft(project.id, { icon })}
+              onChange={(icon) => {
+                void updateProject(project.id, { iconId: icon.id, color: icon.color }).then(reload);
+              }}
               triggerClassName="size-9"
               glyphClassName="size-6"
             />
@@ -648,7 +696,11 @@ function ProjectHome({ project }: { project: ProjectDraft | null }) {
                   <Settings className="size-4" strokeWidth={1.75} />
                   Project settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => updateProjectDraft(project.id, { pinned: !project.pinned })}>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    void updateProject(project.id, { pinned: !project.pinned }).then(reload);
+                  }}
+                >
                   <Pin className="size-4" strokeWidth={1.75} />
                   {project.pinned ? "Unpin project" : "Pin project"}
                 </DropdownMenuItem>
@@ -662,10 +714,16 @@ function ProjectHome({ project }: { project: ProjectDraft | null }) {
               isConversationStarted={false}
               isGenerating={false}
               focusKey={project.id}
+              projectId={project.id}
               onStopGeneration={() => {}}
-              onSendMessage={(prompt) => {
-                if (!prompt.trim()) return;
-                addProjectChat(project.id, prompt);
+              onSendMessage={(prompt, options) => {
+                if (!prompt.trim() && !options?.attachments?.length) return;
+                void session.handleSendMessage(prompt, {
+                  forceNewChat: true,
+                  projectId: project.id,
+                  attachments: options?.attachments,
+                  onChatCreated: (chatId) => navigate(APP_ROUTES.chat(chatId)),
+                });
               }}
             />
           </div>
@@ -696,7 +754,9 @@ function ProjectHome({ project }: { project: ProjectDraft | null }) {
                     key={chat.id}
                     project={project}
                     chat={chat}
+                    onChanged={reload}
                     onRename={() => setRenameChat(chat)}
+                    onOpen={() => navigate(APP_ROUTES.chat(chat.id))}
                   />
                 ))
               ) : (
@@ -713,24 +773,34 @@ function ProjectHome({ project }: { project: ProjectDraft | null }) {
               onSort={setSort}
               onFilter={setFilter}
               onAdd={() => setSourcesOpen(true)}
-              onRemove={(sourceId) => removeProjectSource(project.id, sourceId)}
+              onRemove={(sourceId) => {
+                void deleteUserFile(sourceId).then(reload);
+              }}
             />
           )}
         </div>
       </div>
-      <ProjectSettingsDialog project={project} open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <ProjectSettingsDialog
+        project={project}
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        onUpdated={() => reload()}
+      />
       <AddSourcesDialog
+        projectId={project.id}
         open={sourcesOpen}
         onOpenChange={setSourcesOpen}
-        onAdd={(source) => addProjectSource(project.id, source)}
+        onAdded={reload}
       />
       <RenameChatDialog
         chat={renameChat}
         onClose={() => setRenameChat(null)}
         onSave={(title) => {
           if (!renameChat) return;
-          updateProjectChat(project.id, renameChat.id, { title });
-          setRenameChat(null);
+          void chatsApi.updateChat(renameChat.id, { title }).then(() => {
+            setRenameChat(null);
+            reload();
+          });
         }}
       />
     </div>
@@ -741,18 +811,22 @@ function ChatRow({
   project,
   chat,
   onRename,
+  onChanged,
+  onOpen,
 }: {
-  project: ProjectDraft;
+  project: ProjectSummary;
   chat: ProjectChat;
   onRename: () => void;
+  onChanged: () => void;
+  onOpen: () => void;
 }) {
   const { toast } = useToast();
   return (
     <li className="group grid grid-cols-[minmax(0,1fr)_72px_28px] items-center rounded-xl px-2 py-2.5 hover:bg-[var(--ui-hover-wash)]">
-      <div className="min-w-0">
+      <button type="button" onClick={onOpen} className="min-w-0 text-left">
         <p className="truncate text-[14px] font-medium text-[var(--ui-fg)]">{chat.title}</p>
         <p className="truncate text-[13px] text-[var(--ui-fg-muted)]">{chat.preview}</p>
-      </div>
+      </button>
       <span className="text-[12px] text-[var(--ui-fg-muted)]">{formatModified(chat.updatedAt)}</span>
       <DropdownMenu>
         <DropdownMenuTrigger aria-label={`Actions for ${chat.title}`} className="flex size-7 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] opacity-0 outline-none group-hover:opacity-100 data-[state=open]:opacity-100">
@@ -761,7 +835,7 @@ function ChatRow({
         <DropdownMenuContent align="end" className="w-52">
           <DropdownMenuItem
             onSelect={() => {
-              const url = `${window.location.origin}${APP_ROUTES.project(project.id)}`;
+              const url = `${window.location.origin}${APP_ROUTES.chat(chat.id)}`;
               void copyText(url).then((ok) => toast({ title: ok ? "Link copied" : "Could not copy link" }));
             }}
           >
@@ -771,20 +845,24 @@ function ChatRow({
             <Pencil className="size-4" strokeWidth={1.75} /> Rename
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => updateProjectChat(project.id, chat.id, { pinned: !chat.pinned })}>
+          <DropdownMenuItem
+            onSelect={() => {
+              void (chat.pinned ? chatsApi.unpinChat(chat.id) : chatsApi.pinChat(chat.id)).then(onChanged);
+            }}
+          >
             <Pin className="size-4" strokeWidth={1.75} /> {chat.pinned ? "Unpin chat" : "Pin chat"}
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => updateProjectChat(project.id, chat.id, { archived: true })}>
+          <DropdownMenuItem onSelect={() => { void chatsApi.archiveChat(chat.id).then(onChanged); }}>
             <Archive className="size-4" strokeWidth={1.75} /> Archive
           </DropdownMenuItem>
-          <DropdownMenuItem className="text-red-600 focus:text-red-600" onSelect={() => removeProjectChat(project.id, chat.id)}>
+          <DropdownMenuItem className="text-red-600 focus:text-red-600" onSelect={() => { void chatsApi.deleteChat(chat.id).then(onChanged); }}>
             <Trash2 className="size-4" strokeWidth={1.75} /> Delete
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled className="text-[12px] text-[var(--ui-fg-muted)]">
             {project.name}
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => removeProjectChat(project.id, chat.id)}>
+          <DropdownMenuItem onSelect={() => { void chatsApi.deleteChat(chat.id).then(onChanged); }}>
             <Folder className="size-4" strokeWidth={1.75} /> Remove from project
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -838,13 +916,35 @@ function SourcesPanel({
       {sources.length ? (
         <ul className="flex flex-col">
           {sources.map((source) => (
-            <li key={source.id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-[var(--ui-hover-wash)]">
-              <FileText className="size-4 text-[var(--ui-fg-muted)]" strokeWidth={1.75} />
+            <li key={source.id} className="group flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-[var(--ui-hover-wash)]">
+              <FileText className="size-4 shrink-0 text-[var(--ui-fg-muted)]" strokeWidth={1.75} />
               <span className="min-w-0 flex-1 truncate text-[14px]">{source.name}</span>
-              <span className="text-[12px] capitalize text-[var(--ui-fg-muted)]">{source.kind}</span>
-              <button type="button" aria-label={`Remove ${source.name}`} onClick={() => onRemove(source.id)} className="text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]">
-                <X className="size-4" />
-              </button>
+              <span className="text-[12px] text-[var(--ui-fg-muted)]">File</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label={`Actions for ${source.name}`}
+                  className="flex size-7 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] opacity-0 outline-none group-hover:opacity-100 data-[state=open]:opacity-100"
+                >
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem disabled>
+                    <Eye className="size-4" strokeWidth={1.75} /> View
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled>
+                    <Download className="size-4" strokeWidth={1.75} /> Download
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled>
+                    <Share className="size-4" strokeWidth={1.75} /> Share
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600"
+                    onSelect={() => onRemove(source.id)}
+                  >
+                    <Trash2 className="size-4" strokeWidth={1.75} /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </li>
           ))}
         </ul>
@@ -898,24 +998,37 @@ function FilterMenu({
 }
 
 function AddSourcesDialog({
+  projectId,
   open,
   onOpenChange,
-  onAdd,
+  onAdded,
 }: {
+  projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (source: Omit<ProjectSource, "id" | "createdAt">) => void;
+  onAdded: () => void;
 }) {
   const [mode, setMode] = useState<"drop" | "text" | "library">("drop");
   const [text, setText] = useState("");
   const [libraryName, setLibraryName] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const add = (kind: ProjectSourceKind, name: string, body?: string) => {
-    onAdd({ kind, name, body });
-    setText("");
-    setLibraryName("");
-    setMode("drop");
-    onOpenChange(false);
+  const upload = async (file: File, sourceKind: string) => {
+    setBusy(true);
+    try {
+      await uploadUserFile(file, {
+        purpose: "project-source",
+        projectId,
+        sourceKind,
+      });
+      setText("");
+      setLibraryName("");
+      setMode("drop");
+      onOpenChange(false);
+      onAdded();
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -935,9 +1048,14 @@ function AddSourcesDialog({
             />
             <button
               type="button"
-              disabled={!text.trim()}
+              disabled={!text.trim() || busy}
               className={cn(appBtn.primarySm, "self-end disabled:opacity-40")}
-              onClick={() => add("text", text.trim().slice(0, 48) || "Note", text.trim())}
+              onClick={() => {
+                const note = text.trim();
+                if (!note) return;
+                const name = `${note.slice(0, 40) || "Note"}.txt`;
+                void upload(new File([note], name, { type: "text/plain" }), "text");
+              }}
             >
               Add note
             </button>
@@ -952,9 +1070,16 @@ function AddSourcesDialog({
             />
             <button
               type="button"
-              disabled={!libraryName.trim()}
+              disabled={!libraryName.trim() || busy}
               className={cn(appBtn.primarySm, "self-end disabled:opacity-40")}
-              onClick={() => add("library", libraryName.trim())}
+              onClick={() => {
+                const name = libraryName.trim();
+                if (!name) return;
+                void upload(
+                  new File([`Library item: ${name}`], `${name}.txt`, { type: "text/plain" }),
+                  "library",
+                );
+              }}
             >
               Add from library
             </button>
@@ -966,7 +1091,7 @@ function AddSourcesDialog({
             onDrop={(event) => {
               event.preventDefault();
               const file = event.dataTransfer.files?.[0];
-              if (file) add("file", file.name, undefined);
+              if (file) void upload(file, "file");
             }}
           >
             <Paperclip className="mb-2 size-5" strokeWidth={1.75} />
@@ -977,7 +1102,7 @@ function AddSourcesDialog({
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 event.target.value = "";
-                if (file) add("file", file.name);
+                if (file) void upload(file, "file");
               }}
             />
           </label>
@@ -986,8 +1111,12 @@ function AddSourcesDialog({
           <SourceAction icon={<Upload className="size-4" />} label="Upload" onClick={() => setMode("drop")} />
           <SourceAction icon={<Folder className="size-4" />} label="Add from library" onClick={() => setMode("library")} />
           <SourceAction icon={<FileText className="size-4" />} label="Text input" onClick={() => setMode("text")} />
-          <SourceAction icon={<Link2 className="size-4" />} label="Google Drive" onClick={() => add("drive", "Google Drive")} />
-          <SourceAction icon={<Link2 className="size-4" />} label="Slack" onClick={() => add("slack", "Slack")} />
+          <SourceAction icon={<Link2 className="size-4" />} label="Google Drive" onClick={() => {
+            void upload(new File(["Google Drive"], "Google Drive.txt", { type: "text/plain" }), "drive");
+          }} />
+          <SourceAction icon={<Link2 className="size-4" />} label="Slack" onClick={() => {
+            void upload(new File(["Slack"], "Slack.txt", { type: "text/plain" }), "slack");
+          }} />
         </div>
       </DialogContent>
     </Dialog>

@@ -136,19 +136,21 @@ export async function createChatFast(input: {
   userId: string;
   title?: string;
   id?: string;
+  projectId?: string | null;
 }) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const id = input.id ?? generateChatId();
     try {
       return await queryOne<ChatRow>(
-        `insert into public.chats (id, user_id, workspace_id, title)
+        `insert into public.chats (id, user_id, workspace_id, title, project_id)
          select
            $1,
            $2,
            (select default_workspace_id from public.profiles where id = $2 limit 1),
-           $3
+           $3,
+           $4
          returning id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at`,
-        [id, input.userId, input.title ?? "New chat"],
+        [id, input.userId, input.title ?? "New chat", input.projectId ?? null],
       );
     } catch (error) {
       if (
