@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import "bootstrap-icons/font/bootstrap-icons.css";
 import { cn } from "@/lib/utils";
 import {
   PHONE_COUNTRIES,
@@ -19,13 +20,13 @@ export const authPageStyles = {
   ink: "#18181b",
   muted: "#71717a",
   outlinedBtn:
-    "relative inline-flex h-11 w-full items-center justify-center gap-2.5 overflow-hidden rounded-[var(--radius-md)] border border-zinc-200 bg-white px-5 text-sm font-medium tracking-[-0.01em] text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.03)] transition-[border-color,background-color] hover:border-zinc-300 hover:bg-zinc-50 disabled:opacity-60",
+    "auth-oauth-btn relative inline-flex h-11 w-full items-center justify-center gap-2.5 overflow-hidden rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-5 text-sm font-medium tracking-[-0.01em] text-[var(--ui-fg)] shadow-[var(--field-shadow)] transition-[border-color,background-color,box-shadow] hover:bg-[var(--ui-hover-wash)] disabled:opacity-60",
   iconBtn:
-    "relative inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-[var(--radius-md)] border border-zinc-200 bg-white px-2.5 text-sm font-medium tracking-[-0.01em] text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.03)] transition-[border-color,background-color] hover:border-zinc-300 hover:bg-zinc-50 disabled:opacity-60",
+    "relative inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-2.5 text-sm font-medium tracking-[-0.01em] text-[var(--ui-fg)] shadow-[var(--field-shadow)] transition-[border-color,background-color] hover:bg-[var(--ui-hover-wash)] disabled:opacity-60",
   primaryBtn:
-    "relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[var(--radius-md)] bg-zinc-900 px-5 text-sm font-medium tracking-[-0.01em] text-white transition-colors hover:bg-zinc-800 disabled:opacity-70",
+    "relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[var(--radius-md)] bg-[#18181b] px-5 text-sm font-medium tracking-[-0.01em] text-white transition-colors hover:bg-[#27272a] disabled:opacity-70 dark:bg-[#f4f4f5] dark:text-[#18181b] dark:hover:bg-[#e4e4e7]",
   input:
-    "h-11 w-full rounded-[var(--radius-md)] border border-zinc-200 bg-white px-3.5 text-sm font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.02)] outline-none transition-[border-color,box-shadow] placeholder:text-zinc-400 focus-visible:border-zinc-300 focus-visible:ring-2 focus-visible:ring-zinc-900/10",
+    "h-11 w-full rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-3.5 text-sm font-medium text-[var(--ui-fg)] shadow-[var(--field-shadow)] outline-none transition-[border-color,box-shadow] placeholder:text-[var(--ui-fg-placeholder)] focus-visible:border-[var(--ui-field-focus-border)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
   /** Clickable label — no button hover wash; see `.auth-text-link` in globals.css */
   textLink: "auth-text-link text-[13px]",
 };
@@ -42,17 +43,26 @@ export type OAuthProvider =
   | "apple"
   | "gitlab";
 
-function AuthSplash({ active }: { active: boolean }) {
-  if (!active) return null;
+function ProviderMark({
+  icon,
+  className,
+}: {
+  icon: string;
+  className?: string;
+}) {
   return (
     <span
-      className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/75"
+      className="inline-flex w-[18px] shrink-0 items-center justify-center"
       aria-hidden
     >
-      <span className="auth-splash-ring absolute h-8 w-8 rounded-full bg-zinc-900/15" />
-      <span className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-800" />
+      <i className={cn("bi text-[16px] leading-none", icon, className)} />
     </span>
   );
+}
+
+function AuthRing({ active }: { active: boolean }) {
+  if (!active) return null;
+  return <span className="auth-splash-ring" aria-hidden />;
 }
 
 export function AuthOAuthButtons({
@@ -66,54 +76,65 @@ export function AuthOAuthButtons({
   disabled?: boolean;
   pendingProvider?: OAuthProvider | "sso" | null;
 }) {
+  const pending = (id: OAuthProvider | "sso") => pendingProvider === id;
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       <button
         type="button"
-        disabled={disabled}
+        disabled={Boolean(disabled) && !pending("google")}
+        aria-busy={pending("google") || undefined}
         onClick={() => onOAuth("google")}
-        className={authPageStyles.outlinedBtn}
+        className={cn(
+          authPageStyles.outlinedBtn,
+          pending("google") && "auth-oauth-pending",
+        )}
       >
-        <AuthSplash active={pendingProvider === "google"} />
-        <i className="bi bi-google text-[16px] leading-none" aria-hidden />
+        <AuthRing active={pending("google")} />
+        <ProviderMark icon="bi-google" />
         Continue with Google
       </button>
       <button
         type="button"
-        disabled={disabled}
+        disabled={Boolean(disabled) && !pending("github")}
+        aria-busy={pending("github") || undefined}
         onClick={() => onOAuth("github")}
-        className={authPageStyles.outlinedBtn}
+        className={cn(
+          authPageStyles.outlinedBtn,
+          pending("github") && "auth-oauth-pending",
+        )}
       >
-        <AuthSplash active={pendingProvider === "github"} />
-        <i className="bi bi-github text-[16px] leading-none" aria-hidden />
+        <AuthRing active={pending("github")} />
+        <ProviderMark icon="bi-github" />
         Continue with GitHub
       </button>
       <button
         type="button"
-        disabled={disabled}
+        disabled={Boolean(disabled) && !pending("gitlab")}
+        aria-busy={pending("gitlab") || undefined}
         onClick={() => onOAuth("gitlab")}
-        className={authPageStyles.outlinedBtn}
+        className={cn(
+          authPageStyles.outlinedBtn,
+          pending("gitlab") && "auth-oauth-pending",
+        )}
       >
-        <AuthSplash active={pendingProvider === "gitlab"} />
-        <i
-          className="bi bi-gitlab text-[17px] leading-none text-[#FC6D26]"
-          aria-hidden
-        />
+        <AuthRing active={pending("gitlab")} />
+        <ProviderMark icon="bi-gitlab" className="text-[17px] text-[#FC6D26]" />
         Continue with GitLab
       </button>
 
       <button
         type="button"
-        disabled={disabled}
+        disabled={Boolean(disabled) && !pending("sso")}
+        aria-busy={pending("sso") || undefined}
         onClick={onSso}
-        className={authPageStyles.outlinedBtn}
-        aria-label="Continue with SSO"
+        className={cn(
+          authPageStyles.outlinedBtn,
+          pending("sso") && "auth-oauth-pending",
+        )}
       >
-        <AuthSplash active={pendingProvider === "sso"} />
-        <i
-          className="bi bi-building text-[15px] leading-none text-zinc-600"
-          aria-hidden
-        />
+        <AuthRing active={pending("sso")} />
+        <ProviderMark icon="bi-building" className="text-[15px] text-[var(--ui-fg-muted)]" />
         Continue with SSO
       </button>
     </div>
