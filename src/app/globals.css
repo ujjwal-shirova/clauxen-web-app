@@ -4482,6 +4482,66 @@ button.user-message-card__body:not(:disabled):hover,
   line-height: 0;
 }
 
+.agent-trace-preview {
+  position: relative;
+  margin: 2px 0 0 28px;
+  max-width: 42rem;
+}
+
+.agent-trace-preview__scroll {
+  max-height: calc(1.45em * 6);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  color: color-mix(in oklab, var(--ui-fg) 42%, transparent);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.agent-trace-preview__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.agent-trace-preview__line {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-trace-preview__caret {
+  display: flex;
+  align-items: center;
+  height: 1.45em;
+}
+
+.agent-trace-preview__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 1.35em;
+  pointer-events: none;
+}
+
+.agent-trace-preview__fade--top {
+  top: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--app-panel-bg, #fcfcfb),
+    transparent
+  );
+}
+
+.agent-trace-preview__fade--bottom {
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    var(--app-panel-bg, #fcfcfb),
+    transparent
+  );
+}
+
 .orb-cursor-core {
   display: block;
   width: 100%;

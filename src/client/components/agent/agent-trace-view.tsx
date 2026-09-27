@@ -226,7 +226,7 @@ function headerDuration(ms: number | null): string {
 function AgentRunHeader({
   live,
   elapsedMs,
-  subtitle,
+  activityLabel,
   failedCount = 0,
   expandable,
   expanded,
@@ -235,7 +235,8 @@ function AgentRunHeader({
 }: {
   live: boolean;
   elapsedMs: number | null;
-  subtitle?: string | null;
+  /** Live step title. Replaces "Working for…" while a step is in progress. */
+  activityLabel?: string | null;
   failedCount?: number;
   expandable: boolean;
   expanded: boolean;
@@ -243,7 +244,12 @@ function AgentRunHeader({
   buttonRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const duration = headerDuration(elapsedMs);
-  const label = live ? `Working for ${duration}` : `Worked for ${duration}`;
+  const label =
+    live && activityLabel
+      ? activityLabel
+      : live
+        ? `Working for ${duration}`
+        : `Worked for ${duration}`;
 
   const inner = (
     <>
@@ -257,11 +263,8 @@ function AgentRunHeader({
         >
           {label}
         </span>
-        {subtitle ? (
-          <span className="agent-run__header-subtitle" title={subtitle}>
-            <span aria-hidden>{"\u00a0·\u00a0"}</span>
-            {subtitle}
-          </span>
+        {live && activityLabel ? (
+          <span className="agent-run__header-subtitle">{duration}</span>
         ) : null}
         {failedCount > 0 ? (
           <span className="agent-run__header-failed">
@@ -332,7 +335,7 @@ export function AgentWorkingRow({
       <AgentRunHeader
         live
         elapsedMs={elapsed}
-        subtitle={activeLabel}
+        activityLabel={activeLabel}
         expandable={false}
         expanded={false}
       />
@@ -511,7 +514,83 @@ function ToolGroupTree({
   );
 }
 
-/* ─────────────────────────── trace view ─────────────────────────── */
+function stepActivityLabel(step: AgentStep): string {
+  if (step.kind === "thinking") return "Thinking";
+  if (step.kind === "narration") return "Writing";
+  return toolTraceFamilyLabel(toolTraceFamily(step.name), 1, true);
+}
+
+function previewLinesFor(steps: AgentStep[]): string[] {
+  const lines: string[] = [];
+  for (const step of steps) {
+    if (step.kind === "narration") {
+      const parts = step.content
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      lines.push(...parts);
+      continue;
+    }
+    if (step.kind === "thinking") {
+      const text = step.content?.trim();
+      lines.push(text ? text.replace(/\s+/g, " ") : "Thinking");
+      continue;
+    }
+    const detail =
+      step.description?.trim() ||
+      step.searchQuery?.trim() ||
+      step.filePath?.trim() ||
+      (typeof step.args?.query === "string" ? step.args.query : "") ||
+      (typeof step.args?.command === "string" ? step.args.command : "") ||
+      (typeof step.args?.path === "string" ? step.args.path : "");
+    lines.push(
+      detail
+        ? `${stepActivityLabel(step)} — ${detail}`
+        : stepActivityLabel(step),
+    );
+  }
+  return lines.slice(-12);
+}
+
+function CollapsedWorkPreview({
+  lines,
+  live,
+}: {
+  lines: string[];
+  live: boolean;
+}) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const signature = lines.join("\n");
+
+  useEffect(() => {
+    const node = scrollerRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [signature, live]);
+
+  return (
+    <div className="agent-trace-preview" data-agent-trace-preview="true">
+      <div className="agent-trace-preview__fade agent-trace-preview__fade--top" />
+      <div ref={scrollerRef} className="agent-trace-preview__scroll">
+        {lines.length ? (
+          lines.map((line, index) => (
+            <p key={`${index}-${line.slice(0, 24)}`} className="agent-trace-preview__line">
+              {line}
+            </p>
+          ))
+        ) : (
+          <p className="agent-trace-preview__line">Starting</p>
+        )}
+        {live ? (
+          <div className="agent-trace-preview__caret">
+            <StreamingOrbCursor />
+          </div>
+        ) : null}
+      </div>
+      <div className="agent-trace-preview__fade agent-trace-preview__fade--bottom" />
+    </div>
+  );
+}
 
 /**
  * One activity tree for the turn. Narration sits between tool calls inside
@@ -582,6 +661,22 @@ export function AgentTraceView({
   const failedCount = visibleSteps.filter(
     (step) => step.kind === "tool" && step.status === "error",
   ).length;
+  const activityLabel = useMemo(() => {
+    const running = [...visibleSteps].reverse().find((step) => {
+      if (step.kind === "tool") return step.status === "running";
+      if (step.kind === "thinking" || step.kind === "narration") {
+        return step.isStreaming === true;
+      }
+      return false;
+    });
+    const current = running ?? visibleSteps[visibleSteps.length - 1];
+    return current ? stepActivityLabel(current) : null;
+  }, [visibleSteps]);
+  const collapsedPreview = useMemo(
+    () => previewLinesFor(visibleSteps),
+    [visibleSteps],
+  );
+  const showPreview = isActive && !expanded;
 
   return (
     <div
@@ -593,6 +688,7 @@ export function AgentTraceView({
       <AgentRunHeader
         live={isActive}
         elapsedMs={elapsed}
+        activityLabel={isActive ? activityLabel : null}
         failedCount={failedCount}
         expandable
         expanded={expanded}
@@ -604,6 +700,9 @@ export function AgentTraceView({
           });
         }}
       />
+      {showPreview ? (
+        <CollapsedWorkPreview lines={collapsedPreview} live={isActive} />
+      ) : null}
       {expanded ? (
         <div className="agent-run__body flex min-w-0 flex-col gap-2 pt-1">
           {segments.map((segment) => {
