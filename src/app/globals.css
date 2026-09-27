@@ -4687,12 +4687,119 @@ html[data-reduce-motion="1"] .orb-cursor-core {
 @keyframes auth-splash {
   0% {
     transform: scale(0.35);
-    opacity: 0.4;
+    opacity: 0.55;
   }
   100% {
-    transform: scale(2.2);
+    transform: scale(2.4);
     opacity: 0;
   }
+}
+
+@keyframes auth-edge-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.72;
+  }
+  100% {
+    transform: scale(1.06);
+    opacity: 0;
+  }
+}
+
+/* Sign-in numeric field — top band, dissolving into the form. */
+.auth-numeric-field {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 0;
+  height: min(48%, 340px);
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 28%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, #000 0%, #000 28%, transparent 100%);
+}
+
+.auth-numeric-field canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* OAuth click — ring on the control, label stays put. No spinner. */
+.auth-oauth-btn .auth-splash-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-top: -1.125rem;
+  margin-left: -1.125rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--ui-fg) 18%, transparent);
+  pointer-events: none;
+  animation: auth-splash 0.95s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.auth-oauth-btn > :not(.auth-splash-ring) {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-oauth-pending {
+  overflow: visible !important;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--ui-fg) 32%, transparent);
+}
+
+.auth-oauth-pending::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1.5px solid color-mix(in oklab, var(--ui-fg) 55%, transparent);
+  pointer-events: none;
+  animation: auth-edge-ring 1.05s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+html[data-auth-redirect],
+html[data-auth-redirect] body {
+  cursor: progress;
+}
+
+@keyframes cookie-notice-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.cookie-notice {
+  animation: cookie-notice-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-oauth-btn .auth-splash-ring,
+  .auth-oauth-pending::after,
+  .cookie-notice,
+  .auth-numeric-field {
+    animation: none;
+  }
+}
+
+html[data-reduce-motion="1"] .auth-oauth-btn .auth-splash-ring,
+html[data-reduce-motion="1"] .auth-oauth-pending::after,
+html[data-reduce-motion="1"] .cookie-notice {
+  animation: none;
 }
 
 /* Seamless shimmer — end state matches start (no hard cut). */
@@ -4874,6 +4981,11 @@ html[data-reduce-motion="1"] .shimmer-bg {
     border-top-color: #18181b;
     opacity: 0.7;
   }
+}
+
+.dark .chat-gen-spinner {
+  border-color: rgba(244, 244, 245, 0.22);
+  border-top-color: #f4f4f5;
 }
 
 [data-prompt-root][data-streaming="true"] [data-prompt-shell],

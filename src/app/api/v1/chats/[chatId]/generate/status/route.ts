@@ -21,10 +21,12 @@ export const GET = withApiRouteParams<{ chatId: string }>(
     const marked = markedIds.includes(params.chatId);
     // The coordinator is the live lease. A stale metadata flag is cleared
     // when the lease is gone so a finished turn does not keep spinning.
+    // A finished answer also wins over a lease that was not released: the
+    // saved row is the source of truth for the composer stop button.
     if (status && !status.active && marked) {
       await chatsRepo.setChatGenerating(params.chatId, user.id, false);
     }
-    const active = status ? status.active : marked;
+    const active = status ? status.active && marked : marked;
     return Response.json(
       {
         data: {

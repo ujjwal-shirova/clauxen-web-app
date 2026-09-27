@@ -187,7 +187,76 @@ export async function setChatGenerating(
   );
 }
 
+/**
+ * Drop a generating mark once the assistant turn is already saved.
+ * A late heartbeat used to leave the flag on after finalize, so reopening
+ * the app kept the composer stop button and the sidebar spinner spinning.
+ */
+export async function settleFinishedGenerations(
+  userId: string,
+  chatId?: string | null,
+) {
+  await query(
+    `update public.chat_messages m
+     set status = case
+           when m.content_json->'agent_ui'->>'status' in ('failed', 'cancelled')
+             then m.content_json->'agent_ui'->>'status'
+           else 'complete'
+         end,
+         updated_at = now()
+     where m.role = 'assistant'
+       and m.status in ('queued', 'streaming')
+       and m.content_json->'agent_ui'->>'status' in ('complete', 'failed', 'cancelled')
+       and m.chat_id in (
+         select c.id
+         from public.chats c
+         where c.user_id = $1
+           and c.status != 'deleted'
+           and ($2::text is null or c.id = $2)
+       )`,
+    [userId, chatId ?? null],
+  );
+
+  await query(
+    `update public.chats c
+     set metadata = coalesce(c.metadata, '{}'::jsonb) || jsonb_build_object(
+       'generating', false,
+       'generating_at', ''
+     )
+     where c.user_id = $1
+       and ($2::text is null or c.id = $2)
+       and c.status != 'deleted'
+       and coalesce(c.metadata->>'generating', '') = 'true'
+       and not exists (
+         select 1
+         from public.chat_messages m
+         where m.chat_id = c.id
+           and m.role = 'assistant'
+           and m.status in ('queued', 'streaming')
+       )
+       and (
+         exists (
+           select 1
+           from public.chat_messages m
+           where m.chat_id = c.id
+             and m.role = 'assistant'
+             and m.status in ('complete', 'failed', 'cancelled')
+         )
+         or coalesce(
+           nullif(c.metadata->>'generating_at', '')::timestamptz,
+           '-infinity'::timestamptz
+         ) < now() - interval '3 minutes'
+       )`,
+    [userId, chatId ?? null],
+  );
+}
+
 export async function listGeneratingChatIds(userId: string) {
+  try {
+    await settleFinishedGenerations(userId);
+  } catch (error) {
+    console.warn("[chats] could not settle finished generations", error);
+  }
   const rows = await query<{ id: string }>(
     `select id
      from public.chats

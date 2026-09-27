@@ -149,8 +149,17 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     }
 
     const generationController = generation.controller;
-    let finishOnce: (() => Promise<void>) | null = null;
+    let resolveSettled: () => void = () => {};
+    const generationSettled = new Promise<void>((resolve) => {
+      resolveSettled = resolve;
+    });
+    // The HTTP response can end when the browser closes. This keeps the
+    // Vercel isolate alive until the model stream is consumed and the
+    // assistant row is saved in Supabase.
+    after(() => generationSettled);
+
     await chatsRepo.setChatGenerating(params.chatId, user.id, true);
+    let holdGenerating = true;
 
     try {
       const { stream, onComplete, userMessageId, assistantMessageId } =
@@ -177,6 +186,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           onPauseForUser: async () => {
             // Free the DO/local lease as soon as ask_user_input pauses so the
             // user's questionnaire answers can start a new turn without 409.
+            holdGenerating = false;
             await chatsRepo.setChatGenerating(params.chatId, user.id, false);
             await endChatGeneration(params.chatId, generationController);
           },
@@ -184,122 +194,134 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         });
 
       let finished = false;
-      finishOnce = async () => {
+      let closed = false;
+      const finishOnce = async () => {
         if (finished) return;
         finished = true;
-        // Release the generation lock immediately so follow-up turns are never
-        // blocked by background DB persistence.
+        // Stop heartbeats before the save so they cannot turn the flag back on
+        // after the completed answer is written.
+        closed = true;
         try {
-          await chatsRepo.setChatGenerating(params.chatId, user.id, false);
-          await endChatGeneration(params.chatId, generationController);
-        } finally {
           await onComplete();
+        } finally {
+          try {
+            await chatsRepo.setChatGenerating(params.chatId, user.id, false);
+            await endChatGeneration(params.chatId, generationController);
+          } finally {
+            resolveSettled();
+          }
         }
       };
 
-      // Keep the isolate alive until DB persist finishes (tab close safe).
-      after(async () => {
-        await finishOnce?.();
-      });
+      let clientController: ReadableStreamDefaultController<Uint8Array> | null =
+        null;
+      let clientClosed = false;
+      const pendingChunks: Uint8Array[] = [];
+      let pendingBytes = 0;
+      const encoder = new TextEncoder();
 
-      // Proxies (Cloudflare / load balancers) idle-cut SSE when no bytes flow
-      // during long tool calls. Emit comment heartbeats so the pipe stays open.
-      const HEARTBEAT_INTERVAL_MS = 5_000;
-      const heartbeatEncoder = new TextEncoder();
-
-      const wrapped = new ReadableStream<Uint8Array>({
-        async start(controller) {
-          const reader = stream.getReader();
-          let heartbeat: ReturnType<typeof setInterval> | null = setInterval(
-            () => {
-              try {
-                controller.enqueue(heartbeatEncoder.encode(": keepalive\n\n"));
-              } catch {
-                if (heartbeat) {
-                  clearInterval(heartbeat);
-                  heartbeat = null;
-                }
-              }
-            },
-            HEARTBEAT_INTERVAL_MS,
-          );
-          let lastGeneratingTouchAt = Date.now();
+      const flushPending = () => {
+        if (!clientController || clientClosed) return;
+        while (pendingChunks.length > 0) {
+          const chunk = pendingChunks.shift();
+          if (!chunk) break;
           try {
-            while (true) {
-              if (Date.now() - lastGeneratingTouchAt > 15_000) {
-                lastGeneratingTouchAt = Date.now();
-                void chatsRepo
-                  .setChatGenerating(params.chatId, user.id, true)
-                  .catch(() => {});
-              }
-              if (generationController.signal.aborted) {
-                try {
-                  await reader.cancel();
-                } catch {
-                  // ignore
-                }
-                break;
-              }
-              const { done, value } = await reader.read();
-              if (done) break;
-              try {
-                controller.enqueue(value);
-              } catch {
-                // Client disconnected. Explicit stop already aborted the
-                // generation controller — cancel upstream instead of draining
-                // so the provider stops spending tokens. Tab close alone still
-                // drains so onComplete can persist the partial reply.
-                if (generationController.signal.aborted) {
-                  try {
-                    await reader.cancel();
-                  } catch {
-                    // ignore
-                  }
-                  break;
-                }
-                while (true) {
-                  if (Date.now() - lastGeneratingTouchAt > 15_000) {
-                    lastGeneratingTouchAt = Date.now();
-                    void chatsRepo
-                      .setChatGenerating(params.chatId, user.id, true)
-                      .catch(() => {});
-                  }
-                  if (generationController.signal.aborted) {
-                    try {
-                      await reader.cancel();
-                    } catch {
-                      // ignore
-                    }
-                    break;
-                  }
-                  const next = await reader.read();
-                  if (next.done) break;
-                }
-                break;
-              }
-            }
-            try {
-              controller.close();
-            } catch {
-              // already closed
-            }
-          } catch (error) {
-            try {
-              controller.error(error);
-            } catch {
-              // already closed
-            }
-          } finally {
-            if (heartbeat) {
-              clearInterval(heartbeat);
-              heartbeat = null;
-            }
-            await finishOnce?.();
+            clientController.enqueue(chunk);
+          } catch {
+            clientClosed = true;
+            clientController = null;
+            pendingChunks.length = 0;
+            return;
           }
+        }
+        pendingBytes = 0;
+      };
+
+      const clientStream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          clientController = controller;
+          flushPending();
+        },
+        cancel() {
+          // Tab close or navigation. Keep reading the model stream in the
+          // background; only an explicit stop aborts generationController.
+          clientClosed = true;
+          clientController = null;
+          pendingChunks.length = 0;
         },
       });
 
-      return new Response(wrapped, {
+      const pushToClient = (bytes: Uint8Array) => {
+        if (clientClosed) return;
+        if (!clientController) {
+          // The browser may not be reading yet. Keep a short buffer so the
+          // first tokens are not dropped, then rely on the saved transcript.
+          if (pendingBytes > 1_000_000) return;
+          pendingChunks.push(bytes);
+          pendingBytes += bytes.byteLength;
+          return;
+        }
+        flushPending();
+        try {
+          clientController.enqueue(bytes);
+        } catch {
+          clientClosed = true;
+          clientController = null;
+        }
+      };
+
+      const closeClient = () => {
+        if (clientClosed || !clientController) return;
+        clientClosed = true;
+        try {
+          clientController.close();
+        } catch {
+          // already closed
+        }
+        clientController = null;
+      };
+
+      let lastGeneratingTouchAt = Date.now();
+      const heartbeat = setInterval(() => {
+        if (closed) return;
+        if (
+          holdGenerating &&
+          Date.now() - lastGeneratingTouchAt > 15_000
+        ) {
+          lastGeneratingTouchAt = Date.now();
+          void chatsRepo
+            .setChatGenerating(params.chatId, user.id, true)
+            .catch(() => {});
+        }
+        pushToClient(encoder.encode(": keepalive\n\n"));
+      }, 5_000);
+
+      void (async () => {
+        const reader = stream.getReader();
+        try {
+          while (true) {
+            if (generationController.signal.aborted) {
+              try {
+                await reader.cancel();
+              } catch {
+                // ignore
+              }
+              break;
+            }
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) pushToClient(value);
+          }
+        } catch {
+          // Model stream failed. finishOnce still persists whatever was saved.
+        } finally {
+          clearInterval(heartbeat);
+          closeClient();
+          await finishOnce();
+        }
+      })();
+
+      return new Response(clientStream, {
         headers: {
           ...CLAUXEN_STREAM_HEADERS,
           ...(userMessageId ? { "X-User-Message-Id": userMessageId } : {}),
@@ -311,6 +333,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     } catch (error) {
       await chatsRepo.setChatGenerating(params.chatId, user.id, false);
       await endChatGeneration(params.chatId, generationController);
+      resolveSettled();
       throw error;
     }
   },

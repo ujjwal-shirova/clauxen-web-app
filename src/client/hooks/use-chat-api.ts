@@ -326,6 +326,24 @@ const sharedApiGenerations = new Map<
   { request: AbortController; assistantMessageId: string }
 >();
 
+/** Chats whose local stream just finished. Ignore a lagging server flag. */
+const locallySettledGenerations = new Map<string, number>();
+const LOCAL_SETTLE_GRACE_MS = 8_000;
+
+function rememberGenerationSettled(chatId: string) {
+  locallySettledGenerations.set(chatId, Date.now());
+}
+
+function isGenerationLocallySettled(chatId: string) {
+  const at = locallySettledGenerations.get(chatId);
+  if (!at) return false;
+  if (Date.now() - at > LOCAL_SETTLE_GRACE_MS) {
+    locallySettledGenerations.delete(chatId);
+    return false;
+  }
+  return true;
+}
+
 function getGeneration(chatId: string) {
   return sharedApiGenerations.get(chatId) ?? null;
 }
@@ -1152,39 +1170,80 @@ export function useChatApi(
   useEffect(() => {
     let cancelled = false;
     let timer = 0;
+
+    const sealIdleChat = (chatId: string) => {
+      const store = useChatStore.getState();
+      const messages = store.getMessagesForChat(chatId);
+      for (const message of messages) {
+        if (!message.isStreaming && !message.isThinkingStreaming) continue;
+        store.upsertMessage(chatId, clearIdleStreamingFlags(message));
+      }
+      if (store.generatingChatIds[chatId]) {
+        store.setChatGenerating(chatId, false);
+      }
+      if (store.activeChatId === chatId) {
+        void loadChatMessages(chatId, { silent: true });
+      }
+    };
+
+    let ticking = false;
     const tick = async () => {
+      if (cancelled || ticking) return;
+      ticking = true;
+      let delay = 4_000;
       try {
         const { ids } = await chatsApi.listGeneratingChatIds();
         if (cancelled) return;
         const live = new Set(ids);
         const store = useChatStore.getState();
         for (const id of live) {
+          if (isGenerationLocallySettled(id)) continue;
           if (!store.generatingChatIds[id]) {
             store.setChatGenerating(id, true);
           }
         }
         for (const id of Object.keys(useChatStore.getState().generatingChatIds)) {
           if (live.has(id) || getGeneration(id)) continue;
-          useChatStore.getState().setChatGenerating(id, false);
+          sealIdleChat(id);
         }
         const active = useChatStore.getState().activeChatId;
         if (
           active &&
           live.has(active) &&
+          !isGenerationLocallySettled(active) &&
           !getGeneration(active) &&
           !active.startsWith("incognito-")
         ) {
           void loadChatMessages(active, { silent: true });
         }
+        const stillGenerating = Object.keys(
+          useChatStore.getState().generatingChatIds,
+        );
+        if (stillGenerating.length > 0 || live.size > 0) delay = 1_200;
       } catch {
         // The next tick retries. A failed poll must not clear a live turn.
+      } finally {
+        ticking = false;
       }
-      if (!cancelled) timer = window.setTimeout(tick, 3000);
+      if (!cancelled) timer = window.setTimeout(tick, delay);
     };
-    timer = window.setTimeout(tick, 400);
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      window.clearTimeout(timer);
+      void tick();
+    };
+
+    timer = window.setTimeout(tick, 250);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    window.addEventListener("pageshow", onVisible);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      window.removeEventListener("pageshow", onVisible);
     };
   }, [loadChatMessages]);
 
@@ -2273,6 +2332,7 @@ export function useChatApi(
             }
           }
           setGeneration(chatId, null);
+          rememberGenerationSettled(chatId);
           useChatStore.getState().setChatGenerating(chatId, false);
           useChatStore.getState().setStreaming(null);
           const nextQueued = useChatStore.getState().shiftQueuedMessage(chatId);
