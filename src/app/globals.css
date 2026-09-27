@@ -4474,12 +4474,13 @@ button.user-message-card__body:not(:disabled):hover,
   vertical-align: -0.12em;
 }
 
-.agent-answer-caret {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 0.2em;
-  vertical-align: baseline;
-  line-height: 0;
+.streaming-follow-caret {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
 }
 
 .agent-trace-preview {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useIsClient } from "@/hooks/use-is-client";
-import { ChevronDown, MoreHorizontal, Share } from "lucide-react";
+import { ChevronDown, Files, MoreHorizontal, Share } from "lucide-react";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
@@ -22,6 +22,8 @@ interface ChatViewHeaderProps {
   isGenerating?: boolean;
   onUpgradeClick: () => void;
   onShareClick?: () => void;
+  showArtifacts?: boolean;
+  onOpenArtifacts?: () => void;
   chatTitle?: string;
   projectCrumb?: { id: string; name: string } | null;
   isTitleStreaming?: boolean;
@@ -45,6 +47,9 @@ export function ChatViewHeader({
   isGenerating: _isGenerating = false,
   onUpgradeClick,
   onShareClick,
+  showArtifacts = false,
+  onOpenArtifacts,
+  onOpenArtifacts,
   chatTitle = "New Chat",
   projectCrumb = null,
   isTitleStreaming = false,
@@ -138,6 +143,16 @@ export function ChatViewHeader({
             <div className="content-pane-top-bar__trailing-wrap ml-auto flex h-full shrink-0 items-center gap-1">
               {headerControlsLoading ? null : (
                 <>
+                  {showArtifacts && onOpenArtifacts ? (
+                    <button
+                      type="button"
+                      onClick={onOpenArtifacts}
+                      aria-label="Artifacts"
+                      className="ui-icon-button shrink-0 rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                    >
+                      <Files className="size-[17px]" strokeWidth={1.8} />
+                    </button>
+                  ) : null}
                   {onShareClick ? (
                     <button
                       type="button"

@@ -28,6 +28,26 @@ export function languageLabel(language?: string): string {
   return language.replace(/^\w/, (c) => c.toUpperCase());
 }
 
+export async function shareArtifact(artifact: ChatArtifact) {
+  const url = artifact.fileId
+    ? `${window.location.origin}/api/v1/files/${encodeURIComponent(artifact.fileId)}/content`
+    : "";
+  const payload = {
+    title: artifact.fileName,
+    text: artifact.content || artifact.fileName,
+    url: url || undefined,
+  };
+  if (typeof navigator.share === "function") {
+    try {
+      await navigator.share(payload);
+      return;
+    } catch {
+      /* clipboard fallback */
+    }
+  }
+  await navigator.clipboard.writeText(url || artifact.content || artifact.fileName);
+}
+
 export function downloadArtifact(artifact: ChatArtifact) {
   if (artifact.fileId) {
     const anchor = document.createElement("a");

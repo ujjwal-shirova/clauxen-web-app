@@ -10,13 +10,14 @@ import { ShareDialog } from "./share-dialog";
 import { ChatViewHeader } from "./chat-view-header";
 import { IncognitoChatHeader } from "./incognito-chat-header";
 import { ChatViewPane } from "./chat-view-pane";
-import { ArtifactViewerPanel } from "./artifact-viewer-panel";
+import { ArtifactLibrary, ArtifactViewerPanel } from "./artifact-viewer-panel";
 import {
   ArtifactViewerProvider,
   useArtifactViewer,
 } from "@/contexts/artifact-viewer-context";
 import { ChatSourcesPanel } from "./chat-sources";
 import { collectChatSources, collectMessageSources } from "@/lib/chat-sources";
+import { collectChatArtifacts } from "@/lib/chat-artifacts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useChatScrollActivity } from "@/hooks/use-chat-scroll-activity";
@@ -98,7 +99,9 @@ interface ChatAreaProps {
 
 const SOURCES_PANEL_WIDTH = 384;
 /** Desktop file viewer rail — fixed px so open/close doesn't hard-cut the chat. */
-const ARTIFACT_VIEWER_WIDTH = 560;
+const ARTIFACT_VIEWER_MIN = 340;
+const ARTIFACT_VIEWER_MAX = 920;
+const ARTIFACT_VIEWER_DEFAULT = 560;
 
 function ChatAreaLayout({
   messages,
@@ -141,7 +144,7 @@ function ChatAreaLayout({
   incognito = false,
   onCloseIncognito,
 }: ChatAreaProps) {
-  const { isViewerOpen, activeArtifact, closeViewer, clearViewer } =
+  const { isViewerOpen, activeArtifact, closeViewer, clearViewer, openArtifact } =
     useArtifactViewer();
   const isViewerOpenRef = React.useRef(isViewerOpen);
   isViewerOpenRef.current = isViewerOpen;
@@ -150,7 +153,13 @@ function ChatAreaLayout({
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [railWidth, setRailWidth] = useState(ARTIFACT_VIEWER_DEFAULT);
   const [isSourcesPanelOpen, setIsSourcesPanelOpen] = useState(false);
+  const chatArtifacts = React.useMemo(
+    () => collectChatArtifacts(messages),
+    [messages],
+  );
   const [sourcesMessageId, setSourcesMessageId] = useState<string | null>(null);
   const [, startTransition] = React.useTransition();
   const displayMessages = messages;
@@ -405,6 +414,8 @@ function ChatAreaLayout({
               isGenerating={isGenerating}
               onUpgradeClick={onUpgradeClick}
               onShareClick={() => setIsShareDialogOpen(true)}
+              showArtifacts={chatArtifacts.length > 0}
+              onOpenArtifacts={() => setLibraryOpen(true)}
               chatTitle={activeChatTitle}
               projectCrumb={projectCrumb}
               isTitleStreaming={isActiveChatTitleStreaming}
@@ -483,6 +494,8 @@ function ChatAreaLayout({
               isGenerating={isGenerating}
               onUpgradeClick={onUpgradeClick}
               onShareClick={() => setIsShareDialogOpen(true)}
+              showArtifacts={chatArtifacts.length > 0}
+              onOpenArtifacts={() => setLibraryOpen(true)}
               chatTitle={activeChatTitle}
               projectCrumb={projectCrumb}
               isTitleStreaming={isActiveChatTitleStreaming}
@@ -515,7 +528,7 @@ function ChatAreaLayout({
             if (!isViewerOpenRef.current) clearViewer();
           }}
         >
-          {isViewerOpen && activeArtifact ? (
+          {(isViewerOpen && activeArtifact) || libraryOpen ? (
             <>
               <motion.div
                 key="artifact-viewer-backdrop"
@@ -525,7 +538,10 @@ function ChatAreaLayout({
                 transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
                 className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px] lg:hidden"
                 aria-hidden
-                onClick={closeViewer}
+                onClick={() => {
+                  closeViewer();
+                  setLibraryOpen(false);
+                }}
               />
               <motion.div
                 key="artifact-viewer-panel"
@@ -537,7 +553,7 @@ function ChatAreaLayout({
                 animate={
                   isMobile
                     ? { x: 0, opacity: 1 }
-                    : { width: ARTIFACT_VIEWER_WIDTH, opacity: 1 }
+                    : { width: railWidth, opacity: 1 }
                 }
                 exit={
                   isMobile
@@ -545,7 +561,7 @@ function ChatAreaLayout({
                     : { width: 0, opacity: 0.96 }
                 }
                 transition={{
-                  duration: isMobile ? 0.42 : 0.4,
+                  duration: isMobile ? 0.42 : 0.28,
                   ease: [0.32, 0.72, 0, 1],
                 }}
                 className={cn(
@@ -553,15 +569,50 @@ function ChatAreaLayout({
                 )}
               >
                 <div
-                  className="h-full w-full shrink-0 lg:w-[560px]"
-                  style={
-                    isMobile ? undefined : { width: ARTIFACT_VIEWER_WIDTH }
-                  }
+                  className="relative h-full w-full shrink-0"
+                  style={isMobile ? undefined : { width: railWidth }}
                 >
-                  <ArtifactViewerPanel
-                    artifact={activeArtifact}
-                    onClose={closeViewer}
-                  />
+                  {isMobile ? null : (
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="Resize artifacts"
+                      className="absolute bottom-0 left-0 top-0 z-10 w-1.5 cursor-col-resize"
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        const startX = event.clientX;
+                        const startWidth = railWidth;
+                        const move = (ev: PointerEvent) => {
+                          const next = Math.min(
+                            ARTIFACT_VIEWER_MAX,
+                            Math.max(
+                              ARTIFACT_VIEWER_MIN,
+                              startWidth + (startX - ev.clientX),
+                            ),
+                          );
+                          setRailWidth(next);
+                        };
+                        const up = () => {
+                          window.removeEventListener("pointermove", move);
+                          window.removeEventListener("pointerup", up);
+                        };
+                        window.addEventListener("pointermove", move);
+                        window.addEventListener("pointerup", up);
+                      }}
+                    />
+                  )}
+                  {isViewerOpen && activeArtifact ? (
+                    <ArtifactViewerPanel
+                      artifact={activeArtifact}
+                      onClose={closeViewer}
+                    />
+                  ) : (
+                    <ArtifactLibrary
+                      artifacts={chatArtifacts}
+                      onOpen={(artifact) => openArtifact(artifact)}
+                      onClose={() => setLibraryOpen(false)}
+                    />
+                  )}
                 </div>
               </motion.div>
             </>

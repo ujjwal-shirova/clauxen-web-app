@@ -9,6 +9,7 @@ import {
   Download,
   Eye,
   FileText,
+  Share,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ import {
 import {
   downloadArtifact,
   fileNameFromPath,
+  shareArtifact,
   type ChatArtifact,
 } from "@/lib/chat-artifacts";
 import { useArtifactViewer } from "@/contexts/artifact-viewer-context";
@@ -171,6 +173,15 @@ export function ArtifactViewerPanel({
           <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
+              onClick={() => void shareArtifact(artifact)}
+              aria-label={`Share ${title}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-[10px] border border-zinc-200/90 bg-white px-2.5 text-[12px] font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
+            >
+              <Share className="h-3.5 w-3.5" strokeWidth={1.9} />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+            <button
+              type="button"
               onClick={() => downloadArtifact(artifact)}
               aria-label={`Download ${title}`}
               className="inline-flex h-8 items-center gap-1.5 rounded-[10px] border border-zinc-200/90 bg-white px-2.5 text-[12px] font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
@@ -246,6 +257,76 @@ export function ArtifactViewerPanel({
           </div>
         )}
       </div>
+    </aside>
+  );
+}
+
+export function ArtifactLibrary({
+  artifacts,
+  onOpen,
+  onClose,
+}: {
+  artifacts: ChatArtifact[];
+  onOpen: (artifact: ChatArtifact) => void;
+  onClose: () => void;
+}) {
+  return (
+    <aside className="flex h-full w-full min-w-0 flex-col bg-white" aria-label="Artifacts">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/80 px-4 py-3">
+        <div>
+          <h2 className="text-[14px] font-semibold tracking-[-0.01em] text-zinc-900">
+            Artifacts
+          </h2>
+          <p className="text-[12px] text-zinc-500">
+            {artifacts.length} file{artifacts.length === 1 ? "" : "s"}
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Close artifacts"
+          onClick={onClose}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+        >
+          <X className="size-5" strokeWidth={1.75} />
+        </button>
+      </header>
+      <ul className="min-h-0 flex-1 overflow-y-auto p-2">
+        {artifacts.map((artifact) => (
+          <li key={artifact.id} className="flex items-center gap-1 rounded-xl px-1 py-1 hover:bg-zinc-50">
+            <button
+              type="button"
+              onClick={() => onOpen(artifact)}
+              className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
+            >
+              <FileText className="size-4 shrink-0 text-zinc-500" strokeWidth={1.75} />
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-medium text-zinc-900">
+                  {artifact.fileName}
+                </span>
+                <span className="block truncate text-[12px] text-zinc-500">
+                  {artifactMetaLabel(artifact.path, artifact.language ?? "text")}
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label={`Share ${artifact.fileName}`}
+              onClick={() => void shareArtifact(artifact)}
+              className="inline-flex size-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100"
+            >
+              <Share className="size-4" strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              aria-label={`Download ${artifact.fileName}`}
+              onClick={() => downloadArtifact(artifact)}
+              className="inline-flex size-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100"
+            >
+              <Download className="size-4" strokeWidth={1.75} />
+            </button>
+          </li>
+        ))}
+      </ul>
     </aside>
   );
 }
