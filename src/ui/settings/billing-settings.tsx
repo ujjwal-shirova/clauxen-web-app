@@ -59,6 +59,7 @@ import * as settingsApi from "@/lib/api/settings-extended";
 
 interface BillingSettingsProps {
   onUpgradeClick?: () => void;
+  onOpenStorage?: () => void;
   userDisplayName?: string | null;
   userEmail?: string | null;
 }
@@ -70,7 +71,7 @@ type InvoiceRow = {
   created_at: string;
 };
 
-const FALLBACK_QUOTA = 512 * 1024 * 1024;
+const FALLBACK_QUOTA = 1024 * 1024 * 1024;
 
 function formatStorage(bytes: number) {
   if (bytes <= 0) return "0 B";
@@ -143,6 +144,7 @@ function emptyAddressForm(name = ""): CheckoutAddressState {
 
 export function BillingSettings({
   onUpgradeClick,
+  onOpenStorage,
   userDisplayName,
   userEmail,
   focus = "full",
@@ -168,6 +170,8 @@ export function BillingSettings({
   const [managePlanOpen, setManagePlanOpen] = useState(false);
   const [usedBytes, setUsedBytes] = useState(0);
   const [quotaBytes, setQuotaBytes] = useState(FALLBACK_QUOTA);
+  const [includedGb, setIncludedGb] = useState(1);
+  const [extraGb, setExtraGb] = useState(0);
 
   const planCard = useMemo(() => resolvePlanCard(planId), [planId]);
   const planTitle = formatPlanTitle(planCard, planId);
@@ -215,6 +219,8 @@ export function BillingSettings({
         .then(({ storage }) => {
           setUsedBytes(storage.usedBytes);
           setQuotaBytes(storage.quotaBytes || FALLBACK_QUOTA);
+          setIncludedGb(storage.includedGb || 1);
+          setExtraGb(storage.extraGb || 0);
         })
         .catch(() => undefined);
     } catch {
@@ -413,13 +419,29 @@ export function BillingSettings({
         </ul>
       </SettingsSection>
 
-      <SettingsSection title="Usage" description="Files and images stored.">
+      <SettingsSection
+        title="Usage"
+        description="Plan storage plus any space you've added. Extra storage is $0.026/GB."
+        action={
+          onOpenStorage ? (
+            <SettingsButton size="sm" onClick={onOpenStorage}>
+              Add storage
+            </SettingsButton>
+          ) : null
+        }
+      >
         <div className="px-4 py-4 sm:px-5">
           <SettingsProgressBar
             value={usedBytes}
             max={quotaBytes}
             label={`${formatStorage(usedBytes)} of ${formatStorage(quotaBytes)} used`}
           />
+          <p className="mt-3 text-[12.5px] leading-5 text-[var(--settings-fg-muted)]">
+            {includedGb} GB on this plan
+            {extraGb > 0 ? ` · ${extraGb} GB add-on` : " · no add-on yet"}
+            {" · "}
+            Free 1 GB, Go 10 GB, Pro 25 GB, Max 50 GB
+          </p>
         </div>
       </SettingsSection>
 

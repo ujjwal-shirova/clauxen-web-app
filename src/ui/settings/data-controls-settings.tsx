@@ -35,6 +35,9 @@ interface DataControlsSettingsProps {
   reduceSensitiveContent: boolean;
   onSafetyChange: (reduceSensitiveContent: boolean) => void;
   onGoToPersonalization?: () => void;
+  onOpenParental?: () => void;
+  onOpenTrusted?: () => void;
+  onOpenStorage?: () => void;
 }
 
 const RETENTION_KEY = "clauxen:chat-retention";
@@ -61,6 +64,9 @@ export function DataControlsSettings({
   reduceSensitiveContent,
   onSafetyChange,
   onGoToPersonalization,
+  onOpenParental,
+  onOpenTrusted,
+  onOpenStorage,
 }: DataControlsSettingsProps) {
   const [retention, setRetention] = useState<string>("never");
   const [storage, setStorage] = useState<settingsApi.StorageSummary | null>(null);
@@ -272,7 +278,17 @@ export function DataControlsSettings({
         ) : null}
       </SettingsSection>
 
-      <SettingsSection title="Storage" description="Files, images, and artifacts saved to your library.">
+      <SettingsSection
+        title="Storage"
+        description="Files, images, and artifacts saved to your library."
+        action={
+          onOpenStorage ? (
+            <SettingsButton size="sm" onClick={onOpenStorage}>
+              Manage
+            </SettingsButton>
+          ) : null
+        }
+      >
         <div className="flex flex-col gap-2.5 px-3.5 py-3 sm:px-4">
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-[13.5px] font-medium text-[var(--settings-fg)]">
@@ -328,16 +344,20 @@ export function DataControlsSettings({
         />
         <SettingsRow
           label="Parental controls"
-          description="Link a teen's account to set limits and quiet hours."
+          description="Limits, quiet hours, and content filters for a linked teen."
         >
-          <SettingsButton size="sm">Add member</SettingsButton>
+          <SettingsButton size="sm" onClick={onOpenParental}>
+            Manage
+          </SettingsButton>
         </SettingsRow>
         <SettingsRow
           label="Trusted contact"
-          description="Someone 18+ we can notify if you may be at risk."
+          description="Someone 18+ we can notify, who can help recover this account."
           borderless
         >
-          <SettingsButton size="sm">Add contact</SettingsButton>
+          <SettingsButton size="sm" onClick={onOpenTrusted}>
+            Manage
+          </SettingsButton>
         </SettingsRow>
       </SettingsSection>
 

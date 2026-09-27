@@ -84,6 +84,25 @@ export type SafetySettings = {
   mfaEnabled: boolean;
 };
 
+export type ParentalControlsSettings = {
+  enabled: boolean;
+  teenEmail: string;
+  contentFilter: string;
+  quietHoursEnabled: boolean;
+  dailyLimit: string;
+  blockImageGeneration: boolean;
+  requireApprovalForSharing: boolean;
+};
+
+export type TrustedContactSettings = {
+  enabled: boolean;
+  name: string;
+  email: string;
+  relationship: string;
+  notifyOnRisk: boolean;
+  notifyOnAccountRecovery: boolean;
+};
+
 export type ClawDeployment = {
   id: string;
   name: string;
@@ -109,6 +128,8 @@ export type AppSettings = {
   timeAndFocus: TimeAndFocusSettings;
   reflect: ReflectSettings;
   safety: SafetySettings;
+  parentalControls: ParentalControlsSettings;
+  trustedContact: TrustedContactSettings;
   claw: { deployments: ClawDeployment[] };
 };
 
@@ -125,6 +146,8 @@ export async function updateSettings(patch: {
   timeAndFocus?: Partial<TimeAndFocusSettings>;
   reflect?: Partial<ReflectSettings>;
   safety?: Partial<SafetySettings>;
+  parentalControls?: Partial<ParentalControlsSettings>;
+  trustedContact?: Partial<TrustedContactSettings>;
   claw?: Partial<{ deployments: ClawDeployment[] }>;
 }) {
   return apiFetch<AppSettings>("/api/v1/settings", {

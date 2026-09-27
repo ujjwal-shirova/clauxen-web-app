@@ -54,6 +54,14 @@ export function normalizeAppSettings(raw: unknown): AppSettings {
     ),
     reflect: mergeSection(DEFAULT_APP_SETTINGS.reflect, data.reflect),
     safety: mergeSection(DEFAULT_APP_SETTINGS.safety, data.safety),
+    parentalControls: mergeSection(
+      DEFAULT_APP_SETTINGS.parentalControls,
+      data.parentalControls,
+    ),
+    trustedContact: mergeSection(
+      DEFAULT_APP_SETTINGS.trustedContact,
+      data.trustedContact,
+    ),
     claw: { deployments: deployments as AppSettings["claw"]["deployments"] },
   };
 }

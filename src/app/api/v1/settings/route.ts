@@ -98,6 +98,95 @@ const defaultSafety = {
   mfaEnabled: false,
 };
 
+const defaultParentalControls = {
+  enabled: false,
+  teenEmail: "",
+  contentFilter: "Standard",
+  quietHoursEnabled: false,
+  dailyLimit: "Unlimited",
+  blockImageGeneration: false,
+  requireApprovalForSharing: true,
+};
+
+const defaultTrustedContact = {
+  enabled: false,
+  name: "",
+  email: "",
+  relationship: "Friend",
+  notifyOnRisk: true,
+  notifyOnAccountRecovery: true,
+};
+
+const CONTENT_FILTERS = new Set(["Standard", "Strict"]);
+const DAILY_LIMITS = new Set([
+  "Unlimited",
+  "30 minutes",
+  "1 hour",
+  "2 hours",
+  "4 hours",
+]);
+const RELATIONSHIPS = new Set([
+  "Parent",
+  "Guardian",
+  "Partner",
+  "Sibling",
+  "Friend",
+  "Colleague",
+  "Other",
+]);
+
+function cleanShortText(value: unknown, max: number): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/[\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+function cleanEmail(value: unknown): string {
+  const email = cleanShortText(value, 254).toLowerCase();
+  if (!email) return "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "";
+  return email;
+}
+
+function sanitizeParentalControls(patch: Record<string, unknown>) {
+  const next: Record<string, unknown> = {};
+  if ("enabled" in patch) next.enabled = patch.enabled === true;
+  if ("teenEmail" in patch) next.teenEmail = cleanEmail(patch.teenEmail);
+  if (
+    "contentFilter" in patch &&
+    CONTENT_FILTERS.has(String(patch.contentFilter))
+  ) {
+    next.contentFilter = String(patch.contentFilter);
+  }
+  if ("quietHoursEnabled" in patch) {
+    next.quietHoursEnabled = patch.quietHoursEnabled === true;
+  }
+  if ("dailyLimit" in patch && DAILY_LIMITS.has(String(patch.dailyLimit))) {
+    next.dailyLimit = String(patch.dailyLimit);
+  }
+  if ("blockImageGeneration" in patch) {
+    next.blockImageGeneration = patch.blockImageGeneration === true;
+  }
+  if ("requireApprovalForSharing" in patch) {
+    next.requireApprovalForSharing = patch.requireApprovalForSharing === true;
+  }
+  return next;
+}
+
+function sanitizeTrustedContact(patch: Record<string, unknown>) {
+  const next: Record<string, unknown> = {};
+  if ("enabled" in patch) next.enabled = patch.enabled === true;
+  if ("name" in patch) next.name = cleanShortText(patch.name, 80);
+  if ("email" in patch) next.email = cleanEmail(patch.email);
+  if ("relationship" in patch && RELATIONSHIPS.has(String(patch.relationship))) {
+    next.relationship = String(patch.relationship);
+  }
+  if ("notifyOnRisk" in patch) next.notifyOnRisk = patch.notifyOnRisk === true;
+  if ("notifyOnAccountRecovery" in patch) {
+    next.notifyOnAccountRecovery = patch.notifyOnAccountRecovery === true;
+  }
+  return next;
+}
+
 function mergeSettings<T extends Record<string, unknown>>(
   defaults: T,
   stored?: Record<string, unknown> | null,
@@ -184,6 +273,14 @@ function toClientPayload(
       defaultSafety,
       stored.safety as Record<string, unknown>,
     ),
+    parentalControls: mergeSettings(
+      defaultParentalControls,
+      stored.parentalControls as Record<string, unknown>,
+    ),
+    trustedContact: mergeSettings(
+      defaultTrustedContact,
+      stored.trustedContact as Record<string, unknown>,
+    ),
     claw: (stored.claw as { deployments?: unknown[] }) ?? { deployments: [] },
   };
 }
@@ -253,6 +350,8 @@ export const PATCH = withApiHandler(
       timeAndFocus?: Record<string, unknown>;
       reflect?: Record<string, unknown>;
       safety?: Record<string, unknown>;
+      parentalControls?: Record<string, unknown>;
+      trustedContact?: Record<string, unknown>;
       claw?: Record<string, unknown>;
     };
 
@@ -288,6 +387,27 @@ export const PATCH = withApiHandler(
         }
         nextSettings[key] = {
           ...((currentSettings[key] as Record<string, unknown>) ?? {}),
+          ...patch,
+        };
+      }
+    }
+
+    if (body.parentalControls) {
+      const patch = sanitizeParentalControls(body.parentalControls);
+      if (Object.keys(patch).length > 0) {
+        nextSettings.parentalControls = {
+          ...((currentSettings.parentalControls as Record<string, unknown>) ??
+            {}),
+          ...patch,
+        };
+      }
+    }
+    if (body.trustedContact) {
+      const patch = sanitizeTrustedContact(body.trustedContact);
+      if (Object.keys(patch).length > 0) {
+        nextSettings.trustedContact = {
+          ...((currentSettings.trustedContact as Record<string, unknown>) ??
+            {}),
           ...patch,
         };
       }

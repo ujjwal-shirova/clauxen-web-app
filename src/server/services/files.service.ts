@@ -3,11 +3,6 @@ import { AppError, notFound } from "@/server/db/errors";
 import { env, isR2Configured } from "@/server/config/env";
 import * as userFilesRepo from "@/server/repositories/user-files.repository";
 import type { UserFileRow } from "@/server/repositories/user-files.repository";
-import * as billingRepo from "@/server/repositories/billing.repository";
-import {
-  resolveActiveStoragePlanId,
-  storageQuotaBytesForPlan,
-} from "@/lib/storage-quota";
 import {
   bucketForPurpose,
   buildImageKey,
@@ -236,6 +231,17 @@ export async function presignUserFileUpload(
     throw new AppError("File exceeds 100 MB limit.", 400);
   }
 
+  if (!isAvatar && input.sizeBytes && input.sizeBytes > 0) {
+    const summary = await getUserStorageSummary(userId);
+    if (summary.usedBytes + input.sizeBytes > summary.quotaBytes) {
+      throw new AppError(
+        "This file would exceed your storage. Add storage or upgrade your plan.",
+        402,
+        "storage_quota_exceeded",
+      );
+    }
+  }
+
   const purpose = isAvatar
     ? "images"
     : isChatAttachment || isProjectSource
@@ -353,32 +359,10 @@ export async function getUserFileDownloadUrl(userId: string, fileId: string) {
 }
 
 export async function getUserStorageSummary(userId: string) {
-  const [stats, subscription] = await Promise.all([
-    userFilesRepo.getUserFileStorageStats(userId),
-    billingRepo.getUserSubscription(userId),
-  ]);
-  const totalBytes = Number(stats?.total_bytes ?? 0);
-  const planId = resolveActiveStoragePlanId(subscription);
-  const quotaBytes = storageQuotaBytesForPlan(planId);
-
-  return {
-    usedBytes: totalBytes,
-    quotaBytes,
-    categories: [
-      {
-        id: "files",
-        title: "Files",
-        bytes: Number(stats?.document_bytes ?? 0),
-        count: Number(stats?.document_count ?? 0),
-      },
-      {
-        id: "images",
-        title: "Images",
-        bytes: Number(stats?.image_bytes ?? 0),
-        count: Number(stats?.image_count ?? 0),
-      },
-    ],
-  };
+  const { getStorageAccountSummary } = await import(
+    "@/server/services/storage-addons.service"
+  );
+  return getStorageAccountSummary(userId);
 }
 
 export async function deleteUploadedUserFile(userId: string, fileId: string) {

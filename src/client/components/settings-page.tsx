@@ -34,6 +34,9 @@ import {
 } from "@/components/settings/security-settings";
 import { DataControlsSettings } from "@/components/settings/data-controls-settings";
 import { BillingSettings } from "@/components/settings/billing-settings";
+import { StorageSettings } from "@/components/settings/storage-settings";
+import { ParentalControlsSettingsPanel } from "@/components/settings/parental-controls-settings";
+import { TrustedContactSettingsPanel } from "@/components/settings/trusted-contact-settings";
 import { CapabilitiesSettings } from "@/components/settings/capabilities-settings";
 import { ClauxenCodeSettings } from "@/components/settings/clauxen-code-settings";
 import { SkillsSettings } from "@/components/settings/skills-settings";
@@ -77,6 +80,8 @@ export function SettingsModal({
     updateNotifications,
     updatePersonalization,
     updateSafety,
+    updateParentalControls,
+    updateTrustedContact,
     refresh: refreshSettings,
   } = useSettings(settingsEnabled);
   /**
@@ -176,6 +181,10 @@ export function SettingsModal({
   const personalization =
     settings.personalization ?? DEFAULT_APP_SETTINGS.personalization;
   const safety = settings.safety ?? DEFAULT_APP_SETTINGS.safety;
+  const parentalControls =
+    settings.parentalControls ?? DEFAULT_APP_SETTINGS.parentalControls;
+  const trustedContact =
+    settings.trustedContact ?? DEFAULT_APP_SETTINGS.trustedContact;
 
   useEffect(() => {
     if (!open || !user?.id) {
@@ -285,6 +294,20 @@ export function SettingsModal({
             onTimeAndFocusChange={updateTimeAndFocus}
           />
         );
+      case "Parental controls":
+        return (
+          <ParentalControlsSettingsPanel
+            value={parentalControls}
+            onChange={updateParentalControls}
+          />
+        );
+      case "Trusted contact":
+        return (
+          <TrustedContactSettingsPanel
+            value={trustedContact}
+            onChange={updateTrustedContact}
+          />
+        );
       case "Account":
         return (
           <AccountSettings
@@ -330,6 +353,9 @@ export function SettingsModal({
               updateSafety({ reduceSensitiveContent })
             }
             onGoToPersonalization={() => handleTabChange("Personalization")}
+            onOpenParental={() => handleTabChange("Parental controls")}
+            onOpenTrusted={() => handleTabChange("Trusted contact")}
+            onOpenStorage={() => handleTabChange("Storage")}
           />
         );
       case "Billing":
@@ -337,16 +363,15 @@ export function SettingsModal({
         return (
           <BillingSettings
             onUpgradeClick={onUpgradeClick}
+            onOpenStorage={() => handleTabChange("Storage")}
             userDisplayName={user?.displayName ?? user?.email}
             userEmail={user?.email}
           />
         );
       case "Storage":
         return (
-          <BillingSettings
-            focus="storage"
-            onUpgradeClick={onUpgradeClick}
-            userDisplayName={user?.displayName ?? user?.email}
+          <StorageSettings
+            userName={user?.displayName ?? user?.email}
             userEmail={user?.email}
           />
         );

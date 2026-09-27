@@ -4,12 +4,14 @@ import {
   Blocks,
   ChartColumn,
   Code2,
+  Contact,
   CreditCard,
   Database,
   HardDrive,
   LockKeyhole,
   ScrollText,
   Settings2,
+  Shield,
   Sparkles,
   UserRound,
   Gauge,
@@ -33,6 +35,8 @@ export const settingsNav = [
   { name: "Usage", icon: Gauge },
   { name: "Analytics", icon: ChartColumn },
   { name: "Notifications", icon: Bell },
+  { name: "Parental controls", icon: Shield },
+  { name: "Trusted contact", icon: Contact },
   { name: "Account", icon: UserRound },
   { name: "Security & login", icon: LockKeyhole },
   { name: "Data controls", icon: Database },
@@ -52,9 +56,6 @@ export type LegacySettingsTab =
   | "Reflect"
   | "Time and focus"
   | "Safety"
-  | "Parental controls"
-  | "Trusted contact"
-  | "Storage"
   | "Keyboard"
   | "Enterprise"
   | "Voice";
@@ -67,6 +68,8 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
     case "General":
     case "Personalization":
     case "Notifications":
+    case "Parental controls":
+    case "Trusted contact":
     case "Storage":
     case "Usage":
     case "Analytics":
@@ -83,8 +86,6 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
     case "Privacy & safety":
     case "Privacy":
     case "Safety":
-    case "Parental controls":
-    case "Trusted contact":
       return "Data controls";
     case "Reflect":
       return "Personalization";
@@ -101,11 +102,13 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
 
 const visibleDescriptions: Record<VisibleSettingsTab, string> = {
   General: "Appearance, reading, and keyboard shortcuts.",
-  Storage: "Files and images kept with your account.",
+  Storage: "Plan allowance, add-on space, and files kept with your account.",
   Personalization: "How Clauxen responds and what it remembers.",
-  Usage: "Plan, invoices, and payment methods.",
+  Usage: "Plan, storage, invoices, and payment methods.",
   Analytics: "How this account is using Clauxen.",
   Notifications: "What you hear about, and when to stay quiet.",
+  "Parental controls": "Limits, quiet hours, and content filters for a linked teen.",
+  "Trusted contact": "Someone 18 or older we can reach, who can also help recover this account.",
   Account: "Your profile, sign-in security, and devices.",
   "Security & login": "Sign-in methods, 2-step verification, and sessions.",
   "Data controls": "Training, chat history, exports, and content safety.",
@@ -121,8 +124,6 @@ export const settingsTabDescriptions: Record<SettingsTab, string> = {
   "Privacy & safety": visibleDescriptions["Data controls"],
   Privacy: visibleDescriptions["Data controls"],
   Safety: visibleDescriptions["Data controls"],
-  "Parental controls": visibleDescriptions["Data controls"],
-  "Trusted contact": visibleDescriptions["Data controls"],
   Reflect: visibleDescriptions.Personalization,
   "Time and focus": visibleDescriptions.Notifications,
   Storage: visibleDescriptions.Storage,
@@ -141,6 +142,8 @@ export const settingsNavLabel: Partial<Record<VisibleSettingsTab, string>> = {
   Capabilities: "Plugins",
   "Data controls": "Data Controls",
   Notifications: "Notification",
+  "Parental controls": "Parental Control",
+  "Trusted contact": "Trusted contact",
 };
 
 export function settingsItemLabel(tab: VisibleSettingsTab): string {
@@ -163,6 +166,8 @@ export const settingsNavGroups: ReadonlyArray<{
       "Capabilities",
       "Data controls",
       "Notifications",
+      "Parental controls",
+      "Trusted contact",
     ],
   },
 ];
@@ -170,11 +175,13 @@ export const settingsNavGroups: ReadonlyArray<{
 /** Extra search terms so "password" finds Security & login, etc. */
 export const settingsNavKeywords: Record<VisibleSettingsTab, string> = {
   General: "theme appearance dark light font language shortcuts keyboard motion contrast",
-  Storage: "files images quota disk space",
+  Storage: "files images quota disk space addon gigabyte buy extend",
   Personalization: "tone style instructions memory reflect about you",
   Usage: "plan subscription invoices payment card upgrade",
   Analytics: "activity stats usage overview",
   Notifications: "email push alerts quiet hours breaks focus sounds",
+  "Parental controls": "family teen limits quiet hours content filter age",
+  "Trusted contact": "recovery emergency contact risk notify",
   Account: "profile name avatar email organization delete account linked",
   "Security & login": "password passkey mfa 2fa two-step authenticator sessions devices log out",
   "Data controls": "privacy training export history archive delete chats storage cookies safety family parental",
@@ -191,9 +198,6 @@ const LEGACY_TAB_SET = new Set<string>([
   "Reflect",
   "Time and focus",
   "Safety",
-  "Parental controls",
-  "Trusted contact",
-  "Storage",
   "Keyboard",
   "Enterprise",
   "Voice",

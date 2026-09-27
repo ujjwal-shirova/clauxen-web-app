@@ -1,18 +1,73 @@
 import { apiFetch } from "@/lib/api/client";
 
+export type StoragePurchase = {
+  id: string;
+  gigabytes: number;
+  amountPaise: number;
+  amountUsdMicros: number;
+  status: string;
+  createdAt: string;
+  paidAt: string | null;
+};
+
 export type StorageSummary = {
   usedBytes: number;
   quotaBytes: number;
+  includedBytes: number;
+  includedGb: number;
+  extraGb: number;
+  planId: string;
+  tier: string;
+  priceUsdPerGb: number;
+  usdInrRate: number;
   categories: Array<{
     id: string;
     title: string;
     bytes: number;
     count: number;
   }>;
+  purchases: StoragePurchase[];
 };
 
 export async function getStorageSummary() {
   return apiFetch<{ storage: StorageSummary }>("/api/v1/settings/storage");
+}
+
+export type StorageCheckout = {
+  id: string;
+  gigabytes: number;
+  amountPaise: number;
+  amountUsdMicros: number;
+  currency: "INR";
+  keyId: string;
+  orderId: string;
+  priceUsdPerGb: number;
+};
+
+export async function startStoragePurchase(gigabytes: number) {
+  return apiFetch<{ purchase: StorageCheckout }>(
+    "/api/v1/settings/storage/purchase",
+    {
+      method: "POST",
+      body: JSON.stringify({ gigabytes }),
+    },
+  );
+}
+
+export async function verifyStoragePurchase(input: {
+  purchaseId: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}) {
+  return apiFetch<{
+    status: "paid";
+    extraGb: number;
+    gigabytes: number;
+  }>("/api/v1/settings/storage/purchase/verify", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export type SecuritySettingsData = {

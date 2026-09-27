@@ -75,5 +75,22 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     reduceSensitiveContent: true,
     mfaEnabled: false,
   },
+  parentalControls: {
+    enabled: false,
+    teenEmail: "",
+    contentFilter: "Standard",
+    quietHoursEnabled: false,
+    dailyLimit: "Unlimited",
+    blockImageGeneration: false,
+    requireApprovalForSharing: true,
+  },
+  trustedContact: {
+    enabled: false,
+    name: "",
+    email: "",
+    relationship: "Friend",
+    notifyOnRisk: true,
+    notifyOnAccountRecovery: true,
+  },
   claw: { deployments: [] },
 };

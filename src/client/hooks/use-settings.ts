@@ -7,11 +7,13 @@ import type {
   CapabilitiesSettings,
   GeneralSettings,
   NotificationSettings,
+  ParentalControlsSettings,
   PersonalizationSettings,
   PrivacySettings,
   ReflectSettings,
   SafetySettings,
   TimeAndFocusSettings,
+  TrustedContactSettings,
 } from "@/lib/api/settings";
 import { DEFAULT_APP_SETTINGS } from "@/lib/settings-defaults";
 import { normalizeAppSettings } from "@/lib/settings-normalize";
@@ -38,6 +40,12 @@ function mergeLocal(prev: AppSettings, patch: SettingsPatch): AppSettings {
       : prev.timeAndFocus,
     reflect: patch.reflect ? { ...prev.reflect, ...patch.reflect } : prev.reflect,
     safety: patch.safety ? { ...prev.safety, ...patch.safety } : prev.safety,
+    parentalControls: patch.parentalControls
+      ? { ...prev.parentalControls, ...patch.parentalControls }
+      : prev.parentalControls,
+    trustedContact: patch.trustedContact
+      ? { ...prev.trustedContact, ...patch.trustedContact }
+      : prev.trustedContact,
     claw: patch.claw ? { ...prev.claw, ...patch.claw } : prev.claw,
   });
 }
@@ -66,6 +74,14 @@ function mergePatches(a: SettingsPatch, b: SettingsPatch): SettingsPatch {
         : undefined,
     reflect: a.reflect || b.reflect ? { ...a.reflect, ...b.reflect } : undefined,
     safety: a.safety || b.safety ? { ...a.safety, ...b.safety } : undefined,
+    parentalControls:
+      a.parentalControls || b.parentalControls
+        ? { ...a.parentalControls, ...b.parentalControls }
+        : undefined,
+    trustedContact:
+      a.trustedContact || b.trustedContact
+        ? { ...a.trustedContact, ...b.trustedContact }
+        : undefined,
     claw: a.claw || b.claw ? { ...a.claw, ...b.claw } : undefined,
   };
 }
@@ -226,6 +242,18 @@ export function useSettings(enabled: boolean) {
     [schedulePersist],
   );
 
+  const updateParentalControls = useCallback(
+    (patch: Partial<ParentalControlsSettings>) =>
+      schedulePersist({ parentalControls: patch }),
+    [schedulePersist],
+  );
+
+  const updateTrustedContact = useCallback(
+    (patch: Partial<TrustedContactSettings>) =>
+      schedulePersist({ trustedContact: patch }),
+    [schedulePersist],
+  );
+
   const createClawDeployment = useCallback(
     async (
       name: string,
@@ -274,6 +302,8 @@ export function useSettings(enabled: boolean) {
     updateTimeAndFocus,
     updateReflect,
     updateSafety,
+    updateParentalControls,
+    updateTrustedContact,
     createClawDeployment,
     persist,
   };
