@@ -139,7 +139,9 @@ export const MarkdownMessage = ({
         sources={sources}
       />
       {isStreaming && showCursor ? (
-        <StreamingOrbCursor className="ml-1 inline-block translate-y-[-1px]" />
+        <span className="agent-answer-caret" data-agent-answer-caret="true">
+          <StreamingOrbCursor />
+        </span>
       ) : null}
     </div>
   );

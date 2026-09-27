@@ -4474,6 +4474,14 @@ button.user-message-card__body:not(:disabled):hover,
   vertical-align: -0.12em;
 }
 
+.agent-answer-caret {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.2em;
+  vertical-align: baseline;
+  line-height: 0;
+}
+
 .orb-cursor-core {
   display: block;
   width: 100%;

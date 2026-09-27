@@ -36,7 +36,7 @@ function MarkdownWithTitledTables({
         content={content}
         isStreaming={isStreaming}
         streamKey={streamKey}
-        showCursor={false}
+        showCursor={isStreaming}
         detailLevel={detailLevel}
         {...({ sources } as any)}
       />
@@ -55,7 +55,7 @@ function MarkdownWithTitledTables({
               key={`${streamKey}-md-${index}`}
               content={segment.content}
               isStreaming={isStreaming && isLast}
-              showCursor={false}
+              showCursor={isStreaming}
               streamKey={`${streamKey}-${index}`}
               detailLevel={detailLevel}
               {...({ sources } as any)}

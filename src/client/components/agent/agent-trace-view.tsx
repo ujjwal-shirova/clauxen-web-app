@@ -51,9 +51,8 @@ import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
 /**
  * Agent trace for one turn.
  *
- * Narration stays outside every tree, as prose between tool calls.
- * Each run of the same kind of tool (web search, command, MCP, …) is its
- * own collapsible. There is no parent "Worked for" tree.
+ * Thinking, narration, and tool calls share one tree. It stays expanded
+ * while the turn is working and folds when the final answer starts.
  */
 
 const STEP_ICONS: Record<TraceStepIcon, LucideIcon> = {
@@ -429,7 +428,7 @@ type TraceSegment =
       tools: AgentToolStep[];
     };
 
-/** Split a turn so narration never sits inside a tool tree. */
+/** Split a turn into narration, thinking, and tool runs, in order. */
 function partitionTrace(steps: AgentStep[]): TraceSegment[] {
   const segments: TraceSegment[] = [];
   let buffer: AgentToolStep[] = [];
@@ -515,15 +514,16 @@ function ToolGroupTree({
 /* ─────────────────────────── trace view ─────────────────────────── */
 
 /**
- * Ordered agent activity for one turn. Narration renders as prose between
- * tool trees. Each tree covers one kind of tool call and collapses on its own.
+ * One activity tree for the turn. Narration sits between tool calls inside
+ * the same tree. The tree stays open while work is in progress and folds
+ * when the final answer starts.
  */
 export function AgentTraceView({
   steps,
   isActive,
   isWorking = isActive,
-  startedAtMs: _startedAtMs,
-  completedAtMs: _completedAtMs,
+  startedAtMs,
+  completedAtMs,
   keepExpanded,
   renderNarration,
 }: {
@@ -534,7 +534,7 @@ export function AgentTraceView({
   completedAtMs?: number;
   /** Actionable traces (for example ask-user-input) must remain visible. */
   keepExpanded?: boolean;
-  /** Interim narration, rendered outside every tool tree. */
+  /** Narration between tool calls, rendered inside the single tree. */
   renderNarration?: (step: AgentNarrationStep) => ReactNode;
 }) {
   const visibleSteps = useMemo(
@@ -552,50 +552,94 @@ export function AgentTraceView({
     () => partitionTrace(visibleSteps),
     [visibleSteps],
   );
+  const latchedStart = useLatchedStartedAtMs(startedAtMs);
+  const now = useTickingNow(isActive);
+  const elapsed = traceElapsedMs({
+    startedAtMs: latchedStart,
+    completedAtMs,
+    steps: visibleSteps,
+    live: isActive,
+    nowMs: now,
+  });
+  const openWhileWorking = isActive || Boolean(keepExpanded);
+  const [expanded, setExpanded] = useState(openWhileWorking);
+  const userToggledRef = useRef(false);
+  const wasWorkingRef = useRef(openWhileWorking);
+  const headerRef = useRef<HTMLButtonElement | null>(null);
 
-  if (segments.length === 0) {
-    if (!isWorking) return null;
-    return (
-      <div className="flex items-center py-1" data-agent-trace-view="true">
-        <StreamingOrbCursor />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (wasWorkingRef.current && !openWhileWorking) {
+      userToggledRef.current = false;
+      setExpanded(false);
+    } else if (openWhileWorking && !userToggledRef.current) {
+      setExpanded(true);
+    }
+    wasWorkingRef.current = openWhileWorking;
+  }, [openWhileWorking]);
+
+  if (segments.length === 0 && !isActive && !isWorking) return null;
+
+  const failedCount = visibleSteps.filter(
+    (step) => step.kind === "tool" && step.status === "error",
+  ).length;
 
   return (
     <div
-      className="agent-trace-flow flex w-full min-w-0 flex-col gap-3"
+      className="agent-run agent-trace-enter flex w-full min-w-0 flex-col"
       data-agent-trace-view="true"
-      data-agent-completed-trace={!isWorking || undefined}
-      data-live={isWorking || isActive || undefined}
+      data-agent-completed-trace={!isActive || undefined}
+      data-live={isActive || undefined}
     >
-      {segments.map((segment) => {
-        if (segment.kind === "narration") {
-          return (
-            <div
-              key={segment.id}
-              className="agent-trace-narration min-w-0"
-              data-agent-narration="true"
-            >
-              {renderNarration?.(segment.step)}
+      <AgentRunHeader
+        live={isActive}
+        elapsedMs={elapsed}
+        failedCount={failedCount}
+        expandable
+        expanded={expanded}
+        buttonRef={headerRef}
+        onToggle={() => {
+          userToggledRef.current = true;
+          preserveScrollAnchorOnToggle(headerRef.current, () => {
+            setExpanded((value) => !value);
+          });
+        }}
+      />
+      {expanded ? (
+        <div className="agent-run__body flex min-w-0 flex-col gap-2 pt-1">
+          {segments.map((segment) => {
+            if (segment.kind === "narration") {
+              return (
+                <div
+                  key={segment.id}
+                  className="agent-trace-narration min-w-0 pl-1"
+                  data-agent-narration="true"
+                >
+                  {renderNarration?.(segment.step)}
+                </div>
+              );
+            }
+            if (segment.kind === "thinking") {
+              return <ThinkingStepContent key={segment.id} step={segment.step} />;
+            }
+            const askOpen = segment.tools.some(
+              (tool) => tool.name === "ask_user_input_v0",
+            );
+            return (
+              <ToolGroupTree
+                key={segment.id}
+                family={segment.family}
+                tools={segment.tools}
+                forceOpen={Boolean(keepExpanded) && askOpen}
+              />
+            );
+          })}
+          {isActive ? (
+            <div className="flex items-center py-0.5" data-agent-live-caret="true">
+              <StreamingOrbCursor />
             </div>
-          );
-        }
-        if (segment.kind === "thinking") {
-          return <ThinkingStepContent key={segment.id} step={segment.step} />;
-        }
-        const askOpen = segment.tools.some(
-          (tool) => tool.name === "ask_user_input_v0",
-        );
-        return (
-          <ToolGroupTree
-            key={segment.id}
-            family={segment.family}
-            tools={segment.tools}
-            forceOpen={Boolean(keepExpanded) && askOpen}
-          />
-        );
-      })}
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
