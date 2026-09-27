@@ -275,6 +275,9 @@ export const autonomousAgentTools: AutonomousAgentTool[] = [
     },
     strict: false,
   },
+  {
+    type: "function",
+    name: "file_read",
     description: [
       "Read a text file from this conversation's workspace.",
       "USE to inspect files the user uploaded or files created in earlier tool calls.",

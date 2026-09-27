@@ -49,7 +49,6 @@ export function ChatViewHeader({
   onShareClick,
   showArtifacts = false,
   onOpenArtifacts,
-  onOpenArtifacts,
   chatTitle = "New Chat",
   projectCrumb = null,
   isTitleStreaming = false,
