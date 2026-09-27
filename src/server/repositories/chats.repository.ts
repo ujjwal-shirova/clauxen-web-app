@@ -12,6 +12,7 @@ export type ChatRow = {
   starred: boolean;
   created_at: string;
   updated_at: string;
+  generating?: boolean;
 };
 
 const DEFAULT_LIST_LIMIT = 50; // sidebar default — recent chats window
@@ -52,7 +53,11 @@ export async function listChatsForUser(
   ); // clamp — negative/NaN/huge values reject
 
   return query<ChatRow>(
-    `select id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at
+    `select id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at,
+       (
+         coalesce(metadata->>'generating', '') = 'true'
+         and nullif(metadata->>'generating_at', '')::timestamptz > now() - interval '45 minutes'
+       ) as generating
      from public.chats
      where user_id = $1 and status != 'deleted'
      order by updated_at desc limit $2`,
@@ -164,6 +169,35 @@ export async function createChatFast(input: {
     }
   }
   return null;
+}
+
+export async function setChatGenerating(
+  chatId: string,
+  userId: string,
+  generating: boolean,
+) {
+  await query(
+    `update public.chats
+     set metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object(
+       'generating', $3::boolean,
+       'generating_at', case when $3::boolean then to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') else '' end
+     )
+     where id = $1 and user_id = $2`,
+    [chatId, userId, generating],
+  );
+}
+
+export async function listGeneratingChatIds(userId: string) {
+  const rows = await query<{ id: string }>(
+    `select id
+     from public.chats
+     where user_id = $1
+       and status != 'deleted'
+       and coalesce(metadata->>'generating', '') = 'true'
+       and nullif(metadata->>'generating_at', '')::timestamptz > now() - interval '45 minutes'`,
+    [userId],
+  );
+  return rows.map((row) => row.id);
 }
 
 export async function updateChat(

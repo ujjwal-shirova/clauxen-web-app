@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { ExternalLink, Search, X } from "lucide-react";
+import React from "react";
+import { ExternalLink, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   collectChatSources,
@@ -38,58 +37,6 @@ function SourceFavicon({
   );
 }
 
-export function SourcePreviewCard({ source }: { source: ChatSource }) {
-  const excerpt =
-    source.highlights?.find((highlight) => highlight.trim()) ?? source.snippet;
-
-  return (
-    <div
-      data-source-preview-card=""
-      className={cn(
-        "w-full rounded-[var(--popup-radius)] bg-[var(--popup-bg)] p-2.5 text-left",
-        "shadow-[var(--popup-shadow)]",
-      )}
-    >
-      <div className="mb-2 flex items-center gap-2">
-        <SourceFavicon source={source} className="h-5 w-5" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-medium text-[var(--ui-fg)]">
-            {source.domain}
-          </p>
-          {source.publishedDate ? (
-            <p className="truncate text-[11px] text-[var(--ui-fg-muted)]">
-              {new Date(source.publishedDate).toLocaleDateString(undefined, {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-            </p>
-          ) : null}
-        </div>
-      </div>
-      <p className="line-clamp-2 text-[13px] font-semibold leading-5 text-[var(--ui-fg)]">
-        {source.title || source.url}
-      </p>
-      {excerpt ? (
-        <p className="mt-1.5 line-clamp-3 text-[12px] leading-[1.4] text-[var(--ui-fg-muted)]">
-          {excerpt}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-const SOURCE_PREVIEW_CARD_WIDTH = 320;
-const SOURCE_PREVIEW_VIEWPORT_PADDING = 16;
-const SOURCE_PREVIEW_CHIP_GAP = 8;
-
-function clampPreviewLeft(anchorCenterX: number, cardWidth: number) {
-  const maxLeft =
-    window.innerWidth - cardWidth - SOURCE_PREVIEW_VIEWPORT_PADDING;
-  const centered = anchorCenterX - cardWidth / 2;
-  return Math.max(SOURCE_PREVIEW_VIEWPORT_PADDING, Math.min(centered, maxLeft));
-}
-
 export function SourceChip({
   source,
   index,
@@ -99,174 +46,33 @@ export function SourceChip({
   index?: number;
   compact?: boolean;
 }) {
-  const anchorRef = useRef<HTMLAnchorElement>(null);
-  const hideTimeoutRef = useRef<number | null>(null);
-  const showTimeoutRef = useRef<number | null>(null);
-  const unmountTimeoutRef = useRef<number | null>(null);
-  const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [coords, setCoords] = useState({ left: 0, top: 0 });
-  const [cardWidth, setCardWidth] = useState(SOURCE_PREVIEW_CARD_WIDTH);
-
   const sizeClasses = compact
     ? "h-6 max-w-[164px] gap-1.5 rounded-full px-2 text-[12px]"
     : "h-7 max-w-[200px] gap-1.5 rounded-full px-2 text-[12.5px]";
 
-  const updatePosition = useCallback(() => {
-    const anchor = anchorRef.current;
-    if (!anchor) return;
-    const rect = anchor.getBoundingClientRect();
-    const width = Math.min(
-      SOURCE_PREVIEW_CARD_WIDTH,
-      window.innerWidth - SOURCE_PREVIEW_VIEWPORT_PADDING * 2,
-    );
-    setCardWidth(width);
-    setCoords({
-      left: clampPreviewLeft(rect.left + rect.width / 2, width),
-      top: rect.top - SOURCE_PREVIEW_CHIP_GAP,
-    });
-  }, []);
-
-  const cancelHide = useCallback(() => {
-    if (hideTimeoutRef.current != null) {
-      window.clearTimeout(hideTimeoutRef.current);
-      hideTimeoutRef.current = null;
-    }
-    if (unmountTimeoutRef.current != null) {
-      window.clearTimeout(unmountTimeoutRef.current);
-      unmountTimeoutRef.current = null;
-    }
-  }, []);
-
-  const cancelShow = useCallback(() => {
-    if (showTimeoutRef.current != null) {
-      window.clearTimeout(showTimeoutRef.current);
-      showTimeoutRef.current = null;
-    }
-  }, []);
-
-  const revealPreview = useCallback(() => {
-    cancelHide();
-    updatePosition();
-    setMounted(true);
-    requestAnimationFrame(() => setOpen(true));
-  }, [cancelHide, updatePosition]);
-
-  /** Delay before the preview container appears — avoids flash on quick passes. */
-  const scheduleShow = useCallback(() => {
-    cancelHide();
-    cancelShow();
-    if (mounted || open) {
-      revealPreview();
-      return;
-    }
-    showTimeoutRef.current = window.setTimeout(() => {
-      showTimeoutRef.current = null;
-      revealPreview();
-    }, 280);
-  }, [cancelHide, cancelShow, mounted, open, revealPreview]);
-
-  const scheduleHide = useCallback(() => {
-    cancelShow();
-    cancelHide();
-    hideTimeoutRef.current = window.setTimeout(() => {
-      setOpen(false);
-      hideTimeoutRef.current = null;
-      unmountTimeoutRef.current = window.setTimeout(() => {
-        setMounted(false);
-        unmountTimeoutRef.current = null;
-      }, 180);
-    }, 160);
-  }, [cancelHide, cancelShow]);
-
-  useEffect(() => {
-    if (!open) return;
-    let raf = 0;
-    const sync = () => {
-      if (raf) return;
-      raf = window.requestAnimationFrame(() => {
-        raf = 0;
-        updatePosition();
-      });
-    };
-    window.addEventListener("resize", sync);
-    window.addEventListener("scroll", sync, true);
-    return () => {
-      if (raf) window.cancelAnimationFrame(raf);
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("scroll", sync, true);
-    };
-  }, [open, updatePosition]);
-
-  useEffect(() => {
-    return () => {
-      if (hideTimeoutRef.current != null) {
-        window.clearTimeout(hideTimeoutRef.current);
-      }
-      if (showTimeoutRef.current != null) {
-        window.clearTimeout(showTimeoutRef.current);
-      }
-      if (unmountTimeoutRef.current != null) {
-        window.clearTimeout(unmountTimeoutRef.current);
-      }
-    };
-  }, []);
-
   return (
-    <>
-      <a
-        ref={anchorRef}
-        href={source.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        onMouseEnter={scheduleShow}
-        onMouseLeave={scheduleHide}
-        className={cn(
-          "relative mx-0.5 inline-flex whitespace-nowrap align-middle items-center border border-[var(--ui-border)] bg-[var(--ui-field-bg)] font-medium text-[var(--ui-fg-muted)] outline-none transition-colors duration-150 hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:border-[var(--ui-field-focus-border)] focus-visible:ring-0 overflow-anchor-none",
-          sizeClasses,
-        )}
-        data-source-chip=""
-        data-chat-scroll-passthrough=""
-      >
-        <SourceFavicon
-          source={source}
-          className={compact ? "h-4 w-4" : "h-4 w-4"}
-        />
-        <span className="truncate leading-none">{source.domain}</span>
-        {index != null ? (
-          <span className="text-[11px] tabular-nums text-[var(--ui-fg-placeholder)]">
-            {index + 1}
-          </span>
-        ) : null}
-      </a>
-
-      {mounted && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              className={cn(
-                "fixed z-[180] pointer-events-auto will-change-[opacity,transform]",
-                "origin-bottom transition-[opacity,transform] duration-200 ease-out",
-                open ? "opacity-100" : "pointer-events-none opacity-0",
-              )}
-              style={{
-                left: coords.left,
-                top: coords.top,
-                width: cardWidth,
-                transform: `translateY(-100%) scale(${open ? 1 : 0.98})`,
-              }}
-              data-source-preview=""
-              data-chat-scroll-passthrough=""
-              onMouseEnter={scheduleShow}
-              onMouseLeave={scheduleHide}
-            >
-              <SourcePreviewCard source={source} />
-              {/* Invisible bridge down to the chip so hover is not lost in the gap. */}
-              <span className="block h-3 w-full" aria-hidden />
-            </div>,
-            document.body,
-          )
-        : null}
-    </>
+    <a
+      href={source.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        "relative mx-0.5 inline-flex whitespace-nowrap align-middle items-center border border-[var(--ui-border)] bg-[var(--ui-field-bg)] font-medium text-[var(--ui-fg-muted)] outline-none transition-colors duration-150 hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:border-[var(--ui-field-focus-border)] focus-visible:ring-0 overflow-anchor-none",
+        sizeClasses,
+      )}
+      data-source-chip=""
+      data-chat-scroll-passthrough=""
+    >
+      <SourceFavicon
+        source={source}
+        className={compact ? "h-4 w-4" : "h-4 w-4"}
+      />
+      <span className="truncate leading-none">{source.domain}</span>
+      {index != null ? (
+        <span className="text-[11px] tabular-nums text-[var(--ui-fg-placeholder)]">
+          {index + 1}
+        </span>
+      ) : null}
+    </a>
   );
 }
 

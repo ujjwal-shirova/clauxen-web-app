@@ -462,12 +462,8 @@ export function Sidebar({
     const isGeneratingChat = generatingSet.has(chat.id);
     const isActive = activeChatId === chat.id;
     const chatHref = APP_ROUTES.chat(chat.id);
-    // Spinner only when another chat is generating in the background.
-    // Never on the active chat, never while creating/starting a new chat.
     const showSidebarSpinner =
       isGeneratingChat &&
-      Boolean(activeChatId) &&
-      activeChatId !== chat.id &&
       !chat.isCreating &&
       !chat.id.startsWith("pending-");
     return (

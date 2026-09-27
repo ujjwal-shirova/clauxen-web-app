@@ -640,27 +640,21 @@ export function AgentTraceView({
     live: isActive,
     nowMs: now,
   });
-  const openWhileWorking = isActive || Boolean(keepExpanded);
-  const [expanded, setExpanded] = useState(openWhileWorking);
+  const [expanded, setExpanded] = useState(false);
   const userToggledRef = useRef(false);
-  const wasWorkingRef = useRef(openWhileWorking);
   const headerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    if (wasWorkingRef.current && !openWhileWorking) {
+    if (keepExpanded) {
+      setExpanded(true);
+      return;
+    }
+    if (!isActive) {
       userToggledRef.current = false;
       setExpanded(false);
-    } else if (openWhileWorking && !userToggledRef.current) {
-      setExpanded(true);
     }
-    wasWorkingRef.current = openWhileWorking;
-  }, [openWhileWorking]);
+  }, [isActive, keepExpanded]);
 
-  if (segments.length === 0 && !isActive && !isWorking) return null;
-
-  const failedCount = visibleSteps.filter(
-    (step) => step.kind === "tool" && step.status === "error",
-  ).length;
   const activityLabel = useMemo(() => {
     const running = [...visibleSteps].reverse().find((step) => {
       if (step.kind === "tool") return step.status === "running";
@@ -676,6 +670,12 @@ export function AgentTraceView({
     () => previewLinesFor(visibleSteps),
     [visibleSteps],
   );
+
+  if (segments.length === 0 && !isActive && !isWorking) return null;
+
+  const failedCount = visibleSteps.filter(
+    (step) => step.kind === "tool" && step.status === "error",
+  ).length;
   const showPreview = isActive && !expanded;
 
   return (

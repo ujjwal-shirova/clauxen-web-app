@@ -162,6 +162,7 @@ async function mapChatsWithPins(
     name: chat.title,
     starred: chat.starred,
     pinned: pinnedIds.has(chat.id),
+    generating: Boolean(chat.generating),
     updatedAt: chat.updated_at,
   }));
 }
@@ -169,6 +170,10 @@ async function mapChatsWithPins(
 export async function listRecentChats(userId: string) {
   const chats = await chatsRepo.listChatsForUser(userId);
   return mapChatsWithPins(userId, chats);
+}
+
+export async function listGeneratingChatIds(userId: string) {
+  return chatsRepo.listGeneratingChatIds(userId);
 }
 
 export async function searchChats(userId: string, query: string, limit = 40) {

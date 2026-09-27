@@ -14,11 +14,21 @@ export const GET = withApiRouteParams<{ chatId: string }>(
     const chat = await chatsRepo.getChatForUser(params.chatId, user.id);
     if (!chat) throw notFound("Chat not found.");
 
-    const status = await getChatCoordStatus(params.chatId);
+    const [status, markedIds] = await Promise.all([
+      getChatCoordStatus(params.chatId),
+      chatsRepo.listGeneratingChatIds(user.id),
+    ]);
+    const marked = markedIds.includes(params.chatId);
+    // The coordinator is the live lease. A stale metadata flag is cleared
+    // when the lease is gone so a finished turn does not keep spinning.
+    if (status && !status.active && marked) {
+      await chatsRepo.setChatGenerating(params.chatId, user.id, false);
+    }
+    const active = status ? status.active : marked;
     return Response.json(
       {
         data: {
-          active: status?.active ?? false,
+          active,
           stopRequested: status?.stopRequested ?? false,
         },
       },

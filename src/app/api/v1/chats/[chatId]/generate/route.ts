@@ -15,6 +15,7 @@ import {
   beginChatGeneration,
   endChatGeneration,
 } from "@/server/chat/generation-registry";
+import * as chatsRepo from "@/server/repositories/chats.repository";
 import { readEdgeFlags } from "@/server/config/edge-flags";
 import { assertDurableRateLimit } from "@/server/http/durable-rate-limit";
 import { clientIp } from "@/server/http/request-meta";
@@ -149,6 +150,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
 
     const generationController = generation.controller;
     let finishOnce: (() => Promise<void>) | null = null;
+    await chatsRepo.setChatGenerating(params.chatId, user.id, true);
 
     try {
       const { stream, onComplete, userMessageId, assistantMessageId } =
@@ -175,6 +177,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           onPauseForUser: async () => {
             // Free the DO/local lease as soon as ask_user_input pauses so the
             // user's questionnaire answers can start a new turn without 409.
+            await chatsRepo.setChatGenerating(params.chatId, user.id, false);
             await endChatGeneration(params.chatId, generationController);
           },
           requestId,
@@ -187,6 +190,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         // Release the generation lock immediately so follow-up turns are never
         // blocked by background DB persistence.
         try {
+          await chatsRepo.setChatGenerating(params.chatId, user.id, false);
           await endChatGeneration(params.chatId, generationController);
         } finally {
           await onComplete();
@@ -219,8 +223,15 @@ export const POST = withApiRouteParams<{ chatId: string }>(
             },
             HEARTBEAT_INTERVAL_MS,
           );
+          let lastGeneratingTouchAt = Date.now();
           try {
             while (true) {
+              if (Date.now() - lastGeneratingTouchAt > 15_000) {
+                lastGeneratingTouchAt = Date.now();
+                void chatsRepo
+                  .setChatGenerating(params.chatId, user.id, true)
+                  .catch(() => {});
+              }
               if (generationController.signal.aborted) {
                 try {
                   await reader.cancel();
@@ -247,6 +258,12 @@ export const POST = withApiRouteParams<{ chatId: string }>(
                   break;
                 }
                 while (true) {
+                  if (Date.now() - lastGeneratingTouchAt > 15_000) {
+                    lastGeneratingTouchAt = Date.now();
+                    void chatsRepo
+                      .setChatGenerating(params.chatId, user.id, true)
+                      .catch(() => {});
+                  }
                   if (generationController.signal.aborted) {
                     try {
                       await reader.cancel();
@@ -292,6 +309,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         },
       });
     } catch (error) {
+      await chatsRepo.setChatGenerating(params.chatId, user.id, false);
       await endChatGeneration(params.chatId, generationController);
       throw error;
     }

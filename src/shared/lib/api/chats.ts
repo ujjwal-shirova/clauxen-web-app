@@ -72,6 +72,10 @@ export async function searchChatTitles(query: string, limit = 40) {
   );
 }
 
+export async function listGeneratingChatIds() {
+  return apiFetch<{ ids: string[] }>("/api/v1/chats/generating");
+}
+
 export async function listChats() {
   const nextPromise = apiFetch<{ chats: ApiChat[] }>("/api/v1/chats");
   const workerPromise = listChatsViaWorker();

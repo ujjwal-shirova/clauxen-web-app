@@ -1088,8 +1088,8 @@ export function useChatApi(
       const silent = opts?.silent === true;
       // Never reconcile over a live turn — silent Worker fetches were wiping
       // the optimistic orb on new-chat / follow-up navigations.
-      const isLive = isChatActivelyGenerating(chatId);
-      if (silent && isLive) {
+      const ownsStream = Boolean(getGeneration(chatId));
+      if (silent && ownsStream) {
         return;
       }
       if (!silent) {
@@ -1107,7 +1107,7 @@ export function useChatApi(
           chatsApi.getBranchState(chatId).catch(() => null),
         ]);
         // Re-check after await — generation may have started while fetching.
-        if (isChatActivelyGenerating(chatId)) {
+        if (Boolean(getGeneration(chatId))) {
           applyHydratedMessages(chatId, bundle.messages, null);
           return;
         }
@@ -1148,6 +1148,45 @@ export function useChatApi(
     if (!activeChatId) return Promise.resolve();
     return loadChatMessages(activeChatId);
   }, [activeChatId, loadChatMessages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer = 0;
+    const tick = async () => {
+      try {
+        const { ids } = await chatsApi.listGeneratingChatIds();
+        if (cancelled) return;
+        const live = new Set(ids);
+        const store = useChatStore.getState();
+        for (const id of live) {
+          if (!store.generatingChatIds[id]) {
+            store.setChatGenerating(id, true);
+          }
+        }
+        for (const id of Object.keys(useChatStore.getState().generatingChatIds)) {
+          if (live.has(id) || getGeneration(id)) continue;
+          useChatStore.getState().setChatGenerating(id, false);
+        }
+        const active = useChatStore.getState().activeChatId;
+        if (
+          active &&
+          live.has(active) &&
+          !getGeneration(active) &&
+          !active.startsWith("incognito-")
+        ) {
+          void loadChatMessages(active, { silent: true });
+        }
+      } catch {
+        // The next tick retries. A failed poll must not clear a live turn.
+      }
+      if (!cancelled) timer = window.setTimeout(tick, 3000);
+    };
+    timer = window.setTimeout(tick, 400);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [loadChatMessages]);
 
   const handleSelectChat = useCallback(
     async (chatId: string | null) => {
