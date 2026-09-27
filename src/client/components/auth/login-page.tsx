@@ -470,44 +470,8 @@ export function LoginPage() {
         ) : (
           <form
             onSubmit={(e) => void handleEmailContinue(e)}
-            className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300"
+            className="mt-7 animate-in fade-in slide-in-from-bottom-2 duration-300"
           >
-            <div className="mb-4 rounded-[12px] border border-zinc-200 bg-zinc-50 px-3.5 py-3">
-              <div className="flex items-start gap-2.5">
-                <span
-                  className={cn(
-                    "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
-                    step === "magic"
-                      ? "bg-zinc-900 text-[10px] text-white"
-                      : "bg-zinc-200 text-zinc-700",
-                  )}
-                  aria-hidden
-                >
-                  {step === "magic" ? "✦" : "i"}
-                </span>
-                <div>
-                  <p className="text-[13px] font-semibold text-zinc-900">
-                    {step === "create"
-                      ? "Create Account"
-                      : step === "login"
-                        ? "Sign in"
-                        : step === "magic"
-                          ? "Magic link"
-                          : "Continue with Email"}
-                  </p>
-                  <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-500">
-                    {step === "create"
-                      ? "This email is new — set a password to create your account."
-                      : step === "login"
-                        ? "We found an account for this email. Enter your password to continue."
-                        : step === "magic"
-                          ? "New email? We’ll send a 5-minute link that verifies you and opens password setup."
-                          : "Create an account or log in via email."}
-                  </p>
-                </div>
-              </div>
-            </div>
-
             <div className="space-y-3">
               <div>
                 <label
@@ -534,7 +498,7 @@ export function LoginPage() {
                   <div className="mb-1.5 flex items-center justify-between gap-2">
                     <label
                       htmlFor="login-password"
-                      className="block text-[13px] font-medium text-zinc-800"
+                      className="block text-[13px] font-medium text-[var(--ui-fg)]"
                     >
                       {step === "create" ? "Create password" : "Password"}
                     </label>
@@ -573,7 +537,7 @@ export function LoginPage() {
                 <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
                   <label
                     htmlFor="login-confirm-password"
-                    className="mb-1.5 block text-[13px] font-medium text-zinc-800"
+                    className="mb-1.5 block text-[13px] font-medium text-[var(--ui-fg)]"
                   >
                     Confirm password
                   </label>
@@ -603,13 +567,10 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={busy || !canContinueEmail}
+              aria-busy={formSubmitting || undefined}
               className={cn(authPageStyles.primaryBtn, "mt-4")}
             >
-              {formSubmitting
-                ? "Please wait…"
-                : step === "magic"
-                  ? "Send magic link"
-                  : "Continue"}
+              {step === "magic" ? "Send magic link" : "Continue"}
             </button>
 
             <button
@@ -639,18 +600,18 @@ export function LoginPage() {
           </form>
         )}
 
-        <p className="mt-5 text-[12px] leading-relaxed text-zinc-500">
-          By continuing, you agree to our{" "}
+        <p className="mt-6 text-[12px] leading-relaxed text-[var(--ui-fg-subtle)]">
+          By continuing, you agree to the{" "}
           <a
             href="/legal/terms"
-            className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-800"
+            className="text-[var(--ui-fg-muted)] underline decoration-[var(--ui-border)] underline-offset-2 hover:text-[var(--ui-fg)]"
           >
-            Terms of Service
+            Terms
           </a>{" "}
           and{" "}
           <a
             href="/legal/privacy"
-            className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-800"
+            className="text-[var(--ui-fg-muted)] underline decoration-[var(--ui-border)] underline-offset-2 hover:text-[var(--ui-fg)]"
           >
             Privacy Policy
           </a>
@@ -658,13 +619,12 @@ export function LoginPage() {
         </p>
       </div>
 
-      <p className="mx-auto mt-auto max-w-[380px] pb-2 text-center text-[12px] leading-relaxed text-zinc-400">
-        Need help?{" "}
+      <p className="mt-auto pb-1 text-center text-[12px] leading-relaxed text-[var(--ui-fg-subtle)]">
         <a
           href="mailto:support@clauxen.com"
-          className="text-zinc-600 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900"
+          className="text-[var(--ui-fg-muted)] underline decoration-[var(--ui-border)] underline-offset-2 hover:text-[var(--ui-fg)]"
         >
-          Get in touch
+          Contact support
         </a>
       </p>
 
