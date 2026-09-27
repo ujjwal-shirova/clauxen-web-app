@@ -13,6 +13,7 @@ import {
 } from "@/components/auth/auth-shared";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignupOtpDialog } from "@/components/auth/signup-otp-dialog";
+import { ClauxenWordmark } from "@/components/onboarding/clauxen-wordmark";
 import * as authApi from "@/lib/api/auth";
 import {
   getSafeRedirectTo,
@@ -83,19 +84,21 @@ export function LoginPage() {
 
   const handleOAuth = useCallback(
     async (provider: OAuthProvider) => {
+      if (pendingProvider) return;
       setError(null);
       setInfo(null);
       setPendingProvider(provider);
       try {
         await signInWithOAuth(provider, redirectTo);
       } catch (err) {
+        document.documentElement.removeAttribute("data-auth-redirect");
         setError(
           err instanceof Error ? err.message : "Sign in failed. Try again.",
         );
         setPendingProvider(null);
       }
     },
-    [redirectTo, signInWithOAuth],
+    [pendingProvider, redirectTo, signInWithOAuth],
   );
 
   const openEmailFlow = () => {
@@ -295,24 +298,45 @@ export function LoginPage() {
     return <AuthLoadingShell />;
   }
 
+  const providerName =
+    pendingProvider === "google"
+      ? "Google"
+      : pendingProvider === "github"
+        ? "GitHub"
+        : pendingProvider === "gitlab"
+          ? "GitLab"
+          : null;
+
   return (
-    <AuthShell>
-      <div className="mx-auto flex w-full max-w-[380px] flex-1 flex-col justify-center py-6">
-        <h1 className="text-[28px] font-semibold tracking-tight text-zinc-900 sm:text-[32px]">
-          Welcome to Clauxen
+    <AuthShell atmosphere>
+      <div className="flex w-full flex-1 flex-col justify-center py-6">
+        <ClauxenWordmark
+          height={26}
+          className="mb-8 text-[var(--ui-fg)]"
+        />
+        <h1 className="font-serif text-[40px] font-normal leading-none tracking-[-0.02em] text-[var(--ui-fg)]">
+          {step === "create"
+            ? "Create account"
+            : step === "login"
+              ? "Welcome back"
+              : step === "magic" || step === "magic-sent"
+                ? "Magic link"
+                : step === "email"
+                  ? "Email"
+                  : "Sign in"}
         </h1>
-        <p className="mt-2 text-[14px] leading-relaxed text-zinc-500">
+        <p className="mt-3 text-[14px] leading-relaxed text-[var(--ui-fg-muted)]">
           {step === "chooser"
-            ? "Sign in or create an account to continue."
+            ? "Continue with your account."
             : step === "create"
-              ? "Create your account with email."
+              ? "Set a password for this email."
               : step === "login"
-                ? "Welcome back — enter your password."
+                ? "Enter the password for this account."
                 : step === "magic"
-                  ? "We’ll email you a magic link — no code to type."
+                  ? "We’ll send a one-tap link. It expires in 5 minutes."
                   : step === "magic-sent"
-                    ? "Check your inbox — one tap and you’re in."
-                    : "Continue with your email address."}
+                    ? "Open the link in your inbox to continue."
+                    : "Use the email for your Clauxen account."}
         </p>
 
         {step === "chooser" ? (
@@ -321,26 +345,32 @@ export function LoginPage() {
               <AuthOAuthButtons
                 onOAuth={handleOAuth}
                 onSso={() => {
+                  if (pendingProvider) return;
                   setError(null);
                   setPendingProvider("sso");
                   window.setTimeout(() => {
                     setPendingProvider(null);
                     setInfo(
-                      "Enterprise SSO is available on Team plans — contact sales@clauxen.com.",
+                      "Enterprise SSO is available on Team plans. Contact sales@clauxen.com.",
                     );
                   }, 450);
                 }}
                 disabled={busy}
                 pendingProvider={pendingProvider}
               />
+              {providerName ? (
+                <p className="sr-only" role="status">
+                  Opening {providerName} to authorize.
+                </p>
+              ) : null}
             </div>
 
             <div className="my-5 flex items-center gap-3">
-              <div className="h-px flex-1 bg-zinc-200" />
-              <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              <div className="h-px flex-1 bg-[var(--ui-border)]" />
+              <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--ui-fg-subtle)]">
                 or
               </span>
-              <div className="h-px flex-1 bg-zinc-200" />
+              <div className="h-px flex-1 bg-[var(--ui-border)]" />
             </div>
 
             <button
@@ -349,7 +379,12 @@ export function LoginPage() {
               onClick={openEmailFlow}
               className={authPageStyles.outlinedBtn}
             >
-              <i className="bi bi-envelope text-[16px] leading-none" aria-hidden />
+              <span
+                className="inline-flex w-[18px] shrink-0 items-center justify-center"
+                aria-hidden
+              >
+                <i className="bi bi-envelope text-[16px] leading-none" />
+              </span>
               Continue with Email
             </button>
 
