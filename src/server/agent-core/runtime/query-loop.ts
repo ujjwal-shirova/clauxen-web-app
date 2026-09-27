@@ -575,6 +575,8 @@ export async function runAutonomousAgent(
         name: string;
         result: string;
         isError: boolean;
+        imageFileId: string | null;
+        imageName: string;
       }> = [];
 
       // Sequential execution: the sandbox is stateful and the UI reads top-down.
@@ -686,6 +688,18 @@ export async function runAutonomousAgent(
             ? outcomeOutput
             : JSON.stringify(outcomeOutput ?? {});
         const isError = isToolErrorOutput(outcomeOutput);
+        const imageFileId =
+          outcomeOutput &&
+          typeof outcomeOutput === "object" &&
+          (outcomeOutput as { kind?: string }).kind === "image" &&
+          typeof (outcomeOutput as { fileId?: string }).fileId === "string"
+            ? (outcomeOutput as { fileId: string; name?: string }).fileId
+            : null;
+        const imageName =
+          imageFileId &&
+          typeof (outcomeOutput as { name?: string }).name === "string"
+            ? (outcomeOutput as { name: string }).name
+            : "image";
 
         if (outcomePause || tc.name === "ask_user_input_v0") {
           pauseForUser = true;
@@ -697,6 +711,8 @@ export async function runAutonomousAgent(
           name: tc.name,
           result: resultStr,
           isError,
+          imageFileId,
+          imageName,
         });
       }
 
@@ -706,6 +722,30 @@ export async function runAutonomousAgent(
           tool_call_id: result.toolCallId,
           content: result.result,
         });
+      }
+
+      if (userId) {
+        const { resolveVisionImageBlocks } = await import(
+          "@/server/inference/vision-attachments"
+        );
+        for (const result of toolResults) {
+          if (!result.imageFileId) continue;
+          const blocks = await resolveVisionImageBlocks({
+            userId,
+            fileIds: [result.imageFileId],
+          });
+          if (!blocks.length) continue;
+          conversation.push({
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `View of ${result.imageName}. This image is only for the current question.`,
+              },
+              ...blocks,
+            ],
+          });
+        }
       }
 
       try {

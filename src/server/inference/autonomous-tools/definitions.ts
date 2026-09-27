@@ -246,7 +246,35 @@ export const autonomousAgentTools: AutonomousAgentTool[] = [
   },
   {
     type: "function",
-    name: "file_read",
+    name: "read_attachment",
+    description: [
+      "Read a file the user uploaded. The file is not in the prompt.",
+      "USE this whenever the user refers to an attached or project file.",
+      "Pass file_id from the attachment list. Text, markdown, PDF, and Office files return a text slice.",
+      "Images are shown to you only after this call, for this step.",
+      "For a long file, call again with offset set to nextOffset. Do not request the whole file at once.",
+    ].join(" "),
+    parameters: {
+      type: "object",
+      properties: {
+        file_id: {
+          type: "string",
+          description: "file_id from the attached-files list.",
+        },
+        offset: {
+          type: "number",
+          description: "Character offset for text files. Omit for the start.",
+        },
+        limit: {
+          type: "number",
+          description: "Max characters to return, up to 8000. Default 4000.",
+        },
+      },
+      required: ["file_id"],
+      additionalProperties: false,
+    },
+    strict: false,
+  },
     description: [
       "Read a text file from this conversation's workspace.",
       "USE to inspect files the user uploaded or files created in earlier tool calls.",

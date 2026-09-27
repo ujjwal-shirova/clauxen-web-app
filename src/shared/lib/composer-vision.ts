@@ -62,41 +62,23 @@ export function prefetchComposerVision(
 }
 
 /**
- * Build OpenAI-compatible vision parts from composer / edit attachments.
- * Images go through as `image_url` data URIs. Videos are sampled into JPEG
- * stills — Chat Completions (Together / Novita) cannot take raw video bytes.
+ * File ids only. Pixel and text bodies stay in storage until the model
+ * calls read_attachment, so a large upload is not billed as prompt tokens.
  */
 export async function collectComposerVision(
   attachments: ComposerAttachment[],
 ): Promise<{
   images: ComposerVisionImage[];
   fileIds: string[];
-  /** Image fileIds that still need a server R2 fetch (no local pixels). */
   remoteFileIds: string[];
 }> {
-  const images: ComposerVisionImage[] = [];
   const fileIds: string[] = [];
-  const remoteFileIds: string[] = [];
-
   for (const item of attachments) {
     if (item.fileId && !fileIds.includes(item.fileId)) {
       fileIds.push(item.fileId);
     }
-    const frames = await prefetchComposerVision(item);
-    if (frames.length) {
-      images.push(...frames);
-      continue;
-    }
-    if (
-      item.fileId &&
-      item.kind === "image" &&
-      !remoteFileIds.includes(item.fileId)
-    ) {
-      remoteFileIds.push(item.fileId);
-    }
   }
-
-  return { images, fileIds, remoteFileIds };
+  return { images: [], fileIds, remoteFileIds: [] };
 }
 
 export function attachmentContextLines(
@@ -106,17 +88,12 @@ export function attachmentContextLines(
   return [
     "",
     "[Attached files]",
+    "These files are stored. Their contents are not in this message.",
+    "Call read_attachment with file_id to read a slice. Use offset to page through a long file. Do not guess the contents.",
     ...attachments.map((item) => {
-      if (item.kind === "document" && item.textPreview) {
-        return `- ${item.name}:\n${item.textPreview.slice(0, 8000)}`;
-      }
-      if (item.kind === "image") {
-        return `- ${item.name} (image attached for vision)`;
-      }
-      if (item.kind === "video") {
-        return `- ${item.name} (video attached; sampled frames sent for vision)`;
-      }
-      return `- ${item.name} (${item.mimeType || item.kind})`;
+      const id = item.fileId ? ` file_id=${item.fileId}` : "";
+      const size = item.file ? ` size=${item.file.size}` : "";
+      return `- ${item.name}${id} type=${item.mimeType || item.kind}${size}`;
     }),
   ].join("\n");
 }

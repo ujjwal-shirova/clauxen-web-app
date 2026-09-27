@@ -51,8 +51,6 @@ import {
   mergePromptHistories,
 } from "@/server/inference/build-chat-prompt-messages";
 import {
-  applyVisionToLastUserMessage,
-  resolveVisionImageBlocks,
   type ClientVisionImage,
 } from "@/server/inference/vision-attachments";
 import {
@@ -715,27 +713,6 @@ export async function streamChatGeneration(input: {
               { role: "user", content: preferredUserContent },
             ];
           }
-        }
-
-        const visionImages = input.vision?.images ?? input.turn?.images;
-        const visionFileIds =
-          input.vision?.fileIds ??
-          (visionImages?.length ? [] : input.turn?.fileIds);
-        const hasVisionInputs =
-          Boolean(visionImages?.length) || Boolean(visionFileIds?.length);
-        const visionBlocks = hasVisionInputs
-          ? await resolveVisionImageBlocks({
-              userId: input.userId,
-              fileIds: visionFileIds,
-              clientImages: visionImages,
-            })
-          : [];
-
-        if (visionBlocks.length > 0) {
-          conversationForAgent = applyVisionToLastUserMessage(
-            conversationForAgent,
-            visionBlocks,
-          );
         }
 
         return {

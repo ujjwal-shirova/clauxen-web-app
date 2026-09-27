@@ -387,6 +387,22 @@ export async function executeAutonomousTool(
     };
   }
 
+  if (name === "read_attachment") {
+    if (!ctx.userId) {
+      return { output: { error: "Not signed in." } };
+    }
+    const { readUserAttachment } = await import(
+      "@/server/inference/autonomous-tools/read-attachment"
+    );
+    const output = await readUserAttachment({
+      userId: ctx.userId,
+      fileId: String(args.file_id ?? args.fileId ?? ""),
+      offset: typeof args.offset === "number" ? args.offset : undefined,
+      limit: typeof args.limit === "number" ? args.limit : undefined,
+    });
+    return { output };
+  }
+
   if (name === "file_read") {
     const filePath = String(args.path ?? "");
     const output = await readScopedFile(ctx, filePath);
