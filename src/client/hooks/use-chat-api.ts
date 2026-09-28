@@ -17,6 +17,7 @@ import {
 function canFastAppendAnswer(message: Message | undefined): boolean {
   return Boolean(message && !message.agentMode);
 }
+import { hydrateMessageFromContentJson } from "@/lib/hydrate-chat-messages";
 import { createStreamEventBatcher } from "@/lib/stream-event-batcher";
 import type { Message, RecentChat } from "@/lib/types";
 import { useAiStream } from "@/hooks/use-ai-stream";
@@ -342,6 +343,50 @@ function isGenerationLocallySettled(chatId: string) {
     return false;
   }
   return true;
+}
+
+/** Paint the Cloudflare live trace when this tab is not the one streaming. */
+async function paintLiveTurn(chatId: string): Promise<"painted" | "empty" | "missing"> {
+  if (getGeneration(chatId)) return "empty";
+  let turn: chatsApi.LiveTurn | null = null;
+  try {
+    const result = await chatsApi.getLiveTurn(chatId);
+    turn = result.turn;
+  } catch {
+    return "empty";
+  }
+  if (!turn) return "empty";
+  const store = useChatStore.getState();
+  const messages = store.getMessagesForChat(chatId);
+  const target =
+    messages.find(
+      (message) =>
+        message.id === turn!.assistantId ||
+        message.clientId === turn!.assistantId,
+    ) ?? [...messages].reverse().find((message) => message.role === "assistant");
+  if (!target) return "missing";
+  const running = turn.status === "running";
+  const hydrated = hydrateMessageFromContentJson(
+    {
+      ...target,
+      content: turn.answer || target.content,
+      isStreaming: running,
+    },
+    turn.contentJson,
+  );
+  store.upsertMessage(chatId, {
+    ...target,
+    ...hydrated,
+    id: target.id,
+    clientId: target.clientId ?? target.id,
+    content: turn.answer || hydrated.content || target.content,
+    isStreaming: running,
+    isThinkingStreaming: false,
+    agentFrameComplete: !running,
+  });
+  if (running) store.setChatGenerating(chatId, true);
+  else if (store.generatingChatIds[chatId]) store.setChatGenerating(chatId, false);
+  return "painted";
 }
 
 function getGeneration(chatId: string) {
@@ -1131,6 +1176,9 @@ export function useChatApi(
         }
         const row = branch?.state as { messages?: unknown } | null;
         applyHydratedMessages(chatId, bundle.messages, row?.messages ?? null);
+        if (!getGeneration(chatId)) {
+          void paintLiveTurn(chatId);
+        }
         if (userId) {
           const messages = getAllChatsNormalized()[chatId] ?? [];
           void persistDeviceChatNow(
@@ -1204,17 +1252,19 @@ export function useChatApi(
         }
         for (const id of Object.keys(useChatStore.getState().generatingChatIds)) {
           if (live.has(id) || getGeneration(id)) continue;
-          sealIdleChat(id);
+          void paintLiveTurn(id).then((painted) => {
+            if (painted === "painted") return;
+            sealIdleChat(id);
+          });
         }
         const active = useChatStore.getState().activeChatId;
-        if (
-          active &&
-          live.has(active) &&
-          !isGenerationLocallySettled(active) &&
-          !getGeneration(active) &&
-          !active.startsWith("incognito-")
-        ) {
-          void loadChatMessages(active, { silent: true });
+        for (const id of live) {
+          if (getGeneration(id) || isGenerationLocallySettled(id)) continue;
+          void paintLiveTurn(id).then((painted) => {
+            if (painted === "missing" && id === active) {
+              void loadChatMessages(id, { silent: true });
+            }
+          });
         }
         const stillGenerating = Object.keys(
           useChatStore.getState().generatingChatIds,

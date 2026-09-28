@@ -76,6 +76,23 @@ export async function listGeneratingChatIds() {
   return apiFetch<{ ids: string[] }>("/api/v1/chats/generating");
 }
 
+export type LiveTurn = {
+  chatId: string;
+  userId: string;
+  assistantId: string;
+  status: "running" | "complete" | "failed" | "cancelled";
+  answer: string;
+  contentJson: unknown;
+  updatedAt?: number;
+  archiveAt?: number | null;
+};
+
+export async function getLiveTurn(chatId: string) {
+  return apiFetch<{ turn: LiveTurn | null }>(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/live`,
+  );
+}
+
 export async function listChats() {
   const nextPromise = apiFetch<{ chats: ApiChat[] }>("/api/v1/chats");
   const workerPromise = listChatsViaWorker();

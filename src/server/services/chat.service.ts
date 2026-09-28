@@ -27,6 +27,7 @@ import { logInferenceTelemetry } from "@/server/telemetry/inference-log";
 import { query } from "@/server/db/pool";
 import * as billingService from "@/server/services/billing.service";
 import { listRecentMessagesPreferCloudflare } from "@/server/chat/recent-messages";
+import { publishLiveTurn } from "@/server/chat/chat-coord-client";
 import {
   normalizeInlineChatTitle,
   finalizeChatTitleStrippedAnswer,
@@ -735,12 +736,11 @@ export async function streamChatGeneration(input: {
   const conversationForModel: IncomingMessage[] = clientConversation;
 
   /**
-   * Checkpoint the growing answer into the durable assistant row while the
-   * stream is still open. If the isolate dies / proxy cuts / tab closes, a
-   * reload shows the text painted so far instead of an empty ghost row.
-   * Throttled so Supabase sees at most one write per interval per turn.
+   * Checkpoint the growing answer on Cloudflare. Supabase is not written on
+   * each tick — the Durable Object keeps the live trace, and the transcript
+   * is archived to Postgres 24 hours after the turn finishes.
    */
-  const PARTIAL_SAVE_INTERVAL_MS = 4_000;
+  const PARTIAL_SAVE_INTERVAL_MS = 1_500;
   let lastPartialSaveAtMs = 0;
   let partialSaveInFlight: Promise<unknown> = Promise.resolve();
   const maybeSavePartialTurn = () => {
@@ -794,6 +794,15 @@ export async function streamChatGeneration(input: {
           return;
         }
         if (!turnState.assistant?.id) return;
+        const published = await publishLiveTurn({
+          chatId: input.chatId,
+          userId: input.userId,
+          assistantId: turnState.assistant.id,
+          status: "running",
+          answer: snapshotAnswer,
+          contentJson: snapshotContentJson,
+        });
+        if (published) return;
         await messagesRepo.updateMessageContent(
           turnState.assistant.id,
           input.chatId,
@@ -1032,20 +1041,39 @@ export async function streamChatGeneration(input: {
         },
       });
       if (assistantRow?.id) {
-        await messagesRepo.finalizeAssistantTurn({
-          messageId: assistantRow.id,
+        const liveStatus =
+          completionStatus === "cancelled"
+            ? "cancelled"
+            : completionStatus === "failed"
+              ? "failed"
+              : "complete";
+        const parkedOnCloudflare = await publishLiveTurn({
           chatId: input.chatId,
           userId: input.userId,
-          content: cleanedAnswer,
-          status: completionStatus,
+          assistantId: assistantRow.id,
+          status: liveStatus,
+          answer: cleanedAnswer,
           contentJson,
-          tools,
-          transcriptLines: buildAssistantTranscriptLines({
-            assistantRecord: contentJson,
-            tools,
-            status: wasCancelled ? "cancelled" : failed ? "error" : "success",
-          }),
         });
+        // The hot transcript stays on Cloudflare for 24 hours. Postgres
+        // receives it from the Durable Object alarm. If Cloudflare is down,
+        // write it now so the turn is not lost.
+        if (!parkedOnCloudflare) {
+          await messagesRepo.finalizeAssistantTurn({
+            messageId: assistantRow.id,
+            chatId: input.chatId,
+            userId: input.userId,
+            content: cleanedAnswer,
+            status: completionStatus,
+            contentJson,
+            tools,
+            transcriptLines: buildAssistantTranscriptLines({
+              assistantRecord: contentJson,
+              tools,
+              status: wasCancelled ? "cancelled" : failed ? "error" : "success",
+            }),
+          });
+        }
         if (!wasCancelled && generatedTitle) {
           await chatsRepo.updateChat(input.chatId, input.userId, {
             title: generatedTitle,

@@ -15,6 +15,7 @@ region = "aws:us-west-1"
 
 [vars]
 # CHAT_COORD_INTERNAL_TOKEN set via wrangler secret
+APP_ORIGIN = "https://www.clauxen.com"
 
 [[durable_objects.bindings]]
 name = "CHAT_COORD"

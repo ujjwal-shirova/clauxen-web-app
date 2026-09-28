@@ -117,3 +117,55 @@ export async function getChatCoordStatus(chatId: string): Promise<{
     stopRequested: Boolean(data.stopRequested),
   };
 }
+
+export type LiveTurnSnapshot = {
+  chatId: string;
+  userId: string;
+  assistantId: string;
+  status: "running" | "complete" | "failed" | "cancelled";
+  answer: string;
+  contentJson: unknown;
+  updatedAt?: number;
+  archiveAt?: number | null;
+};
+
+async function coordPost(path: string, body: unknown) {
+  const base = coordBase();
+  const token = coordToken();
+  if (!base || !token) return null;
+  try {
+    const response = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-clauxen-internal": token,
+        "user-agent": "ClauxenChatCoord/1.0 (+https://clauxen.com)",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(2_500),
+    });
+    if (!response.ok) return null;
+    return (await response.json().catch(() => null)) as {
+      turn?: LiveTurnSnapshot | null;
+      ok?: boolean;
+    } | null;
+  } catch {
+    return null;
+  }
+}
+
+/** Hot path: the in-progress trace lives on the Cloudflare Durable Object. */
+export async function publishLiveTurn(snapshot: LiveTurnSnapshot): Promise<boolean> {
+  if (!isChatCoordConfigured()) return false;
+  const data = await coordPost("/turn", snapshot);
+  return Boolean(data?.ok);
+}
+
+export async function readLiveTurn(
+  chatId: string,
+): Promise<LiveTurnSnapshot | null> {
+  if (!isChatCoordConfigured()) return null;
+  const data = await coordPost("/turn/read", { chatId });
+  return data?.turn ?? null;
+}

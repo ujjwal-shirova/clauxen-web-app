@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { withApiRouteParams } from "@/server/http/route-params";
 import { requireSession } from "@/server/auth/require-session";
 import * as chatService from "@/server/services/chat.service";
@@ -22,7 +23,7 @@ import { clientIp } from "@/server/http/request-meta";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, request, params, requestId }) => {
@@ -153,10 +154,11 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     const generationSettled = new Promise<void>((resolve) => {
       resolveSettled = resolve;
     });
-    // The HTTP response can end when the browser closes. This keeps the
-    // Vercel isolate alive until the model stream is consumed and the
-    // assistant row is saved in Supabase.
+    // Fluid Compute keeps this invocation alive after the browser disconnects.
+    // after() and waitUntil() both extend the request until the model stream
+    // is consumed and the live trace is on Cloudflare.
     after(() => generationSettled);
+    waitUntil(generationSettled);
 
     await chatsRepo.setChatGenerating(params.chatId, user.id, true);
     let holdGenerating = true;
