@@ -90,6 +90,8 @@ function hintToSession(): SessionUser | null {
   };
 }
 
+let oauthNavigationStarted = false;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(() => hintToSession());
   // Identity hint means we already know who you are — do not
@@ -328,36 +330,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithOAuth = useCallback(
     async (provider: OAuthProvider, redirectTo = "/new") => {
+      if (oauthNavigationStarted) return;
+      oauthNavigationStarted = true;
       const started = performance.now();
-      const supabase = createClient();
-      const { provider: goTrueProvider, scopes } =
-        oauthSignInOptions(provider);
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: goTrueProvider,
-        options: {
-          redirectTo: `${appOrigin()}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
-          skipBrowserRedirect: true,
-          ...(scopes ? { scopes } : {}),
-        },
-      });
-      if (error) {
-        throw new Error(mapSupabaseAuthError(error.message));
-      }
-      const url = data?.url;
-      if (!url) {
-        throw new Error("Could not open the sign-in page. Try again.");
-      }
-      // Hold just long enough for the button ring to read, then the
-      // document itself navigates to the provider — no in-button loader.
-      const hold = 560;
-      const elapsed = performance.now() - started;
-      if (elapsed < hold) {
-        await new Promise((resolve) => {
-          window.setTimeout(resolve, hold - elapsed);
+      try {
+        const supabase = createClient();
+        const { provider: goTrueProvider, scopes } =
+          oauthSignInOptions(provider);
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: goTrueProvider,
+          options: {
+            redirectTo: `${appOrigin()}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+            skipBrowserRedirect: true,
+            ...(scopes ? { scopes } : {}),
+          },
         });
+        if (error) {
+          throw new Error(mapSupabaseAuthError(error.message));
+        }
+        const url = data?.url;
+        if (!url) {
+          throw new Error("Could not open the sign-in page. Try again.");
+        }
+        // Hold just long enough for the button ring to read, then the
+        // document itself navigates to the provider — no in-button loader.
+        const hold = 560;
+        const elapsed = performance.now() - started;
+        if (elapsed < hold) {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, hold - elapsed);
+          });
+        }
+        document.documentElement.setAttribute("data-auth-redirect", "1");
+        window.location.assign(url);
+      } catch (error) {
+        oauthNavigationStarted = false;
+        throw error;
       }
-      document.documentElement.setAttribute("data-auth-redirect", "1");
-      window.location.assign(url);
     },
     [],
   );

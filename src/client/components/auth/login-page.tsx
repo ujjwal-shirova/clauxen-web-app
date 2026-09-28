@@ -308,13 +308,18 @@ export function LoginPage() {
           : null;
 
   return (
-    <AuthShell atmosphere>
+    <AuthShell>
       <div className="flex w-full flex-1 flex-col justify-center py-6">
         <ClauxenWordmark
           height={26}
-          className="mb-8 text-[var(--ui-fg)]"
+          className="text-[var(--ui-fg)]"
         />
-        <h1 className="font-serif text-[40px] font-normal leading-none tracking-[-0.02em] text-[var(--ui-fg)]">
+        <p className="auth-sign-in-light mt-5" aria-hidden>
+          <span>
+            0.184&nbsp;&nbsp;012&nbsp;&nbsp;4.90&nbsp;&nbsp;208&nbsp;&nbsp;0.073&nbsp;&nbsp;441&nbsp;&nbsp;19&nbsp;&nbsp;8.02&nbsp;&nbsp;903&nbsp;&nbsp;12.6&nbsp;&nbsp;0.41&nbsp;&nbsp;&nbsp;&nbsp;0.184&nbsp;&nbsp;012&nbsp;&nbsp;4.90&nbsp;&nbsp;208&nbsp;&nbsp;0.073&nbsp;&nbsp;441&nbsp;&nbsp;19&nbsp;&nbsp;8.02&nbsp;&nbsp;903&nbsp;&nbsp;12.6&nbsp;&nbsp;0.41&nbsp;&nbsp;&nbsp;&nbsp;
+          </span>
+        </p>
+        <h1 className="mt-6 font-serif text-[40px] font-normal leading-none tracking-[-0.02em] text-[var(--ui-fg)]">
           {step === "create"
             ? "Create account"
             : step === "login"
@@ -405,23 +410,22 @@ export function LoginPage() {
               </p>
             ) : null}
             {info ? (
-              <p className="mt-4 text-[13px] text-zinc-600">{info}</p>
+              <p className="mt-4 text-[13px] text-[var(--ui-fg-muted)]">{info}</p>
             ) : null}
           </>
         ) : step === "magic-sent" ? (
           <div className="magic-link-enter mt-8">
-            <div className="rounded-[14px] border border-zinc-200 bg-gradient-to-br from-zinc-50 via-white to-zinc-50 px-5 py-6 text-center">
-              <p className="magic-link-spark text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+            <div className="rounded-[14px] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-5 py-6 text-center">
+              <p className="magic-link-spark text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--ui-fg-subtle)]">
                 On its way
               </p>
-              <p className="mt-3 text-[18px] font-semibold tracking-tight text-zinc-900">
-                Your magic link is ready
+              <p className="mt-3 text-[18px] font-semibold tracking-tight text-[var(--ui-fg)]">
+                Link sent
               </p>
-              <p className="mt-2 text-[13px] leading-relaxed text-zinc-500">
+              <p className="mt-2 text-[13px] leading-relaxed text-[var(--ui-fg-muted)]">
                 We sent a one-tap link to{" "}
-                <span className="font-medium text-zinc-800">{email.trim()}</span>.
-                It expires in 5 minutes and creates your account the moment you
-                open it.
+                <span className="font-medium text-[var(--ui-fg)]">{email.trim()}</span>.
+                It expires in 5 minutes.
               </p>
               {magicDebugUrl ? (
                 <a
@@ -433,7 +437,7 @@ export function LoginPage() {
               ) : null}
             </div>
             {info ? (
-              <p className="mt-4 text-center text-[13px] text-zinc-600">{info}</p>
+              <p className="mt-4 text-center text-[13px] text-[var(--ui-fg-muted)]">{info}</p>
             ) : null}
             {error ? (
               <p className="mt-3 text-center text-[13px] text-red-600" role="alert">
@@ -476,7 +480,7 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="login-email"
-                  className="mb-1.5 block text-[13px] font-medium text-zinc-800"
+                  className="mb-1.5 block text-[13px] font-medium text-[var(--ui-fg)]"
                 >
                   Email
                 </label>
@@ -561,7 +565,7 @@ export function LoginPage() {
               </p>
             ) : null}
             {info ? (
-              <p className="mt-3 text-[13px] text-zinc-600">{info}</p>
+              <p className="mt-3 text-[13px] text-[var(--ui-fg-muted)]">{info}</p>
             ) : null}
 
             <button

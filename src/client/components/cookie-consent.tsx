@@ -19,9 +19,9 @@ import {
 } from "@/lib/cookie-consent";
 
 const secondaryButton =
-  "inline-flex min-h-8 items-center justify-center rounded-full border border-black/15 bg-transparent px-3 text-[13px] font-medium text-zinc-800 transition-colors hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20";
+  "inline-flex min-h-8 items-center justify-center rounded-full border border-[var(--ui-border)] bg-transparent px-3 text-[13px] font-medium text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-hover-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]";
 const primaryButton =
-  "inline-flex min-h-8 items-center justify-center rounded-full bg-zinc-900 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/25 focus-visible:ring-offset-2";
+  "inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--ui-fg)] px-3.5 text-[13px] font-medium text-[var(--app-panel-bg)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] focus-visible:ring-offset-2";
 
 function PreferenceRow({
   title,
@@ -37,17 +37,17 @@ function PreferenceRow({
   locked?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-5 border-t border-black/[0.07] py-4 first:border-t-0 first:pt-0 last:pb-0">
+    <div className="flex items-start justify-between gap-5 border-t border-[var(--ui-border-subtle)] py-4 first:border-t-0 first:pt-0 last:pb-0">
       <div className="min-w-0">
-        <p className="text-[14px] font-medium leading-5 text-zinc-900">
+        <p className="text-[14px] font-medium leading-5 text-[var(--ui-fg)]">
           {title}
         </p>
-        <p className="mt-1 max-w-[390px] text-[12.5px] leading-5 text-zinc-500">
+        <p className="mt-1 max-w-[390px] text-[12.5px] leading-5 text-[var(--ui-fg-muted)]">
           {description}
         </p>
       </div>
       {locked ? (
-        <span className="mt-0.5 shrink-0 rounded-full bg-zinc-900/[0.06] px-2 py-1 text-[11px] font-medium text-zinc-500">
+        <span className="mt-0.5 shrink-0 rounded-full bg-[var(--ui-hover-wash)] px-2 py-1 text-[11px] font-medium text-[var(--ui-fg-subtle)]">
           Always on
         </span>
       ) : (
@@ -96,6 +96,7 @@ async function persistConsent(
 
 export function CookieConsent() {
   const [ready, setReady] = useState(false);
+  const [entered, setEntered] = useState(false);
   const [consent, setConsent] = useState<CookieConsentValue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [performance, setPerformance] = useState(DEFAULT_OPTIONAL_COOKIES);
@@ -159,6 +160,15 @@ export function CookieConsent() {
     return () => window.removeEventListener(OPEN_COOKIE_SETTINGS_EVENT, open);
   }, [consent]);
 
+  useEffect(() => {
+    if (!ready || consent) {
+      setEntered(false);
+      return;
+    }
+    const id = window.setTimeout(() => setEntered(true), 520);
+    return () => window.clearTimeout(id);
+  }, [ready, consent]);
+
   const save = (
     nextPerformance: boolean,
     nextAdvertising: boolean,
@@ -189,56 +199,36 @@ export function CookieConsent() {
 
   return (
     <>
-      {!consent && !settingsOpen ? (
+      {!consent && !settingsOpen && entered ? (
         <section
           role="dialog"
           aria-label="Cookie notice"
           aria-describedby="cookie-banner-desc"
-          className="fixed right-3 bottom-3 z-[2147483646] w-[calc(100vw-1.5rem)] max-w-[528px] rounded-2xl border border-black/[0.06] bg-[#faf7f6] p-3.5 font-sans shadow-[0_0_30px_-5px_rgba(0,0,0,0.10),0_0_6px_-4px_rgba(0,0,0,0.10)] sm:right-4 sm:bottom-4"
+          className="cookie-notice fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 z-[2147483646] w-[min(400px,calc(100vw-1.5rem))] rounded-2xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-3.5 font-sans text-[var(--ui-fg)] shadow-[0_16px_40px_-18px_rgba(20,21,26,0.28),0_0_0_1px_rgba(20,21,26,0.04)] sm:bottom-4 sm:left-4"
         >
           <button
             type="button"
             onClick={() => save(false, false, "dismiss")}
             aria-label="Dismiss cookie notice"
-            className="absolute top-1.5 right-1.5 inline-flex size-6 items-center justify-center rounded text-zinc-900/45 transition-colors hover:bg-black/[0.04] hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20"
+            className="absolute top-1.5 right-1.5 inline-flex size-6 items-center justify-center rounded text-[var(--ui-fg-subtle)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
           >
             <X className="size-3.5" strokeWidth={1.7} />
           </button>
 
           <p
             id="cookie-banner-desc"
-            className="pr-6 text-[13px] leading-[21px] text-zinc-900/60"
+            className="pr-6 text-[13px] leading-[21px] text-[var(--ui-fg-muted)]"
           >
-            Essential cookies keep the site working and stay on. Optional
-            cookies help with performance and advertising — accept, reject, or
-            manage them. Learn more in our{" "}
+            Essential cookies stay on so Clauxen can sign you in. Optional
+            cookies measure performance and advertising.{" "}
             <a
               href="/legal/cookies"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium text-zinc-800 underline underline-offset-2"
+              className="font-medium text-[var(--ui-fg)] underline underline-offset-2"
             >
               Cookie Policy
             </a>
-            ,{" "}
-            <a
-              href="/legal/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-zinc-800 underline underline-offset-2"
-            >
-              Privacy Policy
-            </a>
-            , and{" "}
-            <a
-              href="/legal/terms"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-zinc-800 underline underline-offset-2"
-            >
-              Terms of Service
-            </a>
-            .
           </p>
 
           <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
@@ -272,14 +262,14 @@ export function CookieConsent() {
       <Dialog.Root open={settingsOpen} onOpenChange={setSettingsOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-[2147483646] bg-black/35 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 z-[2147483647] w-[calc(100vw-1.5rem)] max-w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] border border-black/[0.08] bg-[#faf7f6] p-5 font-sans text-zinc-900 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.35)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:p-6">
+          <Dialog.Content className="fixed top-1/2 left-1/2 z-[2147483647] w-[calc(100vw-1.5rem)] max-w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] border border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-5 font-sans text-[var(--ui-fg)] shadow-[var(--settings-modal-shadow)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:p-6">
             <div className="pr-8">
               <Dialog.Title className="text-[18px] font-semibold leading-6 tracking-[-0.015em]">
                 Cookie settings
               </Dialog.Title>
-              <Dialog.Description className="mt-1 text-[13px] leading-5 text-zinc-500">
+              <Dialog.Description className="mt-1 text-[13px] leading-5 text-[var(--ui-fg-muted)]">
                 Choose which optional cookies Clauxen may use. Essential cookies
-                cannot be disabled.
+                stay on.
               </Dialog.Description>
             </div>
 
@@ -287,13 +277,13 @@ export function CookieConsent() {
               <button
                 type="button"
                 aria-label="Close cookie settings"
-                className="absolute top-4 right-4 inline-flex size-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.05] hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20"
+                className="absolute top-4 right-4 inline-flex size-7 items-center justify-center rounded-lg text-[var(--ui-fg-subtle)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
               >
                 <X className="size-4" strokeWidth={1.7} />
               </button>
             </Dialog.Close>
 
-            <div className="mt-6 rounded-2xl border border-black/[0.08] bg-white/60 p-4">
+            <div className="mt-6 rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] p-4">
               <PreferenceRow
                 title="Essential cookies"
                 description="Required for authentication, security, saved preferences, and core app functionality."
