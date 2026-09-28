@@ -18,7 +18,6 @@ import {
 import { AssistantContentRenderer } from "./assistant-content-renderer";
 import { ThinkingBlock } from "./thinking-block";
 import { AgentMessageContent } from "./agent/agent-message-content";
-import { StreamingOrbCursor } from "./ui/streaming-orb-cursor";
 import { AgentWorkingRow } from "./agent/agent-trace-view";
 import { HintTooltip } from "./ui/hint-tooltip";
 import type { Message } from "@/lib/types";
@@ -549,14 +548,6 @@ const MessageRow = React.memo(
                       message.agentTrace?.startedAtMs ?? message.createdAt
                     }
                   />
-                ) : null}
-                {showWaitingOrb &&
-                message.content.length === 0 &&
-                (message.hasThinking ||
-                  (message.thinkingContent?.trim().length ?? 0) > 0) ? (
-                  <div className="flex items-center py-1.5">
-                    <StreamingOrbCursor />
-                  </div>
                 ) : null}
                 {message.content.length > 0 ? (
                   <div

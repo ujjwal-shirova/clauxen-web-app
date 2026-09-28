@@ -46,8 +46,6 @@ import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 import { StreamingTextFade } from "@/lib/streaming-text-fade";
 import { AgentToolBlock, AgentWebSearchBlock } from "./agent-tool-blocks";
 import { AgentShimmerText, AgentTraceBlock } from "./agent-trace-primitives";
-import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
-
 /**
  * Agent trace for one turn.
  *
@@ -568,24 +566,17 @@ function CollapsedWorkPreview({
     node.scrollTop = node.scrollHeight;
   }, [signature, live]);
 
+  if (!lines.length) return null;
+
   return (
     <div className="agent-trace-preview" data-agent-trace-preview="true">
       <div className="agent-trace-preview__fade agent-trace-preview__fade--top" />
       <div ref={scrollerRef} className="agent-trace-preview__scroll">
-        {lines.length ? (
-          lines.map((line, index) => (
-            <p key={`${index}-${line.slice(0, 24)}`} className="agent-trace-preview__line">
-              {line}
-            </p>
-          ))
-        ) : (
-          <p className="agent-trace-preview__line">Starting</p>
-        )}
-        {live ? (
-          <div className="agent-trace-preview__caret">
-            <StreamingOrbCursor />
-          </div>
-        ) : null}
+        {lines.map((line, index) => (
+          <p key={`${index}-${line.slice(0, 24)}`} className="agent-trace-preview__line">
+            {line}
+          </p>
+        ))}
       </div>
       <div className="agent-trace-preview__fade agent-trace-preview__fade--bottom" />
     </div>
@@ -676,7 +667,7 @@ export function AgentTraceView({
   const failedCount = visibleSteps.filter(
     (step) => step.kind === "tool" && step.status === "error",
   ).length;
-  const showPreview = isActive && !expanded;
+  const showPreview = isActive && !expanded && collapsedPreview.length > 0;
 
   return (
     <div
@@ -732,11 +723,6 @@ export function AgentTraceView({
               />
             );
           })}
-          {isActive ? (
-            <div className="flex items-center py-0.5" data-agent-live-caret="true">
-              <StreamingOrbCursor />
-            </div>
-          ) : null}
         </div>
       ) : null}
     </div>

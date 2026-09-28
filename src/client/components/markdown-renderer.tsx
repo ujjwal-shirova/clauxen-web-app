@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { StreamingMarkdown } from "@/components/streaming-markdown";
 import { StreamingTextFade } from "@/lib/streaming-text-fade";
-import { StreamingFollowCaret } from "@/components/ui/streaming-orb-cursor";
 import {
   markdownComponents,
   normalizeLatexDelimiters,
@@ -68,7 +67,7 @@ export const MarkdownMessage = ({
   onTypingComplete,
   isStreaming,
   streamKey,
-  showCursor = false,
+  showCursor: _showCursor = false,
   lightweightStream = false,
   detailLevel = "full",
   sources = [],
@@ -90,8 +89,6 @@ export const MarkdownMessage = ({
       onTypingComplete();
     }
   }, [isStreaming, onTypingComplete]);
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const caretOn = Boolean(isStreaming && showCursor);
 
   if (detailLevel === "placeholder") {
     return (
@@ -113,10 +110,7 @@ export const MarkdownMessage = ({
   if (isStreaming && lightweightStream) {
     return (
       <div className="relative min-w-0 max-w-full" data-streaming>
-        <div ref={bodyRef}>
-          <StreamingTextFade content={content} streamKey={streamKey} />
-        </div>
-        <StreamingFollowCaret active={caretOn} containerRef={bodyRef} />
+        <StreamingTextFade content={content} streamKey={streamKey} />
       </div>
     );
   }
@@ -134,7 +128,7 @@ export const MarkdownMessage = ({
       className="relative min-w-0 max-w-full overflow-anchor-none"
       data-streaming={isStreaming || undefined}
     >
-      <div ref={bodyRef}>
+      <div>
         <StreamingMarkdown
           content={displayContent}
           isStreaming={isStreaming}
@@ -142,10 +136,6 @@ export const MarkdownMessage = ({
           sources={sources}
         />
       </div>
-      <StreamingFollowCaret
-        active={Boolean(isStreaming && showCursor)}
-        containerRef={bodyRef}
-      />
     </div>
   );
 };

@@ -4,10 +4,8 @@ import type { Message } from "@/lib/types";
 import { messageUiKey } from "@/lib/message-ui-key";
 import { AssistantContentRenderer } from "@/components/assistant-content-renderer";
 import { ThinkingBlock } from "@/components/thinking-block";
-import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
 import { agentTraceIsActive } from "@/lib/agent-trace";
-import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
 import { AgentTranscriptView } from "./agent-transcript";
 import { AgentWorkingRow } from "./agent-trace-view";
 import { collectMessageSources } from "@/lib/chat-sources";
@@ -43,17 +41,8 @@ export function AgentMessageContent({
   const streaming = message.isStreaming === true && chatIsGenerating;
   const hasThinking =
     message.hasThinking || (message.thinkingContent?.trim().length ?? 0) > 0;
-  const answerStreaming = streaming && message.content.trim().length > 0;
-  const showOrb = shouldShowAssistantStreamingOrb({
-    isStreaming: streaming,
-    answerStreaming,
-    chatIsGenerating,
-  });
-  // Inline citation chips only — no auto bottom source-card strip.
   const sources = collectMessageSources(message);
 
-  // Fresh turn before any tokens — shimmering Working-for row (agent mode)
-  // or the plain orb (simple chats).
   if (streaming && !message.content.trim() && !hasThinking) {
     if (message.agentMode && !message.agentFrameComplete) {
       return (
@@ -62,7 +51,7 @@ export function AgentMessageContent({
         />
       );
     }
-    return <StreamingOrbCursor />;
+    return null;
   }
 
   return (
@@ -91,14 +80,6 @@ export function AgentMessageContent({
             agentArtifacts={message.agentArtifacts}
             {...({ sources } as any)}
           />
-        </div>
-      ) : null}
-      {showOrb ? (
-        <div
-          className="flex items-center py-1 animate-in fade-in duration-200"
-          data-streaming-orb="bottom"
-        >
-          <StreamingOrbCursor />
         </div>
       ) : null}
     </>
