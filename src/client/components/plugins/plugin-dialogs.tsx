@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { stripCursorText } from "./plugin-copy";
 import { PluginAddButton } from "./plugin-card";
 import { PluginMark } from "./plugin-mark";
 import type { MarketplacePlugin } from "./types";
@@ -34,21 +35,27 @@ export function PluginDetailDialog({
         {plugin ? (
           <>
             <DialogHeader>
-              <PluginMark name={plugin.name} iconUrl={plugin.iconUrl} size={48} />
-              <DialogTitle className="mt-3">{plugin.name}</DialogTitle>
+              <PluginMark
+                name={stripCursorText(plugin.name) || plugin.name}
+                iconUrl={plugin.iconUrl}
+                size={48}
+              />
+              <DialogTitle className="mt-3">
+                {stripCursorText(plugin.name) || plugin.name}
+              </DialogTitle>
               <DialogDescription>
-                {plugin.author
-                  ? `${plugin.category} · ${plugin.author}`
-                  : plugin.category}
+                {stripCursorText(plugin.author)
+                  ? `${stripCursorText(plugin.category)} · ${stripCursorText(plugin.author)}`
+                  : stripCursorText(plugin.category)}
               </DialogDescription>
             </DialogHeader>
             <p className="text-[13px] leading-5 text-[var(--ui-fg-body)]">
-              {plugin.description || "No description for this plugin yet."}
+              {stripCursorText(plugin.description) || "No description for this plugin yet."}
             </p>
             <DialogFooter>
               <PluginAddButton
                 added={added}
-                name={plugin.name}
+                name={stripCursorText(plugin.name) || plugin.name}
                 onToggle={() => onToggle(plugin.id)}
               />
             </DialogFooter>

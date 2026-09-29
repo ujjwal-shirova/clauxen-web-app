@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cardDescription, stripCursorText } from "./plugin-copy";
 import { PluginMark } from "./plugin-mark";
 import type { MarketplacePlugin } from "./types";
 
@@ -53,31 +54,30 @@ export function DiscoverRow({ plugins, onOpen }: DiscoverRowProps) {
           onScroll={updateEdges}
           className="scrollbar-hide flex gap-2.5 overflow-x-auto scroll-smooth pb-1"
         >
-          {plugins.map((plugin) => (
-            <button
-              key={plugin.id}
-              type="button"
-              onClick={() => onOpen(plugin)}
-              className="no-hover-overlay flex w-[272px] shrink-0 items-start gap-3 rounded-xl border border-[var(--ui-border)] bg-white p-3 text-left outline-none transition-colors hover:bg-[var(--ui-hover-wash)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
-            >
-              <PluginMark name={plugin.name} iconUrl={plugin.iconUrl} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13.5px] font-medium leading-5 tracking-[-0.01em] text-[var(--ui-fg)]">
-                  {plugin.name}
+          {plugins.map((plugin) => {
+            const name = stripCursorText(plugin.name) || plugin.name;
+            const description = cardDescription(plugin.description);
+            return (
+              <button
+                key={plugin.id}
+                type="button"
+                onClick={() => onOpen(plugin)}
+                className="no-hover-overlay flex h-[84px] w-[272px] shrink-0 items-start gap-3 overflow-hidden rounded-xl border border-[var(--ui-border)] bg-white p-3 text-left outline-none transition-colors hover:bg-[var(--ui-hover-wash)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+              >
+                <PluginMark name={name} iconUrl={plugin.iconUrl} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-medium leading-5 tracking-[-0.01em] text-[var(--ui-fg)]">
+                    {name}
+                  </span>
+                  {description ? (
+                    <span className="mt-0.5 block h-9 overflow-hidden text-[12.5px] leading-[18px] text-[var(--ui-fg-muted)]">
+                      {description}
+                    </span>
+                  ) : null}
                 </span>
-                {plugin.description ? (
-                  <span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-[18px] text-[var(--ui-fg-muted)]">
-                    {plugin.description}
-                  </span>
-                ) : null}
-                {plugin.author ? (
-                  <span className="mt-1.5 block truncate text-[12px] leading-4 text-[var(--ui-fg-subtle)]">
-                    {plugin.author}
-                  </span>
-                ) : null}
-              </span>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
         <ScrollButton
           label="Scroll discover backward"

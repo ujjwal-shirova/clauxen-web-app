@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
+import { cardDescription, stripCursorText } from "./plugin-copy";
 import { PluginMark } from "./plugin-mark";
 import type { MarketplacePlugin } from "./types";
 
@@ -39,28 +40,31 @@ type PluginCardProps = {
 };
 
 export function PluginCard({ plugin, added, onOpen, onToggle }: PluginCardProps) {
+  const name = stripCursorText(plugin.name) || plugin.name;
+  const description = cardDescription(plugin.description);
+
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-[var(--ui-border)] bg-white p-3 transition-colors hover:bg-[var(--ui-hover-wash)]">
+    <div className="flex h-[84px] items-start gap-3 overflow-hidden rounded-xl border border-[var(--ui-border)] bg-white p-3 transition-colors hover:bg-[var(--ui-hover-wash)]">
       <button
         type="button"
         onClick={() => onOpen(plugin)}
-        className="no-hover-overlay flex min-w-0 flex-1 items-start gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+        className="no-hover-overlay flex h-full min-w-0 flex-1 items-start gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
       >
-        <PluginMark name={plugin.name} iconUrl={plugin.iconUrl} />
+        <PluginMark name={name} iconUrl={plugin.iconUrl} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13.5px] font-medium leading-5 tracking-[-0.01em] text-[var(--ui-fg)]">
-            {plugin.name}
+            {name}
           </span>
-          {plugin.description ? (
-            <span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-[18px] text-[var(--ui-fg-muted)]">
-              {plugin.description}
+          {description ? (
+            <span className="mt-0.5 block h-9 overflow-hidden text-[12.5px] leading-[18px] text-[var(--ui-fg-muted)]">
+              {description}
             </span>
           ) : null}
         </span>
       </button>
       <PluginAddButton
         added={added}
-        name={plugin.name}
+        name={name}
         onToggle={() => onToggle(plugin.id)}
       />
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Search, X } from "lucide-react";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -16,13 +16,10 @@ import {
 } from "./catalog";
 import { CategorySection } from "./category-section";
 import { DiscoverRow } from "./discover-row";
-import { AddMarketplaceDialog, PluginDetailDialog } from "./plugin-dialogs";
-import type { CustomMarketplace, MarketplacePlugin } from "./types";
+import { PluginDetailDialog } from "./plugin-dialogs";
+import type { MarketplacePlugin } from "./types";
 
 const INSTALLS_KEY = "clauxen.marketplace.installs";
-const MARKETS_KEY = "clauxen.marketplace.custom";
-
-type MarketplaceTab = "all" | "marketplace" | string;
 
 function readInstalls(): string[] | null {
   try {
@@ -36,42 +33,19 @@ function readInstalls(): string[] | null {
   }
 }
 
-function readMarkets(): CustomMarketplace[] {
-  try {
-    const raw = localStorage.getItem(MARKETS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item): item is CustomMarketplace =>
-        Boolean(item) &&
-        typeof item === "object" &&
-        typeof (item as CustomMarketplace).id === "string" &&
-        typeof (item as CustomMarketplace).name === "string" &&
-        typeof (item as CustomMarketplace).url === "string",
-    );
-  } catch {
-    return [];
-  }
-}
-
 export function MarketplaceView() {
   const isMobile = useIsMobile();
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<MarketplaceTab>("all");
   const [managing, setManaging] = useState(false);
   const [installed, setInstalled] = useState<Set<string>>(
     () => new Set(defaultInstalledIds()),
   );
-  const [markets, setMarkets] = useState<CustomMarketplace[]>([]);
   const [selected, setSelected] = useState<MarketplacePlugin | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
 
   useEffect(() => {
     const stored = readInstalls();
     if (stored) setInstalled(new Set(stored));
-    setMarkets(readMarkets());
   }, []);
 
   const toggleInstalled = (id: string) => {
@@ -84,42 +58,15 @@ export function MarketplaceView() {
     });
   };
 
-  const addMarket = (input: { name: string; url: string }) => {
-    const market: CustomMarketplace = {
-      id: `custom-${crypto.randomUUID()}`,
-      name: input.name,
-      url: input.url,
-    };
-    setMarkets((current) => {
-      const next = [...current, market];
-      localStorage.setItem(MARKETS_KEY, JSON.stringify(next));
-      return next;
-    });
-    setManaging(false);
-    setTab(market.id);
-  };
-
-  const removeMarket = (id: string) => {
-    setMarkets((current) => {
-      const next = current.filter((market) => market.id !== id);
-      localStorage.setItem(MARKETS_KEY, JSON.stringify(next));
-      return next;
-    });
-    setTab("all");
-  };
-
-  const activeMarket = markets.find((market) => market.id === tab) ?? null;
-  const browsingOfficial = tab === "all" || tab === "marketplace";
-
   const discoverPlugins = useMemo(() => {
-    if (!browsingOfficial || managing || query.trim()) return [];
+    if (managing || query.trim()) return [];
     return pluginsByIds(marketplaceCatalog.discover);
-  }, [browsingOfficial, managing, query]);
+  }, [managing, query]);
 
   const sections = useMemo(() => {
-    if (!browsingOfficial || managing) return [];
+    if (managing) return [];
     return filteredSections(query);
-  }, [browsingOfficial, managing, query]);
+  }, [managing, query]);
 
   const installedPlugins = useMemo(() => {
     if (!managing) return [];
@@ -186,37 +133,6 @@ export function MarketplaceView() {
               Manage
             </button>
           </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2" role="tablist" aria-label="Marketplaces">
-            <div className="cx-segmented">
-              <TabButton active={tab === "all" && !managing} onClick={() => { setTab("all"); setManaging(false); }}>
-                All
-              </TabButton>
-              <TabButton
-                active={tab === "marketplace" && !managing}
-                onClick={() => { setTab("marketplace"); setManaging(false); }}
-              >
-                Marketplace
-              </TabButton>
-              {markets.map((market) => (
-                <TabButton
-                  key={market.id}
-                  active={tab === market.id && !managing}
-                  onClick={() => { setTab(market.id); setManaging(false); }}
-                >
-                  <span className="max-w-[140px] truncate">{market.name}</span>
-                </TabButton>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => setAddOpen(true)}
-              className={cn(appBtn.ghost, "h-8 gap-1 px-2 text-[12.5px]")}
-            >
-              <Plus className="size-3.5" strokeWidth={2} />
-              Add Marketplace
-            </button>
-          </div>
         </header>
 
         <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-16 sm:px-6">
@@ -242,11 +158,6 @@ export function MarketplaceView() {
                 className="mt-2"
               />
             )
-          ) : activeMarket ? (
-            <CustomMarketplaceEmpty
-              market={activeMarket}
-              onRemove={() => removeMarket(activeMarket.id)}
-            />
           ) : searching && sections.length === 0 ? (
             <EmptyState
               title="No matching plugins"
@@ -283,31 +194,7 @@ export function MarketplaceView() {
         }}
         onToggle={toggleInstalled}
       />
-      <AddMarketplaceDialog open={addOpen} onOpenChange={setAddOpen} onAdd={addMarket} />
     </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      data-active={active || undefined}
-      onClick={onClick}
-      className="cx-segmented__item no-hover-overlay"
-    >
-      {children}
-    </button>
   );
 }
 
@@ -334,30 +221,6 @@ function EmptyState({
           {actionLabel}
         </button>
       ) : null}
-    </div>
-  );
-}
-
-function CustomMarketplaceEmpty({
-  market,
-  onRemove,
-}: {
-  market: CustomMarketplace;
-  onRemove: () => void;
-}) {
-  return (
-    <div className="flex flex-col items-center px-6 py-16 text-center">
-      <h2 className="text-[14px] font-medium leading-5 text-[var(--ui-fg)]">
-        No plugins in {market.name}
-      </h2>
-      <p className="mt-0.5 max-w-sm text-[12.5px] leading-[18px] text-[var(--ui-fg-muted)]">
-        {market.url
-          ? `Plugins from ${market.url} will show up here once the source is connected.`
-          : "This marketplace is saved. Plugins will show up here once the source is connected."}
-      </p>
-      <button type="button" onClick={onRemove} className={cn(appBtn.secondarySm, "mt-4 px-2.5")}>
-        Remove marketplace
-      </button>
     </div>
   );
 }
