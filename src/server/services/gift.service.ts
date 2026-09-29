@@ -19,6 +19,7 @@ import { resolveRazorpayContactForUser } from "@/server/billing/resolve-razorpay
 const GIFT_PLAN_ALIASES: Record<string, string> = {
   max5x: "max5x",
   max20x: "max20x",
+  max: "max5x",
 };
 
 function appOrigin(): string {
@@ -129,7 +130,10 @@ export async function purchaseGift(input: {
     subtotalPaise,
     taxPaise,
     amountPaise,
-    tokens: 0,
+    // Purchaser gets no tokens (redeemer gets tokenGrant). Store tokenGrant
+    // for backward compat with pre-migration CHECK (tokens > 0); fulfill SQL
+    // ignores this for gift orders (v_tokens_added := 0).
+    tokens: tokenGrant,
     receipt,
     orderKind: "gift",
     giftId: gift.id,
@@ -137,10 +141,15 @@ export async function purchaseGift(input: {
 
   await giftsRepo.linkGiftToOrder(gift.id, razorpay.id);
 
+  // NOTE: plainCode above is a placeholder. The FINAL 20-char code is minted
+  // immediately after Razorpay capture (rotateGiftCodeAfterPurchase) and
+  // delivered via email + verify/poll response. Never expose the placeholder
+  // as the final code — frontend must wait for post-payment finalization.
   return {
     gift: {
       id: gift.id,
-      code: plainCode,
+      code: "", // placeholder withheld — final code issued after payment
+      codePending: true as const,
       codePrefix: gift.code_prefix,
       codeLast4: gift.code_last4,
       claimToken: gift.claim_token,
@@ -241,11 +250,37 @@ export async function redeemGift(userId: string, code: string) {
   }
 }
 
-/** After payment fulfill — email recipient (or purchaser for share-link). */
-export async function deliverPurchasedGift(giftId: string): Promise<boolean> {
-  const gift = await giftsRepo.getPurchasedGiftForDelivery(giftId);
+export type GiftDeliveryResult = {
+  delivered: boolean;
+  alreadySent: boolean;
+  claimUrl: string;
+  /** Final 20-char code (plaintext, for immediate email + API response only). */
+  giftCode: string | null;
+  giftCodeDisplay: string | null;
+  deliveryMethod: "email" | "link";
+  recipientEmail: string | null;
+  recipientName: string | null;
+};
+
+/**
+ * Post-payment gift finalization + delivery.
+ *
+ * 1. Mint the FINAL 20-char gift code (idempotent rotation, saved to Supabase).
+ * 2. Queue delivery job (idempotent per gift).
+ * 3. Send emails via Cloudflare (from no-reply@clauxen.com):
+ *    - delivery=email: gift_received to recipient + gift_sent to purchaser.
+ *    - delivery=link: gift_share_link (code + link) to purchaser.
+ * 4. Mark delivery sent.
+ *
+ * Invoice/receipt email to purchaser is sent separately by invoice fulfillment
+ * (fulfillInvoiceOnWorker) — this function only handles gift emails.
+ */
+export async function deliverPurchasedGift(
+  giftId: string,
+): Promise<GiftDeliveryResult | null> {
+  const gift = await giftsRepo.getGiftForDelivery(giftId);
   if (!gift || gift.status !== "purchased" || !gift.claim_token) {
-    return false;
+    return null;
   }
 
   try {
@@ -254,17 +289,66 @@ export async function deliverPurchasedGift(giftId: string): Promise<boolean> {
     console.warn("[gift] queue_gift_delivery failed", err);
   }
 
+  // Idempotency: if already sent, do not re-rotate or re-email.
+  try {
+    const jobStatus = await giftsRepo.getGiftDeliveryStatus(giftId);
+    if (jobStatus?.status === "sent") {
+      return {
+        delivered: true,
+        alreadySent: true,
+        claimUrl: giftClaimUrl(gift.claim_token),
+        giftCode: null,
+        giftCodeDisplay: null,
+        deliveryMethod: gift.delivery_method,
+        recipientEmail: gift.recipient_email,
+        recipientName: gift.recipient_name,
+      };
+    }
+  } catch {
+    // Fall through — delivery check is best-effort.
+  }
+
+  // Mint final 20-char code (first caller wins; repeats return null).
+  let rotated = await giftsRepo.rotateGiftCodeAfterPurchase(giftId);
+  if (!rotated) {
+    // Already rotated but not yet sent (previous email attempt failed before
+    // marking sent). Force a fresh code so we have plaintext to email — the
+    // lost code was never delivered, so rotation is safe.
+    const jobStatus = await giftsRepo
+      .getGiftDeliveryStatus(giftId)
+      .catch(() => null);
+    if (jobStatus?.status === "sent") {
+      return {
+        delivered: true,
+        alreadySent: true,
+        claimUrl: giftClaimUrl(gift.claim_token),
+        giftCode: null,
+        giftCodeDisplay: null,
+        deliveryMethod: gift.delivery_method,
+        recipientEmail: gift.recipient_email,
+        recipientName: gift.recipient_name,
+      };
+    }
+    rotated = await giftsRepo.forceRotateGiftCode(giftId);
+    if (!rotated) {
+      console.warn("[gift] code rotation failed", giftId);
+      return null;
+    }
+  }
+
+  const finalCode = rotated.code;
+  const finalCodeDisplay = giftsRepo.formatGiftCodeForDisplay(finalCode);
   const claimUrl = giftClaimUrl(gift.claim_token);
-  const monthsLabel =
-    gift.months === 1 ? "1 month" : `${gift.months} months`;
+  const monthsLabel = gift.months === 1 ? "1 month" : `${gift.months} months`;
 
   if (gift.delivery_method === "email") {
     const to = gift.recipient_email?.trim();
     if (!to) {
       console.warn("[gift] email delivery missing recipient", giftId);
-      return false;
+      return null;
     }
-    const ok = await sendGiftNotificationEmail({
+    // 1) Gift email to the recipient ("You got {plan_name}").
+    const recipientOk = await sendGiftNotificationEmail({
       kind: "gift_received",
       to,
       planName: gift.plan_name,
@@ -272,14 +356,54 @@ export async function deliverPurchasedGift(giftId: string): Promise<boolean> {
       senderName: gift.sender_name,
       message: gift.message,
       claimUrl,
+      giftCode: finalCodeDisplay,
+      themeColor: gift.theme_color,
     });
-    if (ok) await giftsRepo.markGiftDeliverySent(giftId);
-    return ok;
+    if (!recipientOk) {
+      console.warn("[gift] recipient email failed", giftId);
+      return {
+        delivered: false,
+        alreadySent: false,
+        claimUrl,
+        giftCode: finalCode,
+        giftCodeDisplay: finalCodeDisplay,
+        deliveryMethod: gift.delivery_method,
+        recipientEmail: gift.recipient_email,
+        recipientName: gift.recipient_name,
+      };
+    }
+    // 2) Confirmation to the purchaser ("gift mailed to {recipient}").
+    const purchaserTo = gift.purchaser_email?.trim();
+    if (purchaserTo) {
+      await sendGiftNotificationEmail({
+        kind: "gift_sent",
+        to: purchaserTo,
+        planName: gift.plan_name,
+        monthsLabel,
+        senderName: gift.sender_name,
+        message: gift.message,
+        claimUrl,
+        recipientName: gift.recipient_name,
+        recipientEmail: gift.recipient_email,
+        themeColor: gift.theme_color,
+      }).catch((err) => console.warn("[gift] purchaser confirm failed", err));
+    }
+    await giftsRepo.markGiftDeliverySent(giftId);
+    return {
+      delivered: true,
+      alreadySent: false,
+      claimUrl,
+      giftCode: finalCode,
+      giftCodeDisplay: finalCodeDisplay,
+      deliveryMethod: gift.delivery_method,
+      recipientEmail: gift.recipient_email,
+      recipientName: gift.recipient_name,
+    };
   }
 
-  // Share-link: email the claim link to the purchaser so they can share it.
+  // Share-link: email code + link to the purchaser.
   const to = gift.purchaser_email?.trim();
-  if (!to) return false;
+  if (!to) return null;
   const ok = await sendGiftNotificationEmail({
     kind: "gift_share_link",
     to,
@@ -288,9 +412,20 @@ export async function deliverPurchasedGift(giftId: string): Promise<boolean> {
     senderName: gift.sender_name,
     message: gift.message,
     claimUrl,
+    giftCode: finalCodeDisplay,
+    themeColor: gift.theme_color,
   });
   if (ok) await giftsRepo.markGiftDeliverySent(giftId);
-  return ok;
+  return {
+    delivered: ok,
+    alreadySent: false,
+    claimUrl,
+    giftCode: ok ? finalCode : null,
+    giftCodeDisplay: ok ? finalCodeDisplay : null,
+    deliveryMethod: gift.delivery_method,
+    recipientEmail: gift.recipient_email,
+    recipientName: gift.recipient_name,
+  };
 }
 
 export async function getGiftCheckoutOrderForUser(

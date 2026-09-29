@@ -46,13 +46,18 @@ type AddressPayload = {
 };
 
 type GiftPayload = {
-  kind: "gift_received" | "gift_share_link";
+  kind: "gift_received" | "gift_share_link" | "gift_sent";
   to: string;
   planName: string;
   monthsLabel: string;
   senderName: string;
   message?: string | null;
   claimUrl: string;
+  /** Final 20-char gift code (display-grouped) for link delivery + backup. */
+  giftCode?: string | null;
+  recipientName?: string | null;
+  recipientEmail?: string | null;
+  themeColor?: string | null;
 };
 
 type AutomationPayload = {
@@ -143,7 +148,7 @@ export function buildInvoicePaidEmail(
   html: string;
   text: string;
 } {
-  const fromEmail = config.fromEmail?.trim() || "noreply@clauxen.com";
+  const fromEmail = config.fromEmail?.trim() || "no-reply@clauxen.com";
   const fromName = config.fromName?.trim() || "Clauxen";
   const rawOrigin = (config.appOrigin || "https://www.clauxen.com")
     .trim()
@@ -203,7 +208,7 @@ export async function sendBillingEmail(
   if (!env.EMAIL?.send) {
     return { ok: false, error: "email_binding_missing" };
   }
-  const fromEmail = env.FROM_EMAIL?.trim() || "noreply@clauxen.com";
+  const fromEmail = env.FROM_EMAIL?.trim() || "no-reply@clauxen.com";
   const fromName = env.FROM_NAME?.trim() || "Clauxen";
 
   let subject = "";
@@ -236,33 +241,118 @@ export async function sendBillingEmail(
     text = `${subject}\n\n${payload.summary}${payload.chatUrl ? `\n\nOpen result: ${payload.chatUrl}` : ""}`;
   } else if (
     payload.kind === "gift_received" ||
-    payload.kind === "gift_share_link"
+    payload.kind === "gift_share_link" ||
+    payload.kind === "gift_sent"
   ) {
-    const isShare = payload.kind === "gift_share_link";
-    subject = isShare
-      ? `Your Clauxen gift link — ${payload.planName}`
-      : `You are gifted ${payload.planName} of Clauxen`;
-    const title = isShare
-      ? `Share your ${payload.planName} gift`
-      : `You are gifted ${payload.planName} of Clauxen`;
+    const theme = /^#[0-9a-fA-F]{6}$/.test(payload.themeColor ?? "")
+      ? (payload.themeColor as string)
+      : "#18181b";
     const noteHtml = giftNoteHtml(payload.senderName, payload.message);
     const noteText = giftNoteText(payload.senderName, payload.message);
-    html = wrapEmail(
-      title,
-      `<p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3f3f46;">
-        ${
-          isShare
-            ? `Your payment succeeded. Share this link so someone can claim <strong>${escapeHtml(payload.monthsLabel)}</strong> of <strong>${escapeHtml(payload.planName)}</strong>. Gifts do not auto-renew and unredeemed gifts expire one year after purchase.`
-            : `${escapeHtml(payload.senderName)} gifted you <strong>${escapeHtml(payload.monthsLabel)}</strong> of <strong>${escapeHtml(payload.planName)}</strong> on Clauxen. Claim it to activate your plan. Gifts do not auto-renew.`
-        }
-      </p>
-      ${noteHtml}
-      ${claimButton(payload.claimUrl)}`,
-      "This gift email was sent by Clauxen. If you were not expecting it, you can ignore this message.",
-    );
-    text = isShare
-      ? `Share your Clauxen gift (${payload.planName}, ${payload.monthsLabel}): ${payload.claimUrl}${noteText}`
-      : `You are gifted ${payload.planName} of Clauxen (${payload.monthsLabel}) from ${payload.senderName}.${noteText}Claim: ${payload.claimUrl}`;
+    const code = payload.giftCode?.trim() || "";
+    const codeHtml = code
+      ? `<div style="margin:16px 0 0;padding:14px 16px;background:#fafafa;border:1px dashed #d4d4d8;border-radius:12px;text-align:center;">
+          <div style="margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#71717a;">Gift code</div>
+          <div style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;font-weight:700;letter-spacing:0.06em;color:#18181b;">${escapeHtml(code)}</div>
+        </div>`
+      : "";
+    const giftHero = (eyebrow: string) =>
+      `<div style="margin:0 0 16px;border-radius:14px;padding:20px;background:linear-gradient(135deg, ${theme} 0%, #18181b 130%);color:#fff;text-align:center;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;opacity:0.85;">${escapeHtml(eyebrow)}</div>
+        <div style="margin:6px 0 0;font-size:24px;font-weight:700;letter-spacing:-0.01em;">${escapeHtml(payload.planName)}</div>
+        <div style="margin:4px 0 0;font-size:14px;opacity:0.9;">${escapeHtml(payload.monthsLabel)} &middot; does not auto-renew</div>
+      </div>`;
+
+    if (payload.kind === "gift_share_link") {
+      subject = `Your Clauxen gift link — ${payload.planName}`;
+      html = wrapEmail(
+        `Share your ${payload.planName} gift`,
+        `${giftHero("Your gift is ready")}
+        <p style="margin:0 0 12px;font-size:15px;line-height:1.55;color:#3f3f46;">
+          Your payment succeeded. Here is your gift code and gift link for the
+          <strong>${escapeHtml(payload.planName)}</strong> plan
+          (<strong>${escapeHtml(payload.monthsLabel)}</strong>). Share the link
+          so someone can claim it. Unclaimed gifts expire one year after purchase.
+        </p>
+        ${noteHtml}
+        ${claimButton(payload.claimUrl)}
+        ${codeHtml}
+        <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#71717a;word-break:break-all;">
+          Gift link:<br><a href="${escapeHtml(payload.claimUrl)}" style="color:#18181b;">${escapeHtml(payload.claimUrl)}</a>
+        </p>`,
+        "This gift email was sent by Clauxen. If you were not expecting it, you can ignore this message.",
+      );
+      text = [
+        `Your Clauxen gift link — ${payload.planName} (${payload.monthsLabel}).`,
+        `Here is your gift code and gift link for the ${payload.planName} plan.`,
+        code ? `Gift code: ${code}` : "",
+        `Gift link: ${payload.claimUrl}`,
+        noteText.trim(),
+        "Unclaimed gifts expire one year after purchase.",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    } else if (payload.kind === "gift_sent") {
+      const recipientLabel =
+        payload.recipientName?.trim() ||
+        payload.recipientEmail?.trim() ||
+        "your recipient";
+      subject = `Gift sent to ${recipientLabel} — ${payload.planName}`;
+      html = wrapEmail(
+        `Gift sent successfully`,
+        `${giftHero("Gift delivered")}
+        <p style="margin:0 0 12px;font-size:15px;line-height:1.55;color:#3f3f46;">
+          Your gift of <strong>${escapeHtml(payload.monthsLabel)}</strong> of
+          <strong>${escapeHtml(payload.planName)}</strong> was emailed to
+          <strong>${escapeHtml(recipientLabel)}</strong> successfully.
+          ${payload.recipientEmail?.trim() ? `(${escapeHtml(payload.recipientEmail.trim())})` : ""}
+          They can claim it from the email. Unclaimed gifts expire one year after purchase.
+        </p>
+        ${noteHtml}
+        <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#71717a;word-break:break-all;">
+          Backup claim link (in case their email bounces):<br>
+          <a href="${escapeHtml(payload.claimUrl)}" style="color:#18181b;">${escapeHtml(payload.claimUrl)}</a>
+        </p>`,
+        "This is a confirmation from Clauxen. Your payment receipt was emailed separately.",
+      );
+      text = [
+        `Your gift of ${payload.monthsLabel} of ${payload.planName} was emailed to ${recipientLabel} successfully.`,
+        payload.recipientEmail?.trim() ? `Recipient: ${payload.recipientEmail.trim()}` : "",
+        `Backup claim link: ${payload.claimUrl}`,
+        noteText.trim(),
+      ]
+        .filter(Boolean)
+        .join("\n");
+    } else {
+      subject = `You got ${payload.planName} — a Clauxen gift from ${payload.senderName}`;
+      html = wrapEmail(
+        `You got ${payload.planName}`,
+        `${giftHero("You've received a gift")}
+        <p style="margin:0 0 12px;font-size:15px;line-height:1.55;color:#3f3f46;">
+          <strong>${escapeHtml(payload.senderName)}</strong> gifted you
+          <strong>${escapeHtml(payload.monthsLabel)}</strong> of
+          <strong>${escapeHtml(payload.planName)}</strong> on Clauxen. Claim it
+          to activate your plan — gifts do not auto-renew and unclaimed gifts
+          expire one year after purchase.
+        </p>
+        ${noteHtml}
+        ${claimButton(payload.claimUrl)}
+        ${codeHtml}
+        <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#71717a;">
+          Having trouble with the button? Paste this link in your browser:<br>
+          <a href="${escapeHtml(payload.claimUrl)}" style="color:#18181b;word-break:break-all;">${escapeHtml(payload.claimUrl)}</a>
+        </p>`,
+        "This gift email was sent by Clauxen. If you were not expecting it, you can ignore this message.",
+      );
+      text = [
+        `You got ${payload.planName} of Clauxen (${payload.monthsLabel}) from ${payload.senderName}.`,
+        noteText.trim(),
+        `Claim: ${payload.claimUrl}`,
+        code ? `Backup gift code: ${code}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
   } else if (
     payload.kind === "billing_address_saved" ||
     payload.kind === "billing_address_updated"

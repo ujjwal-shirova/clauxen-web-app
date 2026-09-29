@@ -7,6 +7,7 @@ export type BillingEmailKind =
   | "billing_address_updated"
   | "gift_received"
   | "gift_share_link"
+  | "gift_sent"
   | "automation_run";
 
 type InvoiceEmailPayload = {
@@ -32,12 +33,19 @@ type AddressEmailPayload = {
 
 type GiftEmailPayload = {
   to: string;
-  kind: "gift_received" | "gift_share_link";
+  kind: "gift_received" | "gift_share_link" | "gift_sent";
   planName: string;
   monthsLabel: string;
   senderName: string;
   message?: string | null;
   claimUrl: string;
+  /** Final 20-char gift code (link delivery + recipient backup). */
+  giftCode?: string | null;
+  /** Recipient display name for purchaser confirmation ("gift_sent"). */
+  recipientName?: string | null;
+  recipientEmail?: string | null;
+  /** Gift card theme color for branded email header. */
+  themeColor?: string | null;
 };
 
 type AutomationEmailPayload = {
@@ -112,7 +120,7 @@ export async function sendInvoicePaidEmail(
 
 export async function sendGiftNotificationEmail(
   input: Omit<GiftEmailPayload, "kind"> & {
-    kind: "gift_received" | "gift_share_link";
+    kind: "gift_received" | "gift_share_link" | "gift_sent";
   },
 ) {
   return postBillingEmail(input);

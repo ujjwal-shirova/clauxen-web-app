@@ -98,27 +98,58 @@ function GiftPreviewCard({
   return (
     <div className="gift-preview-pane">
       <p className="settings-section-label">Gift preview</p>
-      <article className="gift-preview-card" aria-label="Gift preview">
+      <article className="gift-card" aria-label="Gift preview">
+        {/* Gift card face — themed envelope with plan badge */}
         <div
-          className="gift-preview-card__swatch"
-          style={{ backgroundColor: color }}
+          className="gift-card__face"
+          style={
+            {
+              "--gift-accent": color,
+              background: `linear-gradient(140deg, ${color} 0%, color-mix(in srgb, ${color} 55%, #14151a) 130%)`,
+            } as React.CSSProperties
+          }
           aria-hidden
         >
-          <span className="gift-preview-card__swatch-label">{colorLabel}</span>
+          <div className="gift-card__face-shine" />
+          <div className="gift-card__face-top">
+            <span className="gift-card__brand">Clauxen</span>
+            <span className="gift-card__swatch-pill">{colorLabel}</span>
+          </div>
+          <div className="gift-card__face-bottom">
+            <div className="gift-card__plan-badge">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <rect x="3" y="8" width="18" height="4" rx="1" />
+                <path d="M12 8v13" />
+                <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+                <path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5" />
+              </svg>
+            </div>
+            <h2 className="gift-card__title">
+              {durationLabel} of {planName}
+            </h2>
+            <p className="gift-card__subtitle">{planSubtitle}</p>
+          </div>
         </div>
-        <div className="gift-preview-card__body">
-          <h2 className="gift-preview-card__title">
-            {durationLabel} of Clauxen {planName}
-          </h2>
-          <p className="gift-preview-card__subtitle">{planSubtitle}</p>
-          <dl className="gift-preview-card__meta">
+        {/* Card details — from/to/delivery/total + note */}
+        <div className="gift-card__body">
+          <dl className="gift-card__meta">
             <div>
               <dt>From</dt>
               <dd>{fromName || "You"}</dd>
             </div>
             <div>
               <dt>To</dt>
-              <dd>{toName || "Recipient"}</dd>
+              <dd>{toName || (deliveryLabel === "Email" ? "Recipient" : "Share link")}</dd>
             </div>
             <div>
               <dt>Send as</dt>
@@ -126,19 +157,21 @@ function GiftPreviewCard({
             </div>
             <div>
               <dt>Total</dt>
-              <dd>{totalLabel}</dd>
+              <dd className="gift-card__total">{totalLabel}</dd>
             </div>
           </dl>
           <p
             className={cn(
-              "gift-preview-card__note",
-              !note && "gift-preview-card__note--empty",
+              "gift-card__note",
+              !note && "gift-card__note--empty",
             )}
           >
-            {note || "A note you add shows up here."}
+            {note ? `\u201C${note}\u201D` : "A note you add shows up here."}
           </p>
         </div>
       </article>
+      {/* Legacy class hooks for existing CSS (kept for compat) */}
+      <div className="gift-preview-card" hidden aria-hidden />
     </div>
   );
 }
@@ -197,7 +230,10 @@ export function GiftView({ onClose }: GiftViewProps) {
     const pending = readPendingGiftPurchase();
     if (!pending && !fromCheckout) return;
 
-    if (pending) {
+    // Only show success when returning FROM checkout after payment. A pending
+    // record without the checkout flag means an abandoned checkout — clear it
+    // silently instead of showing a false success dialog.
+    if (pending && fromCheckout) {
       setSuccess({
         giftCode: pending.giftCode,
         claimUrl: buildClaimUrl(pending.claimToken, pending.claimUrl),
@@ -207,6 +243,8 @@ export function GiftView({ onClose }: GiftViewProps) {
         recipientEmail: pending.recipientEmail ?? null,
       });
       setSuccessOpen(true);
+      clearPendingGiftPurchase();
+    } else if (pending && !fromCheckout) {
       clearPendingGiftPurchase();
     }
 
@@ -276,9 +314,12 @@ export function GiftView({ onClose }: GiftViewProps) {
         result.gift.claimUrl,
       );
 
+      // Final 20-char code is minted AFTER Razorpay capture — store empty for
+      // now; checkout success (verify/poll) fills it via
+      // updatePendingGiftPurchaseWithPayment. Never show the placeholder.
       storePendingGiftPurchase({
         giftId: result.gift.id,
-        giftCode: result.gift.code,
+        giftCode: "",
         claimToken: result.gift.claimToken,
         claimUrl: claimUrl ?? undefined,
         planName: currentPlan.name,

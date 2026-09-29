@@ -221,6 +221,14 @@ export async function pollUpiBillingPayment(input: {
       status?: string;
       order_id?: string;
       payment_id?: string;
+      gift?: {
+        id: string;
+        claimUrl: string;
+        giftCode: string | null;
+        giftCodeDisplay: string | null;
+        deliveryMethod: "email" | "link";
+        recipientEmail: string | null;
+      } | null;
     } | null;
   }>("/api/v1/billing/orders/upi/poll", {
     method: "POST",
@@ -255,6 +263,18 @@ export async function verifyBillingPayment(input: {
     },
   );
 }
+
+export type BillingVerifyFulfillment = {
+  status?: string;
+  gift?: {
+    id: string;
+    claimUrl: string;
+    giftCode: string | null;
+    giftCodeDisplay: string | null;
+    deliveryMethod: "email" | "link";
+    recipientEmail: string | null;
+  } | null;
+} | null;
 
 export async function cancelBillingSubscription() {
   return apiFetch<{

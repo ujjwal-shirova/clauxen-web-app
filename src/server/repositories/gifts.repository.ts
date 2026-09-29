@@ -4,23 +4,49 @@ import { query, queryOne, withTransaction } from "@/server/db/pool"; // paramete
 
 const GIFT_CODE_MAX_LEN = 64; // hash input upper bound — oversized redeem attempts reject
 const CLAIM_TOKEN_MAX_LEN = 64;
+/** Final gift codes are exactly 20 unambiguous chars (see migration). */
+export const GIFT_CODE_FINAL_LEN = 20;
 
 export function generateClaimToken(): string {
   return randomBytes(24).toString("base64url");
 }
 
+/** Normalize user-typed codes: strip spaces/dashes, uppercase. */
+export function normalizeGiftCodeInput(raw: string): string {
+  return raw.trim().toUpperCase().replace(/[\s-]+/g, "");
+}
+
+/** Display grouping for 20-char codes: XXXX-XXXX-XXXX-XXXX-XXXX. */
+export function formatGiftCodeForDisplay(code: string): string {
+  const normalized = normalizeGiftCodeInput(code);
+  if (normalized.length !== GIFT_CODE_FINAL_LEN) return code.trim().toUpperCase();
+  return normalized.replace(/(.{4})(?=.)/g, "$1-");
+}
+
 export async function generateGiftCodePlaintext() {
-  const row = await queryOne<{ code: string }>(
+  // Prefer the 20-char unambiguous generator; fall back to legacy CX- codes
+  // when the production migration has not been applied yet.
+  try {
+    const row = await queryOne<{ code: string }>(
+      `select public.generate_gift_code_20() as code`,
+    );
+    if (row?.code && normalizeGiftCodeInput(row.code).length === GIFT_CODE_FINAL_LEN) {
+      return normalizeGiftCodeInput(row.code);
+    }
+  } catch {
+    // Fall through to legacy generator below.
+  }
+  const legacy = await queryOne<{ code: string }>(
     `select public.generate_gift_code() as code`,
   ); // Postgres function
-  if (!row?.code) {
+  if (!legacy?.code) {
     throw new AppError(
       "Failed to generate gift code.",
       500,
       "gift_code_generation_failed",
     ); // function failure — rare infra issue
   }
-  return row.code;
+  return legacy.code;
 }
 
 export async function createGiftCode(input: {
@@ -56,8 +82,12 @@ export async function createGiftCode(input: {
   ) {
     throw new AppError("Invalid claim token.", 500, "gift_claim_token_invalid");
   }
-  const prefix = input.plainCode.slice(0, 7);
-  const last4 = input.plainCode.slice(-4);
+  const normalizedCode = normalizeGiftCodeInput(input.plainCode);
+  const prefix =
+    normalizedCode.length === GIFT_CODE_FINAL_LEN
+      ? normalizedCode.slice(0, 4)
+      : input.plainCode.slice(0, 7);
+  const last4 = normalizedCode.slice(-4);
 
   return queryOne<{
     id: string;
@@ -73,7 +103,7 @@ export async function createGiftCode(input: {
      ) values (
        public.hash_gift_code($1), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
        $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending_payment',
-       now() + interval '1 year'
+       now() + interval '24 hours'
      )
      returning id, code_prefix, code_last4, claim_token`,
     [
@@ -399,10 +429,16 @@ export async function listPurchasedGiftsForUser(userId: string) {
 }
 
 export async function redeemGiftCode(userId: string, plainCode: string) {
-  const normalizedCode = plainCode.trim();
+  const normalizedCode = normalizeGiftCodeInput(plainCode);
   if (!normalizedCode || normalizedCode.length > GIFT_CODE_MAX_LEN) {
     throw new AppError("Gift code was not found.", 404, "gift_not_found"); // invalid/oversized — same response as missing code
   }
+
+  // Try normalized (dash-stripped) first, then raw trimmed for legacy CX- codes
+  // whose hash includes dashes.
+  const candidates = [normalizedCode];
+  const rawTrimmed = plainCode.trim().toUpperCase();
+  if (rawTrimmed !== normalizedCode) candidates.push(rawTrimmed);
 
   return withTransaction(async (client) => {
     await client.query(`select public.expire_old_gift_codes()`); // stale pending/expired rows cleanup
@@ -412,8 +448,9 @@ export async function redeemGiftCode(userId: string, plainCode: string) {
               billing_order_id, purchased_payment_id
        from public.gift_codes
        where code_hash = public.hash_gift_code($1)
+          or code_hash = public.hash_gift_code($2)
        for update`,
-      [normalizedCode],
+      [candidates[0], candidates[1] ?? candidates[0]],
     ); // hash match — concurrent double-redeem race lock
     const gift = giftResult.rows[0];
     if (!gift)
@@ -539,5 +576,168 @@ export async function redeemGiftCode(userId: string, plainCode: string) {
       expires_at:
         periodEndResult.rows[0]?.expires_at ?? new Date().toISOString(),
     }; // service layer → API JSON
+  });
+}
+
+/**
+ * Mint the FINAL 20-char gift code immediately after Razorpay capture.
+ * Idempotent: first caller rotates (FOR UPDATE lock); repeats return null
+ * (code already emailed — never rotate twice).
+ * Returns plaintext final code (caller emails it immediately; never stored).
+ */
+export async function rotateGiftCodeAfterPurchase(
+  giftId: string,
+): Promise<{ code: string; codePrefix: string; codeLast4: string } | null> {
+  return withTransaction(async (client) => {
+    const locked = await client.query<{
+      id: string;
+      status: string;
+      code_rotated_at: string | null;
+    }>(
+      `select id, status, code_rotated_at
+       from public.gift_codes
+       where id = $1
+       for update`,
+      [giftId],
+    );
+    const row = locked.rows[0];
+    if (!row || row.status !== "purchased") return null;
+    if (row.code_rotated_at) return null; // already finalized — do not re-rotate
+
+    const plainCode = await generateGiftCodePlaintext();
+    const normalized = normalizeGiftCodeInput(plainCode);
+    const prefix =
+      normalized.length === GIFT_CODE_FINAL_LEN
+        ? normalized.slice(0, 4)
+        : plainCode.slice(0, 7);
+    const last4 = normalized.slice(-4);
+
+    await client.query(
+      `update public.gift_codes
+       set code_hash = public.hash_gift_code($2),
+           code_prefix = $3,
+           code_last4 = $4,
+           code_rotated_at = now(),
+           updated_at = now()
+       where id = $1`,
+      [giftId, normalized, prefix, last4],
+    );
+
+    return { code: normalized, codePrefix: prefix, codeLast4: last4 };
+  });
+}
+
+/** Full gift row for post-payment delivery (recipient + purchaser emails). */
+export async function getGiftForDelivery(giftId: string) {
+  return queryOne<{
+    id: string;
+    status: string;
+    plan_id: string;
+    plan_name: string;
+    months: number;
+    claim_token: string;
+    delivery_method: "email" | "link";
+    recipient_email: string | null;
+    recipient_name: string | null;
+    purchaser_email: string;
+    purchaser_user_id: string;
+    sender_name: string;
+    sender_email: string;
+    message: string | null;
+    theme_color: string | null;
+    code_prefix: string;
+    code_last4: string;
+    amount_paise: number;
+    purchased_at: string | null;
+    expires_at: string;
+  }>(    `select id, status, plan_id, plan_name, months, claim_token, delivery_method,
+            recipient_email, recipient_name, purchaser_email, purchaser_user_id,
+            sender_name, sender_email, message, theme_color, code_prefix, code_last4,
+            amount_paise, purchased_at, expires_at
+     from public.gift_codes
+     where id = $1
+     limit 1`,
+    [giftId],
+  );
+}
+
+/** Purchaser-owned gift details for the post-payment success UI (no secrets). */
+export async function getPurchasedGiftForOwner(giftId: string, userId: string) {
+  return queryOne<{
+    id: string;
+    status: string;
+    plan_id: string;
+    plan_name: string;
+    months: number;
+    claim_token: string;
+    delivery_method: "email" | "link";
+    recipient_email: string | null;
+    recipient_name: string | null;
+    code_prefix: string;
+    code_last4: string;
+    amount_paise: number;
+    purchased_at: string | null;
+    expires_at: string;
+  }>(
+    `select id, status, plan_id, plan_name, months, claim_token, delivery_method,
+            recipient_email, recipient_name, code_prefix, code_last4,
+            amount_paise, purchased_at, expires_at
+     from public.gift_codes
+     where id = $1 and purchaser_user_id = $2
+     limit 1`,
+    [giftId, userId],
+  );
+}
+
+/** Delivery job status for idempotent gift emails (null = never queued). */
+export async function getGiftDeliveryStatus(giftId: string) {
+  return queryOne<{ status: string; sent_at: string | null }>(
+    `select status, sent_at
+     from public.gift_delivery_jobs
+     where gift_id = $1
+     limit 1`,
+    [giftId],
+  );
+}
+
+/**
+ * Force-rotate the gift code (recovery path: previous rotation's plaintext was
+ * lost before email send). Overwrites hash/prefix/last4 with a fresh 20-char
+ * code. Caller must email the returned plaintext immediately.
+ */
+export async function forceRotateGiftCode(
+  giftId: string,
+): Promise<{ code: string; codePrefix: string; codeLast4: string } | null> {
+  return withTransaction(async (client) => {
+    const locked = await client.query<{ id: string; status: string }>(
+      `select id, status
+       from public.gift_codes
+       where id = $1
+       for update`,
+      [giftId],
+    );
+    const row = locked.rows[0];
+    if (!row || row.status !== "purchased") return null;
+
+    const plainCode = await generateGiftCodePlaintext();
+    const normalized = normalizeGiftCodeInput(plainCode);
+    const prefix =
+      normalized.length === GIFT_CODE_FINAL_LEN
+        ? normalized.slice(0, 4)
+        : plainCode.slice(0, 7);
+    const last4 = normalized.slice(-4);
+
+    await client.query(
+      `update public.gift_codes
+       set code_hash = public.hash_gift_code($2),
+           code_prefix = $3,
+           code_last4 = $4,
+           code_rotated_at = now(),
+           updated_at = now()
+       where id = $1`,
+      [giftId, normalized, prefix, last4],
+    );
+
+    return { code: normalized, codePrefix: prefix, codeLast4: last4 };
   });
 }

@@ -83,6 +83,14 @@ interface BillingCheckoutProps {
   onPaymentSuccess?: (details?: {
     razorpayPaymentId?: string;
     razorpayOrderId?: string;
+    gift?: {
+      id: string;
+      claimUrl: string;
+      giftCode: string | null;
+      giftCodeDisplay: string | null;
+      deliveryMethod: "email" | "link";
+      recipientEmail: string | null;
+    } | null;
   }) => void;
   planId: string | null;
   initialBillingCycle?: BillingCycle;
@@ -95,6 +103,8 @@ interface BillingCheckoutProps {
   needsSessionRemint?: boolean;
   /** Gift checkout — multi-month prepaid, no auto-renew. */
   giftMonths?: number | null;
+  giftId?: string | null;
+  giftDeliveryMethod?: "email" | "link" | null;
   isGiftCheckout?: boolean;
 }
 
@@ -207,6 +217,8 @@ export function BillingCheckout({
   returnPath = null,
   needsSessionRemint = false,
   giftMonths = null,
+  giftId = null,
+  giftDeliveryMethod = null,
   isGiftCheckout = false,
 }: BillingCheckoutProps) {
   const auth = useAuth();
@@ -873,6 +885,18 @@ export function BillingCheckout({
           ...(isBusinessWorkspace
             ? { organizationSeatCount: bundleSeatCount }
             : {}),
+          // Gift checkout: preserve gift context on remint (country change, etc).
+          // Without this, a remint would silently become a subscription session.
+          ...(isGiftCheckout && giftId && giftMonths
+            ? {
+                orderKind: "gift" as const,
+                giftId,
+                giftMonths,
+                ...(giftDeliveryMethod
+                  ? { giftDeliveryMethod }
+                  : {}),
+              }
+            : {}),
         });
         if (cancelled) return;
         lastSessionFingerprint.current = sessionFingerprint;
@@ -907,6 +931,10 @@ export function BillingCheckout({
     isTeamPlan,
     isBusinessWorkspace,
     isVariableCheckoutPlan,
+    isGiftCheckout,
+    giftId,
+    giftMonths,
+    giftDeliveryMethod,
     seatCounts,
     bundleSeatCount,
     details.name,
@@ -940,6 +968,7 @@ export function BillingCheckout({
           onPaymentSuccess?.({
             razorpayPaymentId: result.fulfillment?.payment_id,
             razorpayOrderId: result.fulfillment?.order_id,
+            gift: result.fulfillment?.gift ?? null,
           });
         }
       } catch (error) {
@@ -1191,7 +1220,7 @@ export function BillingCheckout({
       let lastError: unknown;
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
-          await verifyBillingPayment({
+          const verified = await verifyBillingPayment({
             razorpayOrderId: payment.razorpay_order_id,
             razorpayPaymentId: payment.razorpay_payment_id,
             razorpaySignature: payment.razorpay_signature,
@@ -1200,6 +1229,14 @@ export function BillingCheckout({
           onPaymentSuccess?.({
             razorpayPaymentId: payment.razorpay_payment_id,
             razorpayOrderId: payment.razorpay_order_id,
+            gift: (verified.fulfillment as { gift?: {
+              id: string;
+              claimUrl: string;
+              giftCode: string | null;
+              giftCodeDisplay: string | null;
+              deliveryMethod: "email" | "link";
+              recipientEmail: string | null;
+            } | null })?.gift ?? null,
           });
           return;
         } catch (error) {

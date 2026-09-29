@@ -164,6 +164,23 @@ export function GiftPurchaseSuccessDialog({
                         </>
                       )}
                     </Button>
+                    {gift.giftCode ? (
+                      <div className="space-y-1.5 pt-1">
+                        <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--settings-fg-muted)]">
+                          Gift code
+                        </p>
+                        <code className="app-page-body block rounded-[var(--radius-sm)] bg-[var(--settings-card-bg)] px-3 py-2 text-center font-mono font-semibold tracking-[0.08em] shadow-[var(--settings-card-shadow)]">
+                          {gift.giftCode}
+                        </code>
+                        <p className="text-[12px] leading-4 text-[var(--settings-fg-muted)]">
+                          We also emailed the code + link to you. Unclaimed gifts expire after 1 year.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-[12px] leading-4 text-[var(--settings-fg-muted)]">
+                        Your gift code + link were emailed to you. Unclaimed gifts expire after 1 year.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-5 rounded-[var(--settings-card-radius)] bg-[var(--settings-canvas-bg)] px-4 py-3 text-left shadow-[var(--settings-card-shadow)]">
@@ -189,7 +206,7 @@ export function GiftPurchaseSuccessDialog({
                     <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--settings-fg-muted)]">
                       Backup gift code
                     </p>
-                    <code className="app-page-body block rounded-[var(--radius-sm)] bg-[var(--settings-card-bg)] px-3 py-2 font-medium tracking-wide shadow-[var(--settings-card-shadow)]">
+                    <code className="app-page-body block rounded-[var(--radius-sm)] bg-[var(--settings-card-bg)] px-3 py-2 text-center font-mono font-medium tracking-wide shadow-[var(--settings-card-shadow)]">
                       {gift.giftCode}
                     </code>
                   </div>

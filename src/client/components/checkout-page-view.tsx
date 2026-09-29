@@ -1,6 +1,7 @@
 "use client";
 
 import { BillingCheckout } from "@/components/billing-checkout";
+import { updatePendingGiftPurchaseWithPayment } from "@/lib/api/gifts";
 
 export function CheckoutPageView({
   planId,
@@ -39,8 +40,10 @@ export function CheckoutPageView({
       returnPath={returnPath}
       needsSessionRemint={needsSessionRemint}
       giftMonths={giftCheckout?.giftMonths ?? null}
+      giftId={giftCheckout?.giftId ?? null}
+      giftDeliveryMethod={giftCheckout?.deliveryMethod ?? null}
       isGiftCheckout={Boolean(giftCheckout)}
-      onPaymentSuccess={() => {
+      onPaymentSuccess={(details) => {
         if (typeof window !== "undefined") {
           // Gift checkout: return to gift success UI (copy link / email sent).
           // Do not append checkout=success — that opens the subscription "You're on {plan}" dialog.
@@ -48,6 +51,10 @@ export function CheckoutPageView({
             try {
               window.sessionStorage.setItem("clauxen:gift-just-paid", "1");
               window.sessionStorage.removeItem("clauxen:checkout-success");
+              // Persist final post-payment gift code + link for the success dialog.
+              if (details?.gift) {
+                updatePendingGiftPurchaseWithPayment(details.gift);
+              }
             } catch {
               /* ignore */
             }

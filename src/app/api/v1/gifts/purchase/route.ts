@@ -3,7 +3,10 @@ import { jsonData } from "@/server/http/api-response"; // { data } success JSON 
 import { requireSession } from "@/server/auth/require-session"; // null session → 401
 import * as giftService from "@/server/services/gift.service"; // billing + gift code generation orchestration
 import { AppError } from "@/server/db/errors"; // validation errors — 400 with message
-import { isCheckoutCurrency } from "@/lib/checkout-currency";
+import {
+  resolveIpCountry,
+  resolveOrderTimeLocation,
+} from "@/server/billing/checkout-location";
 
 const MAX_PLAN_ID_LENGTH = 64;
 const MAX_GIFT_TEXT_LENGTH = 500;
@@ -85,8 +88,11 @@ export const POST = withApiHandler(
         : null;
 
     const sessionEmail = user.email?.trim() ?? "";
-    const currency =
-      body.currency && isCheckoutCurrency(body.currency) ? body.currency : "INR";
+    // Server is the authority on currency (geo-IP). Client currency is ignored
+    // so a DevTools override cannot dodge GST. Pay-time checkout re-validates.
+    const ipCountry = resolveIpCountry(request.headers);
+    const location = resolveOrderTimeLocation({ ipCountry });
+    const currency = location.currency;
 
     const checkout = await giftService.purchaseGift({
       userId: user.id,

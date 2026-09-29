@@ -636,7 +636,11 @@ export async function pollUpiQrPayment(input: {
     });
 
     await enqueueInvoiceGeneration(razorpayOrderId, captured.payment_id);
-    return { status: "paid" as const, fulfillment: result };
+    const gift = await deliverGiftForOrderIfNeeded(razorpayOrderId);
+    return {
+      status: "paid" as const,
+      fulfillment: { ...(result ?? {}), gift },
+    };
   }
 
   const qr = await fetchRazorpayQrCode(input.qrId);
@@ -691,6 +695,8 @@ export async function pollUpiQrPayment(input: {
     console.warn("[billing] UPI invoice enqueue failed after fulfill", err);
   }
 
+  const gift = await deliverGiftForOrderIfNeeded(razorpayOrderId);
+
   return {
     status: "paid" as const,
     fulfillment: {
@@ -698,8 +704,45 @@ export async function pollUpiQrPayment(input: {
       status: result?.status ?? "fulfilled",
       order_id: razorpayOrderId,
       payment_id: captured.id,
+      gift,
     },
   };
+}
+
+/**
+ * Gift post-payment hook for UPI poll + webhook paths (which bypass
+ * fulfillCapturedPayment). Idempotent via delivery-job + code-rotation guards.
+ * Returns gift details for API responses (code only for link delivery).
+ */
+export async function deliverGiftForOrderIfNeeded(razorpayOrderId: string): Promise<{
+  id: string;
+  claimUrl: string;
+  giftCode: string | null;
+  giftCodeDisplay: string | null;
+  deliveryMethod: "email" | "link";
+  recipientEmail: string | null;
+} | null> {
+  try {
+    const giftId = await billingRepo.getGiftIdForRazorpayOrder(razorpayOrderId);
+    if (!giftId) return null;
+    const { deliverPurchasedGift } = await import(
+      "@/server/services/gift.service"
+    );
+    const delivery = await deliverPurchasedGift(giftId);
+    if (!delivery) return null;
+    return {
+      id: giftId,
+      claimUrl: delivery.claimUrl,
+      giftCode: delivery.deliveryMethod === "link" ? delivery.giftCode : null,
+      giftCodeDisplay:
+        delivery.deliveryMethod === "link" ? delivery.giftCodeDisplay : null,
+      deliveryMethod: delivery.deliveryMethod,
+      recipientEmail: delivery.recipientEmail,
+    };
+  } catch (err) {
+    console.warn("[billing] gift delivery (poll/webhook) failed", err);
+    return null;
+  }
 }
 
 export async function createCheckoutOrder(input: {
@@ -900,6 +943,8 @@ export async function handleRazorpayWebhook(payload: {
     } catch (err) {
       console.warn("[billing] UPI webhook invoice enqueue failed", err);
     }
+    // Gift orders fulfilled via webhook still need code rotation + emails.
+    await deliverGiftForOrderIfNeeded(razorpayOrderId);
     return result;
   }
 
@@ -992,6 +1037,10 @@ export async function handleRazorpayWebhook(payload: {
   } catch (err) {
     console.warn("[billing] webhook invoice enqueue failed", err);
   }
+
+  // Webhook is the safety net for missed client callbacks — deliver gifts here
+  // too (idempotent; no-op for subscription orders or already-sent gifts).
+  await deliverGiftForOrderIfNeeded(razorpayOrderId);
 
   return result;
 }
@@ -1266,7 +1315,16 @@ export async function fulfillCapturedPayment(input: {
     console.warn("[billing] invoice enqueue failed after fulfill", err);
   }
 
-  // Gift delivery email (recipient or purchaser share-link).
+  // Gift delivery: rotate final 20-char code + emails (recipient/purchaser).
+  // Returns gift details for the success UI (claim link + code for link gifts).
+  let gift: {
+    id: string;
+    claimUrl: string;
+    giftCode: string | null;
+    giftCodeDisplay: string | null;
+    deliveryMethod: "email" | "link";
+    recipientEmail: string | null;
+  } | null = null;
   try {
     const giftId =
       order && "gift_id" in order
@@ -1283,13 +1341,29 @@ export async function fulfillCapturedPayment(input: {
       const { deliverPurchasedGift } = await import(
         "@/server/services/gift.service"
       );
-      await deliverPurchasedGift(resolvedGiftId);
+      const delivery = await deliverPurchasedGift(resolvedGiftId);
+      if (delivery) {
+        gift = {
+          id: resolvedGiftId,
+          claimUrl: delivery.claimUrl,
+          // Only link-delivery reveals the code in API responses; email
+          // delivery keeps the code in the recipient's email only.
+          giftCode:
+            delivery.deliveryMethod === "link" ? delivery.giftCode : null,
+          giftCodeDisplay:
+            delivery.deliveryMethod === "link"
+              ? delivery.giftCodeDisplay
+              : null,
+          deliveryMethod: delivery.deliveryMethod,
+          recipientEmail: delivery.recipientEmail,
+        };
+      }
     }
   } catch (err) {
     console.warn("[billing] gift delivery failed after fulfill", err);
   }
 
-  return result;
+  return { ...(result ?? {}), gift };
 }
 
 async function finalizeOrderLocationEvidence(

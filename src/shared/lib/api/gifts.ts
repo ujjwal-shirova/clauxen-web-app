@@ -8,11 +8,15 @@ function trimOptional(value: string | undefined) {
 export type GiftPurchaseResult = {
   gift: {
     id: string;
+    /** Placeholder withheld — final 20-char code is issued after payment. */
     code: string;
+    codePending?: boolean;
     codePrefix: string;
     codeLast4: string;
     claimToken?: string;
     claimUrl?: string;
+    months?: number;
+    planName?: string;
   };
   order: { id: string; razorpay_order_id: string };
   razorpay: {
@@ -127,6 +131,7 @@ const GIFT_PURCHASE_STORAGE_KEY = "clauxen:gift-purchase-pending";
 
 export type StoredGiftPurchase = {
   giftId?: string;
+  /** Final code arrives after payment (verify/poll response); empty until then. */
   giftCode: string;
   claimUrl?: string;
   claimToken?: string;
@@ -135,6 +140,40 @@ export type StoredGiftPurchase = {
   deliveryMethod: "email" | "link";
   recipientEmail?: string;
 };
+
+export type GiftPaymentDetails = {
+  id: string;
+  claimUrl: string;
+  giftCode: string | null;
+  giftCodeDisplay: string | null;
+  deliveryMethod: "email" | "link";
+  recipientEmail: string | null;
+};
+
+/** Merge post-payment gift details (code + link) into the pending purchase. */
+export function updatePendingGiftPurchaseWithPayment(
+  gift: GiftPaymentDetails,
+) {
+  try {
+    const raw = sessionStorage.getItem(GIFT_PURCHASE_STORAGE_KEY);
+    const current = raw
+      ? (JSON.parse(raw) as StoredGiftPurchase)
+      : null;
+    const next: StoredGiftPurchase = {
+      giftId: gift.id,
+      giftCode: gift.giftCodeDisplay || gift.giftCode || current?.giftCode || "",
+      claimUrl: gift.claimUrl || current?.claimUrl,
+      claimToken: current?.claimToken,
+      planName: current?.planName || "",
+      months: current?.months,
+      deliveryMethod: gift.deliveryMethod || current?.deliveryMethod || "link",
+      recipientEmail: gift.recipientEmail ?? current?.recipientEmail,
+    };
+    sessionStorage.setItem(GIFT_PURCHASE_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore quota */
+  }
+}
 
 export function storePendingGiftPurchase(data: StoredGiftPurchase) {
   try {

@@ -232,7 +232,7 @@ export async function getPlanById(planId: string) {
      from public.plans
      where id = $1
        and is_active = true
-       and id in ('pro', 'max', 'max5x', 'max20x')`,
+       and id in ('go', 'pro', 'max', 'max5x', 'max20x')`,
     [planId],
   );
 }
