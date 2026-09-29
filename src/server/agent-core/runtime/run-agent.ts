@@ -9,5 +9,6 @@ export {
   runAutonomousAgent,
   runAutonomousAgent as runAgent,
   generateChatTitle,
+  type AgentLoopOutcome,
   type AgentStreamOptions,
 } from "@/server/agent-core/runtime/query-loop";

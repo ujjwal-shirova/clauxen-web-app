@@ -8,6 +8,7 @@ export {
   runAgent,
   runAutonomousAgent,
   generateChatTitle,
+  type AgentLoopOutcome,
   type AgentStreamOptions,
 } from "@/server/agent-core/runtime/run-agent";
 

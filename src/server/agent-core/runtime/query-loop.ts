@@ -274,7 +274,44 @@ export type AgentStreamOptions = {
   deps?: QueryDeps;
   /** When true, caller already emitted SSE `start` (early TTFT). */
   skipWriteStart?: boolean;
+  // ── Durable slices: resume a turn past the serverless time cap ──────────
+  /** Restored Responses input list (prior rounds) when resuming a slice. */
+  initialConversation?: OpenAIInputItem[];
+  /** Agent step index to continue from (0-based). */
+  startStep?: number;
+  /** Narration counter so resumed segment ids stay unique. */
+  initialNarrationCounter?: number;
+  /**
+   * Slice budget guard. Checked at round boundaries and before each tool.
+   * When true, the loop stops after the current round and reports `yielded`
+   * so the runner can checkpoint and chain the next slice.
+   */
+  shouldYield?: () => boolean;
+  /**
+   * Aborted by the runner at the hard slice deadline. Aborts only the
+   * in-flight model stream (unlike `signal`, which is an explicit user stop).
+   * A yield-aborted round has no side effects and is simply re-run.
+   */
+  yieldSignal?: AbortSignal;
+  /** Fired after every completed round with the state a resume needs. */
+  onRoundEnd?: (round: {
+    /** Next step index to run. */
+    step: number;
+    conversation: OpenAIInputItem[];
+    narrationCounter: number;
+    /** Tool calls completed this round (empty on final/text rounds). */
+    toolCallIds: string[];
+  }) => void | Promise<void>;
+  /** Outcome holder the caller reads after the stream finishes. */
+  loopResult?: { outcome: AgentLoopOutcome };
 };
+
+export type AgentLoopOutcome =
+  | "done"
+  | "yielded"
+  | "aborted"
+  | "paused"
+  | "error";
 
 function resolveThinkingBudget(options: AgentStreamOptions): number {
   // Composer Thinking toggle is authoritative (default off).
@@ -305,11 +342,16 @@ type PendingToolCall = {
 
 /**
  * Run the autonomous agent loop, streaming protocol events to the UI.
+ *
+ * Durable slices: when `shouldYield`/`yieldSignal` are provided, the loop can
+ * stop at a round boundary (or mid-stream at the hard deadline) and report
+ * `yielded` via `loopResult`. The caller checkpoints and chains the next
+ * slice, which resumes with `initialConversation`/`startStep`.
  */
 export async function runAutonomousAgent(
   sse: ClauxenSseStream,
   options: AgentStreamOptions,
-): Promise<void> {
+): Promise<AgentLoopOutcome> {
   const {
     messages: rawMessages,
     userId,
@@ -324,6 +366,16 @@ export async function runAutonomousAgent(
   const deps = options.deps ?? productionDeps();
   const healingTools = buildHealingTools();
   const thinkingBudget = resolveThinkingBudget(options);
+  const shouldYield = options.shouldYield;
+  const yieldSignal = options.yieldSignal;
+  const onRoundEnd = options.onRoundEnd;
+  const loopResult = options.loopResult;
+  let outcome: AgentLoopOutcome = "done";
+  const finish = (next: AgentLoopOutcome): AgentLoopOutcome => {
+    outcome = next;
+    if (loopResult) loopResult.outcome = next;
+    return next;
+  };
 
   if (!options.skipWriteStart) {
     sse.writeStart(true);
@@ -347,17 +399,46 @@ export async function runAutonomousAgent(
 
   // Responses API input is an ordered list of user/assistant messages plus
   // native function_call/function_call_output items from agent rounds.
-  const conversation: OpenAIInputItem[] = rawMessages
-    .filter((m) => m.role === "user" || m.role === "assistant")
-    .map(
-      (m) =>
-        ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        }) as OpenAIInputItem,
-    );
+  const conversation: OpenAIInputItem[] =
+    options.initialConversation && options.initialConversation.length > 0
+      ? // Deep copy: the loop mutates this list and must never mutate the
+        // stored checkpoint it was restored from.
+        JSON.parse(
+          JSON.stringify(options.initialConversation),
+        ) as OpenAIInputItem[]
+      : rawMessages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map(
+            (m) =>
+              ({
+                role: m.role as "user" | "assistant",
+                content: m.content,
+              }) as OpenAIInputItem,
+          );
 
-  let narrationCounter = 0;
+  let narrationCounter = options.initialNarrationCounter ?? 0;
+  const startStep = Math.max(0, options.startStep ?? 0);
+
+  const snapshotConversation = (): OpenAIInputItem[] =>
+    JSON.parse(JSON.stringify(conversation)) as OpenAIInputItem[];
+
+  const reportRoundEnd = async (
+    nextStep: number,
+    toolCallIds: string[] = [],
+  ): Promise<void> => {
+    if (!onRoundEnd) return;
+    try {
+      await onRoundEnd({
+        step: nextStep,
+        conversation: snapshotConversation(),
+        narrationCounter,
+        toolCallIds,
+      });
+    } catch {
+      // Checkpoint failures must never break the visible stream; the runner
+      // re-checkpoints on yield and the watchdog recovers dead slices.
+    }
+  };
   let activeNarrationId: string | null = null;
   let activeThinkingId: string | null = null;
 
@@ -391,10 +472,18 @@ export async function runAutonomousAgent(
   };
 
   try {
-    for (let step = 0; step < MAX_STEPS; step++) {
+    for (let step = startStep; step < MAX_STEPS; step++) {
       if (signal?.aborted) {
         sse.writeError("Generation aborted.");
-        return;
+        return finish("aborted");
+      }
+      if (yieldSignal?.aborted || shouldYield?.()) {
+        // Slice budget spent before this round started. Nothing in this
+        // round has run, so the resume simply re-runs it.
+        closeThinking();
+        closeNarration();
+        await reportRoundEnd(step);
+        return finish("yielded");
       }
 
       const modelTurnStartedAtMs = Date.now();
@@ -413,6 +502,16 @@ export async function runAutonomousAgent(
           }
         | undefined;
 
+      // The yield signal aborts only this model stream (hard slice deadline).
+      // An explicit user stop still arrives on `signal` and stays terminal.
+      const roundSignals = [signal, yieldSignal].filter(
+        (candidate): candidate is AbortSignal => Boolean(candidate),
+      );
+      const roundSignal =
+        roundSignals.length > 1
+          ? AbortSignal.any(roundSignals)
+          : (roundSignals[0] ?? undefined);
+
       const stream = deps.callModel({
         model: options.model,
         instructions: systemPrompt,
@@ -427,7 +526,7 @@ export async function runAutonomousAgent(
               : thinkingBudget > 0
                 ? "low"
                 : undefined,
-        signal,
+        signal: roundSignal,
       });
 
       for await (const part of stream) {
@@ -510,12 +609,30 @@ export async function runAutonomousAgent(
           case "error":
             console.error("[chat] model stream error:", part.error);
             sse.writeError(part.error);
-            return;
+            return finish("error");
 
           case "abort":
+            if (!signal?.aborted && yieldSignal?.aborted) {
+              // Hard slice deadline hit mid-stream. This round issued
+              // nothing durable yet, so the next slice re-runs it cleanly.
+              closeThinking();
+              closeNarration();
+              await reportRoundEnd(step);
+              return finish("yielded");
+            }
             sse.writeError("Generation aborted.");
-            return;
+            return finish("aborted");
         }
+      }
+
+      // A yield that landed between stream end and round handling still stops
+      // here: no tool has executed, so re-running this round is side-effect
+      // free. (An explicit stop keeps priority and stays terminal.)
+      if (!signal?.aborted && (yieldSignal?.aborted || shouldYield?.())) {
+        closeThinking();
+        closeNarration();
+        await reportRoundEnd(step);
+        return finish("yielded");
       }
 
       closeThinking();
@@ -541,6 +658,7 @@ export async function runAutonomousAgent(
             // Transcript capture must never break the visible response.
           }
         }
+        await reportRoundEnd(step + 1);
         break;
       }
 
@@ -763,16 +881,37 @@ export async function runAutonomousAgent(
         // Transcript capture must never break the visible response.
       }
 
+      // Round fully complete (tool results are in the conversation). This is
+      // the durable resume point: checkpoint first, then decide to continue
+      // or yield the slice.
+      await reportRoundEnd(
+        step + 1,
+        toolResults.map((result) => result.toolCallId),
+      );
+
       if (pauseForUser) {
         try {
           await onPauseForUser?.();
         } catch {
           // Lease release is best-effort; stream still completes.
         }
+        finish("paused");
         break;
       }
+
+      if (
+        !signal?.aborted &&
+        (yieldSignal?.aborted || shouldYield?.())
+      ) {
+        return finish("yielded");
+      }
     }
+    return finish(outcome);
   } catch (error) {
+    // A yield racing the loop machinery must never surface as an error.
+    if (!signal?.aborted && yieldSignal?.aborted) {
+      return finish("yielded");
+    }
     const aborted =
       signal?.aborted ||
       (error instanceof Error &&
@@ -782,12 +921,12 @@ export async function runAutonomousAgent(
 
     if (aborted) {
       sse.writeError("Generation aborted.");
-      return;
+      return finish("aborted");
     }
 
     const message = error instanceof Error ? error.message : String(error);
     sse.writeError(message);
-    return;
+    return finish("error");
   } finally {
     sse.writeDone();
     sse.finalize();

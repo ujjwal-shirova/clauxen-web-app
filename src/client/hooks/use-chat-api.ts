@@ -286,6 +286,7 @@ function buildConversation(messages: Message[]) {
  * the same synchronous update.
  */
 function abortInFlightGenerationForBranch(chatId: string) {
+  stopBackgroundPoll(chatId);
   const gen = getGeneration(chatId);
   if (gen) {
     try {
@@ -427,6 +428,101 @@ function setGeneration(
 ) {
   if (!entry) sharedApiGenerations.delete(chatId);
   else sharedApiGenerations.set(chatId, entry);
+}
+
+// Background pollers: after the live slice yields, the turn continues in
+// chained server slices. The tab polls /status + /live until the job ends,
+// so long turns keep painting progress with no stream attached.
+const backgroundPollers = new Map<string, AbortController>();
+
+function stopBackgroundPoll(chatId: string) {
+  const poller = backgroundPollers.get(chatId);
+  if (!poller) return;
+  try {
+    poller.abort();
+  } catch {
+    // ignore abort errors
+  }
+  backgroundPollers.delete(chatId);
+}
+
+/**
+ * Follows a backgrounded turn to completion. Paints the durable live trace
+ * on every tick, then settles the message exactly like a finished live
+ * stream (flags cleared, queue drained) once the job goes inactive.
+ */
+async function pollBackgroundTurn(
+  chatId: string,
+  options: {
+    onSettled?: () => void;
+  } = {},
+): Promise<void> {
+  stopBackgroundPoll(chatId);
+  const poller = new AbortController();
+  backgroundPollers.set(chatId, poller);
+  try {
+    while (!poller.signal.aborted) {
+      await new Promise((resolve) => setTimeout(resolve, 2_500));
+      if (poller.signal.aborted) break;
+      // Hidden tabs skip polling; returning to the chat rehydrates from the
+      // durable trace (and the poller resumes when visible again).
+      if (typeof document !== "undefined" && document.hidden) continue;
+      let active = true;
+      try {
+        const response = await fetch(
+          `/api/v1/chats/${chatId}/generate/status`,
+          {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            credentials: "include",
+            cache: "no-store",
+            signal: poller.signal,
+          },
+        );
+        if (response.ok) {
+          const payload = (await response.json()) as {
+            data?: { active?: boolean };
+          };
+          active = Boolean(payload.data?.active);
+        }
+      } catch (error) {
+        if (poller.signal.aborted) return;
+        // Status blips must not end the turn; the live paint below still
+        // advances the transcript.
+      }
+      try {
+        await paintLiveTurn(chatId);
+      } catch {
+        // ignore paint errors; next tick retries
+      }
+      if (!active) break;
+    }
+  } finally {
+    if (backgroundPollers.get(chatId) === poller) {
+      backgroundPollers.delete(chatId);
+    }
+  }
+  if (poller.signal.aborted) return;
+
+  // Final authoritative paint, then settle like a finished live stream.
+  try {
+    await paintLiveTurn(chatId);
+  } catch {
+    // ignore
+  }
+  const store = useChatStore.getState();
+  for (const message of store.getMessagesForChat(chatId)) {
+    if (message.role === "assistant" && message.isStreaming) {
+      store.upsertMessage(
+        chatId,
+        sealCompletedAssistantMessages([message])[0]!,
+      );
+    }
+  }
+  rememberGenerationSettled(chatId);
+  store.setChatGenerating(chatId, false);
+  store.setStreaming(null);
+  options.onSettled?.();
 }
 
 export function useChatApi(
@@ -1443,6 +1539,10 @@ export function useChatApi(
     const chatId = useChatStore.getState().activeChatId;
     if (!chatId) return;
 
+    // A backgrounded turn has no fetch to abort; stop its poller too. The
+    // server still cancels the durable job via the stop endpoint below.
+    stopBackgroundPoll(chatId);
+
     if (!chatId.startsWith("incognito-")) {
       void fetch(`/api/v1/chats/${chatId}/generate/stop`, {
         method: "POST",
@@ -1977,6 +2077,9 @@ export function useChatApi(
         }
 
         let completedAnswer = "";
+        // Set when the live slice yields to the background chain. The stream
+        // ends without `done`; the turn keeps running server-side.
+        let sawBackgrounded = false;
         const answerAccumulator = titleUserContent
           ? createChatTitleAnswerAccumulator()
           : null;
@@ -2165,6 +2268,25 @@ export function useChatApi(
             }
             throw new Error(event.message || USER_FACING_CHAT_ERROR);
           }
+          if (event.type === "backgrounded") {
+            // The live slice yielded; chained background slices continue the
+            // turn. A loop `done` frame may have arrived just before this —
+            // reopen the streaming state so the UI keeps its generating
+            // state until the background chain actually finishes.
+            sawBackgrounded = true;
+            patchAssistantMessage(chatId, targetAssistantId, (message) => ({
+              ...message,
+              isStreaming: true,
+              isThinkingStreaming: message.isThinkingStreaming,
+              agentFrameComplete: false,
+              generationFailed: false,
+              agentTrace: message.agentTrace
+                ? { ...message.agentTrace, complete: false }
+                : message.agentTrace,
+            }));
+            useChatStore.getState().setChatGenerating(chatId, true);
+            return;
+          }
           if (event.type === "tool_end" && event.name === "ask_user_input_v0") {
             // Mark the ask turn idle in the transcript, but keep the generation
             // controller until SSE `done`. Clearing early made bypassQueue think
@@ -2225,6 +2347,7 @@ export function useChatApi(
           if (
             event.type === "error" ||
             event.type === "done" ||
+            event.type === "backgrounded" ||
             event.type === "start" ||
             event.type === "turn_ready" ||
             event.type === "tool_start" ||
@@ -2254,6 +2377,39 @@ export function useChatApi(
           } else {
             streamBatcher.dispose();
           }
+        }
+
+        // Background handoff: the live slice yielded and the turn continues
+        // in chained server slices. Skip live finalization entirely — clear
+        // the fetch generation so live paints work, then poll the durable
+        // trace until the job goes inactive. The finally below skips its
+        // settle because this generation is no longer active.
+        if (
+          sawBackgrounded &&
+          !ephemeral &&
+          getGeneration(chatId)?.request === controller
+        ) {
+          setGeneration(chatId, null);
+          useChatStore.getState().setChatGenerating(chatId, true);
+          void paintLiveTurn(chatId).catch(() => undefined);
+          void pollBackgroundTurn(chatId, {
+            onSettled: () => {
+              scheduleBranchPersist(chatId);
+              const nextQueued = useChatStore
+                .getState()
+                .shiftQueuedMessage(chatId);
+              if (nextQueued?.content) {
+                queueMicrotask(() => {
+                  void handleSendMessageRef.current?.(nextQueued.content, {
+                    forceNewChat: false,
+                    bypassQueue: true,
+                    chatIdOverride: chatId,
+                  });
+                });
+              }
+            },
+          });
+          return;
         }
 
         if (answerAccumulator && answerAccumulator.raw.trim()) {

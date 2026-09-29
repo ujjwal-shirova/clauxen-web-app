@@ -29,6 +29,14 @@ import * as billingService from "@/server/services/billing.service";
 import { listRecentMessagesPreferCloudflare } from "@/server/chat/recent-messages";
 import { publishLiveTurn } from "@/server/chat/chat-coord-client";
 import {
+  finishGenerationJob,
+  markJobContinuing,
+  saveGenerationCheckpoint,
+  type GenerationCheckpoint,
+} from "@/server/repositories/generation-jobs.repository";
+import type { AgentLoopOutcome } from "@/server/agent-core";
+import type { OpenAIInputItem } from "@/server/inference/openai-responses-client";
+import {
   normalizeInlineChatTitle,
   finalizeChatTitleStrippedAnswer,
   resolveGenerateChatTitle,
@@ -382,6 +390,34 @@ export async function appendUserMessage(
   return message;
 }
 
+/** Terminal result of one durable slice, read by the route/runner. */
+export type ChatSliceOutcome =
+  | { status: "complete" | "failed" | "cancelled" | "paused" }
+  | { status: "yielded" };
+
+/**
+ * Durable-slice controls. When present, this turn runs as one time-boxed
+ * slice of a background job: it resumes from `resume`, checkpoints every
+ * completed round, and yields (instead of dying) when the slice budget ends.
+ * When absent, the turn runs exactly once, start to finish, as before.
+ */
+export type ChatSliceControl = {
+  jobId: string;
+  /** Resume state from the job checkpoint (null on the first slice). */
+  resume?: GenerationCheckpoint | null;
+  /** Slice budget guard, checked by the agent loop at round boundaries. */
+  shouldYield?: () => boolean;
+  /** Aborted by the runner at the hard slice deadline (model stream only). */
+  yieldSignal?: AbortSignal;
+  /** Polled for explicit user stops while a background slice runs headless. */
+  isCancelled?: () => Promise<boolean>;
+  /** Fired once the durable turn rows exist (first slice only). */
+  onTurnInserted?: (ids: {
+    userMessageId: string | null;
+    assistantMessageId: string | null;
+  }) => void;
+};
+
 export async function streamChatGeneration(input: {
   chatId: string;
   userId: string;
@@ -422,6 +458,8 @@ export async function streamChatGeneration(input: {
    * instead of excluding rate-limit, lease, and turn-insert time.
    */
   requestStartedAtMs?: number;
+  /** Durable background-task controls. Omit for single-shot turns. */
+  slice?: ChatSliceControl;
 }) {
   // Kick ownership + personalization + history immediately so Worker/DB RTTs
   // overlap SSE flush and the DO lease — never block Response headers on them.
@@ -481,9 +519,31 @@ export async function streamChatGeneration(input: {
     );
   });
 
+  const resume = input.slice?.resume ?? null;
+  const resuming = Boolean(resume?.assistantMessageId);
+
   // Durable turn insert runs after lease + overlaps SSE — do NOT await it
   // before returning the stream. Client already has optimistic clientId rows.
+  // Resume slices reuse the turn rows the first slice inserted.
   const turnPromise = (async () => {
+    if (resuming) {
+      await leaseGate;
+      const chat = await chatPromise;
+      if (!chat) throw notFound("Chat not found.");
+      turnState.assistant = {
+        id: resume!.assistantMessageId!,
+        status: "streaming",
+        inserted: false,
+      };
+      turnState.userMessageId = resume!.userMessageId ?? null;
+      return {
+        user: turnState.userMessageId
+          ? { id: turnState.userMessageId }
+          : null,
+        assistant: turnState.assistant,
+      };
+    }
+
     await leaseGate;
 
     const chat = await chatPromise;
@@ -546,27 +606,57 @@ export async function streamChatGeneration(input: {
     });
     turnState.assistant = created;
     return { user: null, assistant: created };
-  })().catch((error) => {
-    turnFailure = error;
-    throw error;
-  });
+  })()
+    .then((turn) => {
+      // Durable jobs record the turn rows so resume slices skip the insert.
+      if (!resuming) {
+        try {
+          input.slice?.onTurnInserted?.({
+            userMessageId: turnState.userMessageId,
+            assistantMessageId: turnState.assistant?.id ?? null,
+          });
+        } catch {
+          // observability only — the job row is updated again on checkpoint
+        }
+      }
+      return turn;
+    })
+    .catch((error) => {
+      turnFailure = error;
+      throw error;
+    });
 
-  const modelTurns: TranscriptAgentModelTurn[] = [];
+  // Resume slices restore the full accumulation state; the agent loop then
+  // continues at the checkpointed step as if the slice never ended.
+  const modelTurns: TranscriptAgentModelTurn[] = [
+    ...(resume?.modelTurns ?? []),
+  ];
   const started = Date.now();
   const turnStartedAtMs =
-    typeof input.requestStartedAtMs === "number" &&
+    (typeof resume?.turnStartedAtMs === "number" &&
+    resume.turnStartedAtMs > 0
+      ? resume.turnStartedAtMs
+      : undefined) ??
+    (typeof input.requestStartedAtMs === "number" &&
     input.requestStartedAtMs > 0 &&
     input.requestStartedAtMs <= started
       ? input.requestStartedAtMs
-      : started;
-  let answer = "";
-  let thinking = "";
+      : started);
+  let answer = resume?.answer ?? "";
+  let thinking = resume?.thinking ?? "";
   let streamError: string | null = null;
   let thinkingStartedAtMs: number | null = null;
-  let thinkingAccumulatedMs = 0;
-  const toolsById = new Map<string, CapturedToolCall>();
-  const streamedSegments: TranscriptAgentSegment[] = [];
-  const streamedSegmentsById = new Map<string, TranscriptAgentSegment>();
+  let thinkingAccumulatedMs = resume?.thinkingAccumulatedMs ?? 0;
+  const toolsById = new Map<string, CapturedToolCall>(
+    (resume?.tools ?? []).map((tool) => [tool.id, { ...tool }]),
+  );
+  const streamedSegments: TranscriptAgentSegment[] = JSON.parse(
+    JSON.stringify(resume?.segments ?? []),
+  ) as TranscriptAgentSegment[];
+  const streamedSegmentsById = new Map<string, TranscriptAgentSegment>(
+    streamedSegments.map((segment) => [segment.id, segment]),
+  );
+  let generatedTitleFromResume: string | null = resume?.generatedTitle ?? null;
 
   const addStreamedSegment = (segment: TranscriptAgentSegment) => {
     const existing = streamedSegmentsById.get(segment.id);
@@ -632,6 +722,78 @@ export async function streamChatGeneration(input: {
     }) as Extract<TranscriptAgentSegment, { type: "tool" }>;
   };
 
+  const modelForTelemetry = resolveInferenceRoute({
+    chatModel: parseChatModelId(input.chatModel),
+  }).modelSlug;
+
+  // ── Durable slice state ──────────────────────────────────────────────
+  // `latestRound` always holds the newest fully-checkpointed agent state.
+  // Yields and crash recoveries resume from here — never from a partial
+  // round — so a re-run model round can only duplicate transient live text,
+  // never durable tools or transcript rows.
+  const loopResult: { outcome: AgentLoopOutcome } = { outcome: "done" };
+  const latestRound: {
+    step: number;
+    conversation: OpenAIInputItem[] | null;
+    narrationCounter: number;
+  } = {
+    step: resume?.step ?? 0,
+    conversation: resume?.conversation
+      ? (JSON.parse(JSON.stringify(resume.conversation)) as OpenAIInputItem[])
+      : null,
+    narrationCounter: resume?.narrationCounter ?? 0,
+  };
+
+  const buildSliceCheckpoint = (): GenerationCheckpoint => ({
+    version: 1,
+    step: latestRound.step,
+    conversation: latestRound.conversation ?? resume?.conversation,
+    narrationCounter: latestRound.narrationCounter,
+    answer: finalizeChatTitleStrippedAnswer(answer),
+    thinking,
+    thinkingAccumulatedMs,
+    segments: JSON.parse(JSON.stringify(streamedSegments)),
+    tools: Array.from(toolsById.values()).map((tool) => ({ ...tool })),
+    modelTurns: [...modelTurns],
+    generatedTitle,
+    turnStartedAtMs,
+    userMessageId: turnState.userMessageId,
+    assistantMessageId: turnState.assistant?.id ?? null,
+  });
+
+  let roundCheckpointChain: Promise<unknown> = Promise.resolve();
+  const persistRoundCheckpoint = (toolCallIds: string[]): void => {
+    if (!input.slice?.jobId) return;
+    roundCheckpointChain = roundCheckpointChain
+      .catch(() => undefined)
+      .then(async () => {
+        // The tap applies tool_end SSE slightly after the loop reports the
+        // round. Wait for the tap to catch up so the checkpoint never drops
+        // a completed tool (a missing tool would re-execute on resume).
+        if (toolCallIds.length > 0) {
+          const deadline = Date.now() + 2_000;
+          while (Date.now() < deadline) {
+            const caughtUp = toolCallIds.every((id) => {
+              const tool = toolsById.get(id);
+              return tool && tool.result !== undefined;
+            });
+            if (caughtUp) break;
+            await new Promise((resolve) => setTimeout(resolve, 25));
+          }
+        }
+        try {
+          await turnPromise;
+        } catch {
+          return;
+        }
+        await saveGenerationCheckpoint(
+          input.slice!.jobId,
+          buildSliceCheckpoint(),
+        );
+      })
+      .catch(() => undefined);
+  };
+
   // Prompt context runs INSIDE the SSE body after `start`. History /
   // personalization are soft-budgeted so a slow Supabase RTT cannot hold the
   // model (client transcript is enough to begin). Lease + ownership are hard
@@ -658,6 +820,20 @@ export async function streamChatGeneration(input: {
       onModelTurn: (turn) => {
         modelTurns.push(turn);
       },
+      initialConversation: resume?.conversation,
+      startStep: resume?.step,
+      initialNarrationCounter: resume?.narrationCounter,
+      shouldYield: input.slice?.shouldYield,
+      yieldSignal: input.slice?.yieldSignal,
+      loopResult,
+      onRoundEnd: input.slice
+        ? (round) => {
+            latestRound.step = round.step;
+            latestRound.conversation = round.conversation;
+            latestRound.narrationCounter = round.narrationCounter;
+            persistRoundCheckpoint(round.toolCallIds);
+          }
+        : undefined,
       resolveContext: async () => {
         // Lease + ownership must win before the model; soft-budget only
         // enrichment queries (history / personalization).
@@ -732,7 +908,7 @@ export async function streamChatGeneration(input: {
   );
 
   const titleUserContent = input.turn?.content ?? requestedUserContent;
-  let generatedTitle: string | null = null;
+  let generatedTitle: string | null = generatedTitleFromResume;
   const conversationForModel: IncomingMessage[] = clientConversation;
 
   /**
@@ -824,10 +1000,6 @@ export async function streamChatGeneration(input: {
     thinkingAccumulatedMs += Math.max(0, Date.now() - thinkingStartedAtMs);
     thinkingStartedAtMs = null;
   };
-
-  const modelForTelemetry = resolveInferenceRoute({
-    chatModel: parseChatModelId(input.chatModel),
-  }).modelSlug;
 
   try {
     // sourceStream already created above — continue into tapChatSseStream
@@ -955,12 +1127,17 @@ export async function streamChatGeneration(input: {
       input.signal,
     );
 
-    const persistOnDone = async () => {
+    const persistOnDone = async (): Promise<ChatSliceOutcome> => {
       // Let any in-flight partial checkpoint finish BEFORE the authoritative
       // finalize write — otherwise a late streaming write could overwrite the
       // completed answer with a shorter snapshot.
       try {
         await partialSaveInFlight;
+      } catch {
+        // ignore
+      }
+      try {
+        await roundCheckpointChain;
       } catch {
         // ignore
       }
@@ -971,6 +1148,43 @@ export async function streamChatGeneration(input: {
       } catch {
         // turnFailure already recorded; finalize may no-op without assistant id
       }
+
+      // ── Slice yield: park the round-boundary checkpoint and stop. The
+      // runner chains the next slice, which resumes from this checkpoint.
+      // Nothing here is terminal: no Postgres finalize, no billing, no title.
+      if (
+        input.slice?.jobId &&
+        loopResult.outcome === "yielded" &&
+        input.signal?.aborted !== true
+      ) {
+        const checkpoint = buildSliceCheckpoint();
+        const snapshotAnswer = checkpoint.answer ?? "";
+        if (turnState.assistant?.id) {
+          await publishLiveTurn({
+            chatId: input.chatId,
+            userId: input.userId,
+            assistantId: turnState.assistant.id,
+            status: "running",
+            answer: snapshotAnswer,
+            contentJson: buildAssistantTranscriptRecord({
+              answer: snapshotAnswer,
+              thinking: checkpoint.thinking ?? "",
+              tools: checkpoint.tools ?? [],
+              agentUi: {
+                model: modelForTelemetry,
+                status: "streaming",
+                startedAtMs: turnStartedAtMs,
+                modelTurns: checkpoint.modelTurns ?? [],
+                segments: checkpoint.segments ?? [],
+                sources: dedupeTranscriptSources(checkpoint.segments ?? []),
+              },
+            }),
+          }).catch(() => false);
+        }
+        await markJobContinuing(input.slice.jobId, checkpoint);
+        return { status: "yielded" };
+      }
+
       const assistantRow = turnState.assistant;
       const generatedAnswer = finalizeChatTitleStrippedAnswer(answer);
       const tools = Array.from(toolsById.values());
@@ -1047,33 +1261,33 @@ export async function streamChatGeneration(input: {
             : completionStatus === "failed"
               ? "failed"
               : "complete";
-        const parkedOnCloudflare = await publishLiveTurn({
+        // Postgres is the durable transcript the moment the turn ends — the
+        // UI, history cache, and reloads all read the finished row at once,
+        // so spinners and "still working" states clear immediately. The same
+        // payload is mirrored to Cloudflare for fast live reads; the 24h
+        // archive path is now an idempotent backfill, not the primary write.
+        await messagesRepo.finalizeAssistantTurn({
+          messageId: assistantRow.id,
+          chatId: input.chatId,
+          userId: input.userId,
+          content: cleanedAnswer,
+          status: completionStatus,
+          contentJson,
+          tools,
+          transcriptLines: buildAssistantTranscriptLines({
+            assistantRecord: contentJson,
+            tools,
+            status: wasCancelled ? "cancelled" : failed ? "error" : "success",
+          }),
+        });
+        await publishLiveTurn({
           chatId: input.chatId,
           userId: input.userId,
           assistantId: assistantRow.id,
           status: liveStatus,
           answer: cleanedAnswer,
           contentJson,
-        });
-        // The hot transcript stays on Cloudflare for 24 hours. Postgres
-        // receives it from the Durable Object alarm. If Cloudflare is down,
-        // write it now so the turn is not lost.
-        if (!parkedOnCloudflare) {
-          await messagesRepo.finalizeAssistantTurn({
-            messageId: assistantRow.id,
-            chatId: input.chatId,
-            userId: input.userId,
-            content: cleanedAnswer,
-            status: completionStatus,
-            contentJson,
-            tools,
-            transcriptLines: buildAssistantTranscriptLines({
-              assistantRecord: contentJson,
-              tools,
-              status: wasCancelled ? "cancelled" : failed ? "error" : "success",
-            }),
-          });
-        }
+        }).catch(() => false);
         if (!wasCancelled && generatedTitle) {
           await chatsRepo.updateChat(input.chatId, input.userId, {
             title: generatedTitle,
@@ -1098,7 +1312,41 @@ export async function streamChatGeneration(input: {
               ? { errorMessage: "Model completed without visible output." }
               : {}),
       });
-      if (wasCancelled || failed) return;
+      const sliceOutcome: ChatSliceOutcome =
+        wasCancelled || loopResult.outcome === "aborted"
+          ? { status: "cancelled" }
+          : failed || loopResult.outcome === "error"
+            ? { status: "failed" }
+            : pausedForUserInput || loopResult.outcome === "paused"
+              ? { status: "paused" }
+              : { status: "complete" };
+
+      // Durable jobs close here: the transcript is already in Postgres, so
+      // the watchdog never touches this job again.
+      if (input.slice?.jobId) {
+        await finishGenerationJob({
+          jobId: input.slice.jobId,
+          status:
+            sliceOutcome.status === "paused"
+              ? "paused_for_user"
+              : sliceOutcome.status,
+          result: {
+            assistantMessageId: assistantRow?.id ?? null,
+            answerChars: cleanedAnswer.length,
+            toolCount: tools.length,
+            modelTurnCount: modelTurns.length,
+            completedAtMs,
+            sliceLatencyMs: latencyMs,
+          },
+          error:
+            sliceOutcome.status === "failed"
+              ? streamError ?? "Model completed without visible output."
+              : null,
+          checkpoint: buildSliceCheckpoint(),
+        }).catch(() => undefined);
+      }
+
+      if (wasCancelled || failed) return sliceOutcome;
       try {
         await billingService.meterChatGeneration({
           userId: input.userId,
@@ -1154,6 +1402,8 @@ export async function streamChatGeneration(input: {
           ]),
         )
         .catch(() => {});
+
+      return sliceOutcome;
     };
 
     // Prefer durable ids when the turn already landed; otherwise fall back to
@@ -1227,6 +1477,15 @@ export async function streamChatGeneration(input: {
       latencyMs: Date.now() - started,
       requestId: input.requestId,
     });
+    // A setup failure (lease conflict already handled upstream; this is
+    // ownership/prompt failures) must not leave the job parked forever.
+    if (input.slice?.jobId) {
+      await finishGenerationJob({
+        jobId: input.slice.jobId,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      }).catch(() => undefined);
+    }
     throw error;
   }
 }

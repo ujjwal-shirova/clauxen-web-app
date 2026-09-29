@@ -6,8 +6,6 @@ import * as chatService from "@/server/services/chat.service";
 import { sanitizeMessages } from "@/server/inference/novita";
 import { AppError } from "@/server/db/errors";
 import { resolveRequestCountryCode } from "@/lib/request-geo";
-import { parseHomerReasoningEffort } from "@/lib/model-effort";
-import { CLAUXEN_STREAM_HEADERS } from "@/server/inference/clauxen-sse-stream";
 import {
   parseClientVisionImages,
   parseVisionFileIds,
@@ -16,6 +14,14 @@ import {
   beginChatGeneration,
   endChatGeneration,
 } from "@/server/chat/generation-registry";
+import {
+  createGenerationJob,
+  type GenerationJobInput,
+} from "@/server/repositories/generation-jobs.repository";
+import {
+  runLiveSlice,
+  type LiveSliceInput,
+} from "@/server/chat/durable-generation";
 import * as chatsRepo from "@/server/repositories/chats.repository";
 import { readEdgeFlags } from "@/server/config/edge-flags";
 import { assertDurableRateLimit } from "@/server/http/durable-rate-limit";
@@ -117,8 +123,9 @@ export const POST = withApiRouteParams<{ chatId: string }>(
 
     // Durable generations are only stopped explicitly. A duplicate request
     // must never abort an existing turn and create a second assistant row.
-    // Local map claim is instant; DO lease overlaps SSE start (awaited inside
-    // resolveContext before turn insert / model). Cross-isolate truth = DO.
+    // Local map claim is instant; the job row is the cross-isolate truth
+    // (one active job per chat); the DO lease overlaps SSE start inside
+    // resolveContext before turn insert / model.
     const generation = beginChatGeneration(params.chatId);
     if (!generation) {
       // Persist the follow-up before asking the browser to wait. Previously the
@@ -149,190 +156,156 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       );
     }
 
+    // The background job owns this turn from here on. Cross-isolate
+    // duplicates 409 here (unique active job per chat) instead of racing
+    // the coordinator lease.
+    const jobInput: GenerationJobInput = {
+      messages: messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+      turn: turn
+        ? {
+            content: turn.content,
+            modelContent: turn.modelContent,
+            fileIds: turn.fileIds,
+            images: turn.images as unknown as Array<Record<string, unknown>>,
+            userClientId: turn.userClientId,
+            assistantClientId: turn.assistantClientId,
+          }
+        : null,
+      vision: vision
+        ? {
+            fileIds: vision.fileIds,
+            images: vision.images as unknown as Array<Record<string, unknown>>,
+          }
+        : null,
+      chatModel: flags.modelOverride || body.chatModel,
+      homerReasoningEffort: body.homerReasoningEffort,
+      extendedThinking: body.extendedThinking === true,
+      clientTimezone:
+        typeof body.clientTimezone === "string"
+          ? body.clientTimezone.trim().slice(0, 64)
+          : undefined,
+      userCountryCode: resolveRequestCountryCode(request.headers),
+      generateChatTitle: body.generateChatTitle,
+      requestId,
+      turnStartedAtMs: requestStartedAtMs,
+    };
+
+    let job;
+    try {
+      job = await createGenerationJob({
+        chatId: params.chatId,
+        userId: user.id,
+        jobInput,
+      });
+    } catch (error) {
+      await endChatGeneration(params.chatId, generation.controller);
+      if (
+        error instanceof AppError &&
+        error.code === "generation_in_progress"
+      ) {
+        if (turn) {
+          await chatService.reserveQueuedChatTurn({
+            chatId: params.chatId,
+            userId: user.id,
+            turn,
+          });
+        }
+        return Response.json(
+          {
+            error: {
+              message:
+                "The previous reply is still finishing. Your message is saved and queued.",
+              code: "generation_in_progress",
+            },
+          },
+          {
+            status: 409,
+            headers: {
+              "Cache-Control": "no-store",
+              "Retry-After": "1",
+            },
+          },
+        );
+      }
+      throw error;
+    }
+
     const generationController = generation.controller;
     let resolveSettled: () => void = () => {};
     const generationSettled = new Promise<void>((resolve) => {
       resolveSettled = resolve;
     });
-    // Fluid Compute keeps this invocation alive after the browser disconnects.
-    // after() and waitUntil() both extend the request until the model stream
-    // is consumed and the live trace is on Cloudflare.
+    // The live slice keeps running after the browser disconnects. after() and
+    // waitUntil() both extend the invocation until the slice completes or
+    // yields to the background chain.
     after(() => generationSettled);
     waitUntil(generationSettled);
 
     await chatsRepo.setChatGenerating(params.chatId, user.id, true);
-    let holdGenerating = true;
 
     try {
-      const { stream, onComplete, userMessageId, assistantMessageId } =
-        await chatService.streamChatGeneration({
-          chatId: params.chatId,
-          userId: user.id,
-          messages,
-          turn,
-          vision,
-          signal: generationController.signal,
-          requestStartedAtMs,
-          ensureLease: () => generation.lease,
-          userCountryCode: resolveRequestCountryCode(request.headers),
-          generateChatTitle: body.generateChatTitle,
-          chatModel: flags.modelOverride || body.chatModel,
-          homerReasoningEffort: parseHomerReasoningEffort(
-            body.homerReasoningEffort,
-          ),
-          extendedThinking: body.extendedThinking === true,
-          clientTimezone:
-            typeof body.clientTimezone === "string"
-              ? body.clientTimezone.trim().slice(0, 64)
-              : undefined,
-          onPauseForUser: async () => {
-            // Free the DO/local lease as soon as ask_user_input pauses so the
-            // user's questionnaire answers can start a new turn without 409.
-            holdGenerating = false;
-            await chatsRepo.setChatGenerating(params.chatId, user.id, false);
-            await endChatGeneration(params.chatId, generationController);
-          },
-          requestId,
-        });
-
-      let finished = false;
-      let closed = false;
-      const finishOnce = async () => {
-        if (finished) return;
-        finished = true;
-        // Stop heartbeats before the save so they cannot turn the flag back on
-        // after the completed answer is written.
-        closed = true;
-        try {
-          await onComplete();
-        } finally {
-          try {
-            await chatsRepo.setChatGenerating(params.chatId, user.id, false);
-            await endChatGeneration(params.chatId, generationController);
-          } finally {
-            resolveSettled();
-          }
-        }
-      };
-
-      let clientController: ReadableStreamDefaultController<Uint8Array> | null =
-        null;
-      let clientClosed = false;
-      const pendingChunks: Uint8Array[] = [];
-      let pendingBytes = 0;
-      const encoder = new TextEncoder();
-
-      const flushPending = () => {
-        if (!clientController || clientClosed) return;
-        while (pendingChunks.length > 0) {
-          const chunk = pendingChunks.shift();
-          if (!chunk) break;
-          try {
-            clientController.enqueue(chunk);
-          } catch {
-            clientClosed = true;
-            clientController = null;
-            pendingChunks.length = 0;
-            return;
-          }
-        }
-        pendingBytes = 0;
-      };
-
-      const clientStream = new ReadableStream<Uint8Array>({
-        start(controller) {
-          clientController = controller;
-          flushPending();
+      const liveInput: LiveSliceInput = {
+        job,
+        messages,
+        turn: jobInput.turn ?? undefined,
+        vision: jobInput.vision ?? undefined,
+        chatModel: jobInput.chatModel,
+        homerReasoningEffort: jobInput.homerReasoningEffort,
+        extendedThinking: jobInput.extendedThinking,
+        clientTimezone: jobInput.clientTimezone,
+        userCountryCode: jobInput.userCountryCode,
+        generateChatTitle: jobInput.generateChatTitle,
+        requestId,
+        requestStartedAtMs,
+        origin: new URL(request.url).origin,
+        registrySignal: generationController.signal,
+        onPauseForUser: async () => {
+          // Free the DO/local lease as soon as ask_user_input pauses so the
+          // user's questionnaire answers can start a new turn without 409.
+          // (The job row closes as paused_for_user in persistOnDone.)
+          await chatsRepo.setChatGenerating(params.chatId, user.id, false);
+          await endChatGeneration(params.chatId, generationController);
         },
-        cancel() {
-          // Tab close or navigation. Keep reading the model stream in the
-          // background; only an explicit stop aborts generationController.
-          clientClosed = true;
-          clientController = null;
-          pendingChunks.length = 0;
-        },
-      });
-
-      const pushToClient = (bytes: Uint8Array) => {
-        if (clientClosed) return;
-        if (!clientController) {
-          // The browser may not be reading yet. Keep a short buffer so the
-          // first tokens are not dropped, then rely on the saved transcript.
-          if (pendingBytes > 1_000_000) return;
-          pendingChunks.push(bytes);
-          pendingBytes += bytes.byteLength;
-          return;
-        }
-        flushPending();
-        try {
-          clientController.enqueue(bytes);
-        } catch {
-          clientClosed = true;
-          clientController = null;
-        }
-      };
-
-      const closeClient = () => {
-        if (clientClosed || !clientController) return;
-        clientClosed = true;
-        try {
-          clientController.close();
-        } catch {
-          // already closed
-        }
-        clientController = null;
-      };
-
-      let lastGeneratingTouchAt = Date.now();
-      const heartbeat = setInterval(() => {
-        if (closed) return;
-        if (
-          holdGenerating &&
-          Date.now() - lastGeneratingTouchAt > 15_000
-        ) {
-          lastGeneratingTouchAt = Date.now();
-          void chatsRepo
-            .setChatGenerating(params.chatId, user.id, true)
-            .catch(() => {});
-        }
-        pushToClient(encoder.encode(": keepalive\n\n"));
-      }, 5_000);
-
-      void (async () => {
-        const reader = stream.getReader();
-        try {
-          while (true) {
-            if (generationController.signal.aborted) {
-              try {
-                await reader.cancel();
-              } catch {
-                // ignore
+        onSettled: (outcome) => {
+          // Runs when the live slice ends, while the invocation is alive.
+          void (async () => {
+            try {
+              // The DO lease always releases here: terminal turns are done,
+              // and yielded turns re-acquire it in the chained slice. The
+              // generating flag clears only on terminal outcomes — a yielded
+              // turn is still running in the background.
+              await endChatGeneration(params.chatId, generationController);
+              if (outcome.status !== "yielded") {
+                await chatsRepo.setChatGenerating(params.chatId, user.id, false);
               }
-              break;
+            } finally {
+              resolveSettled();
             }
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (value) pushToClient(value);
-          }
-        } catch {
-          // Model stream failed. finishOnce still persists whatever was saved.
-        } finally {
-          clearInterval(heartbeat);
-          closeClient();
-          await finishOnce();
-        }
-      })();
-
-      return new Response(clientStream, {
-        headers: {
-          ...CLAUXEN_STREAM_HEADERS,
-          ...(userMessageId ? { "X-User-Message-Id": userMessageId } : {}),
-          ...(assistantMessageId
-            ? { "X-Assistant-Message-Id": assistantMessageId }
-            : {}),
+          })();
         },
-      });
+      };
+
+      // The DO lease gate still runs inside resolveContext (before turn
+      // insert / model) so a racing continuation slice wins cleanly: the
+      // loser 409s and its job row is failed without a trace.
+      liveInput.ensureLease = () => generation.lease;
+
+      const { response } = await runLiveSlice(liveInput);
+      return response;
     } catch (error) {
+      // The live slice never started streaming: fail the job so the chat is
+      // not parked behind a queued row the watchdog would otherwise revive.
+      const { finishGenerationJob } = await import(
+        "@/server/repositories/generation-jobs.repository"
+      );
+      await finishGenerationJob({
+        jobId: job.id,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      }).catch(() => undefined);
       await chatsRepo.setChatGenerating(params.chatId, user.id, false);
       await endChatGeneration(params.chatId, generationController);
       resolveSettled();

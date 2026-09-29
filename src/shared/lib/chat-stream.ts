@@ -13,6 +13,8 @@
  *   tool_start / tool_output_delta / tool_data / tool_end
  *   artifact_upsert  — create_file deliverable cards
  *   chat_title / error / done
+ *   backgrounded     — live slice yielded; the turn continues in chained
+ *                       background slices (never followed by `done`)
  */
 
 export type StreamEvent =
@@ -85,7 +87,8 @@ export type StreamEvent =
     }
   | { type: "chat_title"; title: string }
   | { type: "done" }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string }
+  | { type: "backgrounded"; jobId?: string; chatId?: string };
 
 const MAX_SSE_BUFFER_BYTES = 256 * 1024;
 const MAX_SSE_DATA_BYTES = 64 * 1024;
@@ -264,6 +267,12 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
       return typeof event.message === "string"
         ? { type: "error", message: event.message }
         : null;
+    case "backgrounded":
+      return {
+        type: "backgrounded",
+        jobId: optString((event as { jobId?: unknown }).jobId),
+        chatId: optString((event as { chatId?: unknown }).chatId),
+      };
     default:
       return null;
   }

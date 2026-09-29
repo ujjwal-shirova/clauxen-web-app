@@ -5,6 +5,7 @@
 
 import {
   runAutonomousAgent,
+  type AgentLoopOutcome,
   type AgentStreamOptions,
 } from "@/server/agent-core";
 import { ClauxenSseStream } from "@/server/inference/clauxen-sse-stream";
@@ -74,6 +75,21 @@ export type ChatStreamOptions = {
    * never wait on a slow database round-trip (TTFT).
    */
   resolveContext?: () => Promise<ResolvedChatStreamContext>;
+  // ── Durable slices (resume a turn past the serverless time cap) ─────────
+  /** Restored Responses input list when resuming a slice. */
+  initialConversation?: AgentStreamOptions["initialConversation"];
+  /** Agent step index to continue from. */
+  startStep?: number;
+  /** Narration counter so resumed segment ids stay unique. */
+  initialNarrationCounter?: number;
+  /** Slice budget guard, checked at round boundaries. */
+  shouldYield?: () => boolean;
+  /** Aborted by the runner at the hard slice deadline (model stream only). */
+  yieldSignal?: AbortSignal;
+  /** Fired after every completed round with the resume state. */
+  onRoundEnd?: AgentStreamOptions["onRoundEnd"];
+  /** Outcome holder the caller reads after the stream finishes. */
+  loopResult?: { outcome: AgentLoopOutcome };
 };
 
 /** Soft ceiling for DB enrichment before the model call — never stall TTFT. */
@@ -260,6 +276,13 @@ export async function createChatStream(
         onPauseForUser: options.onPauseForUser,
         onModelTurn: options.onModelTurn,
         skipWriteStart: true,
+        initialConversation: options.initialConversation,
+        startStep: options.startStep,
+        initialNarrationCounter: options.initialNarrationCounter,
+        shouldYield: options.shouldYield,
+        yieldSignal: options.yieldSignal,
+        onRoundEnd: options.onRoundEnd,
+        loopResult: options.loopResult,
       };
 
       await runAutonomousAgent(sse, agentOptions);
