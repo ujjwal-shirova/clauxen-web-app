@@ -49,8 +49,9 @@ idempotent backfill, never the primary write.
 ## Recovery layers
 
 1. **Chained continuation** — the yielding slice triggers the next one.
-2. **Watchdog** (`/api/v1/internal/generations/watchdog`, Vercel Cron every
-   minute) — finds jobs with a stale heartbeat (killed invocation, crashed
+2. **Watchdog** (`/api/v1/internal/generations/watchdog`, driven every
+   minute by pg_cron + pg_net — the Vercel plan only allows daily crons)
+   — finds jobs with a stale heartbeat (killed invocation, crashed
    isolate, lost trigger) and knocks `/continue` for each. Claiming is
    atomic (`claim_chat_generation_job`, `FOR UPDATE SKIP LOCKED`), so
    exactly one slice ever runs a job.
@@ -87,12 +88,12 @@ idempotent backfill, never the primary write.
 | `POST /api/v1/chats/:id/generate/stop` | user | Cancels the durable job + lease |
 | `GET /api/v1/chats/:id/live` | user | Live trace (Durable Object, job checkpoint fallback) |
 | `POST /api/v1/internal/generations/continue` | internal token | Claims a job, `202`s, runs one headless slice |
-| `GET/POST /api/v1/internal/generations/watchdog` | internal token / `CRON_SECRET` | Reclaims stalled jobs, cleans old rows |
+| `GET/POST /api/v1/internal/generations/watchdog` | internal token | Reclaims stalled jobs, cleans old rows |
 
 Internal auth accepts `GENERATIONS_INTERNAL_TOKEN` (preferred),
 `CHAT_COORD_INTERNAL_TOKEN`, or `SCHEDULED_TASKS_INTERNAL_TOKEN` via
-`x-clauxen-internal` / `Bearer`, plus Vercel Cron's `CRON_SECRET` bearer on
-the watchdog.
+`x-clauxen-internal` / `Bearer`. The pg_cron callback sends
+`GENERATIONS_INTERNAL_TOKEN` from `private.internal_callback_secrets`.
 
 ## Client handoff
 
@@ -105,7 +106,10 @@ rehydrates from the same durable trace.
 ## Environment
 
 - `GENERATIONS_INTERNAL_TOKEN` (optional — falls back to the chat-coord
-  secret; set it in Vercel for secret separation).
-- `CRON_SECRET` (Vercel Cron bearer for the watchdog).
-- `vercel.json` wires the per-minute watchdog cron and the 300s budget for
-  `/continue`.
+  secret; set it in Vercel for secret separation). The same value must be
+  stored in `private.internal_callback_secrets` under
+  `generations_internal_token` so pg_cron can authenticate.
+- `vercel.json` wires the 300s budget for `/continue`. There is intentionally
+  no Vercel Cron: this plan caps crons at daily, so pg_cron (see
+  `supabase/migrations/20260929130000_generations_watchdog_cron.sql`) drives
+  the per-minute watchdog instead.

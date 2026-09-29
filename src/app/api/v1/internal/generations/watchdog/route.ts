@@ -14,7 +14,10 @@ export const maxDuration = 60;
  * replacement resumes from the last Postgres checkpoint, so no turn is ever
  * lost to infrastructure.
  *
- * Called every minute by Vercel Cron (GET). POST is the manual poke with the
+ * Driven every minute by pg_cron + pg_net (see
+ * supabase/migrations/20260929130000_generations_watchdog_cron.sql) — the
+ * Vercel plan here only allows daily crons, which would stall recovery for
+ * up to a day. POST is the scheduled poke; GET is the manual poke with the
  * same auth. The watchdog only triggers /continue (202s); it never runs
  * model work itself, so one pass always fits in its 60s budget.
  */
