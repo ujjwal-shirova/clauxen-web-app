@@ -14,10 +14,6 @@ import {
   isEventStreamResponse,
   looksLikeSecurityChallenge,
 } from "@/lib/security-challenge";
-function canFastAppendAnswer(message: Message | undefined): boolean {
-  return Boolean(message && !message.agentMode);
-}
-import { hydrateMessageFromContentJson } from "@/lib/hydrate-chat-messages";
 import { createStreamEventBatcher } from "@/lib/stream-event-batcher";
 import type { Message, RecentChat } from "@/lib/types";
 import { useAiStream } from "@/hooks/use-ai-stream";
@@ -108,6 +104,10 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useShallow } from "zustand/react/shallow";
+
+function canFastAppendAnswer(message: Message | undefined): boolean {
+  return Boolean(message && !message.agentMode);
+}
 
 function bootRecentChatsFromSync(): RecentChat[] {
   if (typeof window === "undefined") return [];
