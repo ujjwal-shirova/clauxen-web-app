@@ -23,7 +23,7 @@ import { clientIp } from "@/server/http/request-meta";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 800;
+export const maxDuration = 300;
 
 export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, request, params, requestId }) => {
