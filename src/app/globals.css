@@ -602,6 +602,15 @@ html.dark[data-contrast="Increased"] {
   box-shadow: var(--settings-card-shadow);
 }
 
+.plan-tier-card.app-page-card {
+  border: 1px solid color-mix(in oklab, var(--ui-fg) 16%, transparent);
+  box-shadow: none;
+}
+
+.plan-tier-card.app-page-card.is-highlighted {
+  border-color: color-mix(in oklab, var(--ui-fg) 72%, transparent);
+}
+
 .app-page-card:hover {
   background: var(--settings-card-bg, var(--ui-card-bg, #ffffff));
 }
@@ -4458,29 +4467,11 @@ button.user-message-card__body:not(:disabled):hover,
   animation: liquid-orb 12s ease-in-out infinite reverse;
 }
 
-.streaming-orb-cursor {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  /* Size to the surrounding text, not a fixed px — keeps the caret
-     proportional in both 13px trace rows and 15px answer bodies. */
-  width: 0.85em;
-  height: 0.85em;
-  min-width: 10px;
-  min-height: 10px;
-  max-width: 14px;
-  max-height: 14px;
-  vertical-align: -0.12em;
-}
-
+.streaming-orb-cursor,
+.orb-cursor-core,
+.agent-trace-preview__caret,
 .streaming-follow-caret {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 2;
-  pointer-events: none;
-  opacity: 0;
+  display: none !important;
 }
 
 .agent-trace-preview {
@@ -4511,9 +4502,7 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .agent-trace-preview__caret {
-  display: flex;
-  align-items: center;
-  height: 1.45em;
+  display: none;
 }
 
 .agent-trace-preview__fade {
@@ -4706,41 +4695,6 @@ html[data-reduce-motion="1"] .orb-cursor-core {
   }
 }
 
-/* Sign-in readout — a thin lit line in the column, not a page background. */
-@keyframes auth-sign-in-light {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
-.auth-sign-in-light {
-  overflow: hidden;
-  height: 16px;
-  color: color-mix(in oklab, var(--ui-fg) 42%, transparent);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  line-height: 16px;
-  white-space: nowrap;
-  -webkit-mask-image: linear-gradient(
-    90deg,
-    transparent,
-    #000 8%,
-    #000 92%,
-    transparent
-  );
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-}
-
-.auth-sign-in-light span {
-  display: inline-block;
-  animation: auth-sign-in-light 32s linear infinite;
-}
-
 /* OAuth click — ring on the control, label stays put. No spinner. */
 .auth-oauth-btn .auth-splash-ring {
   position: absolute;
@@ -4800,16 +4754,14 @@ html[data-auth-redirect] body {
 @media (prefers-reduced-motion: reduce) {
   .auth-oauth-btn .auth-splash-ring,
   .auth-oauth-pending::after,
-  .cookie-notice,
-  .auth-sign-in-light span {
+  .cookie-notice {
     animation: none;
   }
 }
 
 html[data-reduce-motion="1"] .auth-oauth-btn .auth-splash-ring,
 html[data-reduce-motion="1"] .auth-oauth-pending::after,
-html[data-reduce-motion="1"] .cookie-notice,
-html[data-reduce-motion="1"] .auth-sign-in-light span {
+html[data-reduce-motion="1"] .cookie-notice {
   animation: none;
 }
 
@@ -9412,4 +9364,60 @@ nav.cx-sidebar {
 .cx-sidebar .sidebar-scrollable .cx-section-toggle {
   color: var(--cx-sidebar-muted) !important;
   font-weight: 400 !important;
+}
+
+/* Plugin marketplace is locked to the app's light surface. */
+.plugin-marketplace {
+  color-scheme: light;
+  --app-panel-bg: #fcfcfb;
+  --ui-card-bg: #ffffff;
+  --ui-border: color-mix(in oklab, #14151a 12%, transparent);
+  --ui-border-subtle: color-mix(in oklab, #14151a 7%, transparent);
+  --ui-hover-wash: color-mix(in oklab, #14151a 5%, transparent);
+  --ui-fg: #14151a;
+  --ui-fg-body: #14151a;
+  --ui-fg-muted: color-mix(in oklab, #14151a 72%, transparent);
+  --ui-fg-subtle: color-mix(in oklab, #14151a 62%, transparent);
+  --ui-fg-placeholder: color-mix(in oklab, #14151a 50%, transparent);
+  --ui-field-bg: #ffffff;
+  --ui-field-focus-border: color-mix(in oklab, #14151a 30%, transparent);
+  --ui-muted-surface: color-mix(in oklab, #14151a 4%, transparent);
+  --popup-bg: #ffffff;
+  --popup-border: rgba(20, 21, 26, 0.1);
+  --icon-color: #14151a;
+  --icon-muted: rgba(20, 21, 26, 0.62);
+  --edge-sheen: rgba(255, 255, 255, 0.72);
+}
+
+.dark .plugin-marketplace .app-btn-secondary {
+  background-color: transparent;
+  color: #18181b;
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, #18181b 8%, transparent);
+}
+
+.dark .plugin-marketplace .app-btn-secondary:hover:not(:disabled) {
+  background-color: color-mix(in oklab, #18181b 5%, transparent) !important;
+  color: #18181b !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, #18181b 8%, transparent) !important;
+}
+
+.dark .plugin-marketplace .app-btn-primary {
+  background-color: #18181b !important;
+  color: #ffffff !important;
+}
+
+.dark .plugin-marketplace .app-btn-primary:hover:not(:disabled) {
+  background-color: #27272a !important;
+  color: #ffffff !important;
+}
+
+.dark .plugin-marketplace .app-btn-ghost {
+  color: #71717a;
+}
+
+.dark .plugin-marketplace .app-btn-ghost:hover:not(:disabled) {
+  background-color: rgba(24, 24, 27, 0.05) !important;
+  color: #27272a !important;
 }

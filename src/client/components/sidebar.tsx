@@ -464,6 +464,7 @@ export function Sidebar({
     const chatHref = APP_ROUTES.chat(chat.id);
     const showSidebarSpinner =
       isGeneratingChat &&
+      !isActive &&
       !chat.isCreating &&
       !chat.id.startsWith("pending-");
     return (

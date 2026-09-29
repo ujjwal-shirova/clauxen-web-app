@@ -314,11 +314,6 @@ export function LoginPage() {
           height={26}
           className="text-[var(--ui-fg)]"
         />
-        <p className="auth-sign-in-light mt-5" aria-hidden>
-          <span>
-            0.184&nbsp;&nbsp;012&nbsp;&nbsp;4.90&nbsp;&nbsp;208&nbsp;&nbsp;0.073&nbsp;&nbsp;441&nbsp;&nbsp;19&nbsp;&nbsp;8.02&nbsp;&nbsp;903&nbsp;&nbsp;12.6&nbsp;&nbsp;0.41&nbsp;&nbsp;&nbsp;&nbsp;0.184&nbsp;&nbsp;012&nbsp;&nbsp;4.90&nbsp;&nbsp;208&nbsp;&nbsp;0.073&nbsp;&nbsp;441&nbsp;&nbsp;19&nbsp;&nbsp;8.02&nbsp;&nbsp;903&nbsp;&nbsp;12.6&nbsp;&nbsp;0.41&nbsp;&nbsp;&nbsp;&nbsp;
-          </span>
-        </p>
         <h1 className="mt-6 font-serif text-[40px] font-normal leading-none tracking-[-0.02em] text-[var(--ui-fg)]">
           {step === "create"
             ? "Create account"

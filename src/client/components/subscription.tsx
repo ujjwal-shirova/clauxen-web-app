@@ -295,8 +295,8 @@ function PlanCarouselCard({
   return (
     <article
       className={cn(
-        "app-page-card relative flex h-full min-h-0 w-full flex-col p-4",
-        isHighlighted && "ring-1 ring-[var(--settings-fg)]",
+        "app-page-card plan-tier-card relative flex h-full min-h-0 w-full flex-col p-4",
+        isHighlighted && "is-highlighted",
       )}
     >
       <div className="mb-1 flex items-start justify-between gap-2">
@@ -404,8 +404,8 @@ function OrganizationPlanCarouselCard({
   return (
     <article
       className={cn(
-        "app-page-card relative flex h-full w-full flex-col p-4",
-        isPrimaryCta && "ring-1 ring-[var(--settings-fg)]",
+        "app-page-card plan-tier-card relative flex h-full w-full flex-col p-4",
+        isPrimaryCta && "is-highlighted",
       )}
     >
       <div className="flex flex-col">

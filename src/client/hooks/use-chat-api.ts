@@ -355,34 +355,62 @@ async function paintLiveTurn(chatId: string): Promise<"painted" | "empty" | "mis
   } catch {
     return "empty";
   }
-  if (!turn) return "empty";
+  if (!turn?.assistantId) return "empty";
   const store = useChatStore.getState();
   const messages = store.getMessagesForChat(chatId);
-  const target =
-    messages.find(
-      (message) =>
-        message.id === turn!.assistantId ||
-        message.clientId === turn!.assistantId,
-    ) ?? [...messages].reverse().find((message) => message.role === "assistant");
-  if (!target) return "missing";
+  const target = messages.find(
+    (message) =>
+      message.id === turn!.assistantId ||
+      message.clientId === turn!.assistantId,
+  );
   const running = turn.status === "running";
+  const base: Message = target ?? {
+    id: turn.assistantId,
+    clientId: turn.assistantId,
+    role: "assistant",
+    content: "",
+    createdAt: turn.updatedAt ?? Date.now(),
+    agentMode: true,
+    isStreaming: running,
+  };
   const hydrated = hydrateMessageFromContentJson(
     {
-      ...target,
-      content: turn.answer || target.content,
+      ...base,
+      content: turn.answer || base.content,
       isStreaming: running,
+      agentMode: true,
     },
     turn.contentJson,
   );
+  const trace = hydrated.agentTrace;
+  const liveSteps = trace?.steps.map((step, index, all) => {
+    if (!running || index !== all.length - 1) return step;
+    if (step.kind === "tool" && step.status !== "error") {
+      return { ...step, status: "running" as const };
+    }
+    if (step.kind === "thinking" || step.kind === "narration") {
+      return { ...step, isStreaming: true };
+    }
+    return step;
+  });
   store.upsertMessage(chatId, {
-    ...target,
+    ...base,
     ...hydrated,
-    id: target.id,
-    clientId: target.clientId ?? target.id,
-    content: turn.answer || hydrated.content || target.content,
+    id: base.id,
+    clientId: base.clientId ?? base.id,
+    content: turn.answer || hydrated.content || base.content,
+    agentMode: true,
     isStreaming: running,
     isThinkingStreaming: false,
     agentFrameComplete: !running,
+    agentTrace: trace
+      ? {
+          ...trace,
+          steps: liveSteps ?? trace.steps,
+          complete: !running,
+          completedAtMs: running ? undefined : trace.completedAtMs,
+        }
+      : base.agentTrace,
   });
   if (running) store.setChatGenerating(chatId, true);
   else if (store.generatingChatIds[chatId]) store.setChatGenerating(chatId, false);
@@ -1307,6 +1335,12 @@ export function useChatApi(
       }
       const previousChatId = useChatStore.getState().activeChatId;
       setActiveChatId(chatId);
+      if (
+        useChatStore.getState().generatingChatIds[chatId] &&
+        !getGeneration(chatId)
+      ) {
+        void paintLiveTurn(chatId);
+      }
       // Keep the previous chat warm for back-nav; drop everything else.
       useChatStore
         .getState()

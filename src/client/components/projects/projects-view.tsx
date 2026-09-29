@@ -823,7 +823,7 @@ function ChatRow({
   const { toast } = useToast();
   return (
     <li className="group grid grid-cols-[minmax(0,1fr)_72px_28px] items-center rounded-xl px-2 py-2.5 hover:bg-[var(--ui-hover-wash)]">
-      <button type="button" onClick={onOpen} className="min-w-0 text-left">
+      <button type="button" onClick={onOpen} className="no-hover-overlay min-w-0 bg-transparent text-left">
         <p className="truncate text-[14px] font-medium text-[var(--ui-fg)]">{chat.title}</p>
         <p className="truncate text-[13px] text-[var(--ui-fg-muted)]">{chat.preview}</p>
       </button>
