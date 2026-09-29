@@ -7391,7 +7391,10 @@ button.prompt-model-selector[aria-expanded="true"] {
 }
 
 .cx-sidebar.is-collapsed .cx-nav-btn {
-  width: 32px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
   justify-content: center;
   padding: 0;
 }
@@ -9036,7 +9039,7 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
 .cx-sidebar:not(.is-collapsed) button.cx-nav-btn {
   height: 32px !important;
   min-height: 32px !important;
-  padding: 0 2px !important;
+  padding: 0 !important;
   border: 0 !important;
   border-radius: 8px !important;
   background: transparent !important;
@@ -9068,18 +9071,31 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   background: var(--cx-sidebar-active) !important;
 }
 
+/* Same 24×24 hit target and 20×20 glyph as .cx-hide-sidebar. */
 .cx-nav-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
   flex: none;
 }
 
 .cx-sidebar .cx-nav-btn svg {
   width: 20px;
   height: 20px;
+}
+
+.cx-sidebar .cx-nav-icon svg {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  flex: none;
 }
 
 .cx-nav-projects .cx-nav-plus {
