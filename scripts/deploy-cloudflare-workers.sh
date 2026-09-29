@@ -159,6 +159,22 @@ else
   echo "    generate one with: openssl rand -hex 32 — and set the SAME value on Vercel)"
 fi
 
+# --- generations-watchdog (per-minute durable-jobs watchdog poke) ---
+if [[ -n "${GENERATIONS_INTERNAL_TOKEN:-}" ]]; then
+  echo "==> Deploying clauxen-generations-watchdog"
+  (
+    cd "$ROOT/workers/generations-watchdog"
+    put_worker_secret GENERATIONS_INTERNAL_TOKEN "$GENERATIONS_INTERNAL_TOKEN"
+    if [[ -n "${APP_ORIGIN:-}${NEXT_PUBLIC_APP_URL:-}" ]]; then
+      put_worker_secret APP_ORIGIN "${APP_ORIGIN:-$NEXT_PUBLIC_APP_URL}"
+    fi
+    npx wrangler deploy
+  )
+else
+  echo "==> Skipping clauxen-generations-watchdog (set GENERATIONS_INTERNAL_TOKEN to deploy;"
+  echo "    generate one with: openssl rand -hex 32 — and set the SAME value on Vercel)"
+fi
+
 WORKER_SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-ujjwal-8fc}"
 AUTH_EMAIL_URL="https://clauxen-auth-email.${WORKER_SUBDOMAIN}.workers.dev"
 CHAT_HISTORY_URL="https://clauxen-chat-history.${WORKER_SUBDOMAIN}.workers.dev"

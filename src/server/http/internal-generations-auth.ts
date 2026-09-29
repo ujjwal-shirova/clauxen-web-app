@@ -23,7 +23,8 @@ function generationsTokens(): string[] {
 /**
  * Auth for the durable-generation internal endpoints (/continue, /watchdog).
  * Accepts the generations token (or the shared coord/scheduler secret) via
- * `x-clauxen-internal` / Bearer, plus Vercel Cron's CRON_SECRET bearer.
+ * `x-clauxen-internal` / Bearer. The Cloudflare watchdog worker and the
+ * app's own continuation triggers both authenticate this way.
  */
 export function isGenerationsInternalRequest(request: NextRequest): boolean {
   const header =
@@ -36,11 +37,6 @@ export function isGenerationsInternalRequest(request: NextRequest): boolean {
   for (const token of generationsTokens()) {
     if (header && safeEqual(header, token)) return true;
     if (bearerToken && safeEqual(bearerToken, token)) return true;
-  }
-
-  const cronSecret = env.cronSecret?.trim() ?? "";
-  if (cronSecret && bearerToken && safeEqual(bearerToken, cronSecret)) {
-    return true;
   }
   return false;
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isGenerationsInternalRequest } from "@/server/http/internal-generations-auth";
 import { recoverStalledJobs } from "@/server/chat/durable-generation";
+import { query } from "@/server/db/pool";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,10 +15,9 @@ export const maxDuration = 60;
  * replacement resumes from the last Postgres checkpoint, so no turn is ever
  * lost to infrastructure.
  *
- * Driven every minute by pg_cron + pg_net (see
- * supabase/migrations/20260929130000_generations_watchdog_cron.sql) — the
- * Vercel plan here only allows daily crons, which would stall recovery for
- * up to a day. POST is the scheduled poke; GET is the manual poke with the
+ * Driven every minute by the Cloudflare `clauxen-generations-watchdog`
+ * worker (see workers/generations-watchdog) — per-minute Vercel crons need
+ * a paid plan. POST is the scheduled poke; GET is the manual poke with the
  * same auth. The watchdog only triggers /continue (202s); it never runs
  * model work itself, so one pass always fits in its 60s budget.
  */
@@ -31,6 +31,19 @@ async function run(request: NextRequest) {
     ? Math.min(Math.max(1, Math.floor(limitRaw)), 25)
     : 10;
   const result = await recoverStalledJobs(url.origin, limit);
+  // Liveness signal: one tiny upsert per poke, best-effort, never blocks.
+  const source = (url.searchParams.get("source") ?? "manual")
+    .trim()
+    .slice(0, 32)
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "") || "manual";
+  void query(
+    `insert into private.watchdog_heartbeats (source, last_poke_at, last_result)
+     values ($1, now(), $2::jsonb)
+     on conflict (source) do update
+     set last_poke_at = now(), last_result = excluded.last_result`,
+    [source, JSON.stringify(result)],
+  ).catch(() => undefined);
   return NextResponse.json({ ok: true, ...result });
 }
 

@@ -12,7 +12,7 @@
  *
  * Recovery layers (each one alone keeps turns alive):
  *   1. Chained continuation — the yielding slice triggers the next slice.
- *   2. Watchdog (Vercel Cron, every minute) — reclaims jobs whose heartbeat
+ *   2. Watchdog (Cloudflare cron, every minute) — reclaims jobs whose heartbeat
  *      went stale (crashed isolate, killed invocation, lost trigger).
  *   3. Postgres checkpoints — every resume starts from the last completed
  *      tool round; interrupted model rounds re-run side-effect free.

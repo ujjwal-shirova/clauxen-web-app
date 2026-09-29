@@ -1,0 +1,20 @@
+name = "clauxen-generations-watchdog"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "8fc7a67e9057989309921f362784ecf4"
+workers_dev = true
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[vars]
+APP_ORIGIN = "https://www.clauxen.com"
+
+# Secrets (wrangler secret put):
+#   GENERATIONS_INTERNAL_TOKEN
+
+# Poke Vercel's generations watchdog every minute.
+[triggers]
+crons = ["* * * * *"]

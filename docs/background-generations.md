@@ -50,7 +50,7 @@ idempotent backfill, never the primary write.
 
 1. **Chained continuation** — the yielding slice triggers the next one.
 2. **Watchdog** (`/api/v1/internal/generations/watchdog`, driven every
-   minute by pg_cron + pg_net — the Vercel plan only allows daily crons)
+   minute by the Cloudflare `clauxen-generations-watchdog` worker)
    — finds jobs with a stale heartbeat (killed invocation, crashed
    isolate, lost trigger) and knocks `/continue` for each. Claiming is
    atomic (`claim_chat_generation_job`, `FOR UPDATE SKIP LOCKED`), so
@@ -92,8 +92,9 @@ idempotent backfill, never the primary write.
 
 Internal auth accepts `GENERATIONS_INTERNAL_TOKEN` (preferred),
 `CHAT_COORD_INTERNAL_TOKEN`, or `SCHEDULED_TASKS_INTERNAL_TOKEN` via
-`x-clauxen-internal` / `Bearer`. The pg_cron callback sends
-`GENERATIONS_INTERNAL_TOKEN` from `private.internal_callback_secrets`.
+`x-clauxen-internal` / `Bearer`. The Cloudflare worker sends
+`GENERATIONS_INTERNAL_TOKEN` (wrangler secret). Every poke records a
+liveness row in `private.watchdog_heartbeats` keyed by source.
 
 ## Client handoff
 
@@ -105,11 +106,10 @@ rehydrates from the same durable trace.
 
 ## Environment
 
-- `GENERATIONS_INTERNAL_TOKEN` (optional — falls back to the chat-coord
-  secret; set it in Vercel for secret separation). The same value must be
-  stored in `private.internal_callback_secrets` under
-  `generations_internal_token` so pg_cron can authenticate.
+- `GENERATIONS_INTERNAL_TOKEN` — set it in Vercel (server) and as a
+  `clauxen-generations-watchdog` worker secret (caller). Falls back to the
+  chat-coord secret when unset.
 - `vercel.json` wires the 300s budget for `/continue`. There is intentionally
-  no Vercel Cron: this plan caps crons at daily, so pg_cron (see
-  `supabase/migrations/20260929130000_generations_watchdog_cron.sql`) drives
-  the per-minute watchdog instead.
+  no Vercel Cron: this plan caps crons at daily, so the Cloudflare worker
+  (see `workers/generations-watchdog`) drives the per-minute watchdog.
+  `public.poke_generations_watchdog()` remains as a manual SQL fallback.

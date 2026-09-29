@@ -236,9 +236,6 @@ export const env = {
    */
   generationsInternalToken: optional("GENERATIONS_INTERNAL_TOKEN"),
 
-  /** Vercel Cron bearer (`Authorization: Bearer`) for the watchdog route. */
-  cronSecret: optional("CRON_SECRET"),
-
   r2ImagesBucket: optional("R2_IMAGES_BUCKET", "clauxen-images"),
   r2AttachmentsBucket: optional(
     "R2_ATTACHMENTS_BUCKET",
