@@ -1489,7 +1489,32 @@ async function enqueueInvoiceGeneration(
             }
           );
         })();
-    if (!fulfilled?.r2Key) return false;
+    if (!fulfilled?.r2Key) {
+      // PDF worker can fail without ever mailing a receipt. Always send the
+      // payment receipt to the account email so the buyer is not left with nothing.
+      if (emailTo) {
+        const major = (payload.totalPaise / 100).toFixed(2);
+        const amountLabel =
+          currency === "INR" ? `₹${major}` : `${currency} ${major}`;
+        const { sendInvoicePaidEmail } = await import(
+          "@/server/billing/billing-email"
+        );
+        await sendInvoicePaidEmail({
+          to: emailTo,
+          invoiceNumber: payload.invoiceNumber,
+          planName: payload.planName,
+          amountLabel,
+          currency,
+          paymentId: payload.paymentId,
+          billedToName: payload.billedTo.name,
+          addressSummary: payload.billedTo.address,
+          pdfAvailable: false,
+        }).catch((err) => {
+          console.warn("[billing] receipt email failed", err);
+        });
+      }
+      return false;
+    }
 
     // Alias for the shared attach + ledger path below.
     const generated = fulfilled;
