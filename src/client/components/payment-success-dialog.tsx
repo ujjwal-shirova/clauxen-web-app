@@ -10,6 +10,8 @@ const CLAUXEN_LOGO_SRC = "/assets/icons/clauxen-icon.png";
 type PaymentSuccessDialogProps = {
   open: boolean;
   planName?: string | null;
+  /** Gift checkout — the purchaser paid, the plan goes to the recipient. */
+  giftSent?: boolean;
   onGetStarted: () => void;
 };
 
@@ -19,6 +21,7 @@ type PaymentSuccessDialogProps = {
 export function PaymentSuccessDialog({
   open,
   planName,
+  giftSent = false,
   onGetStarted,
 }: PaymentSuccessDialogProps) {
   useEffect(() => {
@@ -74,11 +77,12 @@ export function PaymentSuccessDialog({
               id="payment-success-title"
               className="mt-2 text-[22px] font-semibold leading-7 tracking-tight text-[var(--ui-fg)]"
             >
-              You&apos;re on {planLabel}
+              {giftSent ? "Gift sent" : `You're on ${planLabel}`}
             </h2>
             <p className="mt-2 max-w-[32ch] text-[14px] leading-5 text-[var(--ui-fg-muted)]">
-              Your plan is active. Get started with the power of Clauxen — open
-              a new chat and put your upgrade to work.
+              {giftSent
+                ? "We emailed the gift to your recipient and the invoice to you."
+                : "Your plan is active. Get started with the power of Clauxen — open a new chat and put your upgrade to work."}
             </p>
 
             <button

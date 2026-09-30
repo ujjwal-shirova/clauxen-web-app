@@ -65,11 +65,11 @@ export type BillingEmailPayload =
 
 async function postBillingEmail(
   payload: BillingEmailPayload,
-): Promise<boolean> {
+): Promise<{ ok: boolean; error?: string }> {
   if (!isBillingWorkerConfigured()) {
     if (!env.authEmailWorkerUrl || !env.authEmailInternalToken) {
       console.warn("[billing-email] No email worker configured — skip send");
-      return false;
+      return { ok: false, error: "email_worker_unconfigured" };
     }
   }
 
@@ -97,25 +97,30 @@ async function postBillingEmail(
         res.status,
         text.slice(0, 200),
       );
-      return false;
+      return { ok: false, error: text.slice(0, 300) || `http_${res.status}` };
     }
-    return true;
+    return { ok: true };
   } catch (err) {
     console.warn("[billing-email] send error", err);
-    return false;
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "send_error",
+    };
   }
 }
 
 export async function sendBillingNotificationEmail(
   payload: BillingEmailPayload,
 ) {
-  return postBillingEmail(payload);
+  const result = await postBillingEmail(payload);
+  return result.ok;
 }
 
 export async function sendInvoicePaidEmail(
   input: Omit<InvoiceEmailPayload, "kind">,
 ) {
-  return postBillingEmail({ ...input, kind: "invoice_paid" });
+  const result = await postBillingEmail({ ...input, kind: "invoice_paid" });
+  return result.ok;
 }
 
 export async function sendGiftNotificationEmail(
@@ -129,5 +134,6 @@ export async function sendGiftNotificationEmail(
 export async function sendAutomationRunEmail(
   input: Omit<AutomationEmailPayload, "kind">,
 ) {
-  return postBillingEmail({ ...input, kind: "automation_run" });
+  const result = await postBillingEmail({ ...input, kind: "automation_run" });
+  return result.ok;
 }

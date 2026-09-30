@@ -288,7 +288,7 @@ export async function deliverPurchasedGift(
       return null;
     }
     // 1) Gift email to the recipient ("You got {plan_name}").
-    const recipientOk = await sendGiftNotificationEmail({
+    const sent = await sendGiftNotificationEmail({
       kind: "gift_received",
       to,
       planName: gift.plan_name,
@@ -299,8 +299,11 @@ export async function deliverPurchasedGift(
       giftCode: finalCodeDisplay,
       themeColor: gift.theme_color,
     });
-    if (!recipientOk) {
-      console.warn("[gift] recipient email failed", giftId);
+    if (!sent.ok) {
+      await giftsRepo
+        .recordGiftDeliveryFailure(giftId, sent.error || "recipient_email_failed")
+        .catch(() => undefined);
+      console.warn("[gift] recipient email failed", giftId, sent.error);
       return {
         delivered: false,
         alreadySent: false,
@@ -344,7 +347,7 @@ export async function deliverPurchasedGift(
   // Share-link: email code + link to the purchaser.
   const to = gift.purchaser_email?.trim();
   if (!to) return null;
-  const ok = await sendGiftNotificationEmail({
+  const sent = await sendGiftNotificationEmail({
     kind: "gift_share_link",
     to,
     planName: gift.plan_name,
@@ -355,17 +358,34 @@ export async function deliverPurchasedGift(
     giftCode: finalCodeDisplay,
     themeColor: gift.theme_color,
   });
-  if (ok) await giftsRepo.markGiftDeliverySent(giftId);
+  if (sent.ok) await giftsRepo.markGiftDeliverySent(giftId);
+  else {
+    await giftsRepo
+      .recordGiftDeliveryFailure(giftId, sent.error || "share_link_email_failed")
+      .catch(() => undefined);
+  }
   return {
-    delivered: ok,
+    delivered: sent.ok,
     alreadySent: false,
     claimUrl,
-    giftCode: ok ? finalCode : null,
-    giftCodeDisplay: ok ? finalCodeDisplay : null,
+    giftCode: sent.ok ? finalCode : null,
+    giftCodeDisplay: sent.ok ? finalCodeDisplay : null,
     deliveryMethod: gift.delivery_method,
     recipientEmail: gift.recipient_email,
     recipientName: gift.recipient_name,
   };
+}
+
+/** Resend gifts whose payment cleared but the email is still queued. */
+export async function retryQueuedGiftsForPurchaser(userId: string) {
+  const ids = await giftsRepo.listQueuedGiftIdsForPurchaser(userId);
+  for (const giftId of ids) {
+    try {
+      await deliverPurchasedGift(giftId);
+    } catch (err) {
+      console.warn("[gift] queued delivery retry failed", giftId, err);
+    }
+  }
 }
 
 export async function getGiftCheckoutOrderForUser(

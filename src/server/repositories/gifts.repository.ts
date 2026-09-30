@@ -237,10 +237,40 @@ export async function queueGiftDelivery(giftId: string) {
 export async function markGiftDeliverySent(giftId: string) {
   await query(
     `update public.gift_delivery_jobs
-     set status = 'sent', updated_at = now(), sent_at = coalesce(sent_at, now())
+     set status = 'sent',
+         last_error = null,
+         updated_at = now(),
+         sent_at = coalesce(sent_at, now())
      where gift_id = $1`,
     [giftId],
   );
+}
+
+export async function recordGiftDeliveryFailure(giftId: string, error: string) {
+  await query(
+    `update public.gift_delivery_jobs
+     set attempts = attempts + 1,
+         last_error = left($2, 500),
+         updated_at = now()
+     where gift_id = $1`,
+    [giftId, error],
+  );
+}
+
+export async function listQueuedGiftIdsForPurchaser(userId: string) {
+  const rows = await query<{ id: string }>(
+    `select g.id
+     from public.gift_codes g
+     join public.gift_delivery_jobs j on j.gift_id = g.id
+     where g.purchaser_user_id = $1
+       and g.status = 'purchased'
+       and j.status = 'queued'
+       and j.attempts < 5
+     order by j.updated_at asc
+     limit 5`,
+    [userId],
+  );
+  return rows.map((row) => row.id);
 }
 
 type GiftRow = {

@@ -84,6 +84,7 @@ function ChatViewBody({
   );
   const [localExtendedThinking, setLocalExtendedThinking] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [giftPaymentSuccess, setGiftPaymentSuccess] = useState(false);
   const [successPlanName, setSuccessPlanName] = useState<string | null>(null);
   const [showFreePlanUpgrade, setShowFreePlanUpgrade] = useState(false);
 
@@ -145,6 +146,17 @@ function ChatViewBody({
 
     if (!fromUrl && !fromStorage) return;
 
+    let giftPaid = false;
+    try {
+      giftPaid =
+        window.sessionStorage.getItem("clauxen:gift-payment-success") === "1";
+      if (giftPaid) {
+        window.sessionStorage.removeItem("clauxen:gift-payment-success");
+      }
+    } catch {
+      giftPaid = false;
+    }
+    setGiftPaymentSuccess(giftPaid);
     setShowPaymentSuccess(true);
     void getBillingSubscription()
       .then((overview) => {
@@ -459,6 +471,7 @@ function ChatViewBody({
       <PaymentSuccessDialog
         open={showPaymentSuccess}
         planName={successPlanName}
+        giftSent={giftPaymentSuccess}
         onGetStarted={() => setShowPaymentSuccess(false)}
       />
     </>

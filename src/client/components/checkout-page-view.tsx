@@ -44,33 +44,20 @@ export function CheckoutPageView({
       giftDeliveryMethod={giftCheckout?.deliveryMethod ?? null}
       isGiftCheckout={Boolean(giftCheckout)}
       onPaymentSuccess={(details) => {
-        if (typeof window !== "undefined") {
-          // Gift checkout: return to gift success UI (copy link / email sent).
-          // Do not append checkout=success — that opens the subscription "You're on {plan}" dialog.
+        if (typeof window === "undefined") return;
+        try {
+          window.sessionStorage.setItem("clauxen:checkout-success", "1");
           if (giftCheckout) {
-            try {
-              window.sessionStorage.setItem("clauxen:gift-just-paid", "1");
-              window.sessionStorage.removeItem("clauxen:checkout-success");
-              // Persist final post-payment gift code + link for the success dialog.
-              if (details?.gift) {
-                updatePendingGiftPurchaseWithPayment(details.gift);
-              }
-            } catch {
-              /* ignore */
+            window.sessionStorage.setItem("clauxen:gift-payment-success", "1");
+            if (details?.gift) {
+              updatePendingGiftPurchaseWithPayment(details.gift);
             }
-            window.location.href = returnPath || "/new?giftPurchased=1";
-            return;
           }
-
-          try {
-            window.sessionStorage.setItem("clauxen:checkout-success", "1");
-          } catch {
-            /* ignore */
-          }
-          const base = returnPath || "/new";
-          const sep = base.includes("?") ? "&" : "?";
-          window.location.href = `${base}${sep}checkout=success`;
+        } catch {
+          /* ignore */
         }
+        // Full navigation so the new-chat page mounts the payment popup.
+        window.location.replace("/new?checkout=success");
       }}
     />
   );
