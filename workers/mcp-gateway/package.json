@@ -1,0 +1,13 @@
+{
+  "name": "clauxen-mcp-gateway",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "upload-data": "wrangler r2 object put clauxen-plugin-data/mcp-plugins.json --file ../../public/data/mcp-plugins.json"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250924.0",
+    "wrangler": "^4.145.0"
+  }
+}

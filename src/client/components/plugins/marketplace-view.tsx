@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";
@@ -16,7 +17,6 @@ import {
 } from "./catalog";
 import { CategorySection } from "./category-section";
 import { DiscoverRow } from "./discover-row";
-import { PluginDetailDialog } from "./plugin-dialogs";
 import type { MarketplacePlugin } from "./types";
 
 const INSTALLS_KEY = "clauxen.marketplace.installs";
@@ -41,7 +41,11 @@ export function MarketplaceView() {
   const [installed, setInstalled] = useState<Set<string>>(
     () => new Set(defaultInstalledIds()),
   );
-  const [selected, setSelected] = useState<MarketplacePlugin | null>(null);
+  const router = useRouter();
+
+  const openPlugin = (plugin: MarketplacePlugin) => {
+    router.push(`/plugins/${plugin.id}`);
+  };
 
   useEffect(() => {
     const stored = readInstalls();
@@ -153,7 +157,7 @@ export function MarketplaceView() {
                 title="Installed"
                 plugins={installedPlugins}
                 installed={installed}
-                onOpen={setSelected}
+                onOpen={openPlugin}
                 onToggle={toggleInstalled}
                 className="mt-2"
               />
@@ -170,14 +174,14 @@ export function MarketplaceView() {
                   {resultCount} {resultCount === 1 ? "result" : "results"}
                 </p>
               ) : null}
-              <DiscoverRow plugins={discoverPlugins} onOpen={setSelected} />
+              <DiscoverRow plugins={discoverPlugins} onOpen={openPlugin} />
               {sections.map((section) => (
                 <CategorySection
                   key={section.id}
                   title={section.title}
                   plugins={section.plugins}
                   installed={installed}
-                  onOpen={setSelected}
+                  onOpen={openPlugin}
                   onToggle={toggleInstalled}
                 />
               ))}
@@ -185,15 +189,6 @@ export function MarketplaceView() {
           )}
         </div>
       </div>
-
-      <PluginDetailDialog
-        plugin={selected}
-        added={selected ? installed.has(selected.id) : false}
-        onOpenChange={(open) => {
-          if (!open) setSelected(null);
-        }}
-        onToggle={toggleInstalled}
-      />
     </div>
   );
 }

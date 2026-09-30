@@ -1,0 +1,17 @@
+name = "clauxen-mcp-gateway"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "8fc7a67e9057989309921f362784ecf4"
+
+[observability]
+enabled = true
+head_sampling_rate = 0.1
+
+[vars]
+# Allowed browser origins for CORS — comma-separated.
+ALLOWED_ORIGINS = "https://clauxen.com,http://localhost:9002"
+
+[[r2_buckets]]
+binding = "PLUGIN_DATA"
+bucket_name = "clauxen-plugin-data"
