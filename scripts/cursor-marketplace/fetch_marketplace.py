@@ -396,7 +396,7 @@ def enrich_mcp(plugin_shaped: dict, raw_plugin: dict) -> None:
 # --------------------------------------------------------------------------- #
 def main() -> int:
     ap = argparse.ArgumentParser(description="Fetch the Cursor Plugin Marketplace to JSON")
-    ap.add_argument("--output", default="cursor_marketplace_plugins.json")
+    ap.add_argument("--output", default="../../public/data/mcp-plugins.json")
     ap.add_argument("--no-mcp-config", action="store_true",
                     help="skip downloading each plugin's .mcp.json from GitHub")
     ap.add_argument("--workers", type=int, default=8)

@@ -7,7 +7,7 @@ JSON file. Pure Python 3 standard library, no dependencies.
 ## Usage
 
 ```bash
-python3 fetch_marketplace.py                       # writes cursor_marketplace_plugins.json
+python3 fetch_marketplace.py                       # writes ../../public/data/mcp-plugins.json
 python3 fetch_marketplace.py --no-mcp-config       # metadata only, no GitHub fetch
 python3 fetch_marketplace.py --output other.json   # custom output path
 python3 fetch_marketplace.py --workers 16          # parallel GitHub fetches
