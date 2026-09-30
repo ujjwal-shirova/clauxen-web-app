@@ -20,6 +20,10 @@ export type ApiMessage = {
   content_json?: Record<string, unknown>;
   created_at: string;
   client_id?: string | null;
+  /** Server message tree — branch fork point + variant position. */
+  parent_message_id?: string | null;
+  variant_index?: number;
+  variant_count?: number;
 };
 
 function chatHistoryWorkerBase(): string {
@@ -122,8 +126,7 @@ export async function createChat(input?: {
 }
 
 export type MessagePageCursor = {
-  id: string;
-  createdAt: string;
+  depth: number;
 };
 
 export type MessagesPage = {
@@ -136,8 +139,7 @@ export type MessagesPage = {
 async function listMessagesPageViaWorker(
   chatId: string,
   input?: {
-    cursorId?: string;
-    cursorCreatedAt?: string;
+    cursorDepth?: number;
     limit?: number;
   },
 ): Promise<MessagesPage | null> {
@@ -151,9 +153,8 @@ async function listMessagesPageViaWorker(
     const params = new URLSearchParams();
     params.set("fresh", "0");
     if (input?.limit) params.set("limit", String(input.limit));
-    if (input?.cursorId) params.set("cursor_id", input.cursorId);
-    if (input?.cursorCreatedAt) {
-      params.set("cursor_created_at", input.cursorCreatedAt);
+    if (typeof input?.cursorDepth === "number") {
+      params.set("cursor_depth", String(input.cursorDepth));
     }
     const qs = params.toString();
     const response = await fetch(
@@ -189,8 +190,7 @@ export async function getChat(chatId: string) {
 export async function listMessagesPage(
   chatId: string,
   input?: {
-    cursorId?: string;
-    cursorCreatedAt?: string;
+    cursorDepth?: number;
     limit?: number;
   },
 ) {
@@ -199,9 +199,8 @@ export async function listMessagesPage(
 
   const params = new URLSearchParams();
   if (input?.limit) params.set("limit", String(input.limit));
-  if (input?.cursorId) params.set("cursor_id", input.cursorId);
-  if (input?.cursorCreatedAt) {
-    params.set("cursor_created_at", input.cursorCreatedAt);
+  if (typeof input?.cursorDepth === "number") {
+    params.set("cursor_depth", String(input.cursorDepth));
   }
   const qs = params.toString();
   return apiFetch<MessagesPage>(
@@ -228,8 +227,7 @@ export async function listAllChatMessages(chatId: string): Promise<{
   for (let i = 0; i < 20 && cursor; i += 1) {
     const page = await listMessagesPage(chatId, {
       limit,
-      cursorId: cursor.id,
-      cursorCreatedAt: cursor.createdAt,
+      cursorDepth: cursor.depth,
     });
     messages = [...page.messages, ...messages];
     if (!page.hasMore || !page.nextCursor) break;
@@ -327,25 +325,22 @@ export async function generateChatTitle(
   );
 }
 
-export async function getBranchState(chatId: string) {
+/**
+ * Switch the visible branch at a fork point (branch arrows).
+ * Server-authoritative: repoints the chat's active leaf and returns the
+ * refreshed active-path page for the client to render.
+ */
+export async function switchThreadBranch(chatId: string, messageId: string) {
   return apiFetch<{
-    state: { messages?: unknown; active_path?: unknown } | null;
-  }>(`/api/v1/chats/${encodeURIComponent(chatId)}/branches`);
-}
-
-export async function saveBranchState(
-  chatId: string,
-  activePath: unknown,
-  messages: unknown,
-) {
-  return apiFetch<{ state: unknown }>(
-    `/api/v1/chats/${encodeURIComponent(chatId)}/branches`,
-    {
-      method: "PUT",
-      // JSON.stringify — request body serialize
-      body: JSON.stringify({ activePath, messages }),
-    },
-  );
+    leafId: string;
+    messages: ApiMessage[];
+    nextCursor: MessagePageCursor | null;
+    hasMore: boolean;
+  }>(`/api/v1/chats/${encodeURIComponent(chatId)}/branches`, {
+    method: "POST",
+    // JSON.stringify — request body serialize
+    body: JSON.stringify({ messageId }),
+  });
 }
 
 /** Download JSONL transcript for a chat (training export). */

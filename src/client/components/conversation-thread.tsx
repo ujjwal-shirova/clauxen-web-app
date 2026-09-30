@@ -254,8 +254,8 @@ const MessageRow = React.memo(
     onToggleMoreMenu,
     chatIsGenerating = false,
   }: MessageRowProps) {
-    const branchVersions = message.branchVersions?.length ?? 1;
-    const activeBranchIndex = message.activeBranchIndex ?? branchVersions - 1;
+    const branchVersions = message.variantCount ?? 1;
+    const activeBranchIndex = message.variantIndex ?? branchVersions - 1;
     const [previewAttachment, setPreviewAttachment] =
       React.useState<MessageAttachment | null>(null);
     const [userExpanded, setUserExpanded] = React.useState(false);
@@ -720,8 +720,8 @@ const MessageRow = React.memo(
       pm.agentTrace?.startedAtMs === nm.agentTrace?.startedAtMs &&
       pm.agentTrace?.completedAtMs === nm.agentTrace?.completedAtMs &&
       agentStepsVisuallyEqual(pm.agentTrace?.steps, nm.agentTrace?.steps) &&
-      pm.activeBranchIndex === nm.activeBranchIndex &&
-      pm.branchVersions === nm.branchVersions &&
+      pm.variantIndex === nm.variantIndex &&
+      pm.variantCount === nm.variantCount &&
       pm.attachments === nm.attachments &&
       prev.editingMessageId === next.editingMessageId &&
       prev.editValue === next.editValue &&
@@ -846,8 +846,8 @@ const ConversationTurn = React.memo(
         nu &&
         (pu.id !== nu.id ||
           pu.content !== nu.content ||
-          pu.activeBranchIndex !== nu.activeBranchIndex ||
-          pu.branchVersions !== nu.branchVersions))
+          pu.variantIndex !== nu.variantIndex ||
+          pu.variantCount !== nu.variantCount))
     ) {
       return false;
     }
@@ -870,8 +870,8 @@ const ConversationTurn = React.memo(
         pa.agentMode !== na.agentMode ||
         pa.agentFrameComplete !== na.agentFrameComplete ||
         !agentStepsVisuallyEqual(pa.agentTrace?.steps, na.agentTrace?.steps) ||
-        pa.activeBranchIndex !== na.activeBranchIndex ||
-        pa.branchVersions !== na.branchVersions
+        pa.variantIndex !== na.variantIndex ||
+        pa.variantCount !== na.variantCount
       ) {
         return false;
       }

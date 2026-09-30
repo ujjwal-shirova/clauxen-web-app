@@ -199,6 +199,7 @@ export async function triggerContinuation(
 export type LiveSliceInput = {
   job: GenerationJobRow;
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+  fork?: GenerationJobInput["fork"];
   turn?: GenerationJobInput["turn"];
   vision?: GenerationJobInput["vision"];
   chatModel?: string;
@@ -248,6 +249,7 @@ export async function runLiveSlice(input: LiveSliceInput): Promise<{
       chatId: job.chat_id,
       userId: job.user_id,
       messages: input.messages,
+      fork: input.fork ?? job.input?.fork ?? null,
       turn: input.turn
         ? {
             content: input.turn.content,
@@ -492,6 +494,7 @@ export async function runHeadlessSlice(input: {
             : "user",
         content: message.content,
       })),
+      fork: jobInput.fork ?? null,
       // Resume slices reuse the turn rows the first slice inserted; the
       // stored turn payload is only needed when the first slice died before
       // inserting (crash between job create and turn insert).

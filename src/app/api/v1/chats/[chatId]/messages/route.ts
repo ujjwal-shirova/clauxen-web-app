@@ -43,13 +43,15 @@ export const GET = withApiRouteParams<{ chatId: string }>(
     const limit = limitRaw
       ? Math.min(500, Math.max(1, Number(limitRaw) || DEFAULT_PAGE_LIMIT))
       : DEFAULT_PAGE_LIMIT;
-    const cursorId = url.searchParams.get("cursor_id");
-    const cursorCreatedAt = url.searchParams.get("cursor_created_at");
+    const cursorDepthParam = url.searchParams.get("cursor_depth");
+    const cursorDepth =
+      cursorDepthParam != null && cursorDepthParam !== ""
+        ? Number(cursorDepthParam)
+        : null;
     const accessToken = await accessTokenFromRequest(request);
 
     const page = await chatService.getChatMessagesPage(params.chatId, user.id, {
-      cursorId,
-      cursorCreatedAt,
+      cursorDepth,
       limit,
       accessToken,
     });

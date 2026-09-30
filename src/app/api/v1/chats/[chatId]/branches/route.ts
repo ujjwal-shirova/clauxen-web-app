@@ -1,69 +1,39 @@
 // Params: chatId — URL dynamic segment; user-scoped access only
-// Use case: alternate reply paths (branching) UI — activePath + messages snapshot persist
+// Use case: switch the visible branch at a fork point (branch arrows UI).
+// The message tree in chat_messages is the source of truth; this endpoint
+// moves chats.active_leaf_message_id and returns the refreshed thread page.
 // =============================================================================
 
 import { withApiRouteParams } from "@/server/http/route-params"; // [chatId] params inject + auth gates wrap
 import { jsonData } from "@/server/http/api-response"; // { data: … } success envelope
 import { requireSession } from "@/server/auth/require-session"; // null session → 401 AppError
-import { AppError } from "@/server/db/errors"; // validation errors — malformed body / oversized payload
-import { sanitizeBranchMessages } from "@/server/chat/sanitize-branch-messages";
-import * as chatService from "@/server/services/chat.service"; // branch state read/write — ownership check included
+import { AppError } from "@/server/db/errors"; // validation errors — malformed body
+import * as chatService from "@/server/services/chat.service"; // ownership check + tree switch
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BRANCH_ACTIVE_PATH_LEN = 256; // branch index depth cap — DoS guard on jsonb array
-const MAX_BRANCH_STATE_JSON_BYTES = 2 * 1024 * 1024; // 2 MiB serialized cap — oversized tree reject
-
-function sanitizeActivePath(input: unknown): number[] {
-  if (!Array.isArray(input)) return [];
-  return input
-    .filter(
-      (value): value is number =>
-        typeof value === "number" && Number.isInteger(value) && value >= 0,
-    )
-    .slice(0, MAX_BRANCH_ACTIVE_PATH_LEN);
-}
-
-function assertBranchPayloadSize(activePath: number[], messages: unknown) {
-  const size = JSON.stringify({ activePath, messages }).length;
-  if (size > MAX_BRANCH_STATE_JSON_BYTES) {
-    throw new AppError("Branch state payload is too large.", 400);
-  }
-}
-
-export const GET = withApiRouteParams<{ chatId: string }>(
-  async ({ session, params }) => {
-    const user = requireSession(session); // authenticated user id — unauthenticated → reject
-    const state = await chatService.getBranchState(params.chatId, user.id); // ownership verify + branch JSON load
-    return jsonData({ state });
-  },
-  { requireAuth: true, requireChatAuth: true },
-);
-
-export const PUT = withApiRouteParams<{ chatId: string }>(
+export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, request, params }) => {
-    const user = requireSession(session);
-    let body: { activePath?: unknown; messages?: unknown };
+    const user = requireSession(session); // authenticated user id — unauthenticated → reject
+    let body: { messageId?: unknown };
     try {
-      body = (await request.json()) as {
-        activePath?: unknown;
-        messages?: unknown;
-      };
+      body = (await request.json()) as { messageId?: unknown };
     } catch {
       throw new AppError("Invalid JSON body.", 400);
     }
-    const activePath = sanitizeActivePath(body.activePath); // non-array / invalid indices → []
-    // Keep ids + agent frames — do NOT use sanitizeMessages (prompt-only stripper).
-    const messages = sanitizeBranchMessages(body.messages);
-    assertBranchPayloadSize(activePath, messages); // reject oversized jsonb writes
-    const state = await chatService.saveBranchState(
+    const messageId =
+      typeof body.messageId === "string" ? body.messageId.trim() : "";
+    if (!messageId || messageId.length > 64) {
+      throw new AppError("messageId is required.", 400, "invalid_message_id");
+    }
+    // Ownership verify + leaf move + refreshed active path page.
+    const result = await chatService.switchThreadBranch(
       params.chatId,
       user.id,
-      activePath,
-      messages,
-    ); // ownership check + upsert branch state row
-    return jsonData({ state }); // saved state client state sync — optimistic UI confirm
+      messageId,
+    );
+    return jsonData(result);
   },
   { requireAuth: true, requireChatAuth: true },
 );

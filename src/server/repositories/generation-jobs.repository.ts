@@ -1,4 +1,5 @@
 import { query, queryOne } from "@/server/db/pool";
+import type { TurnFork } from "@/server/repositories/messages.repository";
 import { AppError } from "@/server/db/errors";
 import type { OpenAIInputItem } from "@/server/inference/openai-responses-client";
 import type {
@@ -46,6 +47,8 @@ export type GenerationJobRow = {
 /** Everything a fresh slice needs to resume a turn without the HTTP request. */
 export type GenerationJobInput = {
   messages: Array<{ role: string; content: string }>;
+  /** Tree fork intent — edit-resend or assistant regenerate. */
+  fork?: TurnFork | null;
   turn?: {
     content: string;
     modelContent?: string;

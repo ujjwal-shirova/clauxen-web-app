@@ -2,8 +2,10 @@ import { AppError, notFound } from "@/server/db/errors";
 import * as chatsRepo from "@/server/repositories/chats.repository";
 import * as pinnedChatsRepo from "@/server/repositories/pinned-chats.repository";
 import * as messagesRepo from "@/server/repositories/messages.repository";
-import type { MessageTranscriptLine } from "@/server/repositories/messages.repository";
-import * as branchesRepo from "@/server/repositories/branches.repository";
+import type {
+  MessageTranscriptLine,
+  TurnFork,
+} from "@/server/repositories/messages.repository";
 import * as transcriptRepo from "@/server/repositories/transcript.repository";
 import {
   createChatStream,
@@ -194,17 +196,43 @@ export async function getChatWithMessages(chatId: string, userId: string) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
   await messagesRepo.finalizeStaleStreamingMessages(chatId).catch(() => 0);
-  const messages = await messagesRepo.listMessagesForChat(chatId);
+  // Full ACTIVE branch path (tree walk) — legacy callers (share/export seed)
+  // must never see inactive sibling rows.
+  const first = await messagesRepo.listThreadPage({
+    chatId,
+    userId,
+    limit: 500,
+  });
+  let messages = first.messages;
+  let cursor = first.nextCursor;
+  for (let i = 0; i < 10 && first.hasMore && cursor; i += 1) {
+    const older = await messagesRepo.listThreadPage({
+      chatId,
+      userId,
+      depthCursor: cursor.depth,
+      limit: 500,
+    });
+    const existing = new Set(messages.map((m) => m.id));
+    messages = [
+      ...older.messages.filter((m) => !existing.has(m.id)),
+      ...messages,
+    ];
+    if (!older.hasMore || !older.nextCursor) break;
+    cursor = older.nextCursor;
+  }
   return { chat, messages };
 }
 
-/** Keyset page for conversation UI (default latest page). */
+/**
+ * Keyset page of the ACTIVE branch path for conversation UI.
+ * Cursor is a tree depth (distance below the leaf) instead of created_at —
+ * inactive sibling rows never leak into the visible thread.
+ */
 export async function getChatMessagesPage(
   chatId: string,
   userId: string,
   input?: {
-    cursorId?: string | null;
-    cursorCreatedAt?: string | null;
+    cursorDepth?: number | null;
     limit?: number;
     accessToken?: string | null;
   },
@@ -213,14 +241,13 @@ export async function getChatMessagesPage(
   if (!chat) throw notFound("Chat not found.");
   // Do not await — a write must not sit on the GET hydrate path (pool.max=1).
   void messagesRepo.finalizeStaleStreamingMessages(chatId).catch(() => 0);
-  const { listMessagesPagePreferEdge } =
+  const { listThreadPagePreferEdge } =
     await import("@/server/chat/list-messages-page");
-  const page = await listMessagesPagePreferEdge({
+  const page = await listThreadPagePreferEdge({
     chatId,
     userId,
     accessToken: input?.accessToken,
-    cursorId: input?.cursorId,
-    cursorCreatedAt: input?.cursorCreatedAt,
+    cursorDepth: input?.cursorDepth,
     limit: input?.limit,
   });
   return { chat, ...page };
@@ -340,6 +367,7 @@ export async function reserveQueuedChatTurn(input: {
     userClientId: string;
     assistantClientId: string;
   };
+  fork?: TurnFork | null;
 }) {
   const attachments = input.turn.fileIds?.length
     ? await resolveUserAttachmentMeta(input.userId, input.turn.fileIds)
@@ -357,6 +385,13 @@ export async function reserveQueuedChatTurn(input: {
     fileIds: input.turn.fileIds,
     userClientId: input.turn.userClientId,
     assistantClientId: input.turn.assistantClientId,
+    parentMessageId: (
+      await messagesRepo.resolveForkTarget({
+        chatId: input.chatId,
+        userId: input.userId,
+        fork: input.fork,
+      })
+    )?.parentMessageId ?? null,
     assistantContentJson: buildAssistantTranscriptRecord({ answer: "" }),
     assistantStatus: "queued",
   });
@@ -422,6 +457,8 @@ export async function streamChatGeneration(input: {
   chatId: string;
   userId: string;
   messages: IncomingMessage[];
+  /** Tree fork intent — edit-resend or assistant regenerate. */
+  fork?: TurnFork | null;
   turn?: {
     content: string;
     modelContent?: string;
@@ -567,6 +604,15 @@ export async function streamChatGeneration(input: {
         fileIds: input.turn.fileIds,
         userClientId: input.turn.userClientId,
         assistantClientId: input.turn.assistantClientId,
+        // Edit-resend forks chain the new prompt as a sibling of the edited
+        // one; normal sends and regenerates resolve server-side (active leaf).
+        parentMessageId: (
+          await messagesRepo.resolveForkTarget({
+            chatId: input.chatId,
+            userId: input.userId,
+            fork: input.fork,
+          })
+        )?.parentMessageId ?? null,
         assistantContentJson: buildAssistantTranscriptRecord({ answer: "" }),
         assistantStatus: "streaming",
       });
@@ -603,6 +649,21 @@ export async function streamChatGeneration(input: {
       content: "",
       status: "streaming",
       contentJson: buildAssistantTranscriptRecord({ answer: "" }),
+      // Regenerate forks sibling under the retried reply's prompt; no-fork
+      // assistant-only turns chain off the active leaf.
+      ...(await (async () => {
+        const target = await messagesRepo.resolveForkTarget({
+          chatId: input.chatId,
+          userId: input.userId,
+          fork: input.fork,
+        });
+        return {
+          parentMessageId: target?.parentMessageId ?? null,
+          // Keep the original turn identity so a reload re-pairs the
+          // regenerated reply with its prompt (client ids differ by design).
+          metadata: target?.turnId ? { turnId: target.turnId } : undefined,
+        };
+      })()),
     });
     turnState.assistant = created;
     return { user: null, assistant: created };
@@ -1526,27 +1587,32 @@ export async function generateChatTitle(
   return normalized;
 }
 
-export async function saveBranchState(
+/**
+ * Switch the visible branch at a fork point. The message tree is the single
+ * source of truth: the RPC repoints chats.active_leaf_message_id, then the
+ * refreshed active-path page is returned so the client just renders it.
+ */
+export async function switchThreadBranch(
   chatId: string,
   userId: string,
-  activePath: unknown,
-  messages: unknown,
+  messageId: string,
 ) {
-  const saved = await branchesRepo.upsertBranchState({
+  const { leafId } = await messagesRepo.switchThreadBranch({
     chatId,
     userId,
-    activePath,
-    messages,
+    messageId,
   });
-
-  // Branch snapshots are UI state. Rebuilding the append-only transcript from
-  // a debounced browser snapshot deletes durable stream records and can race a
-  // still-finalizing assistant turn.
-  return saved;
-}
-
-export async function getBranchState(chatId: string, userId: string) {
-  return branchesRepo.getBranchState(chatId, userId);
+  // The active path changed — warm latest-page caches are stale by definition.
+  const { invalidateChatHistoryCache } =
+    await import("@/server/chat/warm-history-cache");
+  await invalidateChatHistoryCache({ userId, chatId }).catch(() => undefined);
+  const page = await getChatMessagesPage(chatId, userId, { limit: 500 });
+  return {
+    leafId,
+    messages: page.messages,
+    nextCursor: page.nextCursor,
+    hasMore: page.hasMore,
+  };
 }
 
 export async function getChatTranscript(chatId: string, userId: string) {

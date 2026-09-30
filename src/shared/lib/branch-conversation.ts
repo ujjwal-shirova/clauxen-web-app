@@ -8,8 +8,7 @@ export type ChatConversationTurn = {
   content: string;
 };
 
-/** Active branch index per forked message (depth order in the thread). */
-export type BranchActivePath = number[];
+/** Trim from the start while preserving the latest user/assistant context. */
 
 /** Keep recent turns for API payloads — full history stays in the UI store. */
 export const CHAT_CONTEXT_MAX_TURNS = 32;
@@ -116,25 +115,4 @@ export function buildChatConversation(
     options?.maxTurns ?? CHAT_CONTEXT_MAX_TURNS,
     options?.maxChars ?? CHAT_CONTEXT_MAX_CHARS,
   );
-}
-
-/** Collect active branch indices for messages that have more than one version. */
-export function extractActiveBranchPath(
-  messages: readonly Message[],
-): BranchActivePath {
-  const path: BranchActivePath = [];
-  for (const message of messages) {
-    const versionCount = message.branchVersions?.length ?? 0;
-    if (versionCount <= 1) continue;
-    path.push(message.activeBranchIndex ?? versionCount - 1);
-  }
-  return path;
-}
-
-/** Strip branch metadata before persisting to API branch-state endpoints. */
-export function serializeBranchStatePayload(messages: readonly Message[]) {
-  return {
-    activePath: extractActiveBranchPath(messages),
-    messages: buildChatConversation(messages, { forApi: false }),
-  };
 }

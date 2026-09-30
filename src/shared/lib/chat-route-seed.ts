@@ -5,8 +5,7 @@ export type ChatRouteSeed = {
   chatId: string;
   messages: ApiMessage[];
   hasMore: boolean;
-  nextCursor: { id: string; createdAt: string } | null;
-  branchMessages: unknown | null;
+  nextCursor: { depth: number } | null;
 };
 
 let pendingSeed: ChatRouteSeed | null = null;

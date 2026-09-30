@@ -1,4 +1,5 @@
 import { query, queryOne, withTransaction } from "@/server/db/pool";
+import { deriveTurnIdFromClientId } from "@/lib/chat-turn-id";
 import { AppError, notFound } from "@/server/db/errors";
 import type { PoolClient } from "pg";
 import {
@@ -18,23 +19,40 @@ export type MessageRow = {
   client_id?: string | null;
 };
 
-export type MessagePageCursor = {
-  id: string;
-  createdAt: string;
+/** Thread-path row: message fields + tree position for branch arrows. */
+export type ThreadMessageRow = MessageRow & {
+  parent_message_id: string | null;
+  depth: number;
+  variant_index: number;
+  variant_count: number;
 };
 
-export type MessagePageResult = {
-  messages: MessageRow[];
-  nextCursor: MessagePageCursor | null;
+export type ThreadPageCursor = {
+  depth: number;
+};
+
+/**
+ * How a turn forks the conversation tree:
+ * - edit: resend an edited user prompt — the new prompt becomes a sibling of
+ *   the original under the same parent (the original is never mutated).
+ * - regenerate: retry an assistant reply — the new reply becomes a sibling
+ *   under the same user prompt.
+ */
+export type TurnFork =
+  | { kind: "edit"; userMessageId: string }
+  | { kind: "regenerate"; assistantMessageId: string };
+
+export type ThreadPageResult = {
+  messages: ThreadMessageRow[];
+  nextCursor: ThreadPageCursor | null;
   hasMore: boolean;
+  leafId: string | null;
 };
-
-type PageRpcRow = MessageRow & { has_more: boolean };
 
 const DEFAULT_PAGE_LIMIT = 500;
 const MAX_PAGE_LIMIT = 500;
 
-/** Full history — share/export only. Prefer listMessagesPage for UI. */
+/** Full history — archive snapshot / training export only. Prefer listThreadPage. */
 export async function listMessagesForChat(chatId: string) {
   return query<MessageRow>(
     `select id, chat_id, role, coalesce(content, '') as content, status, metadata,
@@ -48,43 +66,174 @@ export async function listMessagesForChat(chatId: string) {
 }
 
 /**
- * Keyset page via fetch_chat_messages_page RPC.
- * First page (no cursor) = newest N messages, returned chronological ASC.
- * Older pages: rows strictly older than (cursorCreatedAt, cursorId).
+ * Active branch path of the conversation — the tree-walk page.
+ * First page (no depth cursor) = newest N nodes of the path, chronological ASC.
+ * Older pages: nodes strictly deeper than the cursor depth.
  */
-export async function listMessagesPage(input: {
+export async function listThreadPage(input: {
   chatId: string;
   userId: string;
-  cursorCreatedAt?: string | null;
-  cursorId?: string | null;
+  leafId?: string | null;
+  depthCursor?: number | null;
   limit?: number;
-}): Promise<MessagePageResult> {
+}): Promise<ThreadPageResult> {
   const limit = Math.min(
     MAX_PAGE_LIMIT,
     Math.max(1, input.limit ?? DEFAULT_PAGE_LIMIT),
   );
-  const rows = await query<PageRpcRow>(
+  const rows = await query<
+    ThreadMessageRow & { has_more: boolean; next_depth: number | null }
+  >(
     `select id, chat_id, role, content, status, metadata, content_json, created_at,
-            client_id, has_more
-     from public.fetch_chat_messages_page($1, $2::uuid, $3::timestamptz, $4::uuid, $5)`,
+            client_id, parent_message_id, depth, variant_index, variant_count,
+            has_more, next_depth
+     from public.fetch_chat_thread_page($1, $2::uuid, $3::uuid, $4::bigint, $5)`,
     [
       input.chatId,
       input.userId,
-      input.cursorCreatedAt ?? null,
-      input.cursorId ?? null,
+      input.leafId ?? null,
+      input.depthCursor ?? null,
       limit,
     ],
   );
 
-  const messages: MessageRow[] = rows.map(
-    ({ has_more: _hasMore, ...message }) => message,
+  const messages: ThreadMessageRow[] = rows.map(
+    ({ has_more: _hasMore, next_depth: _next, ...message }) => message,
   );
   const hasMore = rows.some((row) => row.has_more) || false;
-  const oldest = messages[0];
+  const deepest = messages.reduce(
+    (max, row) => (row.depth > max ? row.depth : max),
+    -1,
+  );
   const nextCursor =
-    hasMore && oldest ? { id: oldest.id, createdAt: oldest.created_at } : null;
+    hasMore && deepest >= 0 ? { depth: deepest } : null;
 
-  return { messages, nextCursor, hasMore };
+  return {
+    messages,
+    nextCursor,
+    hasMore,
+    leafId: messages.length > 0 ? messages[messages.length - 1]!.id : null,
+  };
+}
+
+/**
+ * Activate a sibling branch at a fork point (branch arrows).
+ * The RPC moves chats.active_leaf_message_id to the deepest turn under the
+ * target sibling, so follow-ups previously sent on that branch are restored.
+ */
+export async function switchThreadBranch(input: {
+  chatId: string;
+  userId: string;
+  messageId: string;
+}): Promise<{ leafId: string }> {
+  const row = await queryOne<{ switch_chat_branch: string | null }>(
+    `select public.switch_chat_branch($1, $2::uuid, $3::uuid) as switch_chat_branch`,
+    [input.chatId, input.userId, input.messageId],
+  );
+  const leafId = row?.switch_chat_branch ?? null;
+  if (!leafId) throw notFound("Message not found.");
+  return { leafId };
+}
+
+/** Current end of the visible thread (tree walk anchor). */
+export async function resolveActiveLeaf(
+  chatId: string,
+  userId: string,
+): Promise<string | null> {
+  const row = await queryOne<{ active_leaf_message_id: string | null }>(
+    `select c.active_leaf_message_id
+     from public.chats c
+     where c.id = $1 and c.user_id = $2 and c.status != 'deleted'`,
+    [chatId, userId],
+  );
+  return row?.active_leaf_message_id ?? null;
+}
+
+export type ForkTarget = {
+  parentMessageId: string | null;
+  /** Original turn id of a regenerated reply — keeps prompt↔reply pairing. */
+  turnId?: string;
+};
+
+/**
+ * Server-side fork resolution. Only forked inserts need an explicit parent;
+ * normal sends resolve the active leaf inside the insert.
+ */
+export async function resolveForkTarget(input: {
+  chatId: string;
+  userId: string;
+  fork?: TurnFork | null;
+}): Promise<ForkTarget | null> {
+  const fork = input.fork;
+  if (!fork) return null;
+
+  if (fork.kind === "edit") {
+    // The edited prompt's parent — the fork point the new prompt siblings to.
+    const row = await queryOne<{ parent_message_id: string | null }>(
+      `select parent_message_id
+       from public.chat_messages
+       where id = $1 and chat_id = $2 and user_id = $3 and role = 'user'`,
+      [fork.userMessageId, input.chatId, input.userId],
+    );
+    if (!row) throw notFound("Message not found.");
+    return { parentMessageId: row.parent_message_id };
+  }
+
+  // Regenerate: the new reply chains under the old reply's user prompt and
+  // inherits its turn identity so hydrate re-pairs them.
+  const row = await queryOne<{
+    parent_message_id: string | null;
+    client_id: string | null;
+  }>(
+    `select parent_message_id, client_id
+     from public.chat_messages
+     where id = $1 and chat_id = $2 and user_id = $3 and role = 'assistant'`,
+    [fork.assistantMessageId, input.chatId, input.userId],
+  );
+  if (!row) throw notFound("Message not found.");
+  const turnId = row.client_id
+    ? deriveTurnIdFromClientId(row.client_id)
+    : undefined;
+  return { parentMessageId: row.parent_message_id, turnId };
+}
+
+/**
+ * Re-chain a chat's messages into a walkable parent chain. Used after
+ * R2-archive reinserts (unarchive) and by the one-time migration backfill;
+ * keeps every node reachable from the active leaf.
+ */
+export async function rechainChatMessages(chatId: string): Promise<void> {
+  await query(
+    `with ordered as (
+       select id,
+              lag(id) over (order by created_at, id) as prev_id
+       from public.chat_messages
+       where chat_id = $1
+     )
+     update public.chat_messages m
+     set parent_message_id = o.prev_id
+     from ordered o
+     where o.id = m.id
+       and m.parent_message_id is null
+       and o.prev_id is not null`,
+    [chatId],
+  );
+  await query(
+    `update public.chats c
+     set active_leaf_message_id = (
+       select m.id from public.chat_messages m
+       where m.chat_id = c.id
+       order by m.created_at desc, m.id desc
+       limit 1
+     )
+     where c.id = $1
+       and (c.active_leaf_message_id is null
+            or not exists (
+              select 1 from public.chat_messages m2
+              where m2.id = c.active_leaf_message_id
+            ))`,
+    [chatId],
+  );
 }
 
 /** Newest N messages chronological ASC — model prompt / inference. */
@@ -118,18 +267,32 @@ export async function createMessage(input: {
   metadata?: Record<string, unknown>;
   contentJson?: Record<string, unknown>;
   clientId?: string | null;
+  /** Parent node for tree branching; resolved to the active leaf when absent. */
+  parentMessageId?: string | null;
 }) {
   return queryOne<MessageRow>(
     `with inserted as (
        insert into public.chat_messages (
-         chat_id, user_id, role, content, status, metadata, content_json, client_id
+         chat_id, user_id, role, content, status, metadata, content_json,
+         client_id, parent_message_id
        )
-       values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
+       values (
+         $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8,
+         coalesce(
+           $9::uuid,
+           (select c.active_leaf_message_id from public.chats c where c.id = $1),
+           (select m.id from public.chat_messages m
+            where m.chat_id = $1
+            order by m.created_at desc, m.id desc
+            limit 1)
+         )
+       )
        returning id, chat_id, role, content, status, metadata, content_json, created_at, client_id
      ),
      touch as (
        update public.chats
-       set updated_at = now()
+       set updated_at = now(),
+           active_leaf_message_id = (select id from inserted)
        where id = $1
        returning id
      )
@@ -144,6 +307,7 @@ export async function createMessage(input: {
       JSON.stringify(input.metadata ?? {}),
       JSON.stringify(input.contentJson ?? {}),
       input.clientId ?? null,
+      input.parentMessageId ?? null,
     ],
   );
 }
@@ -229,13 +393,26 @@ async function insertIdempotentMessage(
     metadata?: Record<string, unknown>;
     contentJson?: Record<string, unknown>;
     clientId: string;
+    /** Tree parent for the inserted node (assistant rows pass the user row). */
+    parentMessageId?: string | null;
   },
 ): Promise<InsertedMessageRow> {
   const result = await client.query<InsertedMessageRow>(
     `insert into public.chat_messages (
-       chat_id, user_id, role, content, status, metadata, content_json, client_id
+       chat_id, user_id, role, content, status, metadata, content_json,
+       client_id, parent_message_id
      )
-     values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
+     values (
+       $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8,
+       coalesce(
+         $9::uuid,
+         (select c.active_leaf_message_id from public.chats c where c.id = $1),
+         (select m.id from public.chat_messages m
+          where m.chat_id = $1
+          order by m.created_at desc, m.id desc
+          limit 1)
+       )
+     )
      on conflict (chat_id, client_id) where client_id is not null
      do update set client_id = public.chat_messages.client_id
      returning id, chat_id, role, content, status, metadata, content_json, created_at,
@@ -249,6 +426,7 @@ async function insertIdempotentMessage(
       JSON.stringify(input.metadata ?? {}),
       JSON.stringify(input.contentJson ?? {}),
       input.clientId,
+      input.parentMessageId ?? null,
     ],
   );
   const row = result.rows[0];
@@ -303,6 +481,12 @@ export async function beginChatTurn(input: {
   assistantClientId: string;
   assistantContentJson?: Record<string, unknown>;
   assistantStatus?: "queued" | "streaming";
+  /**
+   * Tree parent for the user row. Omitted on a normal send (server resolves
+   * the active leaf); set on an edit-resend fork to the edited message's
+   * parent so the fork becomes a sibling, never a mutation.
+   */
+  parentMessageId?: string | null;
 }): Promise<{
   user: InsertedMessageRow;
   assistant: InsertedMessageRow;
@@ -326,6 +510,7 @@ export async function beginChatTurn(input: {
       metadata: input.userMetadata,
       contentJson: input.userContentJson,
       clientId: input.userClientId,
+      parentMessageId: input.parentMessageId ?? undefined,
     });
 
     if (user.inserted && input.fileIds?.length) {
@@ -345,6 +530,9 @@ export async function beginChatTurn(input: {
       status: input.assistantStatus ?? "streaming",
       contentJson: input.assistantContentJson,
       clientId: input.assistantClientId,
+      // The reply always chains under its prompt — normal turns, edit-resend
+      // forks, and assistant regenerations all become tree siblings naturally.
+      parentMessageId: user.id,
     });
 
     // The global generation lease is acquired before this transaction. If the
@@ -393,9 +581,11 @@ export async function beginChatTurn(input: {
     if (user.inserted || assistant.inserted) {
       await client.query(
         `update public.chats
-         set updated_at = now()
-         where id = $1`,
-        [input.chatId],
+         set updated_at = now(),
+             active_leaf_message_id = $3
+         where id = $1
+           and ($3::uuid is not null)`,
+        [input.chatId, input.userId, assistant.id],
       );
     }
 
@@ -411,6 +601,7 @@ export async function createUserMessageWithTranscript(input: {
   metadata?: Record<string, unknown>;
   contentJson: TranscriptRecord;
   fileIds?: string[];
+  parentMessageId?: string | null;
 }) {
   return withTransaction(async (client) => {
     const ownedChat = await client.query<{ id: string }>(
@@ -423,8 +614,19 @@ export async function createUserMessageWithTranscript(input: {
 
     const inserted = await client.query<MessageRow>(
       `insert into public.chat_messages (
-         chat_id, user_id, role, content, status, metadata, content_json
-       ) values ($1, $2, 'user', $3, 'complete', $4::jsonb, $5::jsonb)
+         chat_id, user_id, role, content, status, metadata, content_json,
+         parent_message_id
+       ) values (
+         $1, $2, 'user', $3, 'complete', $4::jsonb, $5::jsonb,
+         coalesce(
+           $6::uuid,
+           (select c.active_leaf_message_id from public.chats c where c.id = $1),
+           (select m.id from public.chat_messages m
+            where m.chat_id = $1
+            order by m.created_at desc, m.id desc
+            limit 1)
+         )
+       )
        returning id, chat_id, role, content, status, metadata, content_json,
                  created_at, client_id`,
       [
@@ -433,6 +635,7 @@ export async function createUserMessageWithTranscript(input: {
         input.content,
         JSON.stringify(input.metadata ?? {}),
         JSON.stringify(input.contentJson),
+        input.parentMessageId ?? null,
       ],
     );
     const message = inserted.rows[0];
@@ -456,8 +659,10 @@ export async function createUserMessageWithTranscript(input: {
       lines: [{ role: "user", record: input.contentJson }],
     });
     await client.query(
-      `update public.chats set updated_at = now() where id = $1`,
-      [input.chatId],
+      `update public.chats
+       set updated_at = now(), active_leaf_message_id = $2
+       where id = $1`,
+      [input.chatId, message.id],
     );
     return message;
   });
@@ -742,6 +947,9 @@ export async function replaceMessagesFromSnapshot(input: {
     );
     inserted += 1;
   }
+  // R2 snapshots predate the message tree — re-chain so the active-leaf
+  // walk reaches every restored row.
+  await rechainChatMessages(input.chatId);
   return inserted;
 }
 

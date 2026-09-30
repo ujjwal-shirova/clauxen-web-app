@@ -23,13 +23,10 @@ export async function loadChatRouteSeed(
 
     const accessToken = session.access_token ?? null;
 
-    const [pageResult, branchRow] = await Promise.all([
-      chatService.getChatMessagesPage(chatId, userId, {
-        limit: FULL_CHAT_HYDRATE_LIMIT,
-        accessToken,
-      }),
-      chatService.getBranchState(chatId, userId).catch(() => null),
-    ]);
+    const pageResult = await chatService.getChatMessagesPage(chatId, userId, {
+      limit: FULL_CHAT_HYDRATE_LIMIT,
+      accessToken,
+    });
 
     let messages: ApiMessage[] = pageResult.messages.map((row) => ({
       id: row.id,
@@ -40,6 +37,9 @@ export async function loadChatRouteSeed(
       metadata: (row.metadata ?? {}) as Record<string, unknown>,
       content_json: (row.content_json ?? {}) as Record<string, unknown>,
       created_at: row.created_at,
+      parent_message_id: row.parent_message_id ?? null,
+      variant_index: row.variant_index,
+      variant_count: row.variant_count,
     }));
 
     // Rare: thread longer than hydrate window — finish before paint.
@@ -49,8 +49,7 @@ export async function loadChatRouteSeed(
       const older = await chatService.getChatMessagesPage(chatId, userId, {
         limit: FULL_CHAT_HYDRATE_LIMIT,
         accessToken,
-        cursorId: cursor.id,
-        cursorCreatedAt: cursor.createdAt,
+        cursorDepth: cursor.depth,
       });
       const olderMapped: ApiMessage[] = older.messages.map((row) => ({
         id: row.id,
@@ -61,6 +60,9 @@ export async function loadChatRouteSeed(
         metadata: (row.metadata ?? {}) as Record<string, unknown>,
         content_json: (row.content_json ?? {}) as Record<string, unknown>,
         created_at: row.created_at,
+        parent_message_id: row.parent_message_id ?? null,
+        variant_index: row.variant_index,
+        variant_count: row.variant_count,
       }));
       const existing = new Set(messages.map((m) => m.id));
       messages = [
@@ -71,16 +73,11 @@ export async function loadChatRouteSeed(
       cursor = older.nextCursor;
     }
 
-    const branchMessages = Array.isArray(branchRow?.messages)
-      ? branchRow.messages
-      : null;
-
     return {
       chatId,
       messages,
       hasMore: false,
       nextCursor: null,
-      branchMessages,
     };
   } catch {
     return null;

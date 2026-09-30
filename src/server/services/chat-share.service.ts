@@ -69,7 +69,31 @@ export async function publishShareLink(userId: string, chatId: string) {
     await revokeShareOnWorker(existing.share_token_hash);
   }
 
-  const messages = await messagesRepo.listMessagesForChat(chatId);
+  // Public shares must mirror the app: the ACTIVE branch path only —
+  // inactive sibling rows never leak into a shared conversation.
+  const threadPage = await messagesRepo.listThreadPage({
+    chatId,
+    userId,
+    limit: 500,
+  });
+  let messages: Awaited<ReturnType<typeof messagesRepo.listThreadPage>>["messages"] =
+    threadPage.messages;
+  let cursor = threadPage.nextCursor;
+  for (let i = 0; i < 10 && threadPage.hasMore && cursor; i += 1) {
+    const older = await messagesRepo.listThreadPage({
+      chatId,
+      userId,
+      depthCursor: cursor.depth,
+      limit: 500,
+    });
+    const existing = new Set(messages.map((m) => m.id));
+    messages = [
+      ...older.messages.filter((m) => !existing.has(m.id)),
+      ...messages,
+    ];
+    if (!older.hasMore || !older.nextCursor) break;
+    cursor = older.nextCursor;
+  }
   const snapshot = buildShareSnapshot({ title: chat.title, messages });
   const created = await sharesRepo.createConversationShare({
     userId,

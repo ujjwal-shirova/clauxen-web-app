@@ -2,7 +2,7 @@
 
 import { get, set, del, keys, clear, createStore } from "idb-keyval";
 import type { Message, RecentChat } from "@/lib/types";
-import { compactMessageBranchData } from "@/lib/chat-branch";
+import { stripLegacyBranchFields } from "@/lib/chat-branch";
 
 /**
  * Single object store — v2 after fixing multi-store NotFoundError on v1.
@@ -38,7 +38,7 @@ function sliceKey(chatId: string, sliceIndex: number): ChatSliceKey {
 const SLICE_SIZE = 50;
 
 function compactMessages(messages: Message[]): Message[] {
-  return messages.map(compactMessageBranchData);
+  return messages.map(stripLegacyBranchFields);
 }
 
 /** Serialize and write chat messages in slices to IndexedDB (off-heap). */

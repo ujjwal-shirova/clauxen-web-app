@@ -50,7 +50,14 @@ export async function listRecentMessagesPreferCloudflare(input: {
   }
 
   try {
-    return await messagesRepo.listRecentMessagesForChat(input.chatId, limit);
+    // Active branch path only — inactive sibling rows must never enter the
+    // model context.
+    const page = await messagesRepo.listThreadPage({
+      chatId: input.chatId,
+      userId: input.userId,
+      limit,
+    });
+    return page.messages;
   } catch {
     // Client transcript in the generate body still carries continuity.
     return [];

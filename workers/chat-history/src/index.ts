@@ -37,12 +37,16 @@ type MessageRow = {
   content_json: Record<string, unknown>;
   created_at: string;
   client_id: string | null;
-  has_more: boolean;
+  /** Tree position for server-side branching (active-path walk). */
+  parent_message_id: string | null;
+  depth: number;
+  variant_index: number;
+  variant_count: number;
 };
 
 type PagePayload = {
-  messages: Omit<MessageRow, "has_more">[];
-  nextCursor: { id: string; createdAt: string } | null;
+  messages: MessageRow[];
+  nextCursor: { depth: number } | null;
   hasMore: boolean;
 };
 
@@ -198,13 +202,16 @@ function sqlClient(env: Env, fresh = false) {
   });
 }
 
-async function fetchMessagesPage(
+/**
+ * Active branch path page via the tree RPC — depth-paged from the chat's
+ * active leaf. Inactive sibling rows never leak into the visible thread.
+ */
+async function fetchThreadPage(
   env: Env,
   input: {
     chatId: string;
     userId: string;
-    cursorCreatedAt: string | null;
-    cursorId: string | null;
+    cursorDepth: number | null;
     limit: number;
   },
 ): Promise<PagePayload> {
@@ -213,24 +220,26 @@ async function fetchMessagesPage(
   const sql = sqlClient(env, true);
   try {
     const rows = (await sql`
-      select id, chat_id, role, content, status, metadata, content_json, created_at,
-             client_id, has_more
-      from public.fetch_chat_messages_page(
+      select id, chat_id, role, coalesce(content, '') as content, status, metadata,
+             coalesce(content_json, '{}'::jsonb) as content_json, created_at,
+             client_id, parent_message_id, depth, variant_index, variant_count,
+             has_more
+      from public.fetch_chat_thread_page(
         ${input.chatId},
         ${input.userId}::uuid,
-        ${input.cursorCreatedAt}::timestamptz,
-        ${input.cursorId}::uuid,
+        null::uuid,
+        ${input.cursorDepth}::bigint,
         ${input.limit}
       )
-    `) as MessageRow[];
+    `) as (MessageRow & { has_more: boolean })[];
 
     const messages = rows.map(({ has_more: _h, ...message }) => message);
     const hasMore = rows.some((row) => row.has_more);
-    const oldest = messages[0];
-    const nextCursor =
-      hasMore && oldest
-        ? { id: oldest.id, createdAt: oldest.created_at }
-        : null;
+    const deepest = messages.reduce(
+      (max, message) => (message.depth > max ? message.depth : max),
+      -1,
+    );
+    const nextCursor = hasMore && deepest >= 0 ? { depth: deepest } : null;
 
     return { messages, nextCursor, hasMore };
   } finally {
@@ -238,28 +247,25 @@ async function fetchMessagesPage(
   }
 }
 
-/** Newest N messages ASC — model prompt context (generate path). */
+/** Newest N messages of the ACTIVE path ASC — model prompt context (generate path). */
 async function fetchRecentMessages(
   env: Env,
   input: { chatId: string; userId: string; limit: number },
-): Promise<Omit<MessageRow, "has_more">[]> {
+): Promise<MessageRow[]> {
   const sql = sqlClient(env, false);
   try {
-    // Match Vercel listRecentMessagesForChat — chat-scoped, not user-scoped
-    // (legacy rows may have null user_id).
     const rows = (await sql`
       select id, chat_id, role, coalesce(content, '') as content, status, metadata,
-             coalesce(content_json, '{}'::jsonb) as content_json, created_at, client_id
-      from (
-        select id, chat_id, role, content, status, metadata, content_json, created_at, client_id
-        from public.chat_messages
-        where chat_id = ${input.chatId}::uuid
-          and status != 'cancelled'
-        order by created_at desc, id desc
-        limit ${input.limit}
-      ) recent
-      order by created_at asc, id asc
-    `) as Omit<MessageRow, "has_more">[];
+             coalesce(content_json, '{}'::jsonb) as content_json, created_at,
+             client_id, parent_message_id, depth, variant_index, variant_count
+      from public.fetch_chat_thread_page(
+        ${input.chatId},
+        ${input.userId}::uuid,
+        null::uuid,
+        null::bigint,
+        ${Math.min(500, Math.max(1, input.limit))}
+      )
+    `) as MessageRow[];
     return rows;
   } finally {
     await sql.end({ timeout: 1 });
@@ -273,7 +279,7 @@ async function fetchRecentMessages(
 async function loadRecentMessagesPreferCache(
   env: Env,
   input: { userId: string; chatId: string; limit: number },
-): Promise<{ messages: Omit<MessageRow, "has_more">[]; source: string }> {
+): Promise<{ messages: MessageRow[]; source: string }> {
   const limit = Math.min(500, Math.max(1, input.limit));
 
   const hit = await caches.default.match(
@@ -282,8 +288,8 @@ async function loadRecentMessagesPreferCache(
   if (hit) {
     try {
       const payload = (await hit.json()) as {
-        data?: { messages?: Omit<MessageRow, "has_more">[] };
-        messages?: Omit<MessageRow, "has_more">[];
+        data?: { messages?: MessageRow[] };
+        messages?: MessageRow[];
       };
       const messages = payload.data?.messages ?? payload.messages;
       if (Array.isArray(messages) && messages.length > 0) {
@@ -300,7 +306,7 @@ async function loadRecentMessagesPreferCache(
       "json",
     );
     if (cached && typeof cached === "object") {
-      const messages = (cached as { messages?: Omit<MessageRow, "has_more">[] })
+      const messages = (cached as { messages?: MessageRow[] })
         .messages;
       if (Array.isArray(messages) && messages.length > 0) {
         return { messages: messages.slice(-limit), source: "kv" };
@@ -312,8 +318,6 @@ async function loadRecentMessagesPreferCache(
     userId: input.userId,
     chatId: input.chatId,
     limit,
-    cursorId: null,
-    cursorCreatedAt: null,
   });
   if (r2Latest?.messages?.length) {
     return {
@@ -331,7 +335,7 @@ async function loadRecentMessagesPreferCache(
         "json",
       );
       const messages = (
-        cached as { messages?: Omit<MessageRow, "has_more">[] } | null
+        cached as { messages?: MessageRow[] } | null
       )?.messages;
       if (Array.isArray(messages) && messages.length > 0) {
         return { messages: messages.slice(-limit), source: `kv-${warmLimit}` };
@@ -341,8 +345,6 @@ async function loadRecentMessagesPreferCache(
       userId: input.userId,
       chatId: input.chatId,
       limit: warmLimit,
-      cursorId: null,
-      cursorCreatedAt: null,
     });
     if (r2?.messages?.length) {
       return {
@@ -415,55 +417,8 @@ async function fetchChatList(
   }
 }
 
-async function alignLatestPair(
-  env: Env,
-  input: { chatId: string; userId: string; limit: number },
-  page: PagePayload,
-): Promise<PagePayload> {
-  let aligned = page;
-  // A large assistant/tool tail can span several pages. Keep walking until a
-  // user turn anchors the visible tail, rather than producing an orphaned
-  // assistant after a fresh hydrate.
-  for (
-    let pageCount = 0;
-    pageCount < 10 &&
-    aligned.messages[0]?.role !== "user" &&
-    aligned.hasMore &&
-    aligned.nextCursor;
-    pageCount += 1
-  ) {
-    const older = await fetchMessagesPage(env, {
-      chatId: input.chatId,
-      userId: input.userId,
-      cursorCreatedAt: aligned.nextCursor.createdAt,
-      cursorId: aligned.nextCursor.id,
-      limit: input.limit,
-    });
-    const existing = new Set(aligned.messages.map((message) => message.id));
-    aligned = {
-      messages: [
-        ...older.messages.filter((message) => !existing.has(message.id)),
-        ...aligned.messages,
-      ],
-      nextCursor: older.nextCursor,
-      hasMore: older.hasMore,
-    };
-  }
-  return aligned;
-}
-
 function kvKey(userId: string, chatId: string, limit: number) {
   return `latest:${userId}:${chatId}:${limit}`;
-}
-
-function pageKvKey(
-  userId: string,
-  chatId: string,
-  limit: number,
-  cursorId: string | null,
-  cursorCreatedAt: string | null,
-) {
-  return `page:${userId}:${chatId}:${limit}:${cursorCreatedAt ?? ""}:${cursorId ?? ""}`;
 }
 
 function listKvKey(userId: string, projectId: string | null, limit: number) {
@@ -473,24 +428,6 @@ function listKvKey(userId: string, projectId: string | null, limit: number) {
 function cacheRequest(userId: string, chatId: string, limit: number) {
   return new Request(
     `https://chat-history.internal/latest/${userId}/${chatId}?limit=${limit}`,
-    { method: "GET" },
-  );
-}
-
-function pageCacheRequest(
-  userId: string,
-  chatId: string,
-  limit: number,
-  cursorId: string | null,
-  cursorCreatedAt: string | null,
-) {
-  const qs = new URLSearchParams({
-    limit: String(limit),
-    cursor_id: cursorId ?? "",
-    cursor_created_at: cursorCreatedAt ?? "",
-  });
-  return new Request(
-    `https://chat-history.internal/page/${userId}/${chatId}?${qs}`,
     { method: "GET" },
   );
 }
@@ -510,14 +447,8 @@ function archiveObjectKey(
   userId: string,
   chatId: string,
   limit: number,
-  cursorId: string | null,
-  cursorCreatedAt: string | null,
 ): string {
-  if (!cursorId && !cursorCreatedAt) {
-    return `archives/${userId}/${chatId}/latest-${limit}.json`;
-  }
-  const cursor = `${cursorCreatedAt ?? ""}:${cursorId ?? ""}`;
-  return `archives/${userId}/${chatId}/page-${limit}-${encodeURIComponent(cursor)}.json`;
+  return `archives/${userId}/${chatId}/latest-${limit}.json`;
 }
 
 async function writeR2Archive(
@@ -526,19 +457,11 @@ async function writeR2Archive(
     userId: string;
     chatId: string;
     limit: number;
-    cursorId?: string | null;
-    cursorCreatedAt?: string | null;
     payload: PagePayload;
   },
 ): Promise<void> {
   if (!env.CHAT_ARCHIVES) return;
-  const key = archiveObjectKey(
-    input.userId,
-    input.chatId,
-    input.limit,
-    input.cursorId ?? null,
-    input.cursorCreatedAt ?? null,
-  );
+  const key = archiveObjectKey(input.userId, input.chatId, input.limit);
   await env.CHAT_ARCHIVES.put(key, JSON.stringify(input.payload), {
     httpMetadata: { contentType: "application/json" },
     customMetadata: {
@@ -555,18 +478,10 @@ async function readR2Archive(
     userId: string;
     chatId: string;
     limit: number;
-    cursorId: string | null;
-    cursorCreatedAt: string | null;
   },
 ): Promise<PagePayload | null> {
   if (!env.CHAT_ARCHIVES) return null;
-  const key = archiveObjectKey(
-    input.userId,
-    input.chatId,
-    input.limit,
-    input.cursorId,
-    input.cursorCreatedAt,
-  );
+  const key = archiveObjectKey(input.userId, input.chatId, input.limit);
   const obj = await env.CHAT_ARCHIVES.get(key);
   if (!obj) return null;
   try {
@@ -596,7 +511,7 @@ async function invalidateChatCaches(
     if (env.CHAT_ARCHIVES) {
       tasks.push(
         env.CHAT_ARCHIVES.delete(
-          archiveObjectKey(input.userId, input.chatId, limit, null, null),
+          archiveObjectKey(input.userId, input.chatId, limit),
         ),
       );
     }
@@ -669,72 +584,6 @@ async function writeCaches(
     cors,
   );
   ctx.waitUntil(caches.default.put(cacheRequest(userId, chatId, limit), response));
-}
-
-async function writePageCaches(
-  env: Env,
-  ctx: ExecutionContext,
-  input: {
-    userId: string;
-    chatId: string;
-    limit: number;
-    cursorId: string | null;
-    cursorCreatedAt: string | null;
-    payload: PagePayload;
-    cacheTtl: number;
-    cors: Record<string, string>;
-  },
-) {
-  const body = JSON.stringify(input.payload);
-  const key = pageKvKey(
-    input.userId,
-    input.chatId,
-    input.limit,
-    input.cursorId,
-    input.cursorCreatedAt,
-  );
-
-  if (env.CHAT_HISTORY_CACHE) {
-    ctx.waitUntil(
-      env.CHAT_HISTORY_CACHE.put(key, body, {
-        expirationTtl: Math.max(60, input.cacheTtl),
-      }),
-    );
-  }
-
-  ctx.waitUntil(
-    writeR2Archive(env, {
-      userId: input.userId,
-      chatId: input.chatId,
-      limit: input.limit,
-      cursorId: input.cursorId,
-      cursorCreatedAt: input.cursorCreatedAt,
-      payload: input.payload,
-    }),
-  );
-
-  const response = json(
-    { data: input.payload },
-    200,
-    {
-      "cache-control": `private, max-age=${input.cacheTtl}, stale-while-revalidate=${Math.max(30, Math.floor(input.cacheTtl / 2))}`,
-      "cache-tag": `chat:${input.chatId},user:${input.userId}`,
-      "x-clauxen-cache": "page-warm-write",
-    },
-    input.cors,
-  );
-  ctx.waitUntil(
-    caches.default.put(
-      pageCacheRequest(
-        input.userId,
-        input.chatId,
-        input.limit,
-        input.cursorId,
-        input.cursorCreatedAt,
-      ),
-      response,
-    ),
-  );
 }
 
 async function writeListCaches(
@@ -813,18 +662,12 @@ async function warmAndArchiveChat(
     chatId: input.chatId,
   });
   for (const limit of limits) {
-    let page = await fetchMessagesPage(env, {
+    const page = await fetchThreadPage(env, {
       chatId: input.chatId,
       userId: input.userId,
-      cursorCreatedAt: null,
-      cursorId: null,
+      cursorDepth: null,
       limit,
     });
-    page = await alignLatestPair(
-      env,
-      { chatId: input.chatId, userId: input.userId, limit },
-      page,
-    );
     await writeCaches(env, ctx, {
       userId: input.userId,
       chatId: input.chatId,
@@ -1115,17 +958,16 @@ export default {
       500,
       Math.max(1, Number(url.searchParams.get("limit") ?? "500") || 500),
     );
-    const cursorId = url.searchParams.get("cursor_id");
-    const cursorCreatedAt = url.searchParams.get("cursor_created_at");
-    const isLatestPage = !cursorId && !cursorCreatedAt;
+    const cursorDepthParam = url.searchParams.get("cursor_depth");
+    const cursorDepth =
+      cursorDepthParam != null && cursorDepthParam !== ""
+        ? Number(cursorDepthParam)
+        : null;
+    const isLatestPage = cursorDepth == null;
     const fresh = url.searchParams.get("fresh") !== "0";
     const cacheTtl = Math.max(
       60,
       Number(env.LATEST_PAGE_CACHE_TTL_SECONDS ?? "1800") || 1800,
-    );
-    const cursorTtl = Math.max(
-      60,
-      Number(env.CURSOR_PAGE_CACHE_TTL_SECONDS ?? "300") || 300,
     );
 
     if (!fresh && isLatestPage) {
@@ -1169,8 +1011,6 @@ export default {
         userId: user.sub,
         chatId,
         limit,
-        cursorId: null,
-        cursorCreatedAt: null,
       });
       if (r2Latest) {
         const response = json(
@@ -1195,107 +1035,26 @@ export default {
         );
         return response;
       }
-    } else if (!fresh) {
-      const pageHit = await caches.default.match(
-        pageCacheRequest(user.sub, chatId, limit, cursorId, cursorCreatedAt),
-      );
-      if (pageHit) {
-        const headers = new Headers(pageHit.headers);
-        headers.set("x-clauxen-cache", "page-cache-api");
-        for (const [k, v] of Object.entries(cors)) headers.set(k, v);
-        return new Response(pageHit.body, {
-          status: pageHit.status,
-          headers,
-        });
-      }
-      if (env.CHAT_HISTORY_CACHE) {
-        const cached = await env.CHAT_HISTORY_CACHE.get(
-          pageKvKey(user.sub, chatId, limit, cursorId, cursorCreatedAt),
-          "json",
-        );
-        if (cached) {
-          return json(
-            { data: cached },
-            200,
-            {
-              "cache-control": `private, max-age=${cursorTtl}`,
-              "x-clauxen-cache": "page-kv",
-            },
-            cors,
-          );
-        }
-      }
-
-      const r2Page = await readR2Archive(env, {
-        userId: user.sub,
-        chatId,
-        limit,
-        cursorId,
-        cursorCreatedAt,
-      });
-      if (r2Page) {
-        const response = json(
-          { data: r2Page },
-          200,
-          {
-            "cache-control": `private, max-age=${cursorTtl}`,
-            "x-clauxen-cache": "r2-page",
-          },
-          cors,
-        );
-        ctx.waitUntil(
-          writePageCaches(env, ctx, {
-            userId: user.sub,
-            chatId,
-            limit,
-            cursorId,
-            cursorCreatedAt,
-            payload: r2Page,
-            cacheTtl: cursorTtl,
-            cors,
-          }),
-        );
-        return response;
-      }
     }
 
     try {
-      let page = await fetchMessagesPage(env, {
+      // Depth-cursor pages always hit Hyperdrive: depth keys shift whenever
+      // the active leaf moves, so caching them invites stale mixes.
+      const page = await fetchThreadPage(env, {
         chatId,
         userId: user.sub,
-        cursorCreatedAt,
-        cursorId,
+        cursorDepth,
         limit,
       });
 
-      if (isLatestPage) {
-        page = await alignLatestPair(
-          env,
-          { chatId, userId: user.sub, limit },
-          page,
-        );
-        if (!fresh) {
-          ctx.waitUntil(
-            writeCaches(env, ctx, {
-              userId: user.sub,
-              chatId,
-              limit,
-              payload: page,
-              cacheTtl,
-              cors,
-            }),
-          );
-        }
-      } else if (!fresh) {
+      if (isLatestPage && !fresh) {
         ctx.waitUntil(
-          writePageCaches(env, ctx, {
+          writeCaches(env, ctx, {
             userId: user.sub,
             chatId,
             limit,
-            cursorId,
-            cursorCreatedAt,
             payload: page,
-            cacheTtl: cursorTtl,
+            cacheTtl,
             cors,
           }),
         );
@@ -1314,12 +1073,8 @@ export default {
                 : "hyperdrive",
             }
           : {
-              "cache-control": fresh
-                ? "private, no-store"
-                : `private, max-age=${cursorTtl}`,
-              "x-clauxen-cache": fresh
-                ? "hyperdrive-page-fresh"
-                : "hyperdrive-page",
+              "cache-control": "private, no-store",
+              "x-clauxen-cache": "hyperdrive-page",
             },
         cors,
       );

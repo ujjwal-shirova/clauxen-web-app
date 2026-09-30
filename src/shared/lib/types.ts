@@ -2,20 +2,6 @@ import type { AgentTraceState } from "@/lib/agent-trace";
 import type { ChatArtifact } from "@/lib/chat-artifacts";
 import type { MessageAttachment } from "@/lib/composer-attachments";
 
-export type MessageBranchVersion = {
-  readonly content: string;
-  readonly attachments?: MessageAttachment[];
-  readonly thinkingContent?: string;
-  readonly hasThinking?: boolean;
-  readonly thinkingDurationSeconds?: number;
-  readonly agentMode?: boolean;
-  readonly agentFrameComplete?: boolean;
-  readonly agentTrace?: AgentTraceState;
-  readonly agentArtifacts?: ChatArtifact[];
-  readonly generationFailed?: boolean;
-  readonly snapshot?: readonly Message[];
-};
-
 export type Message = {
   id: string;
   /**
@@ -50,8 +36,23 @@ export type Message = {
   agentArtifacts?: ChatArtifact[];
   /** User-uploaded images / documents shown as chips on the message. */
   attachments?: MessageAttachment[];
-  branchVersions?: MessageBranchVersion[];
-  activeBranchIndex?: number;
+  /**
+   * Server tree parent — the fork point this message hangs from. Sibling
+   * branches (edited prompts, regenerated replies) share one parent; the
+   * active branch is resolved server-side, so reloads always render the
+   * exact thread without client-side overlays.
+   */
+  parentId?: string;
+  /** 0-based position of the active variant among its siblings. */
+  variantIndex?: number;
+  /** Total sibling variants at this fork point (server truth). */
+  variantCount?: number;
+  /**
+   * Client cache of inactive sibling contents for instant arrow paint,
+   * keyed by variant index. Authoritative content always comes from the
+   * server switch response; this only removes the round-trip flicker.
+   */
+  siblingVariants?: Array<{ index: number; content: string }>;
   /** Optional creation timestamp (ms since epoch) for UI like message menus. */
   createdAt?: number;
 };

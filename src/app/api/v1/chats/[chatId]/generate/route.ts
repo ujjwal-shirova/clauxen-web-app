@@ -23,6 +23,7 @@ import {
   type LiveSliceInput,
 } from "@/server/chat/durable-generation";
 import * as chatsRepo from "@/server/repositories/chats.repository";
+import type { TurnFork } from "@/server/repositories/messages.repository";
 import { readEdgeFlags } from "@/server/config/edge-flags";
 import { assertDurableRateLimit } from "@/server/http/durable-rate-limit";
 import { clientIp } from "@/server/http/request-meta";
@@ -30,6 +31,26 @@ import { clientIp } from "@/server/http/request-meta";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Client-supplied fork intent, hardened to owned-message uuid references. */
+function sanitizeFork(input: unknown): TurnFork | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as { kind?: unknown; userMessageId?: unknown; assistantMessageId?: unknown };
+  if (raw.kind === "edit" && typeof raw.userMessageId === "string" && UUID_RE.test(raw.userMessageId)) {
+    return { kind: "edit", userMessageId: raw.userMessageId };
+  }
+  if (
+    raw.kind === "regenerate" &&
+    typeof raw.assistantMessageId === "string" &&
+    UUID_RE.test(raw.assistantMessageId)
+  ) {
+    return { kind: "regenerate", assistantMessageId: raw.assistantMessageId };
+  }
+  return null;
+}
 
 export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, request, params, requestId }) => {
@@ -59,6 +80,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         userClientId?: unknown;
         assistantClientId?: unknown;
       };
+      fork?: unknown;
       vision?: {
         fileIds?: unknown;
         images?: unknown;
@@ -110,6 +132,8 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           images: parseClientVisionImages(body.vision.images),
         }
       : undefined;
+    // Tree fork intent: edit & resend a prompt, or regenerate a reply.
+    const fork = sanitizeFork(body.fork);
     if (
       turn &&
       (!turn.content ||
@@ -136,6 +160,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           chatId: params.chatId,
           userId: user.id,
           turn,
+          fork,
         });
       }
       return Response.json(
@@ -164,6 +189,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         role: message.role,
         content: message.content,
       })),
+      fork,
       turn: turn
         ? {
             content: turn.content,
@@ -211,6 +237,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
             chatId: params.chatId,
             userId: user.id,
             turn,
+            fork,
           });
         }
         return Response.json(
@@ -250,6 +277,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       const liveInput: LiveSliceInput = {
         job,
         messages,
+        fork: jobInput.fork ?? null,
         turn: jobInput.turn ?? undefined,
         vision: jobInput.vision ?? undefined,
         chatModel: jobInput.chatModel,

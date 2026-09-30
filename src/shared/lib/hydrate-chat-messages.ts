@@ -1,4 +1,5 @@
 import type { Message } from "@/lib/types";
+import { stripLegacyBranchFields } from "@/lib/chat-branch";
 import type { AgentStep, AgentToolStep } from "@/lib/agent-trace";
 import { enrichPersistedToolSegment } from "@/lib/enrich-agent-tool";
 import { collectArtifactsFromAgentSteps } from "@/lib/chat-artifacts";
@@ -416,63 +417,16 @@ export function hydrateMessageFromContentJson(
 }
 
 /**
- * Overlay branch-state edits onto the loaded page only.
- * Never replace the full thread with an unbounded branch blob.
+ * Hydrate a page of durable rows for the thread.
+ * The active branch path is resolved server-side (message tree walk), so
+ * pages render as-is — no client-side branch overlays remain.
  */
-export function overlayBranchMessagesOnPage(input: {
-  pageMessages: Message[];
-  branchMessages: unknown;
-}): Message[] {
-  const page = input.pageMessages.map(enrichMessageAgentUi);
-  if (
-    !Array.isArray(input.branchMessages) ||
-    input.branchMessages.length === 0
-  ) {
-    return page;
-  }
-
-  const byId = new Map<string, Message>();
-  for (const raw of input.branchMessages) {
-    if (!raw || typeof raw !== "object") continue;
-    const message = raw as Message;
-    if (typeof message.id !== "string" || !message.id) continue;
-    if (message.role !== "user" && message.role !== "assistant") continue;
-    byId.set(message.id, enrichMessageAgentUi(message));
-  }
-
-  if (byId.size === 0) return page;
-
-  return page.map((message) => {
-    const overlay = byId.get(message.id);
-    if (!overlay) return message;
-    // Branch state may arrive later than the durable assistant record. Keep
-    // branch edits, but never let an older browser snapshot erase the
-    // server-captured action frame or its completion timestamps.
-    return {
-      ...message,
-      ...overlay,
-      id: message.id,
-      role: message.role,
-      createdAt: overlay.createdAt ?? message.createdAt,
-      agentMode: message.agentMode ?? overlay.agentMode,
-      agentFrameComplete:
-        message.agentFrameComplete ?? overlay.agentFrameComplete,
-      agentTrace: message.agentTrace ?? overlay.agentTrace,
-      agentArtifacts: message.agentArtifacts ?? overlay.agentArtifacts,
-      thinkingContent: message.thinkingContent ?? overlay.thinkingContent,
-      thinkingDurationSeconds:
-        message.thinkingDurationSeconds ?? overlay.thinkingDurationSeconds,
-    };
-  });
+export function hydrateThreadPage(
+  pageMessages: Message[],
+): Message[] {
+  return pageMessages.map((message) =>
+    enrichMessageAgentUi(stripLegacyBranchFields(message)),
+  );
 }
 
-/** @deprecated Prefer overlayBranchMessagesOnPage for keyset pages. */
-export function resolveHydratedChatMessages(input: {
-  apiMessages: Message[];
-  branchMessages: unknown;
-}): Message[] {
-  return overlayBranchMessagesOnPage({
-    pageMessages: input.apiMessages,
-    branchMessages: input.branchMessages,
-  });
-}
+

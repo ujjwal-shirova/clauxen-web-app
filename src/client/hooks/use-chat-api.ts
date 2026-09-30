@@ -55,18 +55,13 @@ import { createClient } from "@/utils/supabase/client";
 import { logSupabaseQueryError } from "@/lib/supabase-query-error";
 import { randomUUID } from "@/lib/id";
 import {
-  attachSnapshotToBranchVersion,
-  compactMessageBranchData,
   editMessageWithBranchHelper,
   redoUserMessageWithBranchHelper,
   retryAssistantWithBranchHelper,
   switchMessageBranchHelper,
-  syncMessageActiveVersion,
+  stripLegacyBranchFields,
 } from "@/lib/chat-branch";
-import {
-  buildChatConversation,
-  extractActiveBranchPath,
-} from "@/lib/branch-conversation";
+import { buildChatConversation } from "@/lib/branch-conversation";
 import {
   appendChatTitleAnswerDelta,
   createChatTitleAnswerAccumulator,
@@ -89,7 +84,7 @@ import {
 import { filterStartedRecentChats } from "@/lib/started-recent-chats";
 import {
   hydrateMessageFromContentJson,
-  overlayBranchMessagesOnPage,
+  hydrateThreadPage,
 } from "@/lib/hydrate-chat-messages";
 import { takePendingChatRouteSeed } from "@/lib/chat-route-seed";
 import {
@@ -205,8 +200,8 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     thinkingContent?: string;
     hasThinking?: boolean;
     thinkingDurationSeconds?: number;
-    branchVersions?: Message["branchVersions"];
-    activeBranchIndex?: number;
+    /** Turn identity for rows whose client id encodes a fresh turn (regenerations). */
+    turnId?: string;
     attachments?: Message["attachments"];
   };
   const createdAt = row.created_at
@@ -243,24 +238,22 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
       row.id === activeGenAssistantId ||
       clientId === activeGenAssistantId);
 
-  const base = compactMessageBranchData({
+  const base = stripLegacyBranchFields({
     id: row.id,
     clientId,
     // Turn identity is encoded in client_id, so DB rows rejoin the exact turn
-    // they belong to after realtime / hydrate / reload.
-    turnId: deriveTurnIdFromClientId(clientId),
+    // they belong to after realtime / hydrate / reload. Regenerated replies
+    // carry a fresh client id — their original turn id rides in metadata.
+    turnId: deriveTurnIdFromClientId(clientId) ?? meta.turnId,
     role: row.role as Message["role"],
     content,
     thinkingContent: meta.thinkingContent,
     hasThinking: meta.hasThinking,
     thinkingDurationSeconds: meta.thinkingDurationSeconds,
-    branchVersions: Array.isArray(meta.branchVersions)
-      ? meta.branchVersions.map((version) => ({
-          ...version,
-          attachments: sanitizeMessageAttachments(version.attachments),
-        }))
-      : meta.branchVersions,
-    activeBranchIndex: meta.activeBranchIndex,
+    // Server-resolved tree position — branch arrows render from this alone.
+    parentId: row.parent_message_id ?? undefined,
+    variantIndex: row.variant_index,
+    variantCount: row.variant_count,
     attachments: sanitizeMessageAttachments(meta.attachments),
     createdAt,
     isStreaming:
@@ -565,9 +558,6 @@ export function useChatApi(
   const pendingTitleOverridesRef = useRef<Map<string, string>>(new Map());
   /** Chats removed in the UI — keep them out of refresh merges until the server agrees. */
   const pendingDeletedChatIdsRef = useRef<Set<string>>(new Set());
-  const branchPersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Branch overlay snapshot per chat — applied once on hydrate. */
-  const branchMessagesByChatRef = useRef<Record<string, unknown>>({});
   /** Chats that already received a full-thread hydrate this session. */
   const hydratedChatIdsRef = useRef<Set<string>>(new Set());
   const titleGenerationInProgressRef = useRef<Set<string>>(new Set());
@@ -603,32 +593,6 @@ export function useChatApi(
   useEffect(() => {
     recentChatsRef.current = recentChats;
   }, [recentChats]);
-
-  const persistBranches = useCallback(
-    async (chatId: string, chatMessages: Message[]) => {
-      try {
-        await chatsApi.saveBranchState(
-          chatId,
-          extractActiveBranchPath(chatMessages),
-          chatMessages,
-        );
-      } catch {
-        // Branch persistence is best-effort.
-      }
-    },
-    [],
-  );
-
-  const scheduleBranchPersist = useCallback(
-    (chatId: string) => {
-      if (branchPersistRef.current) clearTimeout(branchPersistRef.current);
-      branchPersistRef.current = setTimeout(() => {
-        const chatMessages = allChatsRef.current[chatId];
-        if (chatMessages?.length) void persistBranches(chatId, chatMessages);
-      }, 600);
-    },
-    [persistBranches],
-  );
 
   const refreshChats = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -1047,6 +1011,27 @@ export function useChatApi(
                   message.id === mapped.clientId)),
           );
           if (index < 0) {
+            // Realtime INSERT for an unknown row. Tree-aware guard: inactive
+            // sibling rows (edit forks / regenerations from another device)
+            // must never leak into the visible thread — only rows chaining
+            // off the current tail may append.
+            const parentId = row.parent_message_id ?? null;
+            const tail = existing[existing.length - 1];
+            const tailIds = tail
+              ? new Set(
+                  [tail.id, tail.clientId].filter(
+                    (value): value is string => Boolean(value),
+                  ),
+                )
+              : null;
+            if (
+              parentId &&
+              tailIds &&
+              !tailIds.has(parentId) &&
+              existing.length > 0
+            ) {
+              return;
+            }
             if (
               mapped.role === "assistant" &&
               mapped.isStreaming &&
@@ -1117,20 +1102,9 @@ export function useChatApi(
   }, [activeChatId, setAllChats]);
 
   const applyHydratedMessages = useCallback(
-    (
-      chatId: string,
-      apiMessages: chatsApi.ApiMessage[],
-      branchMessages: unknown,
-    ) => {
-      if (branchMessages != null) {
-        branchMessagesByChatRef.current[chatId] = branchMessages;
-      }
+    (chatId: string, apiMessages: chatsApi.ApiMessage[]) => {
       const hydrated = assignLegacyTurnIds(
-        overlayBranchMessagesOnPage({
-          pageMessages: apiMessages.map(mapApiMessage),
-          branchMessages:
-            branchMessages ?? branchMessagesByChatRef.current[chatId] ?? null,
-        }),
+        hydrateThreadPage(apiMessages.map(mapApiMessage)),
       );
       setAllChats((prev) => {
         const existing = prev[chatId] ?? [];
@@ -1289,17 +1263,13 @@ export function useChatApi(
         return next;
       });
       try {
-        const [bundle, branch] = await Promise.all([
-          chatsApi.listAllChatMessages(chatId),
-          chatsApi.getBranchState(chatId).catch(() => null),
-        ]);
+        const bundle = await chatsApi.listAllChatMessages(chatId);
         // Re-check after await — generation may have started while fetching.
         if (Boolean(getGeneration(chatId))) {
-          applyHydratedMessages(chatId, bundle.messages, null);
+          applyHydratedMessages(chatId, bundle.messages);
           return;
         }
-        const row = branch?.state as { messages?: unknown } | null;
-        applyHydratedMessages(chatId, bundle.messages, row?.messages ?? null);
+        applyHydratedMessages(chatId, bundle.messages);
         if (!getGeneration(chatId)) {
           void paintLiveTurn(chatId);
         }
@@ -1501,11 +1471,7 @@ export function useChatApi(
           seedCount > existingMessages.length &&
           seedHasRicherAssistant
         ) {
-          applyHydratedMessages(
-            chatId,
-            ssrSeed.messages,
-            ssrSeed.branchMessages,
-          );
+          applyHydratedMessages(chatId, ssrSeed.messages);
         } else {
           hydratedChatIdsRef.current.add(chatId);
         }
@@ -1515,7 +1481,7 @@ export function useChatApi(
 
       const ssrSeed = takePendingChatRouteSeed(chatId);
       if (ssrSeed) {
-        applyHydratedMessages(chatId, ssrSeed.messages, ssrSeed.branchMessages);
+        applyHydratedMessages(chatId, ssrSeed.messages);
         setLoadingChatId((current) => (current === chatId ? null : current));
         // Only silent-reconcile when idle — never during a live send/stream.
         if (!isChatActivelyGenerating(chatId)) {
@@ -1757,6 +1723,12 @@ export function useChatApi(
       },
       options?: {
         ephemeral?: boolean;
+        /** Tree fork intent — edit-resend or assistant regenerate. */
+        fork?: {
+          kind: "edit" | "regenerate";
+          userMessageId?: string;
+          assistantMessageId?: string;
+        };
         vision?: {
           fileIds?: string[];
           images?: Array<{ mimeType: string; data: string; name?: string }>;
@@ -1897,6 +1869,7 @@ export function useChatApi(
                 },
               }
             : {}),
+          ...(options?.fork ? { fork: options.fork } : {}),
           ...(vision && (vision.images?.length || vision.fileIds?.length)
             ? {
                 vision: {
@@ -2394,7 +2367,6 @@ export function useChatApi(
           void paintLiveTurn(chatId).catch(() => undefined);
           void pollBackgroundTurn(chatId, {
             onSettled: () => {
-              scheduleBranchPersist(chatId);
               const nextQueued = useChatStore
                 .getState()
                 .shiftQueuedMessage(chatId);
@@ -2504,7 +2476,6 @@ export function useChatApi(
         }
 
         if (!ephemeral) {
-          scheduleBranchPersist(chatId);
           if (titleUserContent && completedAnswer.trim()) {
             void maybeGenerateChatTitle(chatId, {
               userContent: titleUserContent,
@@ -2591,7 +2562,6 @@ export function useChatApi(
     },
     [
       maybeGenerateChatTitle,
-      scheduleBranchPersist,
       streamChatTitle,
       streamFromResponse,
       homerReasoningEffort,
@@ -3210,7 +3180,6 @@ export function useChatApi(
       // branch hides immediately instead of waiting for the old stream.
       abortInFlightGenerationForBranch(chatId);
 
-      const assistantMessageId = randomUUID();
       // Optimistic fork with local attachments FIRST — the previous branch
       // (old answer + follow-ups) hides in the same synchronous paint that
       // shows the edited prompt + streaming placeholder. Uploads resolve
@@ -3224,7 +3193,6 @@ export function useChatApi(
           baseExisting,
           messageId,
           trimmed,
-          assistantMessageId,
           optimisticAttachments,
         );
       } catch (err) {
@@ -3232,9 +3200,13 @@ export function useChatApi(
         return;
       }
 
-      useChatStore.getState().setChatGenerating(chatId, true);
+      const {
+        nextChat,
+        userClientId,
+        assistantClientId,
+      } = helperResult;
 
-      const { nextChat } = helperResult;
+      useChatStore.getState().setChatGenerating(chatId, true);
       setAllChats((prev) => ({
         ...prev,
         [chatId]: nextChat,
@@ -3250,57 +3222,59 @@ export function useChatApi(
       const attachmentContext = attachmentContextLines(uploadedAttachments);
 
       // Patch the forked user message if uploads resolved new fileIds after
-      // the optimistic paint (keeps the visible branch + metadata in sync).
+      // the optimistic paint.
       if (uploadedAttachments.length > 0) {
         setAllChats((prev) => {
           const list = prev[chatId];
           if (!list?.length) return prev;
           return {
             ...prev,
-            [chatId]: list.map((msg) => {
-              if (msg.id !== messageId) return msg;
-              const versions = msg.branchVersions;
-              if (!versions?.length) {
-                return { ...msg, attachments: messageAttachments };
-              }
-              const active =
-                msg.activeBranchIndex ?? versions.length - 1;
-              const nextVersions = [...versions];
-              nextVersions[active] = {
-                ...nextVersions[active],
-                attachments: messageAttachments,
-              };
-              return {
-                ...msg,
-                attachments: messageAttachments,
-                branchVersions: nextVersions,
-              };
-            }),
+            [chatId]: list.map((msg) =>
+              msg.clientId === userClientId || msg.id === messageId
+                ? { ...msg, attachments: messageAttachments }
+                : msg,
+            ),
           };
         });
       }
 
-      const conversationBase = nextChat.slice(0, -1).map((msg) =>
-        msg.id === messageId
-          ? {
-              ...msg,
-              content:
-                `${trimmed}${attachmentContext}`.trim() ||
-                trimmed ||
-                "(attached files)",
-            }
-          : msg,
+      const modelUserContent =
+        `${trimmed}${attachmentContext}`.trim() || trimmed || "(attached files)";
+      // Durable file parts ride on the forked user row, same as a normal send.
+      const forkedFileIds = Array.from(
+        new Set([
+          ...uploadedAttachments
+            .map((item) => item.fileId)
+            .filter((id): id is string => Boolean(id)),
+          ...remoteFileIds,
+        ]),
       );
-      const conversationForApi = buildConversation(conversationBase);
+      const conversationForApi = buildConversation(
+        nextChat.slice(0, -1).map((msg) =>
+          msg.clientId === userClientId
+            ? { ...msg, content: modelUserContent }
+            : msg,
+        ),
+      );
 
       try {
+        // The server inserts the forked prompt + reply as tree siblings of
+        // the original turn — the edit never mutates the original row.
         await streamAssistantResponse(
           chatId,
           conversationForApi,
           undefined,
-          assistantMessageId,
-          undefined,
+          assistantClientId,
           {
+            content: trimmed || "(attached files)",
+            modelContent: modelUserContent,
+            fileIds: forkedFileIds.length ? forkedFileIds : undefined,
+            images: undefined,
+            userClientId,
+            assistantClientId,
+          },
+          {
+            fork: { kind: "edit", userMessageId: messageId },
             vision:
               visionImages.length || remoteFileIds.length
                 ? {
@@ -3311,71 +3285,75 @@ export function useChatApi(
           },
         );
       } finally {
+        // Seal any live flags left by the (possibly aborted) stream; the
+        // durable rows are already correct server-side.
         const finalMessages = allChatsRef.current[chatId] || [];
         setAllChats((prev) => ({
           ...prev,
-          // Settle the streamed answer into its active version first so a
-          // later retry regenerates from real content, then stamp the
-          // post-stream thread on the edited version.
-          [chatId]: attachSnapshotToBranchVersion(
-            syncMessageActiveVersion(finalMessages, assistantMessageId),
-            messageId,
-          ),
+          [chatId]: sealCompletedAssistantMessages(finalMessages),
         }));
-        scheduleBranchPersist(chatId);
       }
     },
-    [streamAssistantResponse, scheduleBranchPersist],
+    [streamAssistantResponse],
   );
 
   const redoUserMessageWithBranch = useCallback(
     async (chatId: string, messageId: string) => {
       abortInFlightGenerationForBranch(chatId);
       const existing = allChatsRef.current[chatId] || [];
-      const assistantMessageId = randomUUID();
 
       let helperResult;
       try {
-        helperResult = redoUserMessageWithBranchHelper(
-          existing,
-          messageId,
-          assistantMessageId,
-        );
+        helperResult = redoUserMessageWithBranchHelper(existing, messageId);
       } catch (err) {
         console.error(err);
         return;
       }
 
-      useChatStore.getState().setChatGenerating(chatId, true);
+      const { nextChat, turnId, userClientId, assistantClientId } =
+        helperResult;
 
-      const { nextChat } = helperResult;
+      useChatStore.getState().setChatGenerating(chatId, true);
       setAllChats((prev) => ({
         ...prev,
         [chatId]: nextChat,
       }));
 
       const conversationForApi = buildConversation(nextChat.slice(0, -1));
+      const resentMessage = nextChat.find(
+        (msg) => msg.clientId === userClientId,
+      );
+      const resentContent = resentMessage?.content ?? "";
+      const resentFileIds = (resentMessage?.attachments ?? [])
+        .map((attachment) => attachment.fileId)
+        .filter((id): id is string => Boolean(id));
 
       try {
         await streamAssistantResponse(
           chatId,
           conversationForApi,
           undefined,
-          assistantMessageId,
+          assistantClientId,
+          {
+            content: resentContent,
+            modelContent: resentContent,
+            fileIds: resentFileIds.length ? resentFileIds : undefined,
+            userClientId,
+            assistantClientId,
+          },
+          {
+            fork: { kind: "edit", userMessageId: messageId },
+          },
         );
       } finally {
         const finalMessages = allChatsRef.current[chatId] || [];
         setAllChats((prev) => ({
           ...prev,
-          [chatId]: attachSnapshotToBranchVersion(
-            syncMessageActiveVersion(finalMessages, assistantMessageId),
-            messageId,
-          ),
+          [chatId]: sealCompletedAssistantMessages(finalMessages),
         }));
-        scheduleBranchPersist(chatId);
       }
     },
-    [streamAssistantResponse, scheduleBranchPersist],
+    [streamAssistantResponse],
   );
 
   const retryAssistantWithBranch = useCallback(
@@ -3394,9 +3372,9 @@ export function useChatApi(
         return;
       }
 
-      useChatStore.getState().setChatGenerating(chatId, true);
+      const { nextChat, assistantClientId } = helperResult;
 
-      const { nextChat } = helperResult;
+      useChatStore.getState().setChatGenerating(chatId, true);
       setAllChats((prev) => ({
         ...prev,
         [chatId]: nextChat,
@@ -3405,54 +3383,60 @@ export function useChatApi(
       const conversationForApi = buildConversation(nextChat.slice(0, -1));
 
       try {
+        // Regenerate: the server chains the fresh reply as a sibling of the
+        // original under the same user prompt — no new prompt row.
         await streamAssistantResponse(
           chatId,
           conversationForApi,
           undefined,
-          assistantMessageId,
+          assistantClientId,
+          undefined,
+          {
+            fork: { kind: "regenerate", assistantMessageId },
+          },
         );
       } finally {
         const finalMessages = allChatsRef.current[chatId] || [];
         setAllChats((prev) => ({
           ...prev,
-          // The regenerated answer streams into a fresh empty version —
-          // settle the final text into it before stamping the snapshot.
-          [chatId]: attachSnapshotToBranchVersion(
-            syncMessageActiveVersion(finalMessages, assistantMessageId),
-            assistantMessageId,
-          ),
+          [chatId]: sealCompletedAssistantMessages(finalMessages),
         }));
-        scheduleBranchPersist(chatId);
       }
     },
-    [streamAssistantResponse, scheduleBranchPersist],
+    [streamAssistantResponse],
   );
 
   const switchMessageBranch = useCallback(
-    (chatId: string, messageId: string, direction: "prev" | "next") => {
+    async (chatId: string, messageId: string, direction: "prev" | "next") => {
       // Never switch mid-stream: the streaming turn owns the tail of the
-      // thread and a restore/truncate underneath it corrupts both.
+      // thread and a restore underneath it corrupts both.
       if (isGenerating) return;
-      let nextChat: Message[] = [];
-      setAllChats((prev) => {
-        const chatMessages = prev[chatId] || [];
-        const result = switchMessageBranchHelper(
-          chatMessages,
-          messageId,
-          direction,
-        );
-        nextChat = result.nextChat;
-        return {
+
+      // Instant optimistic paint from the local sibling cache (when warm).
+      const result = switchMessageBranchHelper(
+        allChatsRef.current[chatId] || [],
+        messageId,
+        direction,
+      );
+      if (!result.changed && result.variantCount <= 1) return;
+      if (result.changed) {
+        setAllChats((prev) => ({
           ...prev,
           [chatId]: result.nextChat,
-        };
-      });
+        }));
+      }
 
-      setTimeout(() => {
-        if (nextChat.length) void persistBranches(chatId, nextChat);
-      }, 100);
+      // The message tree is server-owned: repoint the active leaf, then
+      // render the refreshed active path it returns.
+      try {
+        await chatsApi.switchThreadBranch(chatId, messageId);
+        const bundle = await chatsApi.listAllChatMessages(chatId);
+        applyHydratedMessages(chatId, bundle.messages);
+      } catch {
+        // Keep the optimistic paint; the next hydrate reconciles.
+      }
     },
-    [isGenerating, persistBranches],
+    [isGenerating, applyHydratedMessages],
   );
 
   const generatingChatIds = useChatStore(
