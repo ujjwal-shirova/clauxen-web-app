@@ -186,15 +186,17 @@ export async function getGiftByIdForPurchaser(giftId: string, userId: string) {
     delivery_method: "email" | "link";
     recipient_email: string | null;
     sender_name: string;
+    purchaser_email: string;
     message: string | null;
     billing_order_id: string | null;
+    token_grant: number;
     subtotal_paise: number;
     tax_paise: number;
     amount_paise: number;
   }>(
     `select id, status, plan_id, plan_name, months, claim_token, delivery_method,
-            recipient_email, sender_name, message, billing_order_id,
-            subtotal_paise, tax_paise, amount_paise
+            recipient_email, sender_name, purchaser_email, message, billing_order_id,
+            token_grant, subtotal_paise, tax_paise, amount_paise
      from public.gift_codes
      where id = $1 and purchaser_user_id = $2
      limit 1`,

@@ -44,14 +44,6 @@ export async function purchaseGift(input: {
   themeColor?: string | null;
   currency?: CheckoutCurrency;
 }) {
-  if (!isRazorpayConfigured()) {
-    throw new AppError(
-      "Razorpay keys are not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
-      503,
-      "billing_unavailable",
-    );
-  }
-
   if (input.months < 1 || input.months > 12) {
     throw new AppError("months must be between 1 and 12.", 400);
   }
@@ -68,14 +60,8 @@ export async function purchaseGift(input: {
 
   const currency: CheckoutCurrency = input.currency ?? "INR";
   const subtotalPaise = plan.price_paise_monthly * input.months;
-  const taxPaise =
-    currency === "USD" ? 0 : Math.round(subtotalPaise * 0.18);
+  const taxPaise = currency === "USD" ? 0 : Math.round(subtotalPaise * 0.18);
   const amountPaise = subtotalPaise + taxPaise;
-  const charge = toRazorpayChargeAmount(
-    amountPaise,
-    currency,
-    getServerUsdInrRate(),
-  );
   const tokenGrant = plan.token_grant * input.months;
 
   const plainCode = await giftsRepo.generateGiftCodePlaintext();
@@ -103,52 +89,13 @@ export async function purchaseGift(input: {
 
   if (!gift) throw new AppError("Failed to create gift.", 500);
 
-  const orderId = newOrderId();
-  const receipt = newReceipt();
-  const razorpay = await createRazorpayOrder({
-    amountMinor: charge.amount,
-    currency: charge.currency,
-    receipt,
-    notes: {
-      plan_id: plan.id,
-      user_id: input.userId,
-      gift_id: gift.id,
-      order_kind: "gift",
-      charge_currency: charge.currency,
-      inr_total_paise: String(amountPaise),
-    },
-  });
-
-  const order = await billingRepo.createBillingOrder({
-    id: orderId,
-    razorpayOrderId: razorpay.id,
-    userId: input.userId,
-    userEmail: input.userEmail,
-    planId: plan.id,
-    planName: plan.display_name,
-    billingCycle: "monthly",
-    subtotalPaise,
-    taxPaise,
-    amountPaise,
-    // Purchaser gets no tokens (redeemer gets tokenGrant). Store tokenGrant
-    // for backward compat with pre-migration CHECK (tokens > 0); fulfill SQL
-    // ignores this for gift orders (v_tokens_added := 0).
-    tokens: tokenGrant,
-    receipt,
-    orderKind: "gift",
-    giftId: gift.id,
-  });
-
-  await giftsRepo.linkGiftToOrder(gift.id, razorpay.id);
-
-  // NOTE: plainCode above is a placeholder. The FINAL 20-char code is minted
-  // immediately after Razorpay capture (rotateGiftCodeAfterPurchase) and
-  // delivered via email + verify/poll response. Never expose the placeholder
-  // as the final code — frontend must wait for post-payment finalization.
+  // Razorpay order is created when the hosted checkout page loads, same as a
+  // plan purchase. Doing it here blocked the checkout page whenever Razorpay
+  // or the billing insert failed after the gift row was saved.
   return {
     gift: {
       id: gift.id,
-      code: "", // placeholder withheld — final code issued after payment
+      code: "",
       codePending: true as const,
       codePrefix: gift.code_prefix,
       codeLast4: gift.code_last4,
@@ -156,13 +103,6 @@ export async function purchaseGift(input: {
       claimUrl: giftClaimUrl(gift.claim_token),
       months: input.months,
       planName: plan.display_name,
-    },
-    order,
-    razorpay: {
-      orderId: razorpay.id,
-      amount: razorpay.amount,
-      currency: razorpay.currency,
-      keyId: env.publicRazorpayKeyId || env.razorpayKeyId,
     },
     pricing: { subtotalPaise, taxPaise, amountPaise },
   };
@@ -441,13 +381,61 @@ export async function getGiftCheckoutOrderForUser(
       "gift_not_payable",
     );
   }
-  if (!gift.billing_order_id) {
-    throw new AppError("Gift order is missing.", 400, "gift_order_missing");
+  let order = gift.billing_order_id
+    ? await billingRepo.getBillingOrderByRazorpayId(gift.billing_order_id)
+    : null;
+
+  if (!order || order.user_id !== userId) {
+    if (!isRazorpayConfigured()) {
+      throw new AppError(
+        "Razorpay keys are not configured.",
+        503,
+        "billing_unavailable",
+      );
+    }
+    const charge = toRazorpayChargeAmount(
+      gift.amount_paise,
+      "INR",
+      getServerUsdInrRate(),
+    );
+    const orderId = newOrderId();
+    const receipt = newReceipt();
+    const razorpay = await createRazorpayOrder({
+      amountMinor: charge.amount,
+      currency: charge.currency,
+      receipt,
+      notes: {
+        plan_id: gift.plan_id,
+        user_id: userId,
+        gift_id: gift.id,
+        order_kind: "gift",
+        charge_currency: charge.currency,
+        inr_total_paise: String(gift.amount_paise),
+      },
+    });
+    const created = await billingRepo.createBillingOrder({
+      id: orderId,
+      razorpayOrderId: razorpay.id,
+      userId,
+      userEmail: gift.purchaser_email,
+      planId: gift.plan_id,
+      planName: gift.plan_name,
+      billingCycle: "monthly",
+      subtotalPaise: gift.subtotal_paise,
+      taxPaise: gift.tax_paise,
+      amountPaise: gift.amount_paise,
+      tokens: gift.token_grant,
+      receipt,
+      orderKind: "gift",
+      giftId: gift.id,
+    });
+    if (!created) {
+      throw new AppError("Could not create billing order.", 500, "billing_error");
+    }
+    await giftsRepo.linkGiftToOrder(gift.id, razorpay.id);
+    order = await billingRepo.getBillingOrderByRazorpayId(razorpay.id);
   }
 
-  const order = await billingRepo.getBillingOrderByRazorpayId(
-    gift.billing_order_id,
-  );
   if (!order || order.user_id !== userId) {
     throw new AppError("Order not found.", 404, "not_found");
   }

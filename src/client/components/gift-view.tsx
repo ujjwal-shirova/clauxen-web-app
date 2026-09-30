@@ -281,9 +281,11 @@ export function GiftView({ onClose }: GiftViewProps) {
       !GIFT_PLAN_IDS.has(selectedPlan) ||
       !GIFT_DURATION_MONTHS.has(currentDuration.months)
     ) {
+      setCheckoutError("Choose a plan and duration to continue.");
       return;
     }
     if (deliveryMethod === "email" && !isValidEmail(recipientEmail.trim())) {
+      setCheckoutError("Add the recipient's email to continue.");
       return;
     }
 
@@ -588,11 +590,9 @@ export function GiftView({ onClose }: GiftViewProps) {
                   <div className="space-y-1.5">
                     <label className="app-page-body font-medium">
                       Add a note
-                      {deliveryMethod === "link" && (
-                        <span className="ml-1 font-normal text-[var(--settings-fg-muted)]">
-                          (optional)
-                        </span>
-                      )}
+                      <span className="ml-1 font-normal text-[var(--settings-fg-muted)]">
+                        (optional)
+                      </span>
                     </label>
                     <textarea
                       placeholder="Gift message"
@@ -616,6 +616,11 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </div>
 
                 <div className="flex flex-col items-end gap-2 border-t border-[var(--settings-hairline)] pt-4">
+                  {checkoutError && (
+                    <p className="w-full text-right text-[13px] leading-[18px] text-red-600">
+                      {checkoutError}
+                    </p>
+                  )}
                   <div className="flex justify-end gap-2.5">
                     <Button
                       type="button"
@@ -628,19 +633,12 @@ export function GiftView({ onClose }: GiftViewProps) {
                     <Button
                       type="button"
                       onClick={() => void startCheckout()}
-                      disabled={
-                        checkoutLoading ||
-                        (deliveryMethod === "email" &&
-                          !isValidEmail(recipientEmail.trim()))
-                      }
+                      disabled={checkoutLoading}
                       className={cn(appBtn.primaryLgAuto, "px-6")}
                     >
                       {checkoutLoading ? "Preparing…" : "Check out"}
                     </Button>
                   </div>
-                  {checkoutError && (
-                    <p className="text-[12px] leading-[18px] text-red-600">{checkoutError}</p>
-                  )}
                 </div>
               </div>
             )}

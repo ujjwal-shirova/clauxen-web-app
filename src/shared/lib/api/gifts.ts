@@ -18,13 +18,6 @@ export type GiftPurchaseResult = {
     months?: number;
     planName?: string;
   };
-  order: { id: string; razorpay_order_id: string };
-  razorpay: {
-    orderId: string;
-    amount: number;
-    currency: string;
-    keyId?: string;
-  };
   pricing: { subtotalPaise: number; taxPaise: number; amountPaise: number };
 };
 
