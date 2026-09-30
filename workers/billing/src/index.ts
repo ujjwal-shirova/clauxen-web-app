@@ -70,7 +70,13 @@ export interface Env {
         type: string;
         disposition: "attachment" | "inline";
       }>;
-    }) => Promise<{ messageId?: string }>;
+    }) => Promise<{
+      messageId?: string;
+      delivered?: string[];
+      queued?: string[];
+      permanent_bounces?: string[];
+      suppressed_recipients?: string[];
+    }>;
   };
   FROM_EMAIL?: string;
   FROM_NAME?: string;
@@ -539,7 +545,7 @@ export default {
         }
         const pdfCopy = new Uint8Array(pdf.byteLength);
         pdfCopy.set(pdf);
-        await env.EMAIL.send({
+        const sent = await env.EMAIL.send({
           to: payload.email.to,
           from: mail.from,
           subject: mail.subject,
@@ -554,7 +560,26 @@ export default {
             },
           ],
         });
-        emailed = true;
+        const target = payload.email.to.trim().toLowerCase();
+        const accepted = [
+          ...(sent?.delivered ?? []),
+          ...(sent?.queued ?? []),
+        ].some((address) => address.trim().toLowerCase() === target);
+        const rejected = [
+          ...(sent?.permanent_bounces ?? []),
+          ...(sent?.suppressed_recipients ?? []),
+        ].some((address) => address.trim().toLowerCase() === target);
+        const reported =
+          (sent?.delivered?.length ?? 0) +
+            (sent?.queued?.length ?? 0) +
+            (sent?.permanent_bounces?.length ?? 0) +
+            (sent?.suppressed_recipients?.length ?? 0) >
+          0;
+        if (rejected || (reported && !accepted)) {
+          emailError = rejected ? "recipient_rejected" : "recipient_not_accepted";
+        } else {
+          emailed = true;
+        }
       } catch (err) {
         emailError = err instanceof Error ? err.message : "send_failed";
       }

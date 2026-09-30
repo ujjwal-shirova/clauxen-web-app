@@ -16,7 +16,13 @@ export type BillingEmailEnv = {
         type: string;
         disposition: "attachment" | "inline";
       }>;
-    }) => Promise<{ messageId?: string }>;
+    }) => Promise<{
+      messageId?: string;
+      delivered?: string[];
+      queued?: string[];
+      permanent_bounces?: string[];
+      suppressed_recipients?: string[];
+    }>;
   };
   FROM_EMAIL?: string;
   FROM_NAME?: string;
@@ -380,13 +386,36 @@ export async function sendBillingEmail(
   }
 
   try {
-    await env.EMAIL.send({
+    const result = await env.EMAIL.send({
       to: payload.to,
       from: { email: fromEmail, name: fromName },
       subject,
       html,
       text,
     });
+    const delivered = Array.isArray(result?.delivered) ? result.delivered : [];
+    const queued = Array.isArray(result?.queued) ? result.queued : [];
+    const bounced = Array.isArray(result?.permanent_bounces)
+      ? result.permanent_bounces
+      : [];
+    const suppressed = Array.isArray(result?.suppressed_recipients)
+      ? result.suppressed_recipients
+      : [];
+    const target = payload.to.trim().toLowerCase();
+    const accepted = [...delivered, ...queued].some(
+      (address) => address.trim().toLowerCase() === target,
+    );
+    const rejected = [...bounced, ...suppressed].some(
+      (address) => address.trim().toLowerCase() === target,
+    );
+    if (rejected || ((delivered.length || queued.length || bounced.length || suppressed.length) && !accepted)) {
+      return {
+        ok: false,
+        error: rejected
+          ? "recipient_rejected"
+          : "recipient_not_accepted",
+      };
+    }
     return { ok: true };
   } catch (err) {
     return {
