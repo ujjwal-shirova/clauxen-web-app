@@ -574,6 +574,190 @@ export type Database = {
           },
         ]
       }
+      automation_notifications: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          run_id: string
+          status: string
+          task_id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          run_id: string
+          status: string
+          task_id: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          run_id?: string
+          status?: string
+          task_id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_notifications_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: true
+            referencedRelation: "scheduled_task_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_addresses: {
+        Row: {
+          address_line1: string
+          address_line2: string
+          city: string
+          country_code: string
+          created_at: string
+          full_name: string
+          id: string
+          is_default: boolean
+          phone: string | null
+          postal_code: string
+          state: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address_line1: string
+          address_line2?: string
+          city: string
+          country_code?: string
+          created_at?: string
+          full_name: string
+          id?: string
+          is_default?: boolean
+          phone?: string | null
+          postal_code: string
+          state: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address_line1?: string
+          address_line2?: string
+          city?: string
+          country_code?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_default?: boolean
+          phone?: string | null
+          postal_code?: string
+          state?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      billing_invoices: {
+        Row: {
+          country: string
+          created_at: string
+          currency: string
+          emailed_at: string | null
+          evidence: Json
+          id: string
+          invoice_number: string
+          kind: string
+          order_id: string
+          payment_id: string
+          r2_key: string
+          r2_url: string
+          razorpay_document_id: string | null
+          subtotal_paise: number
+          tax_paise: number
+          total_paise: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          country?: string
+          created_at?: string
+          currency?: string
+          emailed_at?: string | null
+          evidence?: Json
+          id?: string
+          invoice_number: string
+          kind?: string
+          order_id: string
+          payment_id: string
+          r2_key: string
+          r2_url: string
+          razorpay_document_id?: string | null
+          subtotal_paise: number
+          tax_paise: number
+          total_paise: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          currency?: string
+          emailed_at?: string | null
+          evidence?: Json
+          id?: string
+          invoice_number?: string
+          kind?: string
+          order_id?: string
+          payment_id?: string
+          r2_key?: string
+          r2_url?: string
+          razorpay_document_id?: string | null
+          subtotal_paise?: number
+          tax_paise?: number
+          total_paise?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "billing_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_invoices_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "billing_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_orders: {
         Row: {
           activated_at: string | null
@@ -771,41 +955,6 @@ export type Database = {
           },
         ]
       }
-      chat_branch_states: {
-        Row: {
-          active_path: Json
-          chat_id: string
-          created_at: string
-          messages: Json
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          active_path?: Json
-          chat_id: string
-          created_at?: string
-          messages?: Json
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          active_path?: Json
-          chat_id?: string
-          created_at?: string
-          messages?: Json
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_branch_states_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: true
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       chat_branches: {
         Row: {
           chat_id: string
@@ -862,6 +1011,91 @@ export type Database = {
           {
             foreignKeyName: "chat_branches_root_message_fk"
             columns: ["root_message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_generation_jobs: {
+        Row: {
+          assistant_message_id: string | null
+          attempt: number
+          chat_id: string
+          checkpoint: Json
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          heartbeat_at: string
+          id: string
+          input: Json
+          locked_at: string | null
+          locked_by: string | null
+          result: Json | null
+          slice_index: number
+          status: string
+          updated_at: string
+          user_id: string
+          user_message_id: string | null
+        }
+        Insert: {
+          assistant_message_id?: string | null
+          attempt?: number
+          chat_id: string
+          checkpoint?: Json
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          heartbeat_at?: string
+          id?: string
+          input?: Json
+          locked_at?: string | null
+          locked_by?: string | null
+          result?: Json | null
+          slice_index?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+          user_message_id?: string | null
+        }
+        Update: {
+          assistant_message_id?: string | null
+          attempt?: number
+          chat_id?: string
+          checkpoint?: Json
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          heartbeat_at?: string
+          id?: string
+          input?: Json
+          locked_at?: string | null
+          locked_by?: string | null
+          result?: Json | null
+          slice_index?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+          user_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_generation_jobs_assistant_message_id_fkey"
+            columns: ["assistant_message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_generation_jobs_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_generation_jobs_user_message_id_fkey"
+            columns: ["user_message_id"]
             isOneToOne: false
             referencedRelation: "chat_messages"
             referencedColumns: ["id"]
@@ -1130,6 +1364,7 @@ export type Database = {
       }
       chats: {
         Row: {
+          active_leaf_message_id: string | null
           adaptive_thinking_enabled: boolean
           archived_at: string | null
           created_at: string
@@ -1148,6 +1383,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          active_leaf_message_id?: string | null
           adaptive_thinking_enabled?: boolean
           archived_at?: string | null
           created_at?: string
@@ -1166,6 +1402,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          active_leaf_message_id?: string | null
           adaptive_thinking_enabled?: boolean
           archived_at?: string | null
           created_at?: string
@@ -1184,6 +1421,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "chats_active_leaf_message_id_fkey"
+            columns: ["active_leaf_message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chats_project_id_fkey"
             columns: ["project_id"]
@@ -1233,15 +1477,130 @@ export type Database = {
         }
         Relationships: []
       }
+      connector_action_approvals: {
+        Row: {
+          arguments_hash: string
+          consumed_at: string | null
+          created_at: string
+          decided_at: string | null
+          expires_at: string
+          id: string
+          installation_id: string
+          status: string
+          tool_name: string
+          user_id: string
+        }
+        Insert: {
+          arguments_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          expires_at?: string
+          id?: string
+          installation_id: string
+          status?: string
+          tool_name: string
+          user_id: string
+        }
+        Update: {
+          arguments_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          expires_at?: string
+          id?: string
+          installation_id?: string
+          status?: string
+          tool_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_action_approvals_installation_id_fkey"
+            columns: ["installation_id"]
+            isOneToOne: false
+            referencedRelation: "connector_installations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      connector_audit_events: {
+        Row: {
+          connector_key: string | null
+          created_at: string
+          duration_ms: number | null
+          error_code: string | null
+          event_id: string
+          event_type: string
+          id: string
+          installation_id: string | null
+          metadata: Json
+          request_id: string | null
+          status: string
+          tool_name: string | null
+          user_id: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          connector_key?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_code?: string | null
+          event_id?: string
+          event_type: string
+          id?: string
+          installation_id?: string | null
+          metadata?: Json
+          request_id?: string | null
+          status: string
+          tool_name?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          connector_key?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_code?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          installation_id?: string | null
+          metadata?: Json
+          request_id?: string | null
+          status?: string
+          tool_name?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_audit_events_installation_id_fkey"
+            columns: ["installation_id"]
+            isOneToOne: false
+            referencedRelation: "connector_installations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_audit_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connector_catalog: {
         Row: {
           auth_type: string
+          capabilities: Json
           config_schema: Json
           created_at: string
+          documentation_url: string | null
           id: string
           key: string
-          metadata: Json
           mcp_url: string | null
+          metadata: Json
           name: string
           protocol: string
           provider: string
@@ -1251,13 +1610,14 @@ export type Database = {
         }
         Insert: {
           auth_type?: string
+          capabilities?: Json
           config_schema?: Json
           created_at?: string
           documentation_url?: string | null
           id?: string
           key: string
-          metadata?: Json
           mcp_url?: string | null
+          metadata?: Json
           name: string
           protocol?: string
           provider: string
@@ -1267,13 +1627,14 @@ export type Database = {
         }
         Update: {
           auth_type?: string
+          capabilities?: Json
           config_schema?: Json
           created_at?: string
           documentation_url?: string | null
           id?: string
           key?: string
-          metadata?: Json
           mcp_url?: string | null
+          metadata?: Json
           name?: string
           protocol?: string
           provider?: string
@@ -1283,12 +1644,60 @@ export type Database = {
         }
         Relationships: []
       }
+      connector_health_checks: {
+        Row: {
+          checked_at: string
+          error_code: string | null
+          id: string
+          installation_id: string
+          latency_ms: number | null
+          metadata: Json
+          status: string
+          user_id: string
+        }
+        Insert: {
+          checked_at?: string
+          error_code?: string | null
+          id?: string
+          installation_id: string
+          latency_ms?: number | null
+          metadata?: Json
+          status: string
+          user_id: string
+        }
+        Update: {
+          checked_at?: string
+          error_code?: string | null
+          id?: string
+          installation_id?: string
+          latency_ms?: number | null
+          metadata?: Json
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_health_checks_installation_id_fkey"
+            columns: ["installation_id"]
+            isOneToOne: false
+            referencedRelation: "connector_installations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connector_installations: {
         Row: {
+          account_label: string | null
+          connected_at: string | null
           connector_id: string
           created_at: string
+          granted_scopes: string[]
           id: string
+          last_error_at: string | null
+          last_error_code: string | null
           last_synced_at: string | null
+          last_used_at: string | null
+          provider_account_id: string | null
           settings: Json
           status: string
           updated_at: string
@@ -1296,10 +1705,17 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          account_label?: string | null
+          connected_at?: string | null
           connector_id: string
           created_at?: string
+          granted_scopes?: string[]
           id?: string
+          last_error_at?: string | null
+          last_error_code?: string | null
           last_synced_at?: string | null
+          last_used_at?: string | null
+          provider_account_id?: string | null
           settings?: Json
           status?: string
           updated_at?: string
@@ -1307,10 +1723,17 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          account_label?: string | null
+          connected_at?: string | null
           connector_id?: string
           created_at?: string
+          granted_scopes?: string[]
           id?: string
+          last_error_at?: string | null
+          last_error_code?: string | null
           last_synced_at?: string | null
+          last_used_at?: string | null
+          provider_account_id?: string | null
           settings?: Json
           status?: string
           updated_at?: string
@@ -1330,6 +1753,109 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      connector_tool_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          installation_id: string
+          policy: string
+          tool_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          installation_id: string
+          policy?: string
+          tool_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          installation_id?: string
+          policy?: string
+          tool_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_tool_permissions_installation_id_fkey"
+            columns: ["installation_id"]
+            isOneToOne: false
+            referencedRelation: "connector_installations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      connector_tools: {
+        Row: {
+          connector_id: string
+          created_at: string
+          description: string
+          http_method: string | null
+          id: string
+          input_schema: Json
+          is_enabled: boolean
+          metadata: Json
+          name: string
+          output_schema: Json | null
+          path_template: string | null
+          request_config: Json
+          requires_confirmation: boolean
+          risk_level: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          connector_id: string
+          created_at?: string
+          description?: string
+          http_method?: string | null
+          id?: string
+          input_schema?: Json
+          is_enabled?: boolean
+          metadata?: Json
+          name: string
+          output_schema?: Json | null
+          path_template?: string | null
+          request_config?: Json
+          requires_confirmation?: boolean
+          risk_level?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          connector_id?: string
+          created_at?: string
+          description?: string
+          http_method?: string | null
+          id?: string
+          input_schema?: Json
+          is_enabled?: boolean
+          metadata?: Json
+          name?: string
+          output_schema?: Json | null
+          path_template?: string | null
+          request_config?: Json
+          requires_confirmation?: boolean
+          risk_level?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_tools_connector_id_fkey"
+            columns: ["connector_id"]
+            isOneToOne: false
+            referencedRelation: "connector_catalog"
             referencedColumns: ["id"]
           },
         ]
@@ -1383,6 +1909,93 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cookie_consents: {
+        Row: {
+          advertising: boolean
+          country_code: string | null
+          created_at: string
+          essential: boolean
+          id: string
+          performance: boolean
+          source: string
+          updated_at: string
+          user_id: string | null
+          visitor_id: string
+        }
+        Insert: {
+          advertising: boolean
+          country_code?: string | null
+          created_at?: string
+          essential?: boolean
+          id?: string
+          performance: boolean
+          source?: string
+          updated_at?: string
+          user_id?: string | null
+          visitor_id: string
+        }
+        Update: {
+          advertising?: boolean
+          country_code?: string | null
+          created_at?: string
+          essential?: boolean
+          id?: string
+          performance?: boolean
+          source?: string
+          updated_at?: string
+          user_id?: string | null
+          visitor_id?: string
+        }
+        Relationships: []
+      }
+      cookie_events: {
+        Row: {
+          category: string
+          country_code: string | null
+          created_at: string
+          event_type: string
+          id: string
+          path: string | null
+          payload: Json
+          referrer: string | null
+          user_id: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          visitor_id: string
+        }
+        Insert: {
+          category: string
+          country_code?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          path?: string | null
+          payload?: Json
+          referrer?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visitor_id: string
+        }
+        Update: {
+          category?: string
+          country_code?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          path?: string | null
+          payload?: Json
+          referrer?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visitor_id?: string
+        }
+        Relationships: []
       }
       data_deletion_requests: {
         Row: {
@@ -1743,9 +2356,11 @@ export type Database = {
         Row: {
           amount_paise: number
           billing_order_id: string | null
+          claim_token: string | null
           code_hash: string
           code_last4: string
           code_prefix: string
+          code_rotated_at: string | null
           created_at: string
           currency: string
           delivery_method: string
@@ -1776,9 +2391,11 @@ export type Database = {
         Insert: {
           amount_paise: number
           billing_order_id?: string | null
+          claim_token?: string | null
           code_hash: string
           code_last4: string
           code_prefix: string
+          code_rotated_at?: string | null
           created_at?: string
           currency?: string
           delivery_method?: string
@@ -1809,9 +2426,11 @@ export type Database = {
         Update: {
           amount_paise?: number
           billing_order_id?: string | null
+          claim_token?: string | null
           code_hash?: string
           code_last4?: string
           code_prefix?: string
+          code_rotated_at?: string | null
           created_at?: string
           currency?: string
           delivery_method?: string
@@ -2068,6 +2687,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      library_folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "library_folders_parent_owner_fk"
+            columns: ["parent_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "library_folders"
+            referencedColumns: ["id", "user_id"]
           },
         ]
       }
@@ -3682,6 +4336,75 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_methods: {
+        Row: {
+          brand: string
+          card_first4: string | null
+          card_last4: string | null
+          created_at: string
+          display_label: string | null
+          exp_month: number | null
+          exp_year: number | null
+          id: string
+          is_default: boolean
+          last_payment_id: string | null
+          mandate_max_amount_paise: number | null
+          mandate_status: string | null
+          method_type: string
+          network: string
+          provider_ref_encrypted: string
+          provider_ref_fingerprint: string
+          razorpay_customer_id: string | null
+          updated_at: string
+          upi_vpa: string | null
+          user_id: string
+        }
+        Insert: {
+          brand?: string
+          card_first4?: string | null
+          card_last4?: string | null
+          created_at?: string
+          display_label?: string | null
+          exp_month?: number | null
+          exp_year?: number | null
+          id?: string
+          is_default?: boolean
+          last_payment_id?: string | null
+          mandate_max_amount_paise?: number | null
+          mandate_status?: string | null
+          method_type?: string
+          network: string
+          provider_ref_encrypted: string
+          provider_ref_fingerprint: string
+          razorpay_customer_id?: string | null
+          updated_at?: string
+          upi_vpa?: string | null
+          user_id: string
+        }
+        Update: {
+          brand?: string
+          card_first4?: string | null
+          card_last4?: string | null
+          created_at?: string
+          display_label?: string | null
+          exp_month?: number | null
+          exp_year?: number | null
+          id?: string
+          is_default?: boolean
+          last_payment_id?: string | null
+          mandate_max_amount_paise?: number | null
+          mandate_status?: string | null
+          method_type?: string
+          network?: string
+          provider_ref_encrypted?: string
+          provider_ref_fingerprint?: string
+          razorpay_customer_id?: string | null
+          updated_at?: string
+          upi_vpa?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       pinned_chats: {
         Row: {
           chat_id: string
@@ -3825,6 +4548,24 @@ export type Database = {
           training_policy?: Json
           updated_at?: string
           yearly_supported?: boolean
+        }
+        Relationships: []
+      }
+      plugin_collections: {
+        Row: {
+          created_at: string
+          plugin_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          plugin_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          plugin_id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -4496,6 +5237,210 @@ export type Database = {
           },
         ]
       }
+      scheduled_task_runs: {
+        Row: {
+          attempt_count: number
+          chat_id: string | null
+          created_at: string
+          error_message: string | null
+          execution_key: string
+          finished_at: string | null
+          id: string
+          lease_expires_at: string | null
+          metadata: Json
+          queued_at: string
+          scheduled_for: string
+          started_at: string
+          status: string
+          summary: string | null
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          chat_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          execution_key: string
+          finished_at?: string | null
+          id?: string
+          lease_expires_at?: string | null
+          metadata?: Json
+          queued_at?: string
+          scheduled_for: string
+          started_at?: string
+          status?: string
+          summary?: string | null
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          attempt_count?: number
+          chat_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          execution_key?: string
+          finished_at?: string | null
+          id?: string
+          lease_expires_at?: string | null
+          metadata?: Json
+          queued_at?: string
+          scheduled_for?: string
+          started_at?: string
+          status?: string
+          summary?: string | null
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_task_runs_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_task_runs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_task_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduled_tasks: {
+        Row: {
+          attachment_refs: Json
+          connector_ids: string[]
+          created_at: string
+          day_of_month: number | null
+          day_of_week: number | null
+          expires_at: string | null
+          frequency: string
+          id: string
+          last_chat_id: string | null
+          last_run_at: string | null
+          last_run_status: string | null
+          lease_run_id: string | null
+          lease_until: string | null
+          metadata: Json
+          model_mode: string
+          name: string
+          next_run_at: string | null
+          notification_mode: string
+          project_id: string | null
+          requirement: string
+          run_count: number
+          run_date: string | null
+          skill_ids: string[]
+          source: string
+          status: string
+          time_local: string
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attachment_refs?: Json
+          connector_ids?: string[]
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          expires_at?: string | null
+          frequency: string
+          id?: string
+          last_chat_id?: string | null
+          last_run_at?: string | null
+          last_run_status?: string | null
+          lease_run_id?: string | null
+          lease_until?: string | null
+          metadata?: Json
+          model_mode?: string
+          name: string
+          next_run_at?: string | null
+          notification_mode?: string
+          project_id?: string | null
+          requirement: string
+          run_count?: number
+          run_date?: string | null
+          skill_ids?: string[]
+          source?: string
+          status?: string
+          time_local: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attachment_refs?: Json
+          connector_ids?: string[]
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          expires_at?: string | null
+          frequency?: string
+          id?: string
+          last_chat_id?: string | null
+          last_run_at?: string | null
+          last_run_status?: string | null
+          lease_run_id?: string | null
+          lease_until?: string | null
+          metadata?: Json
+          model_mode?: string
+          name?: string
+          next_run_at?: string | null
+          notification_mode?: string
+          project_id?: string | null
+          requirement?: string
+          run_count?: number
+          run_date?: string | null
+          skill_ids?: string[]
+          source?: string
+          status?: string
+          time_local?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_tasks_last_chat_id_fkey"
+            columns: ["last_chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_tasks_lease_run_id_fkey"
+            columns: ["lease_run_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_task_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_tasks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scim_tokens: {
         Row: {
           created_at: string
@@ -4583,6 +5528,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      storage_purchases: {
+        Row: {
+          amount_paise: number
+          amount_usd_micros: number
+          created_at: string
+          currency: string
+          gigabytes: number
+          id: string
+          paid_at: string | null
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount_paise: number
+          amount_usd_micros: number
+          created_at?: string
+          currency?: string
+          gigabytes: number
+          id?: string
+          paid_at?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount_paise?: number
+          amount_usd_micros?: number
+          created_at?: string
+          currency?: string
+          gigabytes?: number
+          id?: string
+          paid_at?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       subscription_activation_events: {
         Row: {
@@ -5023,6 +6010,35 @@ export type Database = {
           },
         ]
       }
+      user_activity_days: {
+        Row: {
+          activity_date: string
+          message_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date: string
+          message_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          message_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_days_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_balances: {
         Row: {
           balance_audit_metadata: Json
@@ -5094,10 +6110,43 @@ export type Database = {
           },
         ]
       }
+      user_clauxen_insights: {
+        Row: {
+          created_at: string
+          self_growth_enabled: boolean
+          self_growth_enabled_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          self_growth_enabled?: boolean
+          self_growth_enabled_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          self_growth_enabled?: boolean
+          self_growth_enabled_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_clauxen_insights_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_files: {
         Row: {
           content_hash: string | null
           created_at: string
+          folder_id: string | null
           id: string
           metadata: Json
           mime_type: string | null
@@ -5107,6 +6156,7 @@ export type Database = {
           status: string
           storage_bucket: string
           storage_path: string
+          storage_url: string | null
           updated_at: string
           user_id: string
           workspace_id: string | null
@@ -5114,6 +6164,7 @@ export type Database = {
         Insert: {
           content_hash?: string | null
           created_at?: string
+          folder_id?: string | null
           id?: string
           metadata?: Json
           mime_type?: string | null
@@ -5123,6 +6174,7 @@ export type Database = {
           status?: string
           storage_bucket: string
           storage_path: string
+          storage_url?: string | null
           updated_at?: string
           user_id: string
           workspace_id?: string | null
@@ -5130,6 +6182,7 @@ export type Database = {
         Update: {
           content_hash?: string | null
           created_at?: string
+          folder_id?: string | null
           id?: string
           metadata?: Json
           mime_type?: string | null
@@ -5139,11 +6192,19 @@ export type Database = {
           status?: string
           storage_bucket?: string
           storage_path?: string
+          storage_url?: string | null
           updated_at?: string
           user_id?: string
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "user_files_folder_owner_fk"
+            columns: ["folder_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "library_folders"
+            referencedColumns: ["id", "user_id"]
+          },
           {
             foreignKeyName: "user_files_project_id_fkey"
             columns: ["project_id"]
@@ -5479,6 +6540,24 @@ export type Database = {
           status?: string
           storage_bucket?: string
           storage_prefix?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_storage_balances: {
+        Row: {
+          extra_gb: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          extra_gb?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          extra_gb?: number
           updated_at?: string
           user_id?: string
         }
@@ -5882,6 +6961,7 @@ export type Database = {
         Returns: {
           branch_id: string | null
           chat_id: string
+          client_id: string | null
           contains_pii: boolean
           content: string | null
           content_json: Json
@@ -5943,6 +7023,39 @@ export type Database = {
       }
       bootstrap_existing_auth_users: { Args: never; Returns: number }
       chat_id_exists: { Args: { p_id: string }; Returns: boolean }
+      claim_chat_generation_job: {
+        Args: {
+          p_job_id: string
+          p_running_stale_after?: string
+          p_worker: string
+        }
+        Returns: {
+          assistant_message_id: string | null
+          attempt: number
+          chat_id: string
+          checkpoint: Json
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          heartbeat_at: string
+          id: string
+          input: Json
+          locked_at: string | null
+          locked_by: string | null
+          result: Json | null
+          slice_index: number
+          status: string
+          updated_at: string
+          user_id: string
+          user_message_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chat_generation_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_chat: {
         Args: {
           p_model_id?: string
@@ -5951,6 +7064,7 @@ export type Database = {
           p_workspace_id?: string
         }
         Returns: {
+          active_leaf_message_id: string | null
           adaptive_thinking_enabled: boolean
           archived_at: string | null
           created_at: string
@@ -6081,6 +7195,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      enqueue_chat_job: {
+        Args: { p_payload: Json; p_queue: string }
+        Returns: number
+      }
       ensure_updated_at_trigger: {
         Args: { p_table: unknown }
         Returns: undefined
@@ -6105,6 +7223,32 @@ export type Database = {
           metadata: Json
           role: string
           status: string
+        }[]
+      }
+      fetch_chat_thread_page: {
+        Args: {
+          p_chat_id: string
+          p_depth_cursor?: number
+          p_leaf?: string
+          p_limit?: number
+          p_user_id?: string
+        }
+        Returns: {
+          chat_id: string
+          client_id: string
+          content: string
+          content_json: Json
+          created_at: string
+          depth: number
+          has_more: boolean
+          id: string
+          metadata: Json
+          next_depth: number
+          parent_message_id: string
+          role: string
+          status: string
+          variant_count: number
+          variant_index: number
         }[]
       }
       fulfill_billing_payment: {
@@ -6132,10 +7276,16 @@ export type Database = {
           tokens_added: number
         }[]
       }
+      gc_stale_streaming_messages: {
+        Args: { p_older_than?: string }
+        Returns: number
+      }
       generate_gift_code: { Args: never; Returns: string }
+      generate_gift_code_20: { Args: never; Returns: string }
       get_recent_chats: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: {
+          active_leaf_message_id: string | null
           adaptive_thinking_enabled: boolean
           archived_at: string | null
           created_at: string
@@ -6175,6 +7325,35 @@ export type Database = {
         Returns: boolean
       }
       is_workspace_owner: { Args: { p_workspace_id: string }; Returns: boolean }
+      list_stalled_chat_generation_jobs: {
+        Args: { p_limit?: number; p_running_stale_after?: string }
+        Returns: {
+          assistant_message_id: string | null
+          attempt: number
+          chat_id: string
+          checkpoint: Json
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          heartbeat_at: string
+          id: string
+          input: Json
+          locked_at: string | null
+          locked_by: string | null
+          result: Json | null
+          slice_index: number
+          status: string
+          updated_at: string
+          user_id: string
+          user_message_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "chat_generation_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       match_document_chunks: {
         Args: { filter?: Json; match_count?: number; query_embedding: string }
         Returns: {
@@ -6186,6 +7365,7 @@ export type Database = {
           source_type: string
         }[]
       }
+      poke_generations_watchdog: { Args: never; Returns: number }
       queue_file_processing_job: {
         Args: { p_file_id: string; p_job_type?: string }
         Returns: {
@@ -6252,6 +7432,10 @@ export type Database = {
           title: string
         }[]
       }
+      switch_chat_branch: {
+        Args: { p_chat_id: string; p_target?: string; p_user_id?: string }
+        Returns: string
+      }
     }
     Enums: {
       artifact_kind:
@@ -6313,12 +7497,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6342,11 +7526,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6367,11 +7551,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6392,11 +7576,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6409,11 +7593,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6477,3 +7661,4 @@ export const Constants = {
     },
   },
 } as const
+

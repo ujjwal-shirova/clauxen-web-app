@@ -113,11 +113,18 @@ function turnSortKey(
   const turnId = message.turnId ?? deriveTurnIdFromClientId(message.clientId);
   const turnStamp = turnId ? turnStartedAt.get(turnId) : undefined;
   const roleRank = message.role === "user" ? "0" : "1";
+  // Ungrouped rows (no turnId — legacy null-client_id inserts that arrive via
+  // realtime one-by-one) must keep their own chronological position. Sinking
+  // them to the bottom rendered a user bubble BELOW newer assistant replies.
+  const ownStamp =
+    typeof message.createdAt === "number" && message.createdAt > 0
+      ? message.createdAt
+      : null;
   const stamp =
     typeof turnStamp === "number"
-      ? turnStamp.toString().padStart(13, "0")
-      : "9999999999999";
-  return `${stamp}\u0000${roleRank}\u0000${index.toString().padStart(10, "0")}`;
+      ? turnStamp
+      : (ownStamp ?? 9999999999999);
+  return `${stamp.toString().padStart(13, "0")}\u0000${roleRank}\u0000${index.toString().padStart(10, "0")}`;
 }
 
 function sortIdsByTurn(ids: string[], byId: Record<string, Message>): string[] {

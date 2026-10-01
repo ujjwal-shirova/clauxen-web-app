@@ -60,7 +60,9 @@ export async function listMessagesForChat(chatId: string) {
      from public.chat_messages
      where chat_id = $1
        and (status != 'cancelled' or coalesce(trim(content), '') != '')
-     order by created_at asc, id asc`,
+     order by created_at asc,
+              case when role = 'user' then 0 else 1 end asc,
+              id asc`,
     [chatId],
   );
 }
@@ -203,10 +205,18 @@ export async function resolveForkTarget(input: {
  * keeps every node reachable from the active leaf.
  */
 export async function rechainChatMessages(chatId: string): Promise<void> {
+  // Within one created_at (a single beginChatTurn transaction) the user prompt
+  // precedes its assistant reply — a bare id tiebreak inverts the pair and
+  // renders the user bubble below its own answer.
   await query(
     `with ordered as (
        select id,
-              lag(id) over (order by created_at, id) as prev_id
+              lag(id) over (
+                partition by chat_id
+                order by created_at,
+                         case when role = 'user' then 0 else 1 end,
+                         id
+              ) as prev_id
        from public.chat_messages
        where chat_id = $1
      )
@@ -223,7 +233,9 @@ export async function rechainChatMessages(chatId: string): Promise<void> {
      set active_leaf_message_id = (
        select m.id from public.chat_messages m
        where m.chat_id = c.id
-       order by m.created_at desc, m.id desc
+       order by m.created_at desc,
+                case when m.role = 'user' then 0 else 1 end desc,
+                m.id desc
        limit 1
      )
      where c.id = $1
@@ -250,10 +262,14 @@ export async function listRecentMessagesForChat(
        from public.chat_messages
        where chat_id = $1
          and (status != 'cancelled' or coalesce(trim(content), '') != '')
-       order by created_at desc, id desc
+       order by created_at desc,
+                case when role = 'user' then 0 else 1 end desc,
+                id desc
        limit $2
      ) recent
-     order by created_at asc, id asc`,
+     order by created_at asc,
+              case when role = 'user' then 0 else 1 end asc,
+              id asc`,
     [chatId, safeLimit],
   );
 }
@@ -283,7 +299,9 @@ export async function createMessage(input: {
            (select c.active_leaf_message_id from public.chats c where c.id = $1),
            (select m.id from public.chat_messages m
             where m.chat_id = $1
-            order by m.created_at desc, m.id desc
+            order by m.created_at desc,
+                     case when m.role = 'user' then 0 else 1 end desc,
+                     m.id desc
             limit 1)
          )
        )
@@ -409,7 +427,9 @@ async function insertIdempotentMessage(
          (select c.active_leaf_message_id from public.chats c where c.id = $1),
          (select m.id from public.chat_messages m
           where m.chat_id = $1
-          order by m.created_at desc, m.id desc
+          order by m.created_at desc,
+                   case when m.role = 'user' then 0 else 1 end desc,
+                   m.id desc
           limit 1)
        )
      )
@@ -623,7 +643,9 @@ export async function createUserMessageWithTranscript(input: {
            (select c.active_leaf_message_id from public.chats c where c.id = $1),
            (select m.id from public.chat_messages m
             where m.chat_id = $1
-            order by m.created_at desc, m.id desc
+            order by m.created_at desc,
+                     case when m.role = 'user' then 0 else 1 end desc,
+                     m.id desc
             limit 1)
          )
        )

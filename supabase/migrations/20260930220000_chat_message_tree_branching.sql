@@ -14,10 +14,18 @@
 
 -- 1. Chain-link every legacy row so the whole history is one walkable tree.
 --    Each message with a null parent gets the previous chronological message
---    in the same chat as its parent.
+--    in the same chat as its parent. Within one created_at (a single
+--    beginChatTurn transaction) the user prompt precedes its assistant reply —
+--    a bare id tiebreak inverts the pair and renders the user bubble below
+--    its own answer.
 with ordered as (
   select id,
-         lag(id) over (partition by chat_id order by created_at, id) as prev_id
+         lag(id) over (
+           partition by chat_id
+           order by created_at,
+                    case when role = 'user' then 0 else 1 end,
+                    id
+         ) as prev_id
   from public.chat_messages
 )
 update public.chat_messages m
@@ -32,11 +40,16 @@ alter table public.chats
   add column if not exists active_leaf_message_id uuid
   references public.chat_messages(id) on delete set null;
 
--- Backfill: newest message per chat becomes the active leaf.
+-- Backfill: newest message per chat becomes the active leaf. Within one
+-- created_at the assistant reply is the end of the turn — pick it over the
+-- prompt row of the same pair.
 with newest as (
   select distinct on (chat_id) chat_id, id
   from public.chat_messages
-  order by chat_id, created_at desc, id desc
+  order by chat_id,
+           created_at desc,
+           case when role = 'user' then 0 else 1 end desc,
+           id desc
 )
 update public.chats c
 set active_leaf_message_id = n.id
@@ -178,13 +191,15 @@ begin
     coalesce(s.variant_index, 1),
     coalesce(s.variant_count, 1),
     -- has_more: renderable ancestors older than this page's deepest row.
+    -- max() must qualify window_page.depth: the unqualified name collides with
+    -- this function's OUT-variable "depth" and raises 42702 (ambiguous column).
     exists (
       select 1
       from path older
       join public.chat_messages mo on mo.id = older.id
       where mo.chat_id = p_chat_id
         and (mo.status != 'cancelled' or coalesce(mo.content, '') != '')
-        and older.depth > (select coalesce(max(depth), -1) from window_page)
+        and older.depth > (select coalesce(max(window_page.depth), -1) from window_page)
     ) as has_more,
     w.depth as next_depth
   from window_page w
