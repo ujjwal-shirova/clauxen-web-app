@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useClearAuthBusyOnReturn } from "@/hooks/use-clear-auth-busy-on-return";
 import {
@@ -35,8 +35,8 @@ export interface AuthGateFormProps {
 /**
  * The full Clauxen sign-in form (provider buttons + email flows + magic link).
  *
- * Shared verbatim by the standalone `/login` page and the in-app auth gate
- * dialog so guests see the exact same form in both places.
+ * Rendered inside the in-app auth gate dialog — the standalone `/login` page
+ * is gone and redirects here, so this is the one and only sign-in form.
  */
 export function AuthGateForm({
   redirectTo = "/new",
@@ -655,22 +655,4 @@ export function AuthGateForm({
       />
     </div>
   );
-}
-
-/** OAuth return / drop-in guard — used by the page shell around the form. */
-export function useAuthGateRedirectEffect({
-  loading,
-  isAuthenticated,
-  redirectTo,
-  replace,
-}: {
-  loading: boolean;
-  isAuthenticated: boolean;
-  redirectTo: string;
-  replace: (target: string) => void;
-}) {
-  useEffect(() => {
-    if (loading || !isAuthenticated) return;
-    replace(redirectTargetWithHash(redirectTo));
-  }, [loading, isAuthenticated, redirectTo, replace]);
 }

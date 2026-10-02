@@ -18,10 +18,10 @@ import { logSupabaseQueryError } from "@/lib/supabase-query-error";
 
 /**
  * Paths anyone may open with no session at all (auth screens, share links,
- * legal pages). No onboarding gate either.
+ * legal pages). No onboarding gate either. `/login` is intentionally absent —
+ * it no longer renders; it redirects into the app preview (see below).
  */
 const AUTH_FREE_PREFIXES = [
-  "/login",
   "/signup",
   "/auth/",
   "/share/",
@@ -233,6 +233,26 @@ export async function updateSession(request: NextRequest) {
     ? request.cookies.get(SESSION_COOKIE_NAME)?.value
     : null;
   const isAuthenticated = Boolean(user?.id || devSession);
+
+  // The standalone login page is gone: `/login` deep links (bookmarks,
+  // provider error returns) land on the app preview with the in-app sign-in
+  // dialog open — the same form, as a popup over the live app.
+  if (
+    !isAuthenticated &&
+    (pathname === "/login" || pathname.startsWith("/login/"))
+  ) {
+    const gateUrl = request.nextUrl.clone();
+    gateUrl.pathname = "/new";
+    gateUrl.search = "";
+    gateUrl.searchParams.set("auth", "1");
+    gateUrl.searchParams.set(
+      "redirectTo",
+      request.nextUrl.searchParams.get("redirectTo") || "/",
+    );
+    const oauthError = request.nextUrl.searchParams.get("error");
+    if (oauthError) gateUrl.searchParams.set("error", oauthError);
+    return withSessionCookies(supabaseResponse, NextResponse.redirect(gateUrl));
+  }
 
   // Guests see the app as a live preview — no standalone login page. Any
   // route that needs a session bounces to the preview with the in-app auth

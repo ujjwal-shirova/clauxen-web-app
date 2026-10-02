@@ -30,21 +30,31 @@ type AuthGateContextValue = {
 
 const AuthGateContext = createContext<AuthGateContextValue | null>(null);
 
-function readGateQuery(): { auth: boolean; redirectTo: string | null } {
-  if (typeof window === "undefined") return { auth: false, redirectTo: null };
+function readGateQuery(): {
+  auth: boolean;
+  redirectTo: string | null;
+  error: string | null;
+} {
+  if (typeof window === "undefined") {
+    return { auth: false, redirectTo: null, error: null };
+  }
   const params = new URLSearchParams(window.location.search);
   return {
     auth: params.get("auth") === "1",
     redirectTo: params.get("redirectTo"),
+    error: params.get("error"),
   };
 }
 
 function stripGateQuery() {
   if (typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
-  if (!params.has("auth") && !params.has("redirectTo")) return;
+  if (!params.has("auth") && !params.has("redirectTo") && !params.has("error")) {
+    return;
+  }
   params.delete("auth");
   params.delete("redirectTo");
+  params.delete("error");
   const search = params.toString();
   const next = `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`;
   window.history.replaceState(window.history.state, "", next);
@@ -58,6 +68,7 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
+  const [initialError, setInitialError] = useState<string | null>(null);
 
   const openAuthGate = useCallback((options?: OpenAuthGateOptions) => {
     if (options?.redirectTo !== undefined) setRedirectTo(options.redirectTo);
@@ -67,6 +78,7 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
   const closeAuthGate = useCallback(() => {
     setIsOpen(false);
     setRedirectTo(null);
+    setInitialError(null);
   }, []);
 
   const requireAuth = useCallback(
@@ -89,6 +101,7 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
     const gateQuery = readGateQuery();
     if (!gateQuery.auth) return;
     setRedirectTo(gateQuery.redirectTo);
+    setInitialError(gateQuery.error);
     setIsOpen(true);
     stripGateQuery();
   }, []);
@@ -105,6 +118,7 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
         open={isOpen}
         onOpenChange={(open) => (open ? setIsOpen(true) : closeAuthGate())}
         redirectTo={redirectTo}
+        initialError={initialError}
       />
     </AuthGateContext.Provider>
   );

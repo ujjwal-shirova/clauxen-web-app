@@ -16,6 +16,8 @@ interface AuthGateDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Preserved deep-link destination (from `?redirectTo=` or `openAuthGate`). */
   redirectTo?: string | null;
+  /** OAuth failure carried over from a legacy `/login?error=` link. */
+  initialError?: string | null;
 }
 
 /**
@@ -26,6 +28,7 @@ export function AuthGateDialog({
   open,
   onOpenChange,
   redirectTo,
+  initialError,
 }: AuthGateDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -61,6 +64,7 @@ export function AuthGateDialog({
         </DialogDescription>
         <AuthGateForm
           redirectTo={target}
+          initialError={initialError}
           onAuthenticated={handleAuthenticated}
           variant="dialog"
         />
