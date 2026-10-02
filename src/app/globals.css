@@ -1786,7 +1786,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 }
 
 .dark .agent-activity-label--primary {
-  color: #e4e4e7;
+  color: #d4d4d8;
 }
 
 .dark .agent-activity-label--subtle {
@@ -3526,12 +3526,11 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .agent-activity-label--muted {
-  color: #71717a; /* zinc-500 — primary verb / label */
+  color: #a1a1aa; /* zinc-400 — chrome verbs / step labels ("Searched the web") */
 }
 
 .agent-activity-label--primary {
-  color: #27272a;
-  font-weight: 520;
+  color: #3f3f46; /* zinc-700 — content nouns: queries, file names, titles */
 }
 
 .agent-activity-label--emphasis {
@@ -3540,7 +3539,7 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .agent-activity-label--subtle {
-  color: #a1a1aa; /* zinc-400 — filenames, durations, queries */
+  color: #a1a1aa; /* zinc-400 — durations, meta */
 }
 
 .agent-activity-diff--add {
@@ -4558,11 +4557,11 @@ html[data-reduce-motion="1"] .orb-cursor-core {
 .shimmer-text {
   background: linear-gradient(
     100deg,
-    rgb(61, 61, 58) 0%,
-    rgb(61, 61, 58) 35%,
+    rgb(161, 161, 170) 0%,
+    rgb(161, 161, 170) 35%,
     rgba(255, 255, 255, 0.85) 50%,
-    rgb(61, 61, 58) 65%,
-    rgb(61, 61, 58) 100%
+    rgb(161, 161, 170) 65%,
+    rgb(161, 161, 170) 100%
   );
   background-size: 240% 100%;
   -webkit-background-clip: text;
@@ -8322,7 +8321,7 @@ textarea.cx-field {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #52525b;
+  color: #a1a1aa;
   font-variant-numeric: tabular-nums;
 }
 
@@ -8351,7 +8350,7 @@ textarea.cx-field {
 
 .agent-run__header--button:hover .agent-run__header-label,
 .agent-run__header--button:focus-visible .agent-run__header-label {
-  color: #27272a;
+  color: #71717a;
 }
 
 .agent-run__header--button:hover .agent-run__header-chevron,
@@ -9654,22 +9653,14 @@ button.agent-ledger__row-head:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #52525b;
+  color: #a1a1aa;
   font-size: 13.5px;
   line-height: 20px;
   letter-spacing: -0.005em;
 }
 
 .dark .agent-ledger__row-label {
-  color: #a1a1aa;
-}
-
-.agent-ledger__row[data-live="true"] .agent-ledger__row-label {
-  color: #27272a;
-}
-
-.dark .agent-ledger__row[data-live="true"] .agent-ledger__row-label {
-  color: #e4e4e7;
+  color: #8b8b94;
 }
 
 .agent-ledger__row-meta {
@@ -9714,17 +9705,118 @@ button.agent-ledger__row-head:hover {
 }
 
 /* Bottom-of-turn work cursor — morphing dots pinned under the output,
-   tinted with the active brand accent like a live text cursor. */
+   tinted with the active brand accent like a live text cursor. Sized up so
+   the shape morph (square → circle → triangle → star) reads at a glance. */
 .agent-work-cursor {
   display: flex;
-  min-height: 24px;
+  min-height: 48px;
   align-items: center;
   gap: 8px;
-  padding: 4px 0 2px;
+  padding: 8px 0 6px;
 }
 
 .agent-work-cursor .agent-work-morph {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
   color: hsl(var(--brand-strong));
+}
+
+.agent-work-cursor .agent-work-morph svg {
+  width: 42px;
+  height: 42px;
+}
+
+/* Web-search sources revealed under a clicked search row: favicon, title,
+   and site per hairline row — the SERP-style source list. */
+.agent-web-sources {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.agent-web-source {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 7px 4px;
+  text-decoration: none;
+  transition: background-color 150ms ease;
+}
+
+.agent-web-source + .agent-web-source {
+  border-top: 1px solid rgba(113, 113, 122, 0.12);
+}
+
+.dark .agent-web-source + .agent-web-source {
+  border-top-color: rgba(161, 161, 170, 0.14);
+}
+
+.agent-web-source:hover {
+  background: rgba(113, 113, 122, 0.06);
+}
+
+.dark .agent-web-source:hover {
+  background: rgba(161, 161, 170, 0.08);
+}
+
+.agent-web-source__favicon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #a1a1aa;
+  box-shadow: 0 0 0 1px rgba(228, 228, 231, 0.9);
+}
+
+.dark .agent-web-source__favicon {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 1px rgba(63, 63, 70, 0.9);
+}
+
+.agent-web-source__favicon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.agent-web-source__title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #3f3f46;
+  font-size: 13.5px;
+  line-height: 20px;
+  letter-spacing: -0.005em;
+}
+
+.dark .agent-web-source__title {
+  color: #d4d4d8;
+}
+
+.agent-web-source__domain {
+  min-width: 0;
+  max-width: 42%;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #a1a1aa;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dark .agent-web-source__domain {
+  color: #8b8b94;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -9733,6 +9825,10 @@ button.agent-ledger__row-head:hover {
   }
 
   .agent-ledger__row-chevron {
+    transition: none;
+  }
+
+  .agent-web-source {
     transition: none;
   }
 }

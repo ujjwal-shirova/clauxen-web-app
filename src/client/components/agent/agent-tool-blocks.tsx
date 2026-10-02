@@ -3,13 +3,18 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
   ChevronRight,
+  Globe,
   MapPin,
   FileCode2,
   BookOpen,
   FileText,
   Plug,
 } from "lucide-react";
-import type { AgentToolStep, WebSearchResult } from "@/lib/agent-trace";
+import {
+  domainFromUrl,
+  type AgentToolStep,
+  type WebSearchResult,
+} from "@/lib/agent-trace";
 import { cn } from "@/lib/utils";
 import { AgentFileBlock } from "./agent-file-block";
 import { AgentTraceBlock, AgentShimmerText } from "./agent-trace-primitives";
@@ -147,17 +152,17 @@ function AgentStepTitle({
     <span className="text-rose-500 dark:text-rose-400">{verb}</span>
   ) : streaming ? (
     <AgentShimmerText key={streamKey} active>
-      <span className="agent-activity-label--primary">{verb}</span>
+      <span className="agent-activity-label--muted">{verb}</span>
     </AgentShimmerText>
   ) : (
-    <span className="agent-activity-label--primary">{verb}</span>
+    <span className="agent-activity-label--muted">{verb}</span>
   );
 
   return (
     <>
       {verbNode}
       {detail ? (
-        <span className="agent-activity-label--subtle"> {detail}</span>
+        <span className="agent-activity-label--primary"> {detail}</span>
       ) : null}
       {streaming ? (
         <span className="agent-activity-label--subtle">…</span>
@@ -347,62 +352,49 @@ export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolStep }) {
 const isValidHttpUrl = (value: string | null | undefined): value is string =>
   Boolean(value && /^https?:\/\//i.test(value));
 
-const extractFavicons = (results: WebSearchResult[]) =>
-  Array.from(
-    new Set(
-      results
-        .map((row) => row.favicon)
-        .filter(
-          (icon): icon is string => typeof icon === "string" && Boolean(icon),
-        ),
-    ),
-  );
-
-function WebSearchSourcesMeta({
-  favicons,
-  count,
-}: {
-  favicons: string[];
-  count: number;
-}) {
-  const shown = favicons.slice(0, 4);
+/**
+ * Source list for one search — favicon, title, and site per row — revealed
+ * when the search row is clicked open in the trace.
+ */
+function WebSearchSourcesList({ results }: { results: WebSearchResult[] }) {
   return (
-    <span
-      className="inline-flex shrink-0 items-center gap-1.5"
-      data-agent-web-search-meta="true"
-    >
-      {shown.length > 0 ? (
-        <span
-          className="flex -space-x-1.5"
-          aria-hidden
-          data-agent-web-search-favicons="true"
-        >
-          {shown.map((favicon, index) => (
-            <span
-              key={`${favicon}-${index}`}
-              className="relative inline-flex h-4 w-4 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white shadow-[0_0_0_1px_rgba(228,228,231,0.9)]"
-              style={{ zIndex: shown.length - index }}
-            >
-              <img
-                src={favicon}
-                alt=""
-                className="h-full w-full object-contain"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                onError={(event) => {
-                  (event.target as HTMLImageElement).style.display = "none";
-                }}
-              />
+    <div className="agent-web-sources" data-agent-web-sources="true">
+      {results.map((row, index) => {
+        const domain = domainFromUrl(row.url);
+        return (
+          <a
+            key={`${row.url}-${index}`}
+            href={row.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="agent-web-source no-hover-overlay"
+            title={row.title || row.url}
+          >
+            <span className="agent-web-source__favicon">
+              {row.favicon ? (
+                <img
+                  src={row.favicon}
+                  alt=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  onError={(event) => {
+                    (event.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              ) : (
+                <Globe className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+              )}
             </span>
-          ))}
-        </span>
-      ) : null}
-      {count > 0 ? (
-        <span className="agent-activity-label--subtle shrink-0 text-[12px] font-[430] tabular-nums leading-none">
-          {count} {count === 1 ? "source" : "sources"}
-        </span>
-      ) : null}
-    </span>
+            <span className="agent-web-source__title">
+              {row.title || row.url}
+            </span>
+            {domain ? (
+              <span className="agent-web-source__domain">{domain}</span>
+            ) : null}
+          </a>
+        );
+      })}
+    </div>
   );
 }
 
@@ -420,7 +412,6 @@ export function AgentWebSearchBlock({
     (typeof tool.args?.query === "string" ? tool.args.query : "") ||
     "";
   const results = useMemo(() => tool.searchResults ?? [], [tool.searchResults]);
-  const favicons = useMemo(() => extractFavicons(results), [results]);
   const resultCount = results.length;
 
   const title =
@@ -458,19 +449,30 @@ export function AgentWebSearchBlock({
 
   return (
     <div
-      className="agent-web-search flex max-w-full min-w-0 items-center gap-1.5 overflow-anchor-none"
+      className="agent-web-search w-full min-w-0"
       data-agent-web-search="row"
       data-agent-step="web_search"
     >
-      <span
-        className="agent-trace__title min-w-0 flex-1 truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]"
-        title={query || undefined}
+      <AgentTraceBlock
+        title={
+          <span className="min-w-0 truncate" title={query || undefined}>
+            {title}
+          </span>
+        }
+        isActive={isRunning}
+        defaultExpanded={isRunning}
+        chevronMode="always"
+        className="agent-web-search__block"
+        titleClassName="text-inherit"
       >
-        {title}
-      </span>
-      {resultCount > 0 ? (
-        <WebSearchSourcesMeta favicons={favicons} count={resultCount} />
-      ) : null}
+        {resultCount > 0 ? (
+          <WebSearchSourcesList results={results} />
+        ) : (
+          <p className="px-1 text-[12.5px] italic text-zinc-400">
+            {isRunning ? "Waiting for sources…" : "No sources returned."}
+          </p>
+        )}
+      </AgentTraceBlock>
     </div>
   );
 }
@@ -503,14 +505,14 @@ export function AgentFileReadBlock({ tool }: { tool: AgentToolStep }) {
           isRunning ? (
             <AgentShimmerText key={`fr-live-${tool.toolCallId}`} active>
               <span className="agent-activity-label--muted">Reading</span>
-              <span className="agent-activity-label--subtle"> {name}…</span>
+              <span className="agent-activity-label--primary"> {name}…</span>
             </AgentShimmerText>
           ) : tool.status === "error" ? (
             <span className="text-rose-500">Failed to read {name}</span>
           ) : (
             <>
               <span className="agent-activity-label--muted">Read</span>
-              <span className="agent-activity-label--subtle"> {name}</span>
+              <span className="agent-activity-label--primary"> {name}</span>
             </>
           )
         }
@@ -581,11 +583,11 @@ export function AgentReadSkillBlock({ tool }: { tool: AgentToolStep }) {
         title={
           isRunning ? (
             <AgentShimmerText key={`rs-live-${tool.toolCallId}`} active>
-              <span className="agent-activity-label--primary">
+              <span className="agent-activity-label--muted">
                 Loading skill
               </span>
               {name ? (
-                <span className="agent-activity-label--subtle"> {name}</span>
+                <span className="agent-activity-label--primary"> {name}</span>
               ) : null}
               <span className="agent-activity-label--subtle">…</span>
             </AgentShimmerText>
@@ -595,11 +597,11 @@ export function AgentReadSkillBlock({ tool }: { tool: AgentToolStep }) {
             </span>
           ) : (
             <>
-              <span className="agent-activity-label--primary">
+              <span className="agent-activity-label--muted">
                 Loaded skill
               </span>
               {name ? (
-                <span className="agent-activity-label--subtle"> {name}</span>
+                <span className="agent-activity-label--primary"> {name}</span>
               ) : null}
             </>
           )

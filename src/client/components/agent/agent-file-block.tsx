@@ -161,7 +161,7 @@ export function AgentFileBlock({
       }
     >
       <span className="agent-activity-label--muted shrink-0">{verb}</span>
-      <span className="agent-activity-label--subtle min-w-0 truncate">
+      <span className="agent-activity-label--primary min-w-0 truncate">
         {fileName}
       </span>
       {showDiff ? (
