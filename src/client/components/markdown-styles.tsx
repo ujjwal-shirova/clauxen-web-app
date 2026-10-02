@@ -333,6 +333,7 @@ export const CodeBlockFrame = ({
         <div className="-mr-0.5 flex items-center gap-1">
           <button
             type="button"
+            data-code-copy-button
             onClick={onCopy}
             className="ui-code-block-copy flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200"
           >

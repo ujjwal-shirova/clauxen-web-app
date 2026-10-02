@@ -16,7 +16,11 @@ import {
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
 import { logSupabaseQueryError } from "@/lib/supabase-query-error";
 
-const PUBLIC_PREFIXES = [
+/**
+ * Paths anyone may open with no session at all (auth screens, share links,
+ * legal pages). No onboarding gate either.
+ */
+const AUTH_FREE_PREFIXES = [
   "/login",
   "/signup",
   "/auth/",
@@ -24,6 +28,13 @@ const PUBLIC_PREFIXES = [
   "/gift/",
   "/legal/",
 ] as const;
+
+/**
+ * App-shell preview paths — unauthenticated guests see the full app here
+ * as a live preview. Actions (send, history, protected nav) open the in-app
+ * auth gate dialog instead of bouncing to a standalone login page.
+ */
+const GUEST_PREVIEW_EXACT_PATHS = ["/", "/new", "/pricing", "/platform"] as const;
 
 const SESSION_COOKIE_NAME = "clauxen_session";
 
@@ -35,14 +46,18 @@ function authDevBypassEnabled() {
   return process.env.AUTH_DEV_BYPASS?.trim() === "true";
 }
 
-function isPublicPath(pathname: string) {
-  if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+function isAuthFreePath(pathname: string) {
+  if (AUTH_FREE_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return true;
   }
   if (pathname.startsWith("/api/")) return true;
   // Clauxen Code CLI preflight probe (not under /api/)
   if (pathname === "/v1/oauth/hello") return true;
   return false;
+}
+
+function isGuestPreviewPath(pathname: string) {
+  return GUEST_PREVIEW_EXACT_PATHS.some((path) => path === pathname);
 }
 
 function withSessionCookies(
@@ -219,19 +234,23 @@ export async function updateSession(request: NextRequest) {
     : null;
   const isAuthenticated = Boolean(user?.id || devSession);
 
-  // Unauthenticated visitors may open auth and legal paths.
-  // App shell routes (/, /new, /c/*, …) still require login.
-  if (!isPublicPath(pathname) && !isAuthenticated) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    loginUrl.searchParams.set(
+  // Guests see the app as a live preview — no standalone login page. Any
+  // route that needs a session bounces to the preview with the in-app auth
+  // gate dialog open (`?auth=1`), preserving the original destination.
+  if (
+    !isAuthFreePath(pathname) &&
+    !isGuestPreviewPath(pathname) &&
+    !isAuthenticated
+  ) {
+    const gateUrl = request.nextUrl.clone();
+    gateUrl.pathname = "/new";
+    gateUrl.search = "";
+    gateUrl.searchParams.set("auth", "1");
+    gateUrl.searchParams.set(
       "redirectTo",
       `${pathname}${request.nextUrl.search}`,
     );
-    return withSessionCookies(
-      supabaseResponse,
-      NextResponse.redirect(loginUrl),
-    );
+    return withSessionCookies(supabaseResponse, NextResponse.redirect(gateUrl));
   }
 
   const userId = user?.id ?? null;
@@ -241,7 +260,7 @@ export async function updateSession(request: NextRequest) {
   // CLI OAuth consent/device pages must work even if web onboarding is incomplete.
   if (
     isAuthenticated &&
-    !isPublicPath(pathname) &&
+    !isAuthFreePath(pathname) &&
     pathname !== "/onboarding" &&
     !pathname.startsWith("/api/") &&
     !pathname.startsWith("/cli/")

@@ -731,6 +731,13 @@ export function useChatApi(
       setActiveChatId(null);
     }
 
+    // Guest preview — no session means no server history to reconcile.
+    if (!userId) {
+      chatsLoadedOnceRef.current = true;
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     void (async () => {
       const hasSyncPaint = recentChatsRef.current.length > 0;
@@ -799,6 +806,8 @@ export function useChatApi(
 
   // Live sidebar updates when chats change in Supabase (other tabs / title gen).
   useEffect(() => {
+    // Guest preview — no session, no realtime sidebar sync.
+    if (!userId) return;
     const supabase = createClient();
     let debounceTimer = 0;
     const scheduleRefresh = () => {
@@ -832,7 +841,7 @@ export function useChatApi(
       window.clearTimeout(debounceTimer);
       void supabase.removeChannel(channel);
     };
-  }, [refreshChats]);
+  }, [refreshChats, userId]);
 
   // Live message inserts/updates for the open chat (other devices / tabs).
   // While THIS tab owns an SSE generation, the stream
@@ -1310,6 +1319,8 @@ export function useChatApi(
   }, [activeChatId, loadChatMessages]);
 
   useEffect(() => {
+    // Guest preview — the generating poll needs a session.
+    if (!userId) return;
     let cancelled = false;
     let timer = 0;
 
@@ -1389,7 +1400,7 @@ export function useChatApi(
       window.removeEventListener("focus", onVisible);
       window.removeEventListener("pageshow", onVisible);
     };
-  }, [loadChatMessages]);
+  }, [loadChatMessages, userId]);
 
   const handleSelectChat = useCallback(
     async (chatId: string | null) => {

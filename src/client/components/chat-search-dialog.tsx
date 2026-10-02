@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { searchChatTitles, type ApiChat } from "@/lib/api/chats";
+import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 
 type SearchHit = {
@@ -157,6 +158,7 @@ export function ChatSearchDialog({
           role="listbox"
           aria-label="Search results"
           aria-busy={loading}
+          data-keynav-list="chat-search-results"
           className="max-h-[440px] overflow-y-auto px-2.5 py-2.5"
         >
           {loading ? (
@@ -183,6 +185,7 @@ export function ChatSearchDialog({
                     role="option"
                     aria-selected={active}
                     data-index={index}
+                    data-keynav-item
                     onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => choose(hit)}
                     className={cn(
@@ -213,16 +216,40 @@ export function ChatSearchDialog({
             </p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-5 border-t border-[rgba(11,11,11,0.1)] px-5 py-2.5 text-[12px] leading-4 text-[#898781]">
-          <span className="inline-flex items-center gap-2">
-            Select
-            <kbd className="chat-search-kbd">↑</kbd>
-            <kbd className="chat-search-kbd">↓</kbd>
-          </span>
-          <span className="inline-flex items-center gap-2">
-            Open
-            <kbd className="chat-search-kbd">↩</kbd>
-          </span>
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5 border-t border-[rgba(11,11,11,0.1)] px-5 py-2.5">
+          <div className="cx-shortcut-hint">
+            <span className="text-[12px] font-medium leading-4 text-white/92">
+              Select
+            </span>
+            <span className="cx-kbd-combo">
+              <Kbd size="sm" tone="dark">
+                ↑
+              </Kbd>
+              <Kbd size="sm" tone="dark">
+                ↓
+              </Kbd>
+            </span>
+          </div>
+          <div className="cx-shortcut-hint">
+            <span className="text-[12px] font-medium leading-4 text-white/92">
+              Open
+            </span>
+            <span className="cx-kbd-combo">
+              <Kbd size="sm" tone="dark">
+                ⏎
+              </Kbd>
+            </span>
+          </div>
+          <div className="cx-shortcut-hint">
+            <span className="text-[12px] font-medium leading-4 text-white/92">
+              Close
+            </span>
+            <span className="cx-kbd-combo">
+              <Kbd size="sm" tone="dark">
+                Esc
+              </Kbd>
+            </span>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

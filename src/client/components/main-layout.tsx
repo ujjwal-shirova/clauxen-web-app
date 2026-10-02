@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { SoftErrorBoundary } from "@/components/soft-error-boundary";
 import { useAuth } from "@/hooks/use-auth";
+import { useAuthGate } from "@/contexts/auth-gate-context";
 import { sidebarDisplayNameOrNull } from "@/lib/profile-names";
 import { useSidebarState } from "@/hooks/use-sidebar-state";
 import {
@@ -30,6 +31,7 @@ import { AppPageSurface } from "@/components/app-page-surface";
 import { Sidebar } from "@/ui/shell/sidebar";
 import { SidebarToggleIcon } from "@/components/icons";
 import { SidebarResizeHandle } from "@/components/sidebar-resize-handle";
+import { AppKeyboardController } from "@/components/keyboard/app-keyboard-controller";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
@@ -57,6 +59,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const isIncognito = isIncognitoPath(pathname);
   const instantNavigate = useInstantNavigate();
   const auth = useAuth();
+  const authGate = useAuthGate();
   const {
     isMobile,
     isSidebarCollapsed,
@@ -129,27 +132,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  React.useEffect(() => {
+  const handleToggleSidebarShortcut = useCallback(() => {
     if (isMobile || isIncognito) return;
-    const handleSidebarShortcut = (event: KeyboardEvent) => {
-      if (
-        !(event.metaKey || event.ctrlKey) ||
-        event.key.toLowerCase() !== "b"
-      ) {
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      if (
-        target?.isContentEditable ||
-        target?.closest("input, textarea, select, [contenteditable='true']")
-      ) {
-        return;
-      }
-      event.preventDefault();
-      setSidebarCollapsedFromNav(!isSidebarCollapsed);
-    };
-    window.addEventListener("keydown", handleSidebarShortcut);
-    return () => window.removeEventListener("keydown", handleSidebarShortcut);
+    setSidebarCollapsedFromNav(!isSidebarCollapsed);
   }, [isIncognito, isMobile, isSidebarCollapsed, setSidebarCollapsedFromNav]);
 
   useDocumentTitle();
@@ -161,23 +146,18 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     }
   }, [auth.loading, auth.user?.id, router]);
 
-  // Client auth gate — middleware is primary; this catches JWT-less shells.
-  React.useEffect(() => {
-    if (auth.loading) return;
-    if (auth.user?.id) return;
-    const search = typeof window !== "undefined" ? window.location.search : "";
-    const hash = typeof window !== "undefined" ? window.location.hash : "";
-    const redirectTo = `${pathname ?? "/"}${search}${hash}`;
-    router.replace(`/login?redirectTo=${encodeURIComponent(redirectTo)}`);
-  }, [auth.loading, auth.user?.id, pathname, router]);
+  // Guest preview: unauthenticated visitors keep the app shell. Actions that
+  // need a session open the in-app sign-in dialog (AuthGateProvider) instead
+  // of bouncing to a standalone login page.
 
-  // Boot: `/` → `/new` once identity is known (preserve overlay hash).
+  // Boot: `/` → `/new` once identity resolves (preserve overlay hash).
+  // Guests land on the `/new` preview too — the composer is the entry point.
   React.useEffect(() => {
     if (pathname !== "/") return;
-    if (!auth.user?.id) return;
+    if (auth.loading) return;
     const hash = typeof window !== "undefined" ? window.location.hash : "";
     instantNavigate(`${APP_ROUTES.newChat}${hash}`, { replace: true });
-  }, [pathname, auth.user?.id, instantNavigate]);
+  }, [pathname, auth.loading, instantNavigate]);
 
   const chat = useChatSession();
   const {
@@ -261,21 +241,24 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 
   const onSettingsClick = useCallback(
     (tab: SettingsTab = "General") => {
+      if (!authGate.requireAuth()) return;
       overlays.openSettings(tab);
       closeMobileNav();
     },
-    [overlays, closeMobileNav],
+    [authGate, overlays, closeMobileNav],
   );
 
   const onPersonalizationClick = useCallback(() => {
+    if (!authGate.requireAuth()) return;
     overlays.openSettings("Personalization");
     closeMobileNav();
-  }, [overlays, closeMobileNav]);
+  }, [authGate, overlays, closeMobileNav]);
 
   const onGiftClick = useCallback(() => {
+    if (!authGate.requireAuth()) return;
     overlays.openGift();
     closeMobileNav();
-  }, [overlays, closeMobileNav]);
+  }, [authGate, overlays, closeMobileNav]);
 
   const isMobileFullBleed = isMobile && shouldMobileFullBleed(pathname);
 
@@ -420,6 +403,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
                     : "Guest"
               }
               accountLoading={auth.loading && !auth.user}
+              guestMode={!auth.loading && !auth.user?.id}
               userAvatarUrl={auth.user?.avatarUrl}
               userEmail={auth.user?.email ?? ""}
               onLogoutClick={() => void auth.logout()}
@@ -484,14 +468,24 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
+      <AppKeyboardController
+        onNewChat={handleNewChat}
+        onToggleSidebar={handleToggleSidebarShortcut}
+        onOpenSettings={onSettingsClick}
+        onNavigate={(path) => instantNavigate(path)}
+        overlayOpen={overlayOpen}
+        onCloseOverlay={overlays.closeOverlay}
+      />
+
       <AppOverlayHost />
     </div>
   );
 }
 
 /**
- * Main app shell. Middleware already requires auth for these routes, so the
- * chat session always boots in API mode — remount when the signed-in user changes.
+ * Main app shell. Guests get the app as a live preview (middleware no longer
+ * forces a login page); the chat session boots in API mode only once a
+ * session exists — remount when the signed-in user changes.
  */
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const auth = useAuth();

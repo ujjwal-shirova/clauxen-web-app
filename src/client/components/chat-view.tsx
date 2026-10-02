@@ -10,6 +10,7 @@ import { useAppPathname } from "@/hooks/use-app-pathname";
 import { ChatArea } from "@/components/chat-area";
 import { PaymentSuccessDialog } from "@/components/payment-success-dialog";
 import { useOptionalChatSession } from "@/contexts/chat-session-context";
+import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
 import { useChat } from "@/hooks/use-chat";
 import { useAuth } from "@/hooks/use-auth";
 import { useAppOverlays } from "@/hooks/use-app-overlays";
@@ -206,13 +207,17 @@ function ChatViewBody({
     handleSelectChat,
   } = chat;
   const sentInitialPromptRef = useRef<string | null>(null);
+  const authGate = useOptionalAuthGate();
 
   useEffect(() => {
     const prompt = initialPrompt?.trim();
     if (!prompt || sentInitialPromptRef.current === prompt) return;
     sentInitialPromptRef.current = prompt;
+    // Guest preview — sending needs a session; the gate opens the sign-in
+    // dialog (the login form as a popup) instead of sending.
+    if (authGate && !authGate.requireAuth()) return;
     void handleSendMessage(prompt);
-  }, [handleSendMessage, initialPrompt]);
+  }, [authGate, handleSendMessage, initialPrompt]);
 
   const creatingChatPending = Boolean(
     (chat as { creatingChatPending?: boolean }).creatingChatPending,

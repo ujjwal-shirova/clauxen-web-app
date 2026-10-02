@@ -20,6 +20,7 @@ export const USER_FILL_ENV_KEYS = new Set([
   "SUPABASE_SERVICE_ROLE_KEY",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_GOOGLE_CLIENT_ID",
 ]);
 
 /** Exact keys on Vercel — one sensitive row each where applicable. */

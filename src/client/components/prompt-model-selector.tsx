@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
@@ -18,6 +19,11 @@ type PromptModelSelectorProps = {
   onSelectedModelChange: (model: ChatModelId) => void;
   isFreePlan?: boolean;
   onUpgradeClick?: () => void;
+  /**
+   * Return false to keep the menu shut (guest preview: opens the sign-in
+   * dialog from the caller instead).
+   */
+  canOpen?: () => boolean;
 };
 
 export function PromptModelSelector({
@@ -25,11 +31,19 @@ export function PromptModelSelector({
   onSelectedModelChange,
   isFreePlan = false,
   onUpgradeClick,
+  canOpen,
 }: PromptModelSelectorProps) {
   const activeModel = getChatModelOption(selectedModel);
+  const [open, setOpen] = useState(false);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      open={open}
+      onOpenChange={(next) => {
+        if (next && canOpen && !canOpen()) return;
+        setOpen(next);
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <button
           type="button"

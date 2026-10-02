@@ -10,6 +10,8 @@ import { HoverScrollEnabler } from "@/components/hover-scroll-enabler";
 import { AppNotificationsProvider } from "@/hooks/use-app-notifications";
 import { AppNotificationHost } from "@/components/app-notifications/app-notification-host";
 import { AuthProvider } from "@/contexts/auth-context";
+import { AuthGateProvider } from "@/contexts/auth-gate-context";
+import { GoogleOneTap } from "@/components/auth/google-one-tap";
 import { AppPreferencesProvider } from "@/contexts/app-preferences-context";
 import { CookieConsent } from "@/components/cookie-consent";
 
@@ -102,19 +104,22 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <AppPreferencesProvider>
-            <AppNotificationsProvider>
-              <ChunkLoadRecovery />
-              <ChatFontLoader />
-              <HoverScrollEnabler />
-              {children}
-              <ClientToaster />
-              <SavedNotificationHost />
-              <AppNotificationHost />
-              <CookieConsent />
-              <ClientTelemetry />
-            </AppNotificationsProvider>
-          </AppPreferencesProvider>
+          <AuthGateProvider>
+            <GoogleOneTap />
+            <AppPreferencesProvider>
+              <AppNotificationsProvider>
+                <ChunkLoadRecovery />
+                <ChatFontLoader />
+                <HoverScrollEnabler />
+                {children}
+                <ClientToaster />
+                <SavedNotificationHost />
+                <AppNotificationHost />
+                <CookieConsent />
+                <ClientTelemetry />
+              </AppNotificationsProvider>
+            </AppPreferencesProvider>
+          </AuthGateProvider>
         </AuthProvider>
       </body>
     </html>

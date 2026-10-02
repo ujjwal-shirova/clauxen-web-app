@@ -28,10 +28,10 @@ import {
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import {
   DEFAULT_KEYBOARD_SHORTCUTS,
-  formatShortcutKeys,
-  parseShortcutKeys,
-  type KeyboardShortcutId,
+  SHORTCUT_CATEGORY_ORDER,
+  type KeyboardShortcutCategory,
 } from "@/lib/keyboard-shortcuts-defaults";
+import { ShortcutRecorder } from "@/components/keyboard/shortcut-recorder";
 import { Switch } from "@/components/ui/switch";
 
 const appearanceModes = [
@@ -113,18 +113,19 @@ export function GeneralSettings({
     [shortcuts],
   );
 
-  const editShortcutKeys = (
-    id: KeyboardShortcutId,
-    label: string,
-    keys: string[],
-  ) => {
-    const next = window.prompt(
-      `Keys for "${label}" (e.g. ⇧⌘O)`,
-      formatShortcutKeys(keys),
-    );
-    if (next === null) return;
-    updateShortcut(id, { keys: parseShortcutKeys(next) });
-  };
+  const groupedShortcuts = useMemo(() => {
+    const groups = new Map<KeyboardShortcutCategory, typeof shortcuts>();
+    for (const shortcut of shortcuts) {
+      const category = shortcut.category ?? "General";
+      const list = groups.get(category) ?? [];
+      list.push(shortcut);
+      groups.set(category, list);
+    }
+    return SHORTCUT_CATEGORY_ORDER.map((category) => ({
+      category,
+      items: groups.get(category) ?? [],
+    })).filter((group) => group.items.length > 0);
+  }, [shortcuts]);
 
   return (
     <SettingsPage>
@@ -237,33 +238,40 @@ export function GeneralSettings({
           </SettingsButton>
         }
       >
-        {shortcuts.map((shortcut, index) => (
-          <SettingsRow
-            key={shortcut.id}
-            label={shortcut.label}
-            borderless={index === shortcuts.length - 1}
-          >
-            <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
-              <Switch
-                checked={shortcut.enabled}
-                onCheckedChange={(enabled) =>
-                  updateShortcut(shortcut.id, { enabled })
+        {groupedShortcuts.map((group, groupIndex) => (
+          <div key={group.category}>
+            <p className="mb-1 mt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ui-fg-muted)] first:mt-0">
+              {group.category}
+            </p>
+            {group.items.map((shortcut, itemIndex) => (
+              <SettingsRow
+                key={shortcut.id}
+                label={shortcut.label}
+                borderless={
+                  groupIndex === groupedShortcuts.length - 1 &&
+                  itemIndex === group.items.length - 1
                 }
-                aria-label={`${shortcut.label}, ${shortcut.enabled ? "on" : "off"}`}
-                className="settings-switch"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  editShortcutKeys(shortcut.id, shortcut.label, shortcut.keys)
-                }
-                className="settings-btn min-w-[72px] font-mono"
-                aria-label={`Change shortcut for ${shortcut.label}`}
               >
-                {formatShortcutKeys(shortcut.keys)}
-              </button>
-            </div>
-          </SettingsRow>
+                <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+                  <Switch
+                    checked={shortcut.enabled}
+                    onCheckedChange={(enabled) =>
+                      updateShortcut(shortcut.id, { enabled })
+                    }
+                    aria-label={`${shortcut.label}, ${shortcut.enabled ? "on" : "off"}`}
+                    className="settings-switch"
+                  />
+                  <ShortcutRecorder
+                    keys={shortcut.keys}
+                    label={shortcut.label}
+                    onChange={(keys) =>
+                      updateShortcut(shortcut.id, { keys })
+                    }
+                  />
+                </div>
+              </SettingsRow>
+            ))}
+          </div>
         ))}
       </SettingsSection>
     </SettingsPage>

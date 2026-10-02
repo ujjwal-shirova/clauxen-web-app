@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
 import {
   captureDisplayScreenshot,
   ScreenshotCaptureError,
@@ -35,6 +36,9 @@ import {
   type PromptInlineMode,
 } from "./prompt-inline-mode-chip";
 import { HintTooltip } from "./ui/hint-tooltip";
+import { ShortcutHint } from "./ui/kbd";
+import { isReservedNavKeyEvent } from "@/lib/keyboard-navigation";
+import { KS_EVENTS } from "@/lib/keyboard-shortcut-events";
 import { useIsClient } from "@/hooks/use-is-client";
 import { MessageQueuePanel } from "./message-queue-panel";
 import { DEFAULT_CHAT_MODEL_ID, type ChatModelId } from "@/lib/chat-models";
@@ -590,6 +594,9 @@ export function PromptInput({
       if (e.defaultPrevented) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "Tab" || e.key === "Escape") return;
+      // Keys reserved for app navigation (j/k/g//?) never type into the
+      // composer — the global keyboard engine owns them.
+      if (isReservedNavKeyEvent(e)) return;
 
       if (document.activeElement?.closest("[data-skip-global-prompt-focus]")) {
         return;
@@ -637,6 +644,19 @@ export function PromptInput({
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, []);
 
+  // "/" (or the user's binding) → jump straight to the message box.
+  useEffect(() => {
+    const focusComposer = () => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      textarea.focus({ preventScroll: true });
+      textarea.scrollIntoView({ block: "nearest" });
+    };
+    window.addEventListener(KS_EVENTS.focusComposer, focusComposer);
+    return () =>
+      window.removeEventListener(KS_EVENTS.focusComposer, focusComposer);
+  }, []);
+
   const dismissComposerFocus = useCallback(() => {
     textareaRef.current?.blur();
     const active = document.activeElement;
@@ -645,7 +665,15 @@ export function PromptInput({
     }
   }, []);
 
+  const authGate = useOptionalAuthGate();
+  /** Guest preview: protected composer actions open the sign-in dialog. */
+  const requireAuthGate = useCallback(
+    () => (authGate ? authGate.requireAuth() : true),
+    [authGate],
+  );
+
   const handleSubmit = () => {
+    if (!requireAuthGate()) return;
     const value = readDraft().trim();
     // Allow send while generating — active chat queues; other chats start a stream.
     if (value || attachments.length > 0) {
@@ -1023,6 +1051,7 @@ export function PromptInput({
         type="button"
         onClick={() => {
           if (dictationConnecting) return;
+          if (!requireAuthGate()) return;
           void dictation.start();
         }}
         disabled={dictationConnecting}
@@ -1049,7 +1078,11 @@ export function PromptInput({
   );
 
   const renderDisabledSendButton = () => (
-    <HintTooltip content="Send">
+    <ShortcutHint
+      label="Send message"
+      keys={["Enter"]}
+      extraKeys={["meta", "Enter"]}
+    >
       <button
         type="button"
         disabled
@@ -1058,7 +1091,7 @@ export function PromptInput({
       >
         <ArrowUp className="icon-sm" strokeWidth={2} />
       </button>
-    </HintTooltip>
+    </ShortcutHint>
   );
 
   const renderTrailingActions = (sendOnly = false) => {
@@ -1105,7 +1138,11 @@ export function PromptInput({
         {!sendOnly ? renderMicButton() : null}
         {isGenerating ? (
           hasDraft || attachments.length > 0 ? (
-            <HintTooltip content="Send (queue while generating)">
+            <ShortcutHint
+              label="Send (queue while generating)"
+              keys={["Enter"]}
+              extraKeys={["meta", "Enter"]}
+            >
               <button
                 type="button"
                 onClick={handleSubmit}
@@ -1115,7 +1152,7 @@ export function PromptInput({
               >
                 <ArrowUp className="icon-md" strokeWidth={2} />
               </button>
-            </HintTooltip>
+            </ShortcutHint>
           ) : (
             <HintTooltip content="Stop generating">
               <button
@@ -1130,7 +1167,11 @@ export function PromptInput({
             </HintTooltip>
           )
         ) : hasDraft || attachments.length > 0 ? (
-          <HintTooltip content="Send">
+          <ShortcutHint
+            label="Send message"
+            keys={["Enter"]}
+            extraKeys={["meta", "Enter"]}
+          >
             <button
               type="button"
               onClick={handleSubmit}
@@ -1140,7 +1181,7 @@ export function PromptInput({
             >
               <ArrowUp className="icon-md" strokeWidth={2} />
             </button>
-          </HintTooltip>
+          </ShortcutHint>
         ) : (
           renderDisabledSendButton()
         )}
@@ -1162,6 +1203,12 @@ export function PromptInput({
 
   const renderAddMenuButton = () => (
     <div className="relative flex shrink-0 items-center gap-1" data-prompt-add-anchor>
+      <ShortcutHint
+        label="Attach files"
+        keys={["meta", "U"]}
+        side="top"
+        align="start"
+      >
       <button
         ref={addMenuTriggerRef}
         type="button"
@@ -1171,7 +1218,10 @@ export function PromptInput({
         onMouseDown={(event) => {
           event.preventDefault();
         }}
-        onClick={() => setAddMenuOpen(!isAddMenuOpen)}
+        onClick={() => {
+          if (!requireAuthGate()) return;
+          setAddMenuOpen(!isAddMenuOpen);
+        }}
         className={cn(
           addMenuTriggerClass,
           !isConversationStarted && "prompt-add-nav-match",
@@ -1183,6 +1233,7 @@ export function PromptInput({
           strokeWidth={1.75}
         />
       </button>
+      </ShortcutHint>
       {!isConversationStarted ? (
         <div
           className="ml-0.5 inline-flex h-7 items-center rounded-lg bg-black/[0.04] p-0.5 dark:bg-white/[0.06]"
@@ -1196,7 +1247,10 @@ export function PromptInput({
               role="tab"
               aria-selected={composerMode === mode}
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => setComposerMode(mode)}
+              onClick={() => {
+                if (!requireAuthGate()) return;
+                setComposerMode(mode);
+              }}
               className={cn(
                 "h-6 rounded-md px-2.5 text-[13px] font-medium leading-none transition-colors",
                 composerMode === mode
@@ -1232,6 +1286,7 @@ export function PromptInput({
       <PromptModelSelector
         selectedModel={chatModel}
         onSelectedModelChange={onChatModelChange}
+        canOpen={requireAuthGate}
         isFreePlan={isFreePlan}
         onUpgradeClick={
           onUpgradeClick ?? (() => openOverlayHash({ type: "pricing" }))
@@ -1388,7 +1443,7 @@ export function PromptInput({
           {showScrollToBottomButton &&
             onScrollToBottom &&
             isConversationStarted && (
-              <HintTooltip content="Scroll to latest">
+              <ShortcutHint label="Scroll to latest" keys={["End"]}>
                 <button
                   type="button"
                   onClick={onScrollToBottom}
@@ -1396,7 +1451,7 @@ export function PromptInput({
                 >
                   <ArrowDown className="icon-md" />
                 </button>
-              </HintTooltip>
+              </ShortcutHint>
             )}
 
           {queuedMessages.length > 0 &&
