@@ -29,9 +29,7 @@ function getTwoColumnServerSnapshot() {
 type CategorySectionProps = {
   title: string;
   plugins: MarketplacePlugin[];
-  installed: Set<string>;
   onOpen: (plugin: MarketplacePlugin) => void;
-  onToggle: (id: string) => void;
   onPrefetch?: (plugin: MarketplacePlugin) => void;
   className?: string;
   /** Skip the cap (e.g. while the user is searching). */
@@ -41,9 +39,7 @@ type CategorySectionProps = {
 export function CategorySection({
   title,
   plugins,
-  installed,
   onOpen,
-  onToggle,
   onPrefetch,
   className,
   defaultExpanded = false,
@@ -88,9 +84,7 @@ export function CategorySection({
           <PluginCard
             key={plugin.id}
             plugin={plugin}
-            added={installed.has(plugin.id)}
             onOpen={onOpen}
-            onToggle={onToggle}
             onPrefetch={onPrefetch}
           />
         ))}

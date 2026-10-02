@@ -1,0 +1,38 @@
+name = "clauxen-plugin-oauth"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "8fc7a67e9057989309921f362784ecf4"
+workers_dev = true
+
+[observability]
+enabled = true
+head_sampling_rate = 0.05
+
+[vars]
+# Public origin of this worker — the OAuth redirect_uri and CIMD document URL
+# are derived from it. Set to the deployed workers.dev or custom domain.
+WORKER_ORIGIN = "https://clauxen-plugin-oauth.shirova-ai.workers.dev"
+
+# Comma-separated list of app origins a post-connect return link may point to.
+APP_ORIGIN = "https://clauxen.com,https://www.clauxen.com,http://localhost:9002"
+
+# Secrets, set with wrangler (never commit the values):
+#   wrangler secret put SUPABASE_URL
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#   wrangler secret put INTERNAL_TOKEN
+#   wrangler secret put TOKEN_SEAL_KEY
+#
+# TOKEN_SEAL_KEY must equal PAYMENT_METHOD_ENCRYPTION_KEY in the Next.js app,
+# because the worker seals tokens and the app unseals them.
+
+# Create the namespaces first, then paste their ids here:
+#   wrangler kv namespace create OAUTH_STATE
+#   wrangler kv namespace create OAUTH_CLIENTS
+[[kv_namespaces]]
+binding = "OAUTH_STATE"
+id = "REPLACE_WITH_OAUTH_STATE_NAMESPACE_ID"
+
+[[kv_namespaces]]
+binding = "OAUTH_CLIENTS"
+id = "REPLACE_WITH_OAUTH_CLIENTS_NAMESPACE_ID"

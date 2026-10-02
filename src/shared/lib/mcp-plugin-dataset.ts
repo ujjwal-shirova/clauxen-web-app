@@ -106,73 +106,65 @@ export type McpServerSummary = {
   args: string[] | null;
 };
 
-/** Normalized list row for the info page — all text coerced to strings. */
-export type PluginInfoRow = {
+/**
+ * What the "Add to Clauxen" flow needs to start an MCP authorization: the
+ * remote Streamable HTTP endpoint plus the identity shown in the dialog.
+ */
+export type PluginMcpTarget = {
+  pluginId: string;
   name: string;
-  description: string;
-  sourceUrl?: string | null;
+  iconUrl: string | null;
+  mcpUrl: string;
+  authType: "mcp_oauth2" | "none";
+  serverName: string;
 };
+
+/** First usable Streamable HTTP MCP endpoint declared by a plugin. */
+function firstHttpServerUrl(plugin: McpPlugin): string | null {
+  for (const server of plugin.mcp.servers) {
+    const url = server.url?.trim();
+    if (!url) continue;
+    if (server.type === "http" || server.type === "sse") return url;
+  }
+  // Some datasets record the endpoint only in the rollup.
+  for (const url of plugin.mcp.endpoints.urls ?? []) {
+    if (/^https?:\/\//i.test(url)) return url;
+  }
+  return null;
+}
+
+function displayNameOf(plugin: McpPlugin): string {
+  return (
+    plugin.displayName?.trim() ||
+    plugin.name?.trim() ||
+    plugin.fullRef ||
+    "Plugin"
+  );
+}
 
 /**
- * Trimmed plugin payload for the info page client component. Keeps the RSC
- * payload small by dropping fields the page never renders, and normalizes
- * nullable dataset fields (e.g. missing descriptions) to safe strings.
+ * Resolve a marketplace catalog id to the MCP endpoint the chat agent will
+ * call. Returns null for plugins that publish no reachable HTTP MCP server
+ * (e.g. stdio-only plugins) — those cannot be connected through OAuth.
  */
-export type PluginInfoData = {
-  name: string;
-  displayName: string | null;
-  description: string;
-  logoUrl: string | null;
-  repositoryUrl: string | null;
-  publisher: {
-    name: string;
-    displayName: string | null;
-    isVerified: boolean;
-  } | null;
-  mcpServers: McpServerSummary[];
-  skills: PluginInfoRow[];
-  commands: PluginInfoRow[];
-  hooks: PluginInfoRow[];
-  rules: PluginInfoRow[];
-  subagents: PluginInfoRow[];
-};
+export async function resolvePluginMcpTarget(
+  catalogId: string,
+): Promise<PluginMcpTarget | null> {
+  const plugin = await findMcpPluginBySlug(catalogId).catch(() => null);
+  if (!plugin) return null;
 
-export function toPluginInfoData(plugin: McpPlugin): PluginInfoData {
-  const toRow = (entry: {
-    name: string | null;
-    description: string | null;
-    sourceUrl?: string | null;
-  }): PluginInfoRow => ({
-    name: entry.name ?? "",
-    description: entry.description ?? "",
-    sourceUrl: entry.sourceUrl ?? null,
-  });
+  const mcpUrl = firstHttpServerUrl(plugin);
+  if (!mcpUrl) return null;
 
   return {
-    name: plugin.name ?? plugin.fullRef,
-    displayName: plugin.displayName ?? null,
-    description: plugin.description ?? "",
-    logoUrl: plugin.logoUrl ?? null,
-    repositoryUrl: plugin.repositoryUrl ?? plugin.gitUrl ?? null,
-    publisher: plugin.publisher
-      ? {
-          name: plugin.publisher.name ?? "",
-          displayName: plugin.publisher.displayName ?? null,
-          isVerified: Boolean(plugin.publisher.isVerified),
-        }
-      : null,
-    mcpServers: plugin.mcp.servers.map((server) => ({
-      name: server.name ?? "",
-      type: server.type ?? "",
-      url: server.url ?? null,
-      command: server.command ?? null,
-      args: server.args ?? null,
-    })),
-    skills: plugin.skills.map(toRow),
-    commands: plugin.commands.map(toRow),
-    hooks: plugin.hooks.map(toRow),
-    rules: plugin.rules.map(toRow),
-    subagents: plugin.subagents.map(toRow),
+    pluginId: catalogId,
+    name: displayNameOf(plugin),
+    iconUrl: plugin.logoUrl ?? null,
+    mcpUrl,
+    // Every remote HTTP MCP server follows the MCP OAuth 2.1 profile; a server
+    // that never 401s simply skips the consent screen on the provider side.
+    authType: "mcp_oauth2",
+    serverName: plugin.mcp.servers.find((server) => server.url === mcpUrl)?.name ?? "",
   };
 }
 

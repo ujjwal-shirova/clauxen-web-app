@@ -36,6 +36,11 @@ import {
   executeAutonomousTool,
   autonomousAgentTools,
 } from "@/server/agent-core/tools";
+import {
+  buildAgentMcpTools,
+  executeMcpToolCall,
+  resolveMcpToolCall,
+} from "@/server/plugins/plugin-runtime";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
 import { inferLanguage } from "@/server/inference/language";
 import { parse as parsePartialJson, Allow } from "partial-json";
@@ -383,8 +388,15 @@ export async function runAutonomousAgent(
 
   const systemPrompt = initialSystemPrompt;
 
-  const openAITools = toOpenAITools(
-    autonomousAgentTools
+  // Connected-plugin MCP tools (mcp__<slug>__<tool>) are appended to the
+  // built-in catalog so the assistant can use every plugin the user has
+  // authorized from the marketplace.
+  const mcpAgentTools = userId
+    ? await buildAgentMcpTools(userId).catch(() => [])
+    : [];
+
+  const openAITools = toOpenAITools([
+    ...autonomousAgentTools
       // present_files removed — create_file auto-presents to the user.
       .filter((tool) => tool.name !== "present_files")
       .map((tool) => ({
@@ -395,7 +407,12 @@ export async function runAutonomousAgent(
           properties: {},
         }) as Record<string, unknown>,
       })),
-  );
+    ...mcpAgentTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    })),
+  ]);
 
   // Responses API input is an ordered list of user/assistant messages plus
   // native function_call/function_call_output items from agent rounds.
@@ -711,9 +728,27 @@ export async function runAutonomousAgent(
           true,
         );
 
-        const healingTool = healingTools.get(tc.name);
         let outcomeOutput: unknown;
         let outcomePause = false;
+
+        // Connected-plugin tools run through the MCP runtime rather than the
+        // built-in autonomous catalog. The name carries the plugin slug and
+        // the remote tool, e.g. mcp__gmail__search_emails.
+        const mcpTarget =
+          tc.name.startsWith("mcp__") && userId
+            ? await resolveMcpToolCall(userId, tc.name, rawArgs)
+            : null;
+
+        if (mcpTarget) {
+          const mcpOutcome = await executeMcpToolCall(mcpTarget);
+          outcomeOutput = {
+            plugin: mcpOutcome.pluginName,
+            tool: mcpTarget.toolName,
+            output: mcpOutcome.output,
+            ...(mcpOutcome.isError ? { error: true } : {}),
+          };
+        } else {
+          const healingTool = healingTools.get(tc.name);
 
         if (healingTool) {
           const ctx: ToolExecutionContext = {
@@ -763,6 +798,7 @@ export async function runAutonomousAgent(
               error: error instanceof Error ? error.message : String(error),
             };
           }
+        }
         }
 
         // Streamed search hits for the results card.

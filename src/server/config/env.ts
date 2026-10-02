@@ -208,6 +208,15 @@ export const env = {
     optional("NEXT_PUBLIC_SHARE_WORKER_URL") || optional("SHARE_WORKER_URL"),
   ),
   shareWorkerInternalToken: optional("SHARE_WORKER_INTERNAL_TOKEN"),
+
+  /** Cloudflare plugin-oauth Worker (MCP OAuth 2.1 authorization dance). */
+  pluginOAuthWorkerUrl: normalizeBaseUrl(
+    optional("PLUGIN_OAUTH_WORKER_URL") ||
+      optional("NEXT_PUBLIC_PLUGIN_OAUTH_WORKER_URL"),
+  ),
+  /** Shared secret for plugin-oauth Worker internal routes. */
+  pluginOAuthInternalToken: optional("PLUGIN_OAUTH_INTERNAL_TOKEN"),
+
   turnstileSiteKey: optional("NEXT_PUBLIC_TURNSTILE_SITE_KEY"),
   turnstileSecretKey: optional("TURNSTILE_SECRET_KEY"),
   /**

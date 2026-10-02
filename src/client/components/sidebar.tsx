@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Gift,
   HelpCircle,
+  LogIn,
   LogOut,
   MoreVertical,
   Pin,
@@ -17,7 +18,6 @@ import {
   CalendarClock,
   Telescope,
   Hammer,
-  Bot,
   Hand,
   Sparkles,
   X,
@@ -26,6 +26,7 @@ import {
   Library,
   Puzzle,
   Search,
+  Keyboard,
 } from "lucide-react";
 import { SidebarToggleIcon } from "./icons";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,9 @@ import { ChatRowMenuContent } from "./chat-row-menu-content";
 import { SidebarChatGroupMenu, sidebarSectionIconButtonClass } from "./sidebar-chat-group-menu";
 import { groupChats, type ChatGroupBy } from "@/lib/chat-grouping";
 import type { RecentChat } from "@/lib/types";
+import { ShortcutBadge, ShortcutHint } from "@/components/ui/kbd";
+import { KS_EVENTS } from "@/lib/keyboard-shortcut-events";
+import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
 
 const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
 const SECTION_STORAGE_PREFIX = "clauxen_sidebar_section_";
@@ -271,6 +275,8 @@ interface SidebarProps {
   userDisplayName?: string | null;
   /** True while auth identity is resolving — show skeletons, not mock labels. */
   accountLoading?: boolean;
+  /** Unauthenticated preview — history is hidden behind the sign-in gate. */
+  guestMode?: boolean;
   userAvatarUrl?: string | null;
   userEmail?: string;
   onLogoutClick?: () => void;
@@ -302,6 +308,7 @@ export function Sidebar({
   generatingChatIds,
   userDisplayName = null,
   accountLoading = false,
+  guestMode = false,
   userAvatarUrl,
   userEmail = "",
   onLogoutClick,
@@ -309,6 +316,16 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = useAppPathname() || APP_ROUTES.newChat;
   const newChatActive = isNewChatPath(pathname);
+  const authGate = useOptionalAuthGate();
+  /**
+   * Protected sidebar actions for guests open the in-app sign-in dialog
+   * (the exact login form as a popup over the app preview).
+   */
+  const gateSidebarAction = (event?: React.MouseEvent): boolean => {
+    if (!authGate || authGate.requireAuth()) return true;
+    event?.preventDefault();
+    return false;
+  };
   const [chatGroupBy, setChatGroupBy] = useState<ChatGroupBy>("none");
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
@@ -336,6 +353,23 @@ export function Sidebar({
     setPinnedExpanded(readSectionExpanded("pinned", true));
     setRecentsExpanded(readSectionExpanded("recents", true));
   }, []);
+
+  // Global keyboard shortcuts (⌘K search, ⇧⌘⌫ delete) reach the sidebar's
+  // dialogs through dedicated events dispatched by the keyboard controller.
+  useEffect(() => {
+    const openSearch = () => setSidebarSearchOpen(true);
+    window.addEventListener(KS_EVENTS.openChatSearch, openSearch);
+    return () => window.removeEventListener(KS_EVENTS.openChatSearch, openSearch);
+  }, []);
+
+  useEffect(() => {
+    const requestDelete = () => {
+      if (activeChatId) setDeleteChatId(activeChatId);
+    };
+    window.addEventListener(KS_EVENTS.deleteActiveChat, requestDelete);
+    return () =>
+      window.removeEventListener(KS_EVENTS.deleteActiveChat, requestDelete);
+  }, [activeChatId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -484,6 +518,7 @@ export function Sidebar({
       >
         <AppHref
           href={chatHref}
+          data-keynav-item
           onClick={(event) => {
             if (!isPlainLeftClick(event)) return;
             onSelectChat(chat);
@@ -578,6 +613,7 @@ export function Sidebar({
           )}
         >
           {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
+            <ShortcutHint label="Toggle sidebar" shortcutId="toggleSidebar" side="bottom">
             <button
               type="button"
               aria-label={isPeekPreview ? "Expand sidebar" : "Hide sidebar"}
@@ -591,6 +627,7 @@ export function Sidebar({
             >
               <SidebarToggleIcon className="size-5" aria-hidden />
             </button>
+            </ShortcutHint>
           ) : null}
           {!isCollapsed || isPeekPreview ? (
             <span
@@ -618,10 +655,16 @@ export function Sidebar({
           ) : null}
         </div>
 
-        <nav className="cx-nav cx-nav-sticky shrink-0" aria-label="Primary">
+        <nav
+          className="cx-nav cx-nav-sticky shrink-0"
+          aria-label="Primary"
+          data-keynav-list="sidebar-nav"
+        >
+            <ShortcutHint label="New chat" shortcutId="openNewChat" side="right">
             <AppHref
               href={APP_ROUTES.newChat}
               replace
+              data-keynav-item
               onClick={(e) => {
                 e.stopPropagation();
                 if (!isPlainLeftClick(e)) return;
@@ -639,12 +682,19 @@ export function Sidebar({
                 <SquarePen strokeWidth={1.75} />
               </span>
               {isCollapsed && !isMobileLayout ? null : <span>New chat</span>}
+              {isCollapsed && !isMobileLayout ? null : (
+                <ShortcutBadge shortcutId="openNewChat" className="ml-auto" />
+              )}
             </AppHref>
+            </ShortcutHint>
+            <ShortcutHint label="Library" chips={["G", "L"]} side="right">
             <AppHref
               href={APP_ROUTES.library}
+              data-keynav-item
               onClick={(e) => {
                 e.stopPropagation();
                 if (!isPlainLeftClick(e)) return;
+                if (!gateSidebarAction(e)) return;
                 if (isMobileLayout) onNavigate?.();
               }}
               aria-label="Library"
@@ -659,12 +709,16 @@ export function Sidebar({
               </span>
               {isCollapsed && !isMobileLayout ? null : <span>Library</span>}
             </AppHref>
+            </ShortcutHint>
             <div className="cx-nav-projects relative">
+            <ShortcutHint label="Projects" chips={["G", "P"]} side="right">
             <AppHref
               href={APP_ROUTES.projects}
+              data-keynav-item
               onClick={(e) => {
                 e.stopPropagation();
                 if (!isPlainLeftClick(e)) return;
+                if (!gateSidebarAction(e)) return;
                 if (isMobileLayout) onNavigate?.();
               }}
               aria-label="Projects"
@@ -679,6 +733,7 @@ export function Sidebar({
               </span>
               {isCollapsed && !isMobileLayout ? null : <span className="min-w-0 flex-1 text-left">Projects</span>}
             </AppHref>
+            </ShortcutHint>
             {isCollapsed && !isMobileLayout ? null : (
               <button
                 type="button"
@@ -687,6 +742,7 @@ export function Sidebar({
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
+                  if (!gateSidebarAction(event)) return;
                   setCreateProjectOpen(true);
                 }}
               >
@@ -696,9 +752,11 @@ export function Sidebar({
             </div>
             <AppHref
               href={APP_ROUTES.plugins}
+              data-keynav-item
               onClick={(e) => {
                 e.stopPropagation();
                 if (!isPlainLeftClick(e)) return;
+                if (!gateSidebarAction(e)) return;
                 if (isMobileLayout) onNavigate?.();
               }}
               aria-label="Plugins"
@@ -718,9 +776,11 @@ export function Sidebar({
                 type: "settings",
                 tab: "Clauxen Code",
               })}
+              data-keynav-item
               onClick={(event) => {
                 event.stopPropagation();
                 if (!isPlainLeftClick(event)) return;
+                if (!gateSidebarAction(event)) return;
                 if (isMobileLayout) onNavigate?.();
               }}
               aria-label="Code"
@@ -736,15 +796,16 @@ export function Sidebar({
                 { label: "Scheduled", icon: CalendarClock, href: "/new?app=scheduled" },
                 { label: "Research", icon: Telescope, href: "/new?app=research" },
                 { label: "Build", icon: Hammer, href: "/new?app=build" },
-                { label: "Agent", icon: Bot, href: "/new?app=agent" },
               ] as const
             ).map((item) => (
               <AppHref
                 key={item.label}
                 href={item.href}
+                data-keynav-item
                 onClick={(event) => {
                   event.stopPropagation();
                   if (!isPlainLeftClick(event)) return;
+                  if (!gateSidebarAction(event)) return;
                   if (isMobileLayout) onNavigate?.();
                 }}
                 aria-label={item.label}
@@ -761,6 +822,8 @@ export function Sidebar({
         <div
           className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
           data-scroll-region=""
+          data-keynav-list="chats"
+          data-keynav-default
         >
           <div
             className={cn(
@@ -849,7 +912,21 @@ export function Sidebar({
                   expanded={recentsExpanded}
                   className="space-y-1"
                 >
-                  {chatsLoading && recentChats.length === 0 ? (
+                  {guestMode ? (
+                    <div className="px-1 pb-1 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          authGate?.openAuthGate();
+                        }}
+                        className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-3 py-2.5 text-[12.5px] font-medium text-[var(--ui-fg-muted)] shadow-[var(--field-shadow)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+                      >
+                        <LogIn className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+                        Log in to see history
+                      </button>
+                    </div>
+                  ) : chatsLoading && recentChats.length === 0 ? (
                     <div className="space-y-px" aria-hidden>
                       {[72, 58, 84, 64, 50, 76, 60].map((width, index) => (
                         <div key={index} className="flex h-8 items-center px-2.5">
@@ -865,18 +942,20 @@ export function Sidebar({
                       ))}
                     </div>
                   ) : null}
-                  {groupedChats.map((group) => (
-                    <div key={group.label || "all"}>
-                      {group.label ? (
-                        <p className="cx-chat-group-label px-2.5 pb-0.5 pt-1.5">
-                          {group.label}
-                        </p>
-                      ) : null}
-                      <div className="space-y-px">
-                        {group.chats.map((chat) => renderChatRow(chat))}
-                      </div>
-                    </div>
-                  ))}
+                  {!guestMode
+                    ? groupedChats.map((group) => (
+                        <div key={group.label || "all"}>
+                          {group.label ? (
+                            <p className="cx-chat-group-label px-2.5 pb-0.5 pt-1.5">
+                              {group.label}
+                            </p>
+                          ) : null}
+                          <div className="space-y-px">
+                            {group.chats.map((chat) => renderChatRow(chat))}
+                          </div>
+                        </div>
+                      ))
+                    : null}
                 </SidebarSectionBody>
               </div>
             )}
@@ -900,6 +979,34 @@ export function Sidebar({
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >
+              {guestMode ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      authGate?.openAuthGate();
+                    }}
+                    aria-label="Log in"
+                    className={cn(
+                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center border-0 bg-transparent outline-none transition-[background-color] duration-150 hover:bg-[var(--ui-hover-wash)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                      isCollapsed
+                        ? "size-9 shrink-0 items-center justify-center rounded-full !p-0"
+                        : "h-8 min-w-0 flex-1 justify-start gap-2 rounded-[8px] pl-0.5 pr-2",
+                    )}
+                  >
+                    <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--ui-hover-wash)] text-[var(--ui-fg-muted)]">
+                      <LogIn className="size-3.5" strokeWidth={1.75} aria-hidden />
+                    </span>
+                    <div
+                      className={cn(
+                        "cx-account-line min-w-0 flex-1 text-left",
+                        isCollapsed && "hidden",
+                      )}
+                    >
+                      <span className="cx-account-name">Log in</span>
+                    </div>
+                  </button>
+              ) : (
               <DropdownMenu
                 modal={false}
                 open={accountMenuOpen}
@@ -1018,6 +1125,17 @@ export function Sidebar({
                     <HelpCircle className="size-[15px] text-[var(--ui-fg-muted)]" />
                     <span>Get help</span>
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="ui-menu-row no-hover-overlay cursor-pointer"
+                    onClick={() =>
+                      window.dispatchEvent(
+                        new CustomEvent(KS_EVENTS.openShortcutsHelp),
+                      )
+                    }
+                  >
+                    <Keyboard className="size-[15px] text-[var(--ui-fg-muted)]" />
+                    <span>Keyboard shortcuts</span>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <AppHref
                       href={overlayHref({ type: "pricing" })}
@@ -1075,21 +1193,25 @@ export function Sidebar({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
 
               {!isCollapsed && !isPeekPreview ? (
                 <div className="flex shrink-0 items-center gap-0.5">
+                  <ShortcutHint label="Search chats" shortcutId="searchChats" side="top">
                   <button
                     type="button"
                     aria-label="Search chats"
                     title="Search chats"
                     onClick={(event) => {
                       event.stopPropagation();
+                      if (!gateSidebarAction(event)) return;
                       setSidebarSearchOpen(true);
                     }}
                     className={sidebarSectionIconButtonClass}
                   >
                     <Search className="size-3.5 shrink-0" strokeWidth={1.5} />
                   </button>
+                  </ShortcutHint>
                 </div>
               ) : null}
             </div>

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";
@@ -9,7 +8,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
 import {
-  defaultInstalledIds,
   filteredSections,
   marketplaceCatalog,
   pluginMatches,
@@ -17,55 +15,101 @@ import {
 } from "./catalog";
 import { CategorySection } from "./category-section";
 import { DiscoverRow } from "./discover-row";
+import { AddedPluginsRow } from "./added-plugins-row";
+import { PluginDetailDialog } from "./plugin-detail-dialog";
+import { AddPluginDialog } from "./add-plugin-dialog";
+import {
+  startPluginAuthorization,
+  usePluginConnections,
+  type PluginConnection,
+} from "./use-plugin-connections";
 import type { MarketplacePlugin } from "./types";
 
-const INSTALLS_KEY = "clauxen.marketplace.installs";
-
-function readInstalls(): string[] | null {
-  try {
-    const raw = localStorage.getItem(INSTALLS_KEY);
-    if (raw == null) return null;
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return null;
-    return parsed.filter((id): id is string => typeof id === "string");
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * The Plugins page.
+ *
+ * Clicking any plugin opens its detail popup (icon, name, description, then
+ * "Add to Clauxen" and "Try it in chat"). "Add to Clauxen" opens the connect
+ * confirmation, and confirming starts the plugin's MCP OAuth authorization in
+ * a new tab. Connected plugins appear in the "Added" strip at the top.
+ */
 export function MarketplaceView() {
   const isMobile = useIsMobile();
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
   const [query, setQuery] = useState("");
   const [managing, setManaging] = useState(false);
-  const [installed, setInstalled] = useState<Set<string>>(
-    () => new Set(defaultInstalledIds()),
-  );
-  const router = useRouter();
 
-  const openPlugin = (plugin: MarketplacePlugin) => {
-    router.push(`/plugins/${plugin.id}`);
-  };
+  // Popup state: the detail popover, then the add-to-platform confirmation.
+  const [detailPlugin, setDetailPlugin] = useState<MarketplacePlugin | null>(null);
+  const [addPlugin, setAddPlugin] = useState<MarketplacePlugin | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
-  // Warm the static RSC payload so opening a plugin is instant.
-  const prefetchPlugin = (plugin: MarketplacePlugin) => {
-    router.prefetch(`/plugins/${plugin.id}`);
-  };
+  const {
+    connections,
+    refresh: refreshConnections,
+    revoke,
+  } = usePluginConnections();
 
+  // New-tab authorization reports back through postMessage; refresh then too.
   useEffect(() => {
-    const stored = readInstalls();
-    if (stored) setInstalled(new Set(stored));
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string } | null;
+      if (data?.type === "clauxen:plugin-connected") void refreshConnections();
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [refreshConnections]);
+
+  const connectedIds = useMemo(
+    () => new Set(connections.map((connection) => connection.pluginId)),
+    [connections],
+  );
+
+  const openPlugin = useCallback((plugin: MarketplacePlugin) => {
+    setAddError(null);
+    setDetailPlugin(plugin);
   }, []);
 
-  const toggleInstalled = (id: string) => {
-    setInstalled((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      localStorage.setItem(INSTALLS_KEY, JSON.stringify([...next]));
-      return next;
-    });
-  };
+  const openAddConfirmation = useCallback((plugin: MarketplacePlugin) => {
+    setAddError(null);
+    setDetailPlugin(null);
+    setAddPlugin(plugin);
+  }, []);
+
+  const confirmAdd = useCallback(
+    async (plugin: MarketplacePlugin) => {
+      setStarting(true);
+      setAddError(null);
+      try {
+        const result = await startPluginAuthorization(plugin.id);
+        if (result.ok) {
+          // The provider's consent screen opens in a new tab; the callback
+          // posts back here when it completes.
+          window.open(result.authorizeUrl, "_blank", "noopener,noreferrer");
+          setAddPlugin(null);
+        } else {
+          setAddError(result.message);
+        }
+      } catch {
+        setAddError("Could not reach the plugin authorization service.");
+      } finally {
+        setStarting(false);
+      }
+    },
+    [],
+  );
+
+  const removeConnection = useCallback(
+    async (connection: PluginConnection) => {
+      try {
+        await revoke(connection.id);
+      } catch {
+        /* surfaced by the row's own state on the next refresh */
+      }
+    },
+    [revoke],
+  );
 
   const discoverPlugins = useMemo(() => {
     if (managing || query.trim()) return [];
@@ -77,24 +121,19 @@ export function MarketplaceView() {
     return filteredSections(query);
   }, [managing, query]);
 
-  const installedPlugins = useMemo(() => {
-    if (!managing) return [];
-    const seen = new Set<string>();
-    const list: MarketplacePlugin[] = [];
-    for (const section of marketplaceCatalog.sections) {
-      for (const id of section.pluginIds) {
-        if (seen.has(id) || !installed.has(id)) continue;
-        const plugin = marketplaceCatalog.plugins[id];
-        if (!plugin || !pluginMatches(plugin, query)) continue;
-        seen.add(id);
-        list.push(plugin);
-      }
-    }
-    return list;
-  }, [installed, managing, query]);
-
   const searching = query.trim().length > 0;
   const resultCount = sections.reduce((sum, section) => sum + section.plugins.length, 0);
+
+  const managedConnections = useMemo(() => {
+    if (!managing) return [];
+    const needle = query.trim().toLowerCase();
+    if (!needle) return connections;
+    return connections.filter((connection) =>
+      `${connection.pluginName} ${connection.pluginId}`
+        .toLowerCase()
+        .includes(needle),
+    );
+  }, [connections, managing, query]);
 
   return (
     <div className="plugin-marketplace relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans">
@@ -103,6 +142,15 @@ export function MarketplaceView() {
           title="Plugins"
           onOpenMobileNav={openMobileNav}
           isNavOpen={!isSidebarCollapsed}
+        />
+      ) : null}
+
+      {/* The "Added" strip — every connected plugin, in one horizontal line. */}
+      {!managing && !searching ? (
+        <AddedPluginsRow
+          connections={connections}
+          onOpen={openPlugin}
+          onRemove={removeConnection}
         />
       ) : null}
 
@@ -151,7 +199,7 @@ export function MarketplaceView() {
 
         <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-16 sm:px-6">
           {managing ? (
-            installedPlugins.length === 0 ? (
+            managedConnections.length === 0 ? (
               <EmptyState
                 title={searching ? "No matching plugins" : "No plugins added"}
                 body={
@@ -163,16 +211,27 @@ export function MarketplaceView() {
                 onAction={searching ? undefined : () => setManaging(false)}
               />
             ) : (
-              <CategorySection
-                title="Installed"
-                plugins={installedPlugins}
-                installed={installed}
-                onOpen={openPlugin}
-                onToggle={toggleInstalled}
-                onPrefetch={prefetchPlugin}
-                defaultExpanded={searching}
-                className="mt-2"
-              />
+              <section className="mt-2" aria-labelledby="installed-plugins-heading">
+                <h2
+                  id="installed-plugins-heading"
+                  className="mb-3 text-[15px] font-medium leading-5 tracking-[-0.01em] text-[var(--ui-fg)]"
+                >
+                  Installed
+                  <span className="ml-1.5 text-[12.5px] font-normal text-[var(--ui-fg-placeholder)]">
+                    · {managedConnections.length}
+                  </span>
+                </h2>
+                <ul className="flex flex-col gap-2">
+                  {managedConnections.map((connection) => (
+                    <ManagedConnectionRow
+                      key={connection.id}
+                      connection={connection}
+                      onOpen={openPlugin}
+                      onRemove={removeConnection}
+                    />
+                  ))}
+                </ul>
+              </section>
             )
           ) : searching && sections.length === 0 ? (
             <EmptyState
@@ -189,17 +248,13 @@ export function MarketplaceView() {
               <DiscoverRow
                 plugins={discoverPlugins}
                 onOpen={openPlugin}
-                onPrefetch={prefetchPlugin}
               />
               {sections.map((section) => (
                 <CategorySection
                   key={section.id}
                   title={section.title}
                   plugins={section.plugins}
-                  installed={installed}
                   onOpen={openPlugin}
-                  onToggle={toggleInstalled}
-                  onPrefetch={prefetchPlugin}
                   defaultExpanded={searching}
                 />
               ))}
@@ -207,7 +262,84 @@ export function MarketplaceView() {
           )}
         </div>
       </div>
+
+      {/* Step 1 — the plugin popup: icon, name, description, two actions. */}
+      <PluginDetailDialog
+        plugin={detailPlugin}
+        connected={detailPlugin ? connectedIds.has(detailPlugin.id) : false}
+        starting={false}
+        onOpenChange={(open) => {
+          if (!open) setDetailPlugin(null);
+        }}
+        onAdd={openAddConfirmation}
+      />
+
+      {/* Step 2 — the add-to-platform confirmation. */}
+      <AddPluginDialog
+        plugin={addPlugin}
+        mcpUrl={null}
+        connected={addPlugin ? connectedIds.has(addPlugin.id) : false}
+        error={addError}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAddPlugin(null);
+            setAddError(null);
+          }
+        }}
+        onConfirm={confirmAdd}
+      />
     </div>
+  );
+}
+
+function ManagedConnectionRow({
+  connection,
+  onOpen,
+  onRemove,
+}: {
+  connection: PluginConnection;
+  onOpen: (plugin: MarketplacePlugin) => void;
+  onRemove: (connection: PluginConnection) => void;
+}) {
+  const name = connection.pluginName || connection.pluginId;
+  return (
+    <li className="flex items-center gap-3 rounded-xl border border-[var(--ui-border)] bg-white p-3">
+      <button
+        type="button"
+        onClick={() =>
+          onOpen({
+            id: connection.pluginId,
+            name,
+            description: "",
+            author: "",
+            iconUrl: connection.pluginIconUrl ?? "",
+            category: "",
+            installed: true,
+          })
+        }
+        className="no-hover-overlay flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13.5px] font-medium leading-5 text-[var(--ui-fg)]">
+            {name}
+          </span>
+          <span className="mt-0.5 block truncate text-[12px] leading-[17px] text-[var(--ui-fg-muted)]">
+            {connection.status === "active"
+              ? "Connected"
+              : connection.status === "reauthorization_required"
+                ? "Needs reconnecting"
+                : connection.status}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onRemove(connection)}
+        className={cn(appBtn.secondarySm, "h-8 px-2.5")}
+      >
+        Remove
+      </button>
+    </li>
   );
 }
 

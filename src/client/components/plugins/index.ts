@@ -1,9 +1,16 @@
 export { MarketplaceView } from "./marketplace-view";
-export { PluginCard, PluginAddButton } from "./plugin-card";
+export { PluginCard } from "./plugin-card";
 export { PluginMark } from "./plugin-mark";
 export { DiscoverRow } from "./discover-row";
 export { CategorySection } from "./category-section";
-export { PluginDetailDialog, AddMarketplaceDialog } from "./plugin-dialogs";
+export { AddedPluginsRow } from "./added-plugins-row";
+export { PluginDetailDialog } from "./plugin-detail-dialog";
+export { AddPluginDialog } from "./add-plugin-dialog";
+export {
+  usePluginConnections,
+  startPluginAuthorization,
+  type PluginConnection,
+} from "./use-plugin-connections";
 export {
   marketplaceCatalog,
   pluginById,

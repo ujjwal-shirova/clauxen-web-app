@@ -31,7 +31,6 @@ export function PluginMark({
     >
       {showImage ? (
         // Remote marketplace artwork; next/image would need every CDN host.
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={iconUrl}
           alt=""
