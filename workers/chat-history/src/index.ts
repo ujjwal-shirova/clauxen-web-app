@@ -417,17 +417,24 @@ async function fetchChatList(
   }
 }
 
+/**
+ * Cache schema version. Bumping this orphans every cached latest page
+ * (Cache API + KV + R2) so a fixed payload shape / paging contract can never
+ * be masked by stale entries — old keys simply stop matching and expire.
+ */
+const CACHE_SCHEMA_VERSION = "v2";
+
 function kvKey(userId: string, chatId: string, limit: number) {
-  return `latest:${userId}:${chatId}:${limit}`;
+  return `latest:${CACHE_SCHEMA_VERSION}:${userId}:${chatId}:${limit}`;
 }
 
 function listKvKey(userId: string, projectId: string | null, limit: number) {
-  return `list:${userId}:${projectId ?? ""}:${limit}`;
+  return `list:${CACHE_SCHEMA_VERSION}:${userId}:${projectId ?? ""}:${limit}`;
 }
 
 function cacheRequest(userId: string, chatId: string, limit: number) {
   return new Request(
-    `https://chat-history.internal/latest/${userId}/${chatId}?limit=${limit}`,
+    `https://chat-history.internal/latest/${CACHE_SCHEMA_VERSION}/${userId}/${chatId}?limit=${limit}`,
     { method: "GET" },
   );
 }
@@ -438,7 +445,7 @@ function listCacheRequest(
   limit: number,
 ) {
   return new Request(
-    `https://chat-history.internal/list/${userId}?project=${projectId ?? ""}&limit=${limit}`,
+    `https://chat-history.internal/list/${CACHE_SCHEMA_VERSION}/${userId}?project=${projectId ?? ""}&limit=${limit}`,
     { method: "GET" },
   );
 }
@@ -448,7 +455,7 @@ function archiveObjectKey(
   chatId: string,
   limit: number,
 ): string {
-  return `archives/${userId}/${chatId}/latest-${limit}.json`;
+  return `archives/${CACHE_SCHEMA_VERSION}/${userId}/${chatId}/latest-${limit}.json`;
 }
 
 async function writeR2Archive(

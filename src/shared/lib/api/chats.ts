@@ -165,8 +165,8 @@ async function listMessagesPageViaWorker(
           Accept: "application/json",
         },
         credentials: "omit",
-        // Fail open to Next API if Worker hangs — avoids stuck message shimmer.
-        signal: AbortSignal.timeout(12_000),
+        // Fail open to Next API fast if Worker hangs — avoids stuck shimmer.
+        signal: AbortSignal.timeout(3_500),
       },
     );
     if (!response.ok) return null;
@@ -221,7 +221,10 @@ export async function listAllChatMessages(chatId: string): Promise<{
     return { messages: first.messages };
   }
 
+  // First page = newest batch; older keyset pages prepend chronologically.
+  // Dedupe defensively so a cursor boundary can never double-paint a row.
   let messages = first.messages;
+  const seen = new Set(messages.map((message) => message.id));
   let cursor = first.nextCursor;
   // Rare long threads — finish before paint so the UI never shows pagination.
   for (let i = 0; i < 20 && cursor; i += 1) {
@@ -229,8 +232,12 @@ export async function listAllChatMessages(chatId: string): Promise<{
       limit,
       cursorDepth: cursor.depth,
     });
-    messages = [...page.messages, ...messages];
+    const older = page.messages.filter((message) => !seen.has(message.id));
+    for (const message of older) seen.add(message.id);
+    messages = [...older, ...messages];
     if (!page.hasMore || !page.nextCursor) break;
+    // Guard against a non-advancing cursor (would loop on the same batch).
+    if (page.nextCursor.depth === cursor.depth) break;
     cursor = page.nextCursor;
   }
   return { messages };

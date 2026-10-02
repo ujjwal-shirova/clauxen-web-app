@@ -109,6 +109,7 @@ function turnSortKey(
   message: Message,
   index: number,
   turnStartedAt: ReadonlyMap<string, number>,
+  turnFirstIndex: ReadonlyMap<string, number>,
 ): string {
   const turnId = message.turnId ?? deriveTurnIdFromClientId(message.clientId);
   const turnStamp = turnId ? turnStartedAt.get(turnId) : undefined;
@@ -124,17 +125,33 @@ function turnSortKey(
     typeof turnStamp === "number"
       ? turnStamp
       : (ownStamp ?? 9999999999999);
-  return `${stamp.toString().padStart(13, "0")}\u0000${roleRank}\u0000${index.toString().padStart(10, "0")}`;
+  // Turns that share a transaction timestamp must never interleave: order
+  // same-stamp groups by each turn's first arrival position, then keep the
+  // user prompt ahead of its answer, then real timestamps (clock ties), then
+  // the stable index. This is what keeps the transcript strictly
+  // root -> leaf no matter what order rows arrive in.
+  const groupOrder = turnId ? (turnFirstIndex.get(turnId) ?? index) : index;
+  return `${stamp.toString().padStart(13, "0")}\u0000${groupOrder
+    .toString()
+    .padStart(10, "0")}\u0000${roleRank}\u0000${(ownStamp ?? 0)
+    .toString()
+    .padStart(13, "0")}\u0000${index.toString().padStart(10, "0")}`;
 }
 
 function sortIdsByTurn(ids: string[], byId: Record<string, Message>): string[] {
   if (ids.length <= 1) return ids;
   const turnStartedAt = new Map<string, number>();
-  for (const id of ids) {
-    const message = byId[id];
-    if (!message || typeof message.createdAt !== "number") continue;
+  const turnFirstIndex = new Map<string, number>();
+  for (let index = 0; index < ids.length; index += 1) {
+    const message = byId[ids[index]!];
+    if (!message) continue;
     const turnId = message.turnId ?? deriveTurnIdFromClientId(message.clientId);
     if (!turnId) continue;
+    const firstIndex = turnFirstIndex.get(turnId);
+    if (firstIndex === undefined || index < firstIndex) {
+      turnFirstIndex.set(turnId, index);
+    }
+    if (typeof message.createdAt !== "number") continue;
     const existing = turnStartedAt.get(turnId);
     if (existing === undefined || message.createdAt < existing) {
       turnStartedAt.set(turnId, message.createdAt);
@@ -146,8 +163,8 @@ function sortIdsByTurn(ids: string[], byId: Record<string, Message>): string[] {
       const ma = byId[a.id];
       const mb = byId[b.id];
       if (!ma || !mb) return a.index - b.index;
-      return turnSortKey(ma, a.index, turnStartedAt).localeCompare(
-        turnSortKey(mb, b.index, turnStartedAt),
+      return turnSortKey(ma, a.index, turnStartedAt, turnFirstIndex).localeCompare(
+        turnSortKey(mb, b.index, turnStartedAt, turnFirstIndex),
       );
     })
     .map((entry) => entry.id);
