@@ -8317,7 +8317,11 @@ textarea.cx-field {
 }
 
 .agent-run__header-label {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #52525b;
   font-variant-numeric: tabular-nums;
 }
@@ -9583,4 +9587,152 @@ nav.cx-sidebar {
 .dark .plugin-marketplace .app-btn-ghost:hover:not(:disabled) {
   background-color: rgba(24, 24, 27, 0.05) !important;
   color: #27272a !important;
+}
+
+/* ───────── Agentic trace ledger + bottom work cursor ─────────
+   The fold header is one shimmering activity label; opening it reveals the
+   interleaved step ledger — a rounded, hairline-ruled container where every
+   step (thinking, the model's own progress labels, tool calls) is one
+   expandable row. The morphing-dot work cursor pins under the output for
+   the whole live turn, including while the final answer streams. */
+
+.agent-ledger {
+  overflow: hidden;
+  border: 1px solid rgba(113, 113, 122, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.03);
+}
+
+.dark .agent-ledger {
+  border-color: rgba(161, 161, 170, 0.18);
+  background: rgba(24, 24, 27, 0.45);
+  box-shadow: none;
+}
+
+.agent-ledger__row + .agent-ledger__row {
+  border-top: 1px solid rgba(113, 113, 122, 0.12);
+}
+
+.dark .agent-ledger__row + .agent-ledger__row {
+  border-top-color: rgba(161, 161, 170, 0.14);
+}
+
+.agent-ledger__row-head {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 7px 12px;
+  text-align: left;
+  transition: background-color 150ms ease;
+}
+
+button.agent-ledger__row-head {
+  cursor: pointer;
+}
+
+button.agent-ledger__row-head:hover {
+  background: rgba(113, 113, 122, 0.06);
+}
+
+.dark button.agent-ledger__row-head:hover {
+  background: rgba(161, 161, 170, 0.08);
+}
+
+.agent-ledger__row-head:focus-visible {
+  outline: 2px solid rgba(113, 113, 122, 0.35);
+  outline-offset: -2px;
+}
+
+.agent-ledger__row-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #52525b;
+  font-size: 13.5px;
+  line-height: 20px;
+  letter-spacing: -0.005em;
+}
+
+.dark .agent-ledger__row-label {
+  color: #a1a1aa;
+}
+
+.agent-ledger__row[data-live="true"] .agent-ledger__row-label {
+  color: #27272a;
+}
+
+.dark .agent-ledger__row[data-live="true"] .agent-ledger__row-label {
+  color: #e4e4e7;
+}
+
+.agent-ledger__row-meta {
+  flex: none;
+  color: #a1a1aa;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.agent-ledger__row-chevron {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  color: #a1a1aa;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.agent-ledger__row-head:hover .agent-ledger__row-chevron {
+  color: #71717a;
+}
+
+.agent-ledger__row-body {
+  padding: 0 12px 12px 12px;
+}
+
+/* Tool steps bring their own labelled, collapsible block. */
+.agent-ledger__row--tool {
+  padding: 5px 10px;
+}
+
+.agent-ledger__row--tool .agent-trace__header {
+  width: 100%;
+  padding: 2px 2px;
+}
+
+.agent-ledger__row--tool .agent-trace__title {
+  max-width: none;
+  font-size: 13.5px;
+  line-height: 20px;
+  letter-spacing: -0.005em;
+}
+
+/* Bottom-of-turn work cursor — morphing dots pinned under the output,
+   tinted with the active brand accent like a live text cursor. */
+.agent-work-cursor {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 2px;
+}
+
+.agent-work-cursor .agent-work-morph {
+  color: hsl(var(--brand-strong));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-ledger__row-head {
+    transition: none;
+  }
+
+  .agent-ledger__row-chevron {
+    transition: none;
+  }
 }

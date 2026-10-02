@@ -8,24 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import {
-  BookOpen,
-  Brain,
-  ChevronRight,
-  CloudSun,
-  Code2,
-  FileText,
-  ImageIcon,
-  Link2,
-  MapPin,
-  MessageCircleQuestion,
-  PencilLine,
-  Plug,
-  Search,
-  Terminal,
-  Wrench,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type {
   AgentNarrationStep,
   AgentStep,
@@ -35,145 +18,67 @@ import type {
 import { cn } from "@/lib/utils";
 import {
   formatElapsedSeconds,
-  toolTraceFamily,
-  toolTraceFamilyLabel,
+  formatStepDuration,
+  runningToolLabel,
+  stepDurationMs,
   traceElapsedMs,
-  traceStepIcon,
-  type ToolTraceFamily,
-  type TraceStepIcon,
 } from "@/lib/agent-trace-labels";
 import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 import { StreamingTextFade } from "@/lib/streaming-text-fade";
-import { AgentToolBlock, AgentWebSearchBlock } from "./agent-tool-blocks";
-import { AgentShimmerText, AgentTraceBlock } from "./agent-trace-primitives";
+import { AgentToolBlock } from "./agent-tool-blocks";
+import { AgentShimmerText } from "./agent-trace-primitives";
+import { AgentWorkCursor } from "./agent-work-cursor";
+
 /**
  * Agent trace for one turn.
  *
- * Thinking, narration, and tool calls share one tree. It stays expanded
- * while the turn is working and folds when the final answer starts.
+ * Design: one shimmering activity label folds open into an interleaved
+ * ledger — a rounded, hairline-ruled container where every step the model
+ * takes (thinking, its own progress labels, tool calls) is one expandable
+ * row. The ledger stays open while the turn works and folds to the label
+ * when the final answer lands; the label always says what the model is
+ * doing so a collapsed run is still readable.
  */
 
-const STEP_ICONS: Record<TraceStepIcon, LucideIcon> = {
-  thinking: Brain,
-  search: Search,
-  fetch: Link2,
-  terminal: Terminal,
-  code: Code2,
-  read: FileText,
-  edit: PencilLine,
-  skill: BookOpen,
-  connector: Plug,
-  places: MapPin,
-  weather: CloudSun,
-  image: ImageIcon,
-  ask: MessageCircleQuestion,
-  tool: Wrench,
-};
+const NARRATION_LABEL_MAX = 160;
+const PLAIN_NARRATION_MAX = 96;
 
-const WORK_DOT_FRAMES = [
-  [
-    [5.6, 5.6],
-    [12, 5.6],
-    [18.4, 5.6],
-    [5.6, 12],
-    [12, 12],
-    [18.4, 12],
-    [5.6, 18.4],
-    [12, 18.4],
-    [18.4, 18.4],
-  ],
-  [
-    [12, 4.2],
-    [17.5, 6.5],
-    [19.8, 12],
-    [17.5, 17.5],
-    [12, 19.8],
-    [6.5, 17.5],
-    [4.2, 12],
-    [6.5, 6.5],
-    [12, 12],
-  ],
-  [
-    [12, 3.8],
-    [9.2, 8.5],
-    [14.8, 8.5],
-    [6.4, 13.2],
-    [12, 13.2],
-    [17.6, 13.2],
-    [4.2, 18.6],
-    [12, 18.6],
-    [19.8, 18.6],
-  ],
-  [
-    [12, 3.5],
-    [14.2, 8.7],
-    [19.8, 9.2],
-    [15.6, 12.8],
-    [17.2, 18.5],
-    [12, 15.2],
-    [6.8, 18.5],
-    [8.4, 12.8],
-    [4.2, 9.2],
-  ],
-] as const;
-
-const WORK_DOT_KEY_TIMES = "0;0.16;0.28;0.41;0.53;0.66;0.78;0.91;1";
-
-function dotValues(index: number, axis: 0 | 1): string {
-  const [grid, circle, triangle, star] = WORK_DOT_FRAMES;
-  return [
-    grid[index][axis],
-    grid[index][axis],
-    circle[index][axis],
-    circle[index][axis],
-    triangle[index][axis],
-    triangle[index][axis],
-    star[index][axis],
-    star[index][axis],
-    grid[index][axis],
-  ].join(";");
+/** First line of a narration step, shortened for ledger/header labels. */
+function narrationLabel(content: string): string {
+  const firstLine =
+    content
+      .split("\n")
+      .find((line) => line.trim())
+      ?.trim() ?? "";
+  if (!firstLine) return "";
+  return firstLine.length > NARRATION_LABEL_MAX
+    ? `${firstLine.slice(0, NARRATION_LABEL_MAX - 1).trimEnd()}…`
+    : firstLine;
 }
 
-function MorphingWorkIcon({ active = true }: { active?: boolean }) {
-  const settledDots = WORK_DOT_FRAMES[3];
-  return (
-    <span
-      className={cn("agent-work-morph", !active && "agent-work-morph--settled")}
-      aria-hidden
-    >
-      <svg viewBox="0 0 24 24" width="24" height="24">
-        {WORK_DOT_FRAMES[0].map((point, index) => (
-          <circle
-            key={index}
-            className="agent-work-dot"
-            cx={active ? point[0] : settledDots[index][0]}
-            cy={active ? point[1] : settledDots[index][1]}
-            r="1.45"
-            style={{ animationDelay: `${index * -90}ms` }}
-          >
-            {active ? (
-              <>
-                <animate
-                  attributeName="cx"
-                  dur="6.4s"
-                  repeatCount="indefinite"
-                  values={dotValues(index, 0)}
-                  keyTimes={WORK_DOT_KEY_TIMES}
-                />
-                <animate
-                  attributeName="cy"
-                  dur="6.4s"
-                  repeatCount="indefinite"
-                  values={dotValues(index, 1)}
-                  keyTimes={WORK_DOT_KEY_TIMES}
-                />
-              </>
-            ) : null}
-          </circle>
-        ))}
-      </svg>
-    </span>
-  );
+/** Short one-liners read as plain rows; longer narration folds behind a label. */
+function isPlainNarration(content: string): boolean {
+  const trimmed = content.trim();
+  const lines = trimmed
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.length === 1 && trimmed.length <= PLAIN_NARRATION_MAX;
+}
+
+/** What the model is doing right now — the fold label for the whole ledger. */
+function currentActivityLabel(steps: AgentStep[]): string | null {
+  for (let index = steps.length - 1; index >= 0; index -= 1) {
+    const step = steps[index];
+    if (step.kind === "tool" && step.status === "running") {
+      return runningToolLabel(step);
+    }
+    if (step.kind === "thinking" && step.isStreaming) return "Thinking";
+    if (step.kind === "narration" && step.isStreaming) {
+      return narrationLabel(step.content) || "Writing";
+    }
+  }
+  return null;
 }
 
 /**
@@ -233,7 +138,7 @@ function AgentRunHeader({
 }: {
   live: boolean;
   elapsedMs: number | null;
-  /** Live step title. Replaces "Working for…" while a step is in progress. */
+  /** Live step label. Replaces "Working for…" while a step is in progress. */
   activityLabel?: string | null;
   failedCount?: number;
   expandable: boolean;
@@ -251,16 +156,13 @@ function AgentRunHeader({
 
   const inner = (
     <>
-      <span className="agent-run__header-icon">
-        <MorphingWorkIcon active={live} />
-      </span>
       <span className="agent-run__header-text">
-        <span
-          className={cn("agent-run__header-label", live && "shimmer-text")}
-          data-shimmer-active={live || undefined}
+        <AgentShimmerText
+          active={live}
+          className="agent-run__header-label"
         >
           {label}
-        </span>
+        </AgentShimmerText>
         {live && activityLabel ? (
           <span className="agent-run__header-subtitle">{duration}</span>
         ) : null}
@@ -311,7 +213,7 @@ function AgentRunHeader({
   );
 }
 
-/** Live, layout-stable activity header shown from send until work appears. */
+/** Live, layout-stable activity row shown from send until work appears. */
 export function AgentWorkingRow({
   startedAtMs,
   activeLabel,
@@ -337,256 +239,213 @@ export function AgentWorkingRow({
         expandable={false}
         expanded={false}
       />
+      <AgentWorkCursor />
     </div>
   );
 }
 
-function ThinkingStepContent({ step }: { step: AgentThinkingStep }) {
+/* ─────────────────────────── ledger rows ─────────────────────────── */
+
+function LedgerRowShell({
+  label,
+  meta,
+  live,
+  expandable,
+  expanded,
+  onToggle,
+  buttonRef,
+  children,
+}: {
+  label: ReactNode;
+  meta?: ReactNode;
+  live?: boolean;
+  expandable: boolean;
+  expanded: boolean;
+  onToggle?: () => void;
+  buttonRef?: RefObject<HTMLButtonElement | null>;
+  children?: ReactNode;
+}) {
+  const head = (
+    <>
+      <span className="agent-ledger__row-label">{label}</span>
+      {meta ? <span className="agent-ledger__row-meta">{meta}</span> : null}
+      {expandable ? (
+        <ChevronRight
+          className={cn(
+            "agent-ledger__row-chevron",
+            expanded && "rotate-90",
+          )}
+          aria-hidden
+        />
+      ) : null}
+    </>
+  );
+
+  return (
+    <div
+      className="agent-ledger__row"
+      data-live={live || undefined}
+      data-agent-ledger-row="true"
+    >
+      {expandable ? (
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="agent-ledger__row-head no-hover no-hover-overlay"
+        >
+          {head}
+        </button>
+      ) : (
+        <div className="agent-ledger__row-head">{head}</div>
+      )}
+      {expandable ? (
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+            expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+          )}
+          aria-hidden={!expanded}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="agent-ledger__row-body">{children}</div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ThinkingLedgerRow({
+  step,
+  nowMs,
+}: {
+  step: AgentThinkingStep;
+  nowMs: number;
+}) {
   const streaming = step.isStreaming === true;
   const content = step.content?.trim() ?? "";
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const latchedStart = useLatchedStartedAtMs(step.startedAtMs);
-  const now = useTickingNow(streaming);
   const expanded = Boolean(content) && (userExpanded ?? streaming);
 
   const seconds = streaming
-    ? Math.max(1, Math.floor((now - (latchedStart ?? now)) / 1000))
+    ? Math.max(1, Math.floor((nowMs - (latchedStart ?? nowMs)) / 1000))
     : Math.max(1, step.durationSeconds ?? 1);
 
   return (
-    <div className="agent-thought-step min-w-0" data-agent-thinking-step="true">
-      <button
-        ref={buttonRef}
-        type="button"
-        disabled={!content}
-        onClick={() =>
-          preserveScrollAnchorOnToggle(buttonRef.current, () => {
-            setUserExpanded(!expanded);
-          })
-        }
-        className="agent-run__step-title group/thought no-hover no-hover-overlay"
-        aria-expanded={expanded}
-      >
-        <AgentShimmerText active={streaming}>
-          <span className="agent-activity-label--primary">
-            {streaming ? "Thinking" : "Thought"}
-          </span>
-          <span className="agent-activity-label--subtle">
-            {" "}
-            for {seconds}s
-          </span>
-        </AgentShimmerText>
-        {content ? (
-          <ChevronRight
-            className={cn(
-              "agent-run__inline-chevron group-hover/thought:opacity-100",
-              expanded && "rotate-90 opacity-100",
-            )}
-            aria-hidden
-          />
-        ) : null}
-      </button>
+    <LedgerRowShell
+      label={streaming ? "Thinking" : "Thought"}
+      meta={`${seconds}s`}
+      live={streaming}
+      expandable={Boolean(content)}
+      expanded={expanded}
+      buttonRef={buttonRef}
+      onToggle={() =>
+        preserveScrollAnchorOnToggle(buttonRef.current, () => {
+          setUserExpanded(!expanded);
+        })
+      }
+    >
       <div
         className={cn(
-          "grid transition-[grid-template-rows,opacity] duration-200",
-          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+          "whitespace-pre-wrap break-words text-[13px] leading-[1.6]",
+          streaming
+            ? "text-zinc-600 dark:text-zinc-300"
+            : "text-zinc-500 dark:text-zinc-400",
         )}
-        aria-hidden={!expanded}
       >
-        <div className="min-h-0 overflow-hidden">
-          <div
-            className={cn(
-              "agent-run__thinking-body",
-              streaming && "agent-run__thinking-body--live",
-            )}
-          >
-            {streaming ? (
-              <StreamingTextFade
-                content={content}
-                streamKey={`thinking-${step.id}`}
-                className="whitespace-pre-wrap break-words text-inherit"
-              />
-            ) : (
-              <p className="whitespace-pre-wrap break-words">{content}</p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────── interleaved segments ─────────────────────────── */
-
-type TraceSegment =
-  | { kind: "narration"; id: string; step: AgentNarrationStep }
-  | { kind: "thinking"; id: string; step: AgentThinkingStep }
-  | {
-      kind: "tools";
-      id: string;
-      family: ToolTraceFamily;
-      tools: AgentToolStep[];
-    };
-
-/** Split a turn into narration, thinking, and tool runs, in order. */
-function partitionTrace(steps: AgentStep[]): TraceSegment[] {
-  const segments: TraceSegment[] = [];
-  let buffer: AgentToolStep[] = [];
-  let family: ToolTraceFamily | null = null;
-
-  const flush = () => {
-    if (!buffer.length || !family) return;
-    segments.push({
-      kind: "tools",
-      id: `tools-${buffer[0].id}`,
-      family,
-      tools: buffer,
-    });
-    buffer = [];
-    family = null;
-  };
-
-  for (const step of steps) {
-    if (step.kind === "narration") {
-      flush();
-      if (!step.isFinal && step.content.trim()) {
-        segments.push({ kind: "narration", id: step.id, step });
-      }
-      continue;
-    }
-    if (step.kind === "thinking") {
-      flush();
-      segments.push({ kind: "thinking", id: step.id, step });
-      continue;
-    }
-    const nextFamily = toolTraceFamily(step.name);
-    if (family && nextFamily !== family) flush();
-    family = nextFamily;
-    buffer.push(step);
-  }
-  flush();
-  return segments;
-}
-
-function ToolGroupTree({
-  family,
-  tools,
-  forceOpen,
-}: {
-  family: ToolTraceFamily;
-  tools: AgentToolStep[];
-  forceOpen?: boolean;
-}) {
-  const live = tools.some((tool) => tool.status === "running");
-  const failed = tools.some((tool) => tool.status === "error");
-  const label = toolTraceFamilyLabel(family, tools.length, live);
-  const iconName = traceStepIcon(tools[0]);
-  const Icon = STEP_ICONS[iconName];
-
-  return (
-    <AgentTraceBlock
-      className="agent-tool-tree"
-      title={
-        <AgentShimmerText active={live}>
-          <span className={failed ? "text-rose-500" : "agent-activity-label--primary"}>
-            {failed && !live ? `${label} failed` : label}
-          </span>
-        </AgentShimmerText>
-      }
-      leading={<Icon className="size-4" strokeWidth={1.8} aria-hidden />}
-      chevronMode="always"
-      defaultExpanded={Boolean(forceOpen) || live}
-      isActive={live}
-    >
-      <div className="flex min-w-0 flex-col gap-2 pt-1">
-        {tools.map((tool) =>
-          tool.name === "web_search" ? (
-            <AgentWebSearchBlock key={tool.id} tool={tool} />
-          ) : (
-            <AgentToolBlock key={tool.id} tool={tool} />
-          ),
+        {streaming ? (
+          <StreamingTextFade
+            content={content}
+            streamKey={`thinking-${step.id}`}
+            className="whitespace-pre-wrap break-words text-inherit"
+          />
+        ) : (
+          <p>{content}</p>
         )}
       </div>
-    </AgentTraceBlock>
+    </LedgerRowShell>
   );
 }
 
-function stepActivityLabel(step: AgentStep): string {
-  if (step.kind === "thinking") return "Thinking";
-  if (step.kind === "narration") return "Writing";
-  return toolTraceFamilyLabel(toolTraceFamily(step.name), 1, true);
-}
+function NarrationLedgerRow({
+  step,
+  nowMs,
+  renderNarration,
+}: {
+  step: AgentNarrationStep;
+  nowMs: number;
+  renderNarration?: (step: AgentNarrationStep) => ReactNode;
+}) {
+  const content = step.content.trim();
+  const streaming = step.isStreaming === true;
+  const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
 
-function previewLinesFor(steps: AgentStep[]): string[] {
-  const lines: string[] = [];
-  for (const step of steps) {
-    if (step.kind === "narration") {
-      const parts = step.content
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
-      lines.push(...parts);
-      continue;
-    }
-    if (step.kind === "thinking") {
-      const text = step.content?.trim();
-      lines.push(text ? text.replace(/\s+/g, " ") : "Thinking");
-      continue;
-    }
-    const detail =
-      step.description?.trim() ||
-      step.searchQuery?.trim() ||
-      step.filePath?.trim() ||
-      (typeof step.args?.query === "string" ? step.args.query : "") ||
-      (typeof step.args?.command === "string" ? step.args.command : "") ||
-      (typeof step.args?.path === "string" ? step.args.path : "");
-    lines.push(
-      detail
-        ? `${stepActivityLabel(step)} — ${detail}`
-        : stepActivityLabel(step),
+  if (!content) return null;
+
+  if (isPlainNarration(content)) {
+    return (
+      <LedgerRowShell
+        label={content}
+        live={streaming}
+        expandable={false}
+        expanded={false}
+      >
+        {null}
+      </LedgerRowShell>
     );
   }
-  return lines.slice(-12);
-}
 
-function CollapsedWorkPreview({
-  lines,
-  live,
-}: {
-  lines: string[];
-  live: boolean;
-}) {
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const signature = lines.join("\n");
-
-  useEffect(() => {
-    const node = scrollerRef.current;
-    if (!node) return;
-    node.scrollTop = node.scrollHeight;
-  }, [signature, live]);
-
-  if (!lines.length) return null;
+  const expanded = userExpanded ?? streaming;
+  const ms = stepDurationMs(step, nowMs);
+  const meta =
+    ms != null && ms > 0 ? formatStepDuration(ms) : streaming ? "…" : undefined;
 
   return (
-    <div className="agent-trace-preview" data-agent-trace-preview="true">
-      <div className="agent-trace-preview__fade agent-trace-preview__fade--top" />
-      <div ref={scrollerRef} className="agent-trace-preview__scroll">
-        {lines.map((line, index) => (
-          <p key={`${index}-${line.slice(0, 24)}`} className="agent-trace-preview__line">
-            {line}
-          </p>
-        ))}
-      </div>
-      <div className="agent-trace-preview__fade agent-trace-preview__fade--bottom" />
+    <LedgerRowShell
+      label={narrationLabel(content) || "Working"}
+      meta={meta}
+      live={streaming}
+      expandable
+      expanded={expanded}
+      buttonRef={buttonRef}
+      onToggle={() =>
+        preserveScrollAnchorOnToggle(buttonRef.current, () => {
+          setUserExpanded(!expanded);
+        })
+      }
+    >
+      {renderNarration ? (
+        renderNarration(step)
+      ) : (
+        <p className="whitespace-pre-wrap break-words text-[13px] leading-[1.6] text-zinc-500 dark:text-zinc-400">
+          {content}
+        </p>
+      )}
+    </LedgerRowShell>
+  );
+}
+
+function ToolLedgerRow({ tool }: { tool: AgentToolStep }) {
+  return (
+    <div
+      className="agent-ledger__row agent-ledger__row--tool"
+      data-live={tool.status === "running" || undefined}
+      data-agent-ledger-row="true"
+    >
+      <AgentToolBlock tool={tool} />
     </div>
   );
 }
 
 /**
- * One activity tree for the turn. Narration sits between tool calls inside
- * the same tree. The tree stays open while work is in progress and folds
- * when the final answer starts.
+ * One interleaved ledger for the turn: thinking, the model's own progress
+ * labels, and tool calls in the order they happened. The ledger stays open
+ * while work is in progress and folds when the final answer starts.
  */
 export function AgentTraceView({
   steps,
@@ -604,7 +463,7 @@ export function AgentTraceView({
   completedAtMs?: number;
   /** Actionable traces (for example ask-user-input) must remain visible. */
   keepExpanded?: boolean;
-  /** Narration between tool calls, rendered inside the single tree. */
+  /** Narration bodies, rendered inside the expanded row. */
   renderNarration?: (step: AgentNarrationStep) => ReactNode;
 }) {
   const visibleSteps = useMemo(
@@ -617,10 +476,6 @@ export function AgentTraceView({
           : true,
       ),
     [renderNarration, steps],
-  );
-  const segments = useMemo(
-    () => partitionTrace(visibleSteps),
-    [visibleSteps],
   );
   const latchedStart = useLatchedStartedAtMs(startedAtMs);
   const now = useTickingNow(isActive);
@@ -640,34 +495,25 @@ export function AgentTraceView({
       setExpanded(true);
       return;
     }
-    if (!isActive) {
-      userToggledRef.current = false;
-      setExpanded(false);
+    if (isActive) {
+      // Open on its own while the run works; respect a manual fold.
+      if (!userToggledRef.current) setExpanded(true);
+      return;
     }
+    userToggledRef.current = false;
+    setExpanded(false);
   }, [isActive, keepExpanded]);
 
-  const activityLabel = useMemo(() => {
-    const running = [...visibleSteps].reverse().find((step) => {
-      if (step.kind === "tool") return step.status === "running";
-      if (step.kind === "thinking" || step.kind === "narration") {
-        return step.isStreaming === true;
-      }
-      return false;
-    });
-    const current = running ?? visibleSteps[visibleSteps.length - 1];
-    return current ? stepActivityLabel(current) : null;
-  }, [visibleSteps]);
-  const collapsedPreview = useMemo(
-    () => previewLinesFor(visibleSteps),
+  const activityLabel = useMemo(
+    () => currentActivityLabel(visibleSteps),
     [visibleSteps],
   );
 
-  if (segments.length === 0 && !isActive && !isWorking) return null;
+  if (visibleSteps.length === 0 && !isActive && !isWorking) return null;
 
   const failedCount = visibleSteps.filter(
     (step) => step.kind === "tool" && step.status === "error",
   ).length;
-  const showPreview = isActive && !expanded && collapsedPreview.length > 0;
 
   return (
     <div
@@ -691,37 +537,23 @@ export function AgentTraceView({
           });
         }}
       />
-      {showPreview ? (
-        <CollapsedWorkPreview lines={collapsedPreview} live={isActive} />
-      ) : null}
       {expanded ? (
-        <div className="agent-run__body flex min-w-0 flex-col gap-2 pt-1">
-          {segments.map((segment) => {
-            if (segment.kind === "narration") {
+        <div className="agent-ledger mt-2">
+          {visibleSteps.map((step) => {
+            if (step.kind === "thinking") {
+              return <ThinkingLedgerRow key={step.id} step={step} nowMs={now} />;
+            }
+            if (step.kind === "narration") {
               return (
-                <div
-                  key={segment.id}
-                  className="agent-trace-narration min-w-0 pl-1"
-                  data-agent-narration="true"
-                >
-                  {renderNarration?.(segment.step)}
-                </div>
+                <NarrationLedgerRow
+                  key={step.id}
+                  step={step}
+                  nowMs={now}
+                  renderNarration={renderNarration}
+                />
               );
             }
-            if (segment.kind === "thinking") {
-              return <ThinkingStepContent key={segment.id} step={segment.step} />;
-            }
-            const askOpen = segment.tools.some(
-              (tool) => tool.name === "ask_user_input_v0",
-            );
-            return (
-              <ToolGroupTree
-                key={segment.id}
-                family={segment.family}
-                tools={segment.tools}
-                forceOpen={Boolean(keepExpanded) && askOpen}
-              />
-            );
+            return <ToolLedgerRow key={step.id} tool={step} />;
           })}
         </div>
       ) : null}

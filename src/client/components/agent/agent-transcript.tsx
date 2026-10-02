@@ -15,6 +15,7 @@ import {
   toUserFacingChatError,
 } from "@/lib/assistant-generation-error";
 import { AgentTraceView } from "./agent-trace-view";
+import { AgentWorkCursor } from "./agent-work-cursor";
 
 const EMPTY_AGENT_STEPS: AgentStep[] = [];
 
@@ -81,6 +82,9 @@ export function AgentTranscriptView({
     hasTranscript ||
     isWorking ||
     (trace?.complete === true && hasTurnClock);
+  // The work cursor stays pinned at the bottom of the turn through the whole
+  // run — including while the final answer streams — like an output cursor.
+  const showWorkCursor = streaming || isWorking;
 
   const renderNarration = (step: AgentNarrationStep) => (
     <div
@@ -144,6 +148,8 @@ export function AgentTranscriptView({
           )}
         </div>
       ) : null}
+
+      {showWorkCursor ? <AgentWorkCursor /> : null}
     </div>
   );
 }
