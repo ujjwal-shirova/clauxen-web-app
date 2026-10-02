@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useClearAuthBusyOnReturn } from "@/hooks/use-clear-auth-busy-on-return";
 import {
@@ -57,6 +57,13 @@ export function AuthGateForm({
   const [error, setError] = useState<string | null>(
     initialError ? mapSupabaseAuthError(decodeURIComponent(initialError)) : null,
   );
+
+  // Sync incoming initialError (e.g. from OAuth redirect failure)
+  useEffect(() => {
+    if (initialError) {
+      setError(mapSupabaseAuthError(decodeURIComponent(initialError)));
+    }
+  }, [initialError]);
   const [info, setInfo] = useState<string | null>(null);
   const [magicDebugUrl, setMagicDebugUrl] = useState<string | null>(null);
 
@@ -322,7 +329,12 @@ export function AuthGateForm({
         variant === "dialog" && "flex-none",
       )}
     >
-      <div className="flex w-full flex-1 flex-col justify-center py-6">
+      <div
+        className={cn(
+          "flex w-full flex-1 flex-col justify-center",
+          variant === "dialog" ? "py-1 sm:py-2" : "py-6",
+        )}
+      >
         <ClauxenWordmark height={26} className="text-[var(--ui-fg)]" />
         <h1 className="mt-6 font-serif text-[40px] font-normal leading-none tracking-[-0.02em] text-[var(--ui-fg)]">
           {step === "create"

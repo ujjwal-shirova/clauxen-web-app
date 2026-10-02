@@ -65,7 +65,7 @@ function stripGateQuery() {
  * a session funnels through this gate and opens the sign-in dialog.
  */
 export function AuthGateProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
   const [initialError, setInitialError] = useState<string | null>(null);
@@ -79,6 +79,9 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
     setIsOpen(false);
     setRedirectTo(null);
     setInitialError(null);
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem("clx_auth_gate_dismissed", "1");
+    }
   }, []);
 
   const requireAuth = useCallback(
@@ -95,16 +98,25 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
     if (isAuthenticated && isOpen) closeAuthGate();
   }, [isAuthenticated, isOpen, closeAuthGate]);
 
-  // Deep-link bounce from the middleware: `/new?auth=1&redirectTo=…`
-  // opens the gate once, then cleans the query off the URL.
+  // Deep-link bounce from middleware or first-visit open for new users
   useEffect(() => {
     const gateQuery = readGateQuery();
-    if (!gateQuery.auth) return;
-    setRedirectTo(gateQuery.redirectTo);
-    setInitialError(gateQuery.error);
-    setIsOpen(true);
-    stripGateQuery();
-  }, []);
+    if (gateQuery.auth) {
+      setRedirectTo(gateQuery.redirectTo);
+      setInitialError(gateQuery.error);
+      setIsOpen(true);
+      stripGateQuery();
+      return;
+    }
+    if (!loading && !isAuthenticated) {
+      const dismissed =
+        typeof sessionStorage !== "undefined" &&
+        sessionStorage.getItem("clx_auth_gate_dismissed") === "1";
+      if (!dismissed) {
+        setIsOpen(true);
+      }
+    }
+  }, [loading, isAuthenticated]);
 
   const value = useMemo<AuthGateContextValue>(
     () => ({ isOpen, openAuthGate, closeAuthGate, requireAuth }),

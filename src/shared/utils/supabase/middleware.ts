@@ -34,7 +34,7 @@ const AUTH_FREE_PREFIXES = [
  * as a live preview. Actions (send, history, protected nav) open the in-app
  * auth gate dialog instead of bouncing to a standalone login page.
  */
-const GUEST_PREVIEW_EXACT_PATHS = ["/", "/new", "/pricing", "/platform"] as const;
+const GUEST_PREVIEW_EXACT_PATHS = ["/new", "/pricing", "/platform"] as const;
 
 const SESSION_COOKIE_NAME = "clauxen_session";
 

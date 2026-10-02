@@ -4672,62 +4672,10 @@ html[data-reduce-motion="1"] .orb-cursor-core {
   animation: magic-spark 2.4s ease-in-out infinite;
 }
 
-@keyframes auth-splash {
-  0% {
-    transform: scale(0.35);
-    opacity: 0.55;
-  }
-  100% {
-    transform: scale(2.4);
-    opacity: 0;
-  }
-}
-
-@keyframes auth-edge-ring {
-  0% {
-    transform: scale(1);
-    opacity: 0.72;
-  }
-  100% {
-    transform: scale(1.06);
-    opacity: 0;
-  }
-}
-
-/* OAuth click — ring on the control, label stays put. No spinner. */
-.auth-oauth-btn .auth-splash-ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 0;
-  width: 2.25rem;
-  height: 2.25rem;
-  margin-top: -1.125rem;
-  margin-left: -1.125rem;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--ui-fg) 18%, transparent);
-  pointer-events: none;
-  animation: auth-splash 0.95s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
-
-.auth-oauth-btn > :not(.auth-splash-ring) {
-  position: relative;
-  z-index: 1;
-}
-
-.auth-oauth-pending {
-  overflow: visible !important;
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--ui-fg) 32%, transparent);
-}
-
-.auth-oauth-pending::after {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  border: 1.5px solid color-mix(in oklab, var(--ui-fg) 55%, transparent);
-  pointer-events: none;
-  animation: auth-edge-ring 1.05s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+/* Real natural OAuth button */
+.auth-oauth-btn {
+  user-select: none;
+  touch-action: manipulation;
 }
 
 html[data-auth-redirect],
@@ -4751,15 +4699,11 @@ html[data-auth-redirect] body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-oauth-btn .auth-splash-ring,
-  .auth-oauth-pending::after,
   .cookie-notice {
     animation: none;
   }
 }
 
-html[data-reduce-motion="1"] .auth-oauth-btn .auth-splash-ring,
-html[data-reduce-motion="1"] .auth-oauth-pending::after,
 html[data-reduce-motion="1"] .cookie-notice {
   animation: none;
 }

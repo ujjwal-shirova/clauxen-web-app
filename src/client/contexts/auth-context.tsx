@@ -92,11 +92,33 @@ function hintToSession(): SessionUser | null {
 
 let oauthNavigationStarted = false;
 
+export function resetOAuthNavigation() {
+  oauthNavigationStarted = false;
+  if (typeof document !== "undefined") {
+    document.documentElement.removeAttribute("data-auth-redirect");
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(() => hintToSession());
   // Identity hint means we already know who you are — do not
   // block the shell on the quiet session round-trip.
   const [loading, setLoading] = useState(() => !hintToSession());
+
+  useEffect(() => {
+    const handleReset = () => resetOAuthNavigation();
+    window.addEventListener("pageshow", handleReset);
+    window.addEventListener("focus", handleReset);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") resetOAuthNavigation();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pageshow", handleReset);
+      window.removeEventListener("focus", handleReset);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   const refresh = useCallback(async (opts?: { quiet?: boolean }) => {
     if (!opts?.quiet) setLoading(true);
@@ -332,7 +354,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (provider: OAuthProvider, redirectTo = "/new") => {
       if (oauthNavigationStarted) return;
       oauthNavigationStarted = true;
-      const started = performance.now();
       try {
         const supabase = createClient();
         const { provider: goTrueProvider, scopes } =
@@ -346,23 +367,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         });
         if (error) {
+          oauthNavigationStarted = false;
           throw new Error(mapSupabaseAuthError(error.message));
         }
         const url = data?.url;
         if (!url) {
+          oauthNavigationStarted = false;
           throw new Error("Could not open the sign-in page. Try again.");
         }
-        // Hold just long enough for the button ring to read, then the
-        // document itself navigates to the provider — no in-button loader.
-        const hold = 560;
-        const elapsed = performance.now() - started;
-        if (elapsed < hold) {
-          await new Promise((resolve) => {
-            window.setTimeout(resolve, hold - elapsed);
-          });
-        }
         document.documentElement.setAttribute("data-auth-redirect", "1");
+        // Immediate redirection to the OAuth provider
         window.location.assign(url);
+
+        // Safety fallback so the button can be used again if navigation was interrupted
+        window.setTimeout(() => {
+          oauthNavigationStarted = false;
+        }, 4000);
       } catch (error) {
         oauthNavigationStarted = false;
         throw error;

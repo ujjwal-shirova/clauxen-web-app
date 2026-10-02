@@ -22,6 +22,14 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/new";
 
+  const errorParam =
+    searchParams.get("error_description") || searchParams.get("error");
+  if (errorParam) {
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(errorParam)}`,
+    );
+  }
+
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`);
   }
