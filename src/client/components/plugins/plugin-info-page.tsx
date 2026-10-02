@@ -174,7 +174,7 @@ export function PluginInfoPage({
   };
 
   const name =
-    stripCursorText(plugin.displayName || plugin.name) || plugin.name;
+    stripCursorText(plugin.displayName || plugin.name) || plugin.name || slug;
   const description = stripCursorText(plugin.description);
   const publisher = plugin.publisher;
   const publisherName = publisher

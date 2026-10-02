@@ -45,10 +45,12 @@ export async function generateMetadata({
   const plugin = await findMcpPluginBySlug(slug).catch(() => null);
   if (!plugin) return { title: "Plugin not found" };
   const name =
-    stripCursorText(plugin.displayName || plugin.name) || plugin.name;
+    stripCursorText(plugin.displayName || plugin.name) ||
+    plugin.name ||
+    "Plugin";
   return {
     title: name,
-    description: plugin.description,
+    description: plugin.description ?? undefined,
   };
 }
 

@@ -21,31 +21,31 @@ export type McpPluginPublisher = {
 
 export type McpPluginSkill = {
   name: string;
-  description: string;
+  description: string | null;
 };
 
 export type McpPluginCommand = {
   name: string;
-  description: string;
+  description: string | null;
   sourceUrl?: string | null;
 };
 
 export type McpPluginHook = {
   name: string;
-  description: string;
+  description: string | null;
   sourceUrl?: string | null;
 };
 
 export type McpPluginRule = {
   name: string;
-  description: string;
+  description: string | null;
   sourcePath?: string | null;
   sourceUrl?: string | null;
 };
 
 export type McpPluginSubagent = {
   name: string;
-  description: string;
+  description: string | null;
 };
 
 export type McpServerEntry = {
@@ -61,7 +61,7 @@ export type McpPlugin = {
   id: string;
   name: string;
   displayName: string | null;
-  description: string;
+  description: string | null;
   detailPageUrl?: string | null;
   installUrl?: string | null;
   logoUrl?: string | null;
@@ -106,9 +106,17 @@ export type McpServerSummary = {
   args: string[] | null;
 };
 
+/** Normalized list row for the info page — all text coerced to strings. */
+export type PluginInfoRow = {
+  name: string;
+  description: string;
+  sourceUrl?: string | null;
+};
+
 /**
  * Trimmed plugin payload for the info page client component. Keeps the RSC
- * payload small by dropping fields the page never renders.
+ * payload small by dropping fields the page never renders, and normalizes
+ * nullable dataset fields (e.g. missing descriptions) to safe strings.
  */
 export type PluginInfoData = {
   name: string;
@@ -122,57 +130,49 @@ export type PluginInfoData = {
     isVerified: boolean;
   } | null;
   mcpServers: McpServerSummary[];
-  skills: McpPluginSkill[];
-  commands: McpPluginCommand[];
-  hooks: McpPluginHook[];
-  rules: McpPluginRule[];
-  subagents: McpPluginSubagent[];
+  skills: PluginInfoRow[];
+  commands: PluginInfoRow[];
+  hooks: PluginInfoRow[];
+  rules: PluginInfoRow[];
+  subagents: PluginInfoRow[];
 };
 
 export function toPluginInfoData(plugin: McpPlugin): PluginInfoData {
+  const toRow = (entry: {
+    name: string | null;
+    description: string | null;
+    sourceUrl?: string | null;
+  }): PluginInfoRow => ({
+    name: entry.name ?? "",
+    description: entry.description ?? "",
+    sourceUrl: entry.sourceUrl ?? null,
+  });
+
   return {
-    name: plugin.name,
-    displayName: plugin.displayName,
-    description: plugin.description,
+    name: plugin.name ?? plugin.fullRef,
+    displayName: plugin.displayName ?? null,
+    description: plugin.description ?? "",
     logoUrl: plugin.logoUrl ?? null,
     repositoryUrl: plugin.repositoryUrl ?? plugin.gitUrl ?? null,
     publisher: plugin.publisher
       ? {
-          name: plugin.publisher.name,
+          name: plugin.publisher.name ?? "",
           displayName: plugin.publisher.displayName ?? null,
           isVerified: Boolean(plugin.publisher.isVerified),
         }
       : null,
     mcpServers: plugin.mcp.servers.map((server) => ({
-      name: server.name,
-      type: server.type,
-      url: server.url,
-      command: server.command,
-      args: server.args,
+      name: server.name ?? "",
+      type: server.type ?? "",
+      url: server.url ?? null,
+      command: server.command ?? null,
+      args: server.args ?? null,
     })),
-    skills: plugin.skills.map((skill) => ({
-      name: skill.name,
-      description: skill.description,
-    })),
-    commands: plugin.commands.map((command) => ({
-      name: command.name,
-      description: command.description,
-      sourceUrl: command.sourceUrl ?? null,
-    })),
-    hooks: plugin.hooks.map((hook) => ({
-      name: hook.name,
-      description: hook.description,
-      sourceUrl: hook.sourceUrl ?? null,
-    })),
-    rules: plugin.rules.map((rule) => ({
-      name: rule.name,
-      description: rule.description,
-      sourceUrl: rule.sourceUrl ?? null,
-    })),
-    subagents: plugin.subagents.map((subagent) => ({
-      name: subagent.name,
-      description: subagent.description,
-    })),
+    skills: plugin.skills.map(toRow),
+    commands: plugin.commands.map(toRow),
+    hooks: plugin.hooks.map(toRow),
+    rules: plugin.rules.map(toRow),
+    subagents: plugin.subagents.map(toRow),
   };
 }
 
