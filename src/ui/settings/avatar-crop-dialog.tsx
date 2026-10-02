@@ -237,7 +237,6 @@ export function AvatarCropDialog({
             onPointerCancel={endDrag}
             onWheel={onWheel}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               ref={imageRef}
               src={imageSrc}

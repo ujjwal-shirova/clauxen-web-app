@@ -30,9 +30,7 @@ function surfaceKind(pathname: string): SurfaceKind {
   if (pathname === "/projects" || pathname.startsWith("/projects/")) {
     return "projects";
   }
-  // Exact match only — `/plugins/<slug>` is a real detail page route and
-  // falls through to "children" below.
-  if (pathname === "/plugins") {
+  if (pathname === "/plugins" || pathname.startsWith("/plugins/")) {
     return "plugins";
   }
   if (pathname === "/my-clauxen" || pathname.startsWith("/my-clauxen/")) {

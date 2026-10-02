@@ -9,7 +9,7 @@ import type { MarketplacePlugin } from "./types";
 /** Cards shown per grid column before the "Show N more" label (5 × 2 cols). */
 const VISIBLE_PER_COLUMN = 5;
 
-/** Matches the `sm:grid-cols-2` breakpoint used by the card grid. */
+/** Matches the \`sm:grid-cols-2\` breakpoint used by the card grid. */
 const TWO_COLUMN_MQ = "(min-width: 640px)";
 
 function subscribeTwoColumn(callback: () => void) {
@@ -29,7 +29,10 @@ function getTwoColumnServerSnapshot() {
 type CategorySectionProps = {
   title: string;
   plugins: MarketplacePlugin[];
+  connectedIds?: Set<string>;
+  startingId?: string | null;
   onOpen: (plugin: MarketplacePlugin) => void;
+  onAdd?: (plugin: MarketplacePlugin) => void;
   onPrefetch?: (plugin: MarketplacePlugin) => void;
   className?: string;
   /** Skip the cap (e.g. while the user is searching). */
@@ -39,7 +42,10 @@ type CategorySectionProps = {
 export function CategorySection({
   title,
   plugins,
+  connectedIds,
+  startingId,
   onOpen,
+  onAdd,
   onPrefetch,
   className,
   defaultExpanded = false,
@@ -84,7 +90,10 @@ export function CategorySection({
           <PluginCard
             key={plugin.id}
             plugin={plugin}
+            connected={connectedIds?.has(plugin.id)}
+            isStarting={startingId === plugin.id}
             onOpen={onOpen}
+            onAdd={onAdd}
             onPrefetch={onPrefetch}
           />
         ))}

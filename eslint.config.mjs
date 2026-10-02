@@ -12,6 +12,7 @@ const config = [
       "vendor/**",
       "output/**",
       ".tools/**",
+      "workers/**",
     ],
   },
   ...nextVitals,

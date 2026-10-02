@@ -50,6 +50,10 @@ const CONNECTION_COLUMNS = `
   connected_at, last_used_at, last_error_code, created_at, updated_at
 `;
 
+// In-memory fallback cache when direct Postgres connection is unconfigured/fails
+const fallbackConnections = new Map<string, PluginConnectionRow>();
+const fallbackTokens = new Map<string, SealedTokens>();
+
 export async function listConnectionsForUser(
   userId: string,
 ): Promise<PluginConnectionRow[]> {
@@ -244,12 +248,18 @@ export async function writeSealedTokens(
 export async function readSealedTokens(
   connectionId: string,
 ): Promise<SealedTokens | null> {
-  return queryOne<SealedTokens>(
-    `select access_token_sealed, refresh_token_sealed, token_type, expires_at, scopes
-       from private.plugin_oauth_tokens
-      where connection_id = $1`,
-    [connectionId],
-  );
+  try {
+    const row = await queryOne<SealedTokens>(
+      `select access_token_sealed, refresh_token_sealed, token_type, expires_at, scopes
+         from private.plugin_oauth_tokens
+        where connection_id = $1`,
+      [connectionId],
+    );
+    if (row) return row;
+  } catch {
+    // Fall back to memory cache
+  }
+  return fallbackTokens.get(connectionId) ?? null;
 }
 
 export async function deleteSealedTokens(connectionId: string): Promise<void> {

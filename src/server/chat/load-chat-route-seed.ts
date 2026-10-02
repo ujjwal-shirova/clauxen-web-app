@@ -16,12 +16,15 @@ export async function loadChatRouteSeed(
   try {
     const supabase = await createClient();
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id;
     if (!userId) return null;
 
-    const accessToken = session.access_token ?? null;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const accessToken = session?.access_token ?? null;
 
     const pageResult = await chatService.getChatMessagesPage(chatId, userId, {
       limit: FULL_CHAT_HYDRATE_LIMIT,

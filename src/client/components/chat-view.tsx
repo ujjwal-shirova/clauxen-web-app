@@ -281,13 +281,17 @@ function ChatViewBody({
       return;
     }
     if (routeChatId) {
-      void handleSelectChatRef.current(routeChatId);
+      if (routeChatId !== activeChatId) {
+        void handleSelectChatRef.current(routeChatId);
+      }
       return;
     }
     // ChatView stays mounted off-route; only clear when the visible surface
     // is the blank new-chat page.
     if (isNewChatPath(pathname)) {
-      startNewChatRef.current();
+      if (activeChatId) {
+        startNewChatRef.current();
+      }
     }
   }, [isIncognito, activeChatId, routeChatId, pathname]);
 

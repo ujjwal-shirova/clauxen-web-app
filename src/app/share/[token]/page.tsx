@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import type { SharedChatSnapshot } from "@/lib/share-public";
@@ -89,32 +89,6 @@ export default function PublicSharePage() {
     document.head.appendChild(script);
   }, []);
 
-  useEffect(() => {
-    if (!scriptReady || !gate?.siteKey || !widgetHost.current || !window.turnstile) return;
-    if (widgetId.current) return;
-    widgetId.current = window.turnstile.render(widgetHost.current, {
-      sitekey: gate.siteKey,
-      action: "share_open",
-      callback: (turnstileToken) => {
-        void openChat(turnstileToken);
-      },
-      "error-callback": () => {
-        setError("Could not confirm you are a person. Refresh and try again.");
-      },
-      "expired-callback": () => {
-        setError("That check expired. Confirm again.");
-      },
-    });
-    return () => {
-      if (widgetId.current && window.turnstile) {
-        window.turnstile.remove(widgetId.current);
-        widgetId.current = null;
-      }
-    };
-    // openChat closes over the latest token and worker URL.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scriptReady, gate?.siteKey]);
-
   async function openChat(turnstileToken: string) {
     if (!token || opening) return;
     setOpening(true);
@@ -145,6 +119,30 @@ export default function PublicSharePage() {
       setOpening(false);
     }
   }
+
+  useEffect(() => {
+    if (!scriptReady || !gate?.siteKey || !widgetHost.current || !window.turnstile) return;
+    if (widgetId.current) return;
+    widgetId.current = window.turnstile.render(widgetHost.current, {
+      sitekey: gate.siteKey,
+      action: "share_open",
+      callback: (turnstileToken) => {
+        void openChat(turnstileToken);
+      },
+      "error-callback": () => {
+        setError("Could not confirm you are a person. Refresh and try again.");
+      },
+      "expired-callback": () => {
+        setError("That check expired. Confirm again.");
+      },
+    });
+    return () => {
+      if (widgetId.current && window.turnstile) {
+        window.turnstile.remove(widgetId.current);
+        widgetId.current = null;
+      }
+    };
+  }, [gate?.siteKey, scriptReady]);
 
   if (snapshot) {
     return (

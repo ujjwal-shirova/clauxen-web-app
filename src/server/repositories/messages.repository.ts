@@ -603,7 +603,7 @@ export async function beginChatTurn(input: {
         `update public.chats
          set updated_at = now(),
              active_leaf_message_id = $3
-         where id = $1
+         where id = $1 and user_id = $2
            and ($3::uuid is not null)`,
         [input.chatId, input.userId, assistant.id],
       );
@@ -803,8 +803,11 @@ export async function finalizeAssistantTurn(input: {
       );
     }
     await client.query(
-      `update public.chats set updated_at = now() where id = $1`,
-      [input.chatId],
+      `update public.chats
+       set updated_at = now(),
+           active_leaf_message_id = coalesce($3::uuid, active_leaf_message_id)
+       where id = $1 and user_id = $2`,
+      [input.chatId, input.userId, input.messageId],
     );
     return message;
   });

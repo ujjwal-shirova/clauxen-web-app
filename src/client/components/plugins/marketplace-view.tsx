@@ -5,19 +5,18 @@ import { Search, X } from "lucide-react";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useToast } from "@/hooks/use-toast";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
 import {
   filteredSections,
   marketplaceCatalog,
-  pluginMatches,
   pluginsByIds,
 } from "./catalog";
 import { CategorySection } from "./category-section";
 import { DiscoverRow } from "./discover-row";
 import { AddedPluginsRow } from "./added-plugins-row";
 import { PluginDetailDialog } from "./plugin-detail-dialog";
-import { AddPluginDialog } from "./add-plugin-dialog";
 import {
   startPluginAuthorization,
   usePluginConnections,
@@ -28,21 +27,26 @@ import type { MarketplacePlugin } from "./types";
 /**
  * The Plugins page.
  *
- * Clicking any plugin opens its detail popup (icon, name, description, then
- * "Add to Clauxen" and "Try it in chat"). "Add to Clauxen" opens the connect
- * confirmation, and confirming starts the plugin's MCP OAuth authorization in
- * a new tab. Connected plugins appear in the "Added" strip at the top.
+ * Clicking any plugin opens its pop-up container with:
+ * - Plugin icon at the top
+ * - Name and description
+ * - "Add to Clauxen" button
+ *
+ * Clicking "Add to Clauxen" in the popup OR clicking the "Add" button inside
+ * the plugin card in the page redirects the user in a new tab of that specific
+ * platform for authorizing and authentication to exchange and store tokens.
+ * Connected plugins appear in the "Added" strip at the top.
  */
 export function MarketplaceView() {
   const isMobile = useIsMobile();
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
+  const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [managing, setManaging] = useState(false);
 
-  // Popup state: the detail popover, then the add-to-platform confirmation.
+  // Pop-up container state: the selected plugin detail modal.
   const [detailPlugin, setDetailPlugin] = useState<MarketplacePlugin | null>(null);
-  const [addPlugin, setAddPlugin] = useState<MarketplacePlugin | null>(null);
-  const [starting, setStarting] = useState(false);
+  const [startingPluginId, setStartingPluginId] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
 
   const {
@@ -51,15 +55,26 @@ export function MarketplaceView() {
     revoke,
   } = usePluginConnections();
 
-  // New-tab authorization reports back through postMessage; refresh then too.
+  // New-tab authorization reports back through postMessage.
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      const data = event.data as { type?: string } | null;
-      if (data?.type === "clauxen:plugin-connected") void refreshConnections();
+      const data = event.data as {
+        type?: string;
+        pluginId?: string;
+        pluginName?: string;
+      } | null;
+      if (data?.type === "clauxen:plugin-connected") {
+        void refreshConnections();
+        setDetailPlugin(null);
+        toast({
+          title: "Plugin connected",
+          description: `${data.pluginName || "Plugin"} has been added to Clauxen.`,
+        });
+      }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [refreshConnections]);
+  }, [refreshConnections, toast]);
 
   const connectedIds = useMemo(
     () => new Set(connections.map((connection) => connection.pluginId)),
@@ -71,44 +86,66 @@ export function MarketplaceView() {
     setDetailPlugin(plugin);
   }, []);
 
-  const openAddConfirmation = useCallback((plugin: MarketplacePlugin) => {
-    setAddError(null);
-    setDetailPlugin(null);
-    setAddPlugin(plugin);
-  }, []);
-
-  const confirmAdd = useCallback(
+  const handleAuthorize = useCallback(
     async (plugin: MarketplacePlugin) => {
-      setStarting(true);
+      // Pre-open tab to ensure browser popup blocker allows async window redirection
+      const authTab = window.open("about:blank", "_blank");
+      setStartingPluginId(plugin.id);
       setAddError(null);
+
       try {
         const result = await startPluginAuthorization(plugin.id);
-        if (result.ok) {
-          // The provider's consent screen opens in a new tab; the callback
-          // posts back here when it completes.
-          window.open(result.authorizeUrl, "_blank", "noopener,noreferrer");
-          setAddPlugin(null);
+        if (result.ok && result.authorizeUrl) {
+          if (authTab) {
+            authTab.location.href = result.authorizeUrl;
+          } else {
+            window.open(result.authorizeUrl, "_blank", "noopener,noreferrer");
+          }
         } else {
-          setAddError(result.message);
+          if (authTab) authTab.close();
+          const msg = result.ok
+            ? "Could not start authorization."
+            : result.message;
+          setAddError(msg);
+          toast({
+            variant: "destructive",
+            title: "Connection failed",
+            description: msg,
+          });
         }
       } catch {
-        setAddError("Could not reach the plugin authorization service.");
+        if (authTab) authTab.close();
+        const msg = "Could not reach the plugin authorization service.";
+        setAddError(msg);
+        toast({
+          variant: "destructive",
+          title: "Connection error",
+          description: msg,
+        });
       } finally {
-        setStarting(false);
+        setStartingPluginId(null);
       }
     },
-    [],
+    [toast],
   );
 
   const removeConnection = useCallback(
     async (connection: PluginConnection) => {
       try {
         await revoke(connection.id);
+        toast({
+          title: "Plugin removed",
+          description: `${connection.pluginName || "Plugin"} has been removed.`,
+        });
       } catch {
-        /* surfaced by the row's own state on the next refresh */
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not remove this plugin.",
+        });
       }
     },
-    [revoke],
+    [revoke, toast],
   );
 
   const discoverPlugins = useMemo(() => {
@@ -122,7 +159,10 @@ export function MarketplaceView() {
   }, [managing, query]);
 
   const searching = query.trim().length > 0;
-  const resultCount = sections.reduce((sum, section) => sum + section.plugins.length, 0);
+  const resultCount = sections.reduce(
+    (sum, section) => sum + section.plugins.length,
+    0,
+  );
 
   const managedConnections = useMemo(() => {
     if (!managing) return [];
@@ -204,7 +244,7 @@ export function MarketplaceView() {
                 title={searching ? "No matching plugins" : "No plugins added"}
                 body={
                   searching
-                    ? `Nothing you’ve added matches “${query.trim()}”.`
+                    ? `Nothing you've added matches “${query.trim()}”.`
                     : "Add a plugin from the marketplace and it will show up here."
                 }
                 actionLabel={searching ? undefined : "Browse marketplace"}
@@ -247,14 +287,20 @@ export function MarketplaceView() {
               ) : null}
               <DiscoverRow
                 plugins={discoverPlugins}
+                connectedIds={connectedIds}
+                startingId={startingPluginId}
                 onOpen={openPlugin}
+                onAdd={handleAuthorize}
               />
               {sections.map((section) => (
                 <CategorySection
                   key={section.id}
                   title={section.title}
                   plugins={section.plugins}
+                  connectedIds={connectedIds}
+                  startingId={startingPluginId}
                   onOpen={openPlugin}
+                  onAdd={handleAuthorize}
                   defaultExpanded={searching}
                 />
               ))}
@@ -263,30 +309,19 @@ export function MarketplaceView() {
         </div>
       </div>
 
-      {/* Step 1 — the plugin popup: icon, name, description, two actions. */}
+      {/* The plugin pop-up container: icon at top, name, description, "Add to Clauxen" */}
       <PluginDetailDialog
         plugin={detailPlugin}
         connected={detailPlugin ? connectedIds.has(detailPlugin.id) : false}
-        starting={false}
-        onOpenChange={(open) => {
-          if (!open) setDetailPlugin(null);
-        }}
-        onAdd={openAddConfirmation}
-      />
-
-      {/* Step 2 — the add-to-platform confirmation. */}
-      <AddPluginDialog
-        plugin={addPlugin}
-        mcpUrl={null}
-        connected={addPlugin ? connectedIds.has(addPlugin.id) : false}
-        error={addError}
+        starting={startingPluginId === detailPlugin?.id}
+        error={detailPlugin?.id === startingPluginId ? addError : null}
         onOpenChange={(open) => {
           if (!open) {
-            setAddPlugin(null);
+            setDetailPlugin(null);
             setAddError(null);
           }
         }}
-        onConfirm={confirmAdd}
+        onAdd={handleAuthorize}
       />
     </div>
   );

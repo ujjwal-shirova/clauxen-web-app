@@ -1,7 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Check, Loader2, Plug } from "lucide-react";
-import Link from "next/link";
+import { Check, Loader2, Plug } from "lucide-react";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
 import {
@@ -16,93 +15,120 @@ import { PluginMark } from "./plugin-mark";
 import type { MarketplacePlugin } from "./types";
 
 /**
- * The plugin popover shown when a marketplace card is clicked.
+ * The plugin pop-up container shown when clicking any plugin in the marketplace.
  *
- * Layout: the plugin icon leads, with its name and description stacked to the
- * right of it, then the two actions underneath — "Add to Clauxen" (which opens
- * the connect confirmation) and "Try it in chat".
+ * Container layout:
+ * - Plugin icon at the top
+ * - Plugin name
+ * - Plugin description
+ * - "Add to Clauxen" button (directly launches new-tab platform authorization)
  */
 export type PluginDetailDialogProps = {
   plugin: MarketplacePlugin | null;
-  /** True when this plugin already has a connection on the account. */
+  /** True when this plugin already has an active connection on the account. */
   connected: boolean;
-  /** True while the connect confirmation is being prepared. */
+  /** True while the platform authorization is being started. */
   starting: boolean;
+  /** Optional error message from authorization start. */
+  error?: string | null;
   onOpenChange: (open: boolean) => void;
   onAdd: (plugin: MarketplacePlugin) => void;
+  onRemove?: (pluginId: string) => void;
 };
 
 export function PluginDetailDialog({
   plugin,
   connected,
   starting,
+  error,
   onOpenChange,
   onAdd,
 }: PluginDetailDialogProps) {
   const name = plugin ? stripCursorText(plugin.name) || plugin.name : "";
   const description = plugin ? stripCursorText(plugin.description) : "";
   const category = plugin ? stripCursorText(plugin.category) : "";
+  const author = plugin ? stripCursorText(plugin.author) : "";
 
   return (
     <Dialog open={plugin !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="plugin-marketplace max-w-[440px] gap-0 p-0">
+      <DialogContent className="plugin-marketplace max-w-[420px] gap-0 overflow-hidden rounded-2xl p-0">
         {plugin ? (
           <>
-            <DialogHeader className="gap-0 space-y-0 p-5 pb-4">
-              {/* Icon leads, with name + description stacked to its right. */}
-              <div className="flex items-start gap-3.5">
-                <PluginMark name={name} iconUrl={plugin.iconUrl} size={56} />
-                <div className="min-w-0 flex-1">
-                  <DialogTitle className="text-[16px] font-semibold leading-6 tracking-[-0.01em]">
-                    {name}
-                  </DialogTitle>
-                  <DialogDescription className="mt-1 line-clamp-4 text-[13px] leading-[19px] text-[var(--ui-fg-body)]">
-                    {description || "No description for this plugin yet."}
-                  </DialogDescription>
-                </div>
+            <DialogHeader className="flex flex-col items-center gap-0 space-y-0 px-6 pt-7 pb-4 text-center">
+              {/* Plugin icon at the top */}
+              <div className="flex justify-center">
+                <PluginMark
+                  name={name}
+                  iconUrl={plugin.iconUrl}
+                  size={64}
+                  className="rounded-2xl border border-[var(--ui-border)] shadow-sm"
+                />
               </div>
 
-              {category ? (
-                <p className="mt-3 text-[12px] leading-[17px] text-[var(--ui-fg-placeholder)]">
+              {/* Plugin name */}
+              <DialogTitle className="mt-4 text-[18px] font-semibold leading-6 tracking-[-0.01em] text-[var(--ui-fg)]">
+                {name}
+              </DialogTitle>
+
+              {/* Author & category metadata */}
+              {category || author ? (
+                <p className="mt-1 text-[12px] leading-4 text-[var(--ui-fg-placeholder)]">
                   {category}
-                  {stripCursorText(plugin.author)
-                    ? ` · ${stripCursorText(plugin.author)}`
-                    : ""}
+                  {category && author ? " · " : ""}
+                  {author}
                 </p>
               ) : null}
+
+              {/* Plugin description */}
+              <DialogDescription className="mt-3.5 max-h-[160px] overflow-y-auto px-1 text-[13px] leading-[20px] text-[var(--ui-fg-body)]">
+                {description || "No description provided for this plugin."}
+              </DialogDescription>
             </DialogHeader>
 
-            <div className="flex flex-col gap-2 border-t border-[var(--ui-border-subtle)] p-4">
+            {error ? (
+              <p
+                role="alert"
+                className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-center text-[12px] leading-[17px] text-red-700"
+              >
+                {error}
+              </p>
+            ) : null}
+
+            {/* Container Action Button: "Add to Clauxen" */}
+            <div className="border-t border-[var(--ui-border-subtle)] bg-[var(--ui-subtle-surface,#fafafa)] p-5">
               <button
                 type="button"
                 onClick={() => onAdd(plugin)}
                 disabled={starting}
                 className={cn(
                   appBtn.primary,
-                  "h-10 w-full justify-center gap-2 px-4 text-[13.5px]",
+                  "h-10 w-full justify-center gap-2 px-4 text-[13.5px] font-medium shadow-sm transition-all active:scale-[0.99]",
+                  starting && "opacity-85",
                 )}
               >
                 {starting ? (
                   <Loader2 className="size-4 animate-spin" strokeWidth={2} />
                 ) : connected ? (
-                  <Check className="size-4" strokeWidth={2} />
+                  <Check className="size-4 text-emerald-400" strokeWidth={2.5} />
                 ) : (
-                  <Plug className="size-4" strokeWidth={1.9} />
+                  <Plug className="size-4" strokeWidth={2} />
                 )}
-                {connected ? "Manage connection" : "Add to Clauxen"}
+                {starting
+                  ? "Authorizing…"
+                  : connected
+                    ? "Reconnect with platform"
+                    : "Add to Clauxen"}
               </button>
 
-              <Link
-                href="/new"
-                onClick={() => onOpenChange(false)}
-                className={cn(
-                  appBtn.secondary,
-                  "h-10 w-full justify-center gap-1.5 px-4 text-[13.5px]",
-                )}
-              >
-                Try it in chat
-                <ArrowUpRight className="size-3.5" strokeWidth={1.9} />
-              </Link>
+              {connected ? (
+                <p className="mt-2 text-center text-[11.5px] text-emerald-700">
+                  ✓ Plugin is connected and ready to use in chats.
+                </p>
+              ) : (
+                <p className="mt-2 text-center text-[11.5px] text-[var(--ui-fg-placeholder)]">
+                  Opens a new tab to authorize and authenticate with {name}.
+                </p>
+              )}
             </div>
           </>
         ) : null}

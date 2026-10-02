@@ -224,7 +224,9 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname === "/my-clauxen" ||
     pathname.startsWith("/my-clauxen/") ||
     pathname === "/projects" ||
-    pathname.startsWith("/projects/")
+    pathname.startsWith("/projects/") ||
+    pathname === "/plugins" ||
+    pathname.startsWith("/plugins/")
   );
 }
 

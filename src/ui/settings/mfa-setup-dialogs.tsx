@@ -124,7 +124,6 @@ export function AuthenticatorSetupDialog({
               {/* QR Container */}
               <div className="mt-4 flex flex-col items-center justify-center rounded-[18px] border border-zinc-200/90 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:border-zinc-800 dark:bg-zinc-900">
                 {qrDataUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={qrDataUrl}
                     alt="Authenticator QR Code"

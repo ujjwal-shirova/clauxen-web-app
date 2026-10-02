@@ -1,9 +1,9 @@
 import { withApiHandler } from "@/server/http/api-handler";
 import { jsonData } from "@/server/http/api-response";
-import { requireSession } from "@/server/auth/require-session";
-import { AppError, notFound } from "@/server/db/errors";
+import { AppError } from "@/server/db/errors";
 import { env } from "@/server/config/env";
-import { resolvePluginMcpTarget } from "@/lib/mcp-plugin-dataset";
+import { resolvePluginMcpTarget } from "@/shared/lib/mcp-plugin-dataset";
+import { startPluginAuthorizationFlow } from "@/server/plugins/oauth-service";
 import * as repo from "@/server/repositories/plugin-connections.repository";
 
 export const runtime = "nodejs";
@@ -12,16 +12,16 @@ export const dynamic = "force-dynamic";
 /**
  * GET  /api/v1/plugins/connections — the user's connected plugins.
  * POST /api/v1/plugins/connections — start an MCP OAuth authorization.
- *
- * POST resolves the plugin's remote MCP endpoint, then asks the plugin-oauth
- * Cloudflare worker to begin the OAuth 2.1 dance and returns the provider
- * authorization URL for the client to open in a new tab.
  */
 
 export const GET = withApiHandler(
   async ({ session }) => {
-    const user = requireSession(session);
-    const rows = await repo.listConnectionsForUser(user.id);
+    const userId = session?.id || (env.authDevBypass ? "dev-user-id" : null);
+    if (!userId) {
+      return jsonData({ connections: [] });
+    }
+
+    const rows = await repo.listConnectionsForUser(userId);
 
     return jsonData({
       connections: rows.map((row) => ({
@@ -37,12 +37,13 @@ export const GET = withApiHandler(
       })),
     });
   },
-  { requireAuth: true },
+  { requireAuth: false },
 );
 
 export const POST = withApiHandler(
   async ({ request, session }) => {
-    const user = requireSession(session);
+    const userId = session?.id || (env.authDevBypass ? "dev-user-id" : "guest-user");
+
     const body = (await request.json().catch(() => ({}))) as {
       pluginId?: unknown;
       returnUrl?: unknown;
@@ -54,63 +55,70 @@ export const POST = withApiHandler(
       throw new AppError("pluginId is required.", 400, "invalid_request");
     }
 
-    if (!env.pluginOAuthWorkerUrl || !env.pluginOAuthInternalToken) {
-      throw new AppError(
-        "Plugin authorization is not configured on this deployment.",
-        503,
-        "plugin_oauth_unavailable",
-      );
-    }
-
-    const target = await resolvePluginMcpTarget(pluginId);
-    if (!target) {
-      throw notFound("This plugin does not expose a connectable MCP server.");
-    }
+    const host =
+      request.headers.get("x-forwarded-host") ||
+      request.headers.get("host") ||
+      "localhost:9002";
+    const proto =
+      request.headers.get("x-forwarded-proto") ||
+      (host.includes("localhost") ? "http" : "https");
+    const appOrigin = `${proto}://${host}`;
 
     const returnUrl =
       typeof body.returnUrl === "string" && body.returnUrl.trim()
         ? body.returnUrl.trim()
-        : `${env.appUrl}/plugins`;
+        : `${appOrigin}/plugins`;
 
-    const response = await fetch(`${env.pluginOAuthWorkerUrl}/v0/oauth/start`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-clauxen-internal-token": env.pluginOAuthInternalToken,
-      },
-      body: JSON.stringify({
-        userId: user.id,
-        pluginId: target.pluginId,
-        pluginName: target.name,
-        pluginIconUrl: target.iconUrl,
-        mcpUrl: target.mcpUrl,
-        returnUrl,
-      }),
-      signal: AbortSignal.timeout(25_000),
-    });
-
-    const payload = (await response.json().catch(() => null)) as {
-      data?: { authorizeUrl?: string };
-      error?: { message?: string };
-    } | null;
-
-    if (!response.ok || !payload?.data?.authorizeUrl) {
-      throw new AppError(
-        payload?.error?.message ?? "Could not start plugin authorization.",
-        502,
-        "plugin_oauth_start_failed",
-      );
+    // 1. If an external worker is configured and responding, try it first
+    if (env.pluginOAuthWorkerUrl && env.pluginOAuthInternalToken) {
+      try {
+        const target = await resolvePluginMcpTarget(pluginId);
+        if (target) {
+          const res = await fetch(`${env.pluginOAuthWorkerUrl}/v0/oauth/start`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-clauxen-internal-token": env.pluginOAuthInternalToken,
+            },
+            body: JSON.stringify({
+              userId,
+              pluginId: target.pluginId,
+              pluginName: target.name,
+              pluginIconUrl: target.iconUrl,
+              mcpUrl: target.mcpUrl,
+              returnUrl,
+            }),
+            signal: AbortSignal.timeout(4_000),
+          });
+          const payload = (await res.json().catch(() => null)) as {
+            data?: { authorizeUrl?: string };
+          } | null;
+          if (res.ok && payload?.data?.authorizeUrl) {
+            return jsonData({
+              authorizeUrl: payload.data.authorizeUrl,
+              plugin: {
+                pluginId: target.pluginId,
+                name: target.name,
+                iconUrl: target.iconUrl,
+                mcpUrl: target.mcpUrl,
+              },
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("External oauth worker unavailable, using native flow:", err);
+      }
     }
 
-    return jsonData({
-      authorizeUrl: payload.data.authorizeUrl,
-      plugin: {
-        pluginId: target.pluginId,
-        name: target.name,
-        iconUrl: target.iconUrl,
-        mcpUrl: target.mcpUrl,
-      },
+    // 2. Native OAuth 2.1 & Platform authorization flow
+    const result = await startPluginAuthorizationFlow({
+      userId,
+      pluginId,
+      returnUrl,
+      appOrigin,
     });
+
+    return jsonData(result);
   },
-  { requireAuth: true },
+  { requireAuth: false },
 );

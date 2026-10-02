@@ -1411,6 +1411,9 @@ export function useChatApi(
         return;
       }
       const previousChatId = useChatStore.getState().activeChatId;
+      if (previousChatId === chatId && hydratedChatIdsRef.current.has(chatId)) {
+        return;
+      }
       setActiveChatId(chatId);
       if (
         useChatStore.getState().generatingChatIds[chatId] &&
@@ -1501,9 +1504,8 @@ export function useChatApi(
         return;
       }
 
-      // Edge-first: Worker Cache/KV/R2 → Hyperdrive. No loading chrome —
-      // empty transcript paints; messages fill in when the Worker returns.
-      void loadChatMessages(chatId, { silent: true });
+      // Cold chat open: show loading skeleton while loading messages.
+      void loadChatMessages(chatId, { silent: false });
     },
     [applyHydratedMessages, loadChatMessages, setAllChats],
   );
