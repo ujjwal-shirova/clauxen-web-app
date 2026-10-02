@@ -23,7 +23,8 @@ export function PluginAddButton({ added, name, onToggle }: PluginAddButtonProps)
       className={cn(
         appBtn.secondarySm,
         "plugin-add-button no-hover-overlay mt-0.5 min-w-[72px] px-2.5",
-        added && "text-[var(--ui-fg-muted)]",
+        added &&
+          "bg-[var(--ui-muted-surface)] text-[var(--ui-fg-muted)] shadow-none",
       )}
     >
       {added ? <Check className="size-3.5" strokeWidth={2} /> : null}
@@ -37,17 +38,26 @@ type PluginCardProps = {
   added: boolean;
   onOpen: (plugin: MarketplacePlugin) => void;
   onToggle: (id: string) => void;
+  onPrefetch?: (plugin: MarketplacePlugin) => void;
 };
 
-export function PluginCard({ plugin, added, onOpen, onToggle }: PluginCardProps) {
+export function PluginCard({
+  plugin,
+  added,
+  onOpen,
+  onToggle,
+  onPrefetch,
+}: PluginCardProps) {
   const name = stripCursorText(plugin.name) || plugin.name;
   const description = cardDescription(plugin.description);
 
   return (
-    <div className="flex h-[84px] items-start gap-3 overflow-hidden rounded-xl border border-[var(--ui-border)] bg-white p-3 transition-colors hover:bg-[var(--ui-hover-wash)]">
+    <div className="flex h-[84px] items-start gap-3 overflow-hidden rounded-xl border border-[var(--ui-border)] bg-white p-3 transition-colors hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)]">
       <button
         type="button"
         onClick={() => onOpen(plugin)}
+        onMouseEnter={onPrefetch ? () => onPrefetch(plugin) : undefined}
+        onFocus={onPrefetch ? () => onPrefetch(plugin) : undefined}
         className="no-hover-overlay flex h-full min-w-0 flex-1 items-start gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
       >
         <PluginMark name={name} iconUrl={plugin.iconUrl} />

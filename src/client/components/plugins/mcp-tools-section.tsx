@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Loader2, Wrench, X } from "lucide-react";
-import type { McpServerEntry } from "@/lib/mcp-plugin-dataset";
+import type { McpServerSummary } from "@/lib/mcp-plugin-dataset";
 
 type ToolSummary = { name: string; description: string };
 
@@ -19,7 +19,7 @@ const ERROR_COPY: Record<string, string> = {
   unavailable: "Server is not reachable right now.",
 };
 
-function probeLabel(server: McpServerEntry): string {
+function probeLabel(server: McpServerSummary): string {
   return server.url ?? server.name;
 }
 
@@ -30,7 +30,7 @@ function probeLabel(server: McpServerEntry): string {
  *
  * Renders nothing when the plugin has no HTTP MCP servers.
  */
-export function McpToolsSection({ servers }: { servers: McpServerEntry[] }) {
+export function McpToolsSection({ servers }: { servers: McpServerSummary[] }) {
   const [states, setStates] = useState<Record<string, ProbeState>>({});
 
   const key = servers.map(probeLabel).join("|");

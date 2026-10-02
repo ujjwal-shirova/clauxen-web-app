@@ -10,9 +10,10 @@ import type { MarketplacePlugin } from "./types";
 type DiscoverRowProps = {
   plugins: MarketplacePlugin[];
   onOpen: (plugin: MarketplacePlugin) => void;
+  onPrefetch?: (plugin: MarketplacePlugin) => void;
 };
 
-export function DiscoverRow({ plugins, onOpen }: DiscoverRowProps) {
+export function DiscoverRow({ plugins, onOpen, onPrefetch }: DiscoverRowProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
 
@@ -62,7 +63,9 @@ export function DiscoverRow({ plugins, onOpen }: DiscoverRowProps) {
                 key={plugin.id}
                 type="button"
                 onClick={() => onOpen(plugin)}
-                className="no-hover-overlay flex h-[84px] w-[272px] shrink-0 items-start gap-3 overflow-hidden rounded-xl border border-[var(--ui-border)] bg-white p-3 text-left outline-none transition-colors hover:bg-[var(--ui-hover-wash)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+                onMouseEnter={onPrefetch ? () => onPrefetch(plugin) : undefined}
+                onFocus={onPrefetch ? () => onPrefetch(plugin) : undefined}
+                className="no-hover-overlay flex h-[84px] w-[272px] shrink-0 items-start gap-3 overflow-hidden rounded-xl border border-[var(--ui-border)] bg-white p-3 text-left outline-none transition-colors hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
               >
                 <PluginMark name={name} iconUrl={plugin.iconUrl} />
                 <span className="min-w-0 flex-1">

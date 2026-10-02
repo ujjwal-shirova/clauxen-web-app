@@ -20,7 +20,7 @@ import { useAppLayout } from "@/components/app-layout-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
-import type { McpPlugin } from "@/lib/mcp-plugin-dataset";
+import type { PluginInfoData, McpServerSummary } from "@/lib/mcp-plugin-dataset";
 import { stripCursorText } from "./plugin-copy";
 import { PluginMark } from "./plugin-mark";
 import { McpToolsSection } from "./mcp-tools-section";
@@ -46,17 +46,11 @@ type SectionRow = {
   href?: string | null;
 };
 
-function SectionCard({
-  rows,
-  expandable,
-}: {
-  rows: SectionRow[];
-  expandable?: boolean;
-}) {
+function SectionCard({ rows }: { rows: SectionRow[] }) {
   const VISIBLE = 5;
   const [expanded, setExpanded] = useState(false);
-  const visibleRows = expandable && !expanded ? rows.slice(0, VISIBLE) : rows;
-  const hidden = rows.length - VISIBLE;
+  const hidden = Math.max(0, rows.length - VISIBLE);
+  const visibleRows = expanded ? rows : rows.slice(0, VISIBLE);
 
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--ui-border)] bg-white">
@@ -107,13 +101,14 @@ function SectionCard({
           );
         })}
       </div>
-      {expandable && hidden > 0 ? (
+      {hidden > 0 ? (
         <button
           type="button"
+          aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
-          className="flex w-full items-center justify-center gap-1 border-t border-[var(--ui-border-subtle)] px-3 py-2 text-[12.5px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+          className="flex w-full items-center justify-center gap-1 border-t border-[var(--ui-border-subtle)] px-3 py-2 text-[12.5px] font-medium leading-[18px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-ring)]"
         >
-          {expanded ? "View Less" : `View ${hidden} More`}
+          {expanded ? "Show less" : `Show ${hidden} more`}
           <ChevronDown
             className={cn(
               "size-3.5 transition-transform",
@@ -154,7 +149,7 @@ export function PluginInfoPage({
   plugin,
 }: {
   slug: string;
-  plugin: McpPlugin;
+  plugin: PluginInfoData;
 }) {
   const isMobile = useIsMobile();
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
@@ -185,19 +180,17 @@ export function PluginInfoPage({
   const publisherName = publisher
     ? stripCursorText(publisher.displayName || publisher.name) || undefined
     : undefined;
-  const repositoryUrl = plugin.repositoryUrl || plugin.gitUrl || null;
+  const repositoryUrl = plugin.repositoryUrl;
 
   const httpServers = useMemo(
-    () =>
-      plugin.mcp.servers.filter(
-        (server) => server.type === "http" && server.url,
-      ),
-    [plugin.mcp.servers],
+    (): McpServerSummary[] =>
+      plugin.mcpServers.filter((server) => server.type === "http" && server.url),
+    [plugin.mcpServers],
   );
 
   const mcpRows = useMemo<SectionRow[]>(
     () =>
-      plugin.mcp.servers.map((server) => ({
+      plugin.mcpServers.map((server) => ({
         icon: Plug,
         name: server.name,
         description:
@@ -208,7 +201,7 @@ export function PluginInfoPage({
                 .join(" ") || "Local stdio server",
         href: server.url,
       })),
-    [plugin.mcp.servers],
+    [plugin.mcpServers],
   );
 
   const skillRows = useMemo<SectionRow[]>(
@@ -355,7 +348,7 @@ export function PluginInfoPage({
                   onClick={toggleInstalled}
                   className={cn(
                     appBtn.secondarySm,
-                    "no-hover-overlay min-w-[88px] px-2.5",
+                    "no-hover-overlay h-8 min-w-[88px] px-3",
                     isInstalled && hydrated && "text-[var(--ui-fg-muted)]",
                   )}
                 >
@@ -363,7 +356,7 @@ export function PluginInfoPage({
                 </button>
                 <Link
                   href="/new"
-                  className={cn(appBtn.primarySm, "no-hover-overlay px-2.5")}
+                  className={cn(appBtn.primarySm, "no-hover-overlay h-8 px-3")}
                 >
                   Try in Chat
                 </Link>
@@ -383,7 +376,7 @@ export function PluginInfoPage({
 
             {skillRows.length > 0 ? (
               <Section label="Skills" count={skillRows.length}>
-                <SectionCard rows={skillRows} expandable />
+                <SectionCard rows={skillRows} />
               </Section>
             ) : null}
 
@@ -407,7 +400,7 @@ export function PluginInfoPage({
 
             {subagentRows.length > 0 ? (
               <Section label="Subagents" count={subagentRows.length}>
-                <SectionCard rows={subagentRows} expandable />
+                <SectionCard rows={subagentRows} />
               </Section>
             ) : null}
 

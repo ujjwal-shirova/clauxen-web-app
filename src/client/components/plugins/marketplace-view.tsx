@@ -47,6 +47,11 @@ export function MarketplaceView() {
     router.push(`/plugins/${plugin.id}`);
   };
 
+  // Warm the static RSC payload so opening a plugin is instant.
+  const prefetchPlugin = (plugin: MarketplacePlugin) => {
+    router.prefetch(`/plugins/${plugin.id}`);
+  };
+
   useEffect(() => {
     const stored = readInstalls();
     if (stored) setInstalled(new Set(stored));
@@ -122,7 +127,7 @@ export function MarketplaceView() {
                   type="button"
                   onClick={() => setQuery("")}
                   aria-label="Clear search"
-                  className="ui-icon-button no-hover-overlay absolute right-1 !size-6"
+                  className="ui-icon-button no-hover-overlay absolute right-1 top-1/2 !size-6 -translate-y-1/2"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -132,7 +137,12 @@ export function MarketplaceView() {
               type="button"
               aria-pressed={managing}
               onClick={() => setManaging((value) => !value)}
-              className={cn(appBtn.secondarySm, "px-2.5", managing && "bg-[var(--ui-hover-wash)]")}
+              className={cn(
+                appBtn.secondarySm,
+                "h-8 px-3",
+                managing &&
+                  "bg-[var(--ui-hover-wash)] text-[var(--ui-fg)] shadow-none",
+              )}
             >
               Manage
             </button>
@@ -159,6 +169,8 @@ export function MarketplaceView() {
                 installed={installed}
                 onOpen={openPlugin}
                 onToggle={toggleInstalled}
+                onPrefetch={prefetchPlugin}
+                defaultExpanded={searching}
                 className="mt-2"
               />
             )
@@ -174,7 +186,11 @@ export function MarketplaceView() {
                   {resultCount} {resultCount === 1 ? "result" : "results"}
                 </p>
               ) : null}
-              <DiscoverRow plugins={discoverPlugins} onOpen={openPlugin} />
+              <DiscoverRow
+                plugins={discoverPlugins}
+                onOpen={openPlugin}
+                onPrefetch={prefetchPlugin}
+              />
               {sections.map((section) => (
                 <CategorySection
                   key={section.id}
@@ -183,6 +199,8 @@ export function MarketplaceView() {
                   installed={installed}
                   onOpen={openPlugin}
                   onToggle={toggleInstalled}
+                  onPrefetch={prefetchPlugin}
+                  defaultExpanded={searching}
                 />
               ))}
             </>
