@@ -170,6 +170,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     handleRenameChat,
     handlePinChat,
     startNewChat,
+    handleSelectChat,
   } = chat;
 
   const overlays = useAppOverlays();
@@ -212,10 +213,12 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, [startNewChat, closeMobileNav, overlays, pathname, instantNavigate]);
 
   const onSelectChatFromSidebar = useCallback(
-    (_chatEntry: RecentChat) => {
+    (chatEntry: RecentChat) => {
       closeMobileNav();
+      void handleSelectChat(chatEntry.id);
+      instantNavigate(APP_ROUTES.chat(chatEntry.id));
     },
-    [closeMobileNav],
+    [closeMobileNav, handleSelectChat, instantNavigate],
   );
 
   const onDeleteChatFromSidebar = useCallback(

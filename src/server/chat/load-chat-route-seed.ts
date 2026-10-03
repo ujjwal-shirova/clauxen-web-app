@@ -21,14 +21,8 @@ export async function loadChatRouteSeed(
     const userId = user?.id;
     if (!userId) return null;
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const accessToken = session?.access_token ?? null;
-
     const pageResult = await chatService.getChatMessagesPage(chatId, userId, {
       limit: FULL_CHAT_HYDRATE_LIMIT,
-      accessToken,
     });
 
     let messages: ApiMessage[] = pageResult.messages.map((row) => ({
@@ -51,7 +45,6 @@ export async function loadChatRouteSeed(
     for (let i = 0; i < 10 && hasMore && cursor; i += 1) {
       const older = await chatService.getChatMessagesPage(chatId, userId, {
         limit: FULL_CHAT_HYDRATE_LIMIT,
-        accessToken,
         cursorDepth: cursor.depth,
       });
       const olderMapped: ApiMessage[] = older.messages.map((row) => ({

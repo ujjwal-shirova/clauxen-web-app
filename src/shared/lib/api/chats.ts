@@ -103,10 +103,14 @@ export async function listChats() {
 
   // Race Worker vs Next — first usable result wins.
   const first = await Promise.race([
-    workerPromise.then((result) =>
-      result ? { ok: true as const, result } : { ok: false as const },
-    ),
-    nextPromise.then((result) => ({ ok: true as const, result })),
+    workerPromise
+      .then((result) =>
+        result ? { ok: true as const, result } : { ok: false as const },
+      )
+      .catch(() => ({ ok: false as const })),
+    nextPromise
+      .then((result) => ({ ok: true as const, result }))
+      .catch(() => ({ ok: false as const })),
   ]);
 
   if (first.ok) return first.result;
@@ -166,7 +170,7 @@ async function listMessagesPageViaWorker(
         },
         credentials: "omit",
         // Fail open to Next API fast if Worker hangs — avoids stuck shimmer.
-        signal: AbortSignal.timeout(3_500),
+        signal: AbortSignal.timeout(1_200),
       },
     );
     if (!response.ok) return null;
@@ -193,19 +197,38 @@ export async function listMessagesPage(
     cursorDepth?: number;
     limit?: number;
   },
-) {
-  const fromWorker = await listMessagesPageViaWorker(chatId, input);
-  if (fromWorker) return fromWorker;
-
+): Promise<MessagesPage> {
   const params = new URLSearchParams();
   if (input?.limit) params.set("limit", String(input.limit));
   if (typeof input?.cursorDepth === "number") {
     params.set("cursor_depth", String(input.cursorDepth));
   }
   const qs = params.toString();
-  return apiFetch<MessagesPage>(
+  const nextPromise = apiFetch<MessagesPage>(
     `/api/v1/chats/${encodeURIComponent(chatId)}/messages${qs ? `?${qs}` : ""}`,
   );
+  const workerPromise = listMessagesPageViaWorker(chatId, input);
+
+  // Race Worker vs Next — first usable result wins.
+  const first = await Promise.race([
+    workerPromise
+      .then((result) =>
+        result && Array.isArray(result.messages)
+          ? { ok: true as const, result }
+          : { ok: false as const },
+      )
+      .catch(() => ({ ok: false as const })),
+    nextPromise
+      .then((result) =>
+        result && Array.isArray(result.messages)
+          ? { ok: true as const, result }
+          : { ok: false as const },
+      )
+      .catch(() => ({ ok: false as const })),
+  ]);
+
+  if (first.ok) return first.result;
+  return nextPromise;
 }
 
 /**

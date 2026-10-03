@@ -7,7 +7,6 @@ import type { NextRequest } from "next/server";
 import { withApiRouteParams } from "@/server/http/route-params"; // [chatId] params inject + auth gates
 import { jsonData } from "@/server/http/api-response"; // { data: … } success envelope
 import { requireSession } from "@/server/auth/require-session"; // null session → 401
-import { createSupabaseClientFromRequest } from "@/server/auth/supabase-session";
 import { AppError } from "@/server/db/errors"; // validation errors — 400 bad request
 import * as chatService from "@/server/services/chat.service"; // ownership check + appendUserMessage business logic
 
@@ -16,24 +15,6 @@ const DEFAULT_PAGE_LIMIT = 500;
 
 export const runtime = "nodejs"; // Node.js — pg pool queries
 export const dynamic = "force-dynamic";
-
-async function accessTokenFromRequest(
-  request: NextRequest,
-): Promise<string | null> {
-  const auth =
-    request.headers.get("authorization") ??
-    request.headers.get("Authorization");
-  if (auth?.startsWith("Bearer ")) {
-    const token = auth.slice(7).trim();
-    if (token) return token;
-  }
-  const supabase = createSupabaseClientFromRequest(request);
-  if (!supabase) return null;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  return session?.access_token ?? null;
-}
 
 export const GET = withApiRouteParams<{ chatId: string }>(
   async ({ session, params, request }) => {
@@ -48,12 +29,10 @@ export const GET = withApiRouteParams<{ chatId: string }>(
       cursorDepthParam != null && cursorDepthParam !== ""
         ? Number(cursorDepthParam)
         : null;
-    const accessToken = await accessTokenFromRequest(request);
 
     const page = await chatService.getChatMessagesPage(params.chatId, user.id, {
       cursorDepth,
       limit,
-      accessToken,
     });
 
     return jsonData({
