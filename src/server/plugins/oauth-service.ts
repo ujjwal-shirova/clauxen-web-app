@@ -97,18 +97,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-type AsMetadata = {
+export type ProtectedResourceMetadata = {
+  resource: string;
+  authorizationServers: string[];
+  scopesSupported: string[];
+  cursorClientId?: string | null;
+  cursorAuthorizationParams?: Record<string, string>;
+  cursorOmitResourceIndicator?: boolean;
+};
+
+export type AsMetadata = {
   issuer: string;
   authorization_endpoint: string;
   token_endpoint: string;
+  registration_endpoint?: string | null;
   scopes_supported?: string[];
   code_challenge_methods_supported?: string[];
+  token_endpoint_auth_methods_supported?: string[];
 };
 
-async function discoverProtectedResource(mcpUrl: string): Promise<{
-  authorizationServers: string[];
-  scopesSupported: string[];
-} | null> {
+async function discoverProtectedResource(mcpUrl: string): Promise<ProtectedResourceMetadata | null> {
   try {
     const url = new URL(mcpUrl);
     const path = url.pathname.replace(/\/+$/, "");
@@ -126,8 +134,21 @@ async function discoverProtectedResource(mcpUrl: string): Promise<{
         const scopes = Array.isArray(res.json.scopes_supported)
           ? res.json.scopes_supported.filter((s): s is string => typeof s === "string")
           : [];
-        if (as.length > 0) {
-          return { authorizationServers: as, scopesSupported: scopes };
+        const cursorClientId = typeof res.json.cursor_client_id === "string" ? res.json.cursor_client_id : null;
+        const cursorAuthorizationParams = isRecord(res.json.cursor_authorization_params)
+          ? (res.json.cursor_authorization_params as Record<string, string>)
+          : undefined;
+        const cursorOmitResourceIndicator = Boolean(res.json.cursor_omit_resource_indicator);
+
+        if (as.length > 0 || cursorClientId) {
+          return {
+            resource: typeof res.json.resource === "string" ? res.json.resource : mcpUrl,
+            authorizationServers: as,
+            scopesSupported: scopes,
+            cursorClientId,
+            cursorAuthorizationParams,
+            cursorOmitResourceIndicator,
+          };
         }
       }
     }
@@ -158,11 +179,64 @@ async function discoverAuthorizationServer(issuer: string): Promise<AsMetadata |
             issuer: typeof res.json.issuer === "string" ? res.json.issuer : issuer,
             authorization_endpoint: authEndpoint,
             token_endpoint: tokenEndpoint,
+            registration_endpoint: typeof res.json.registration_endpoint === "string" ? res.json.registration_endpoint : null,
             scopes_supported: Array.isArray(res.json.scopes_supported)
               ? res.json.scopes_supported.filter((s): s is string => typeof s === "string")
               : undefined,
+            code_challenge_methods_supported: Array.isArray(res.json.code_challenge_methods_supported)
+              ? res.json.code_challenge_methods_supported.filter((s): s is string => typeof s === "string")
+              : undefined,
+            token_endpoint_auth_methods_supported: Array.isArray(res.json.token_endpoint_auth_methods_supported)
+              ? res.json.token_endpoint_auth_methods_supported.filter((s): s is string => typeof s === "string")
+              : undefined,
           };
         }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+type DcrResponse = {
+  client_id: string;
+  client_secret?: string | null;
+  token_endpoint_auth_method?: string | null;
+};
+
+async function registerDynamicClient(
+  registrationEndpoint: string,
+  redirectUri: string,
+): Promise<DcrResponse | null> {
+  try {
+    const res = await fetch(registrationEndpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        client_name: "Clauxen",
+        redirect_uris: [redirectUri],
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        token_endpoint_auth_method: "client_secret_post",
+      }),
+      signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
+    });
+
+    if (res.ok) {
+      const data = (await res.json()) as Record<string, unknown>;
+      if (typeof data?.client_id === "string") {
+        return {
+          client_id: data.client_id,
+          client_secret: typeof data.client_secret === "string" ? data.client_secret : null,
+          token_endpoint_auth_method:
+            typeof data.token_endpoint_auth_method === "string"
+              ? data.token_endpoint_auth_method
+              : "client_secret_post",
+        };
       }
     }
     return null;
@@ -215,18 +289,47 @@ export async function startPluginAuthorizationFlow(
   let authorizeUrl: string | null = null;
   let tokenEndpoint: string | null = null;
   let clientId: string | null = null;
+  let clientSecret: string | null = null;
+  let tokenEndpointAuthMethod: string | null = "none";
   let scopes = ["tools", "read", "execute"];
 
   if (target?.mcpUrl) {
     const pr = await discoverProtectedResource(target.mcpUrl);
-    if (pr && pr.authorizationServers.length > 0) {
-      const as = await discoverAuthorizationServer(pr.authorizationServers[0]);
+    if (pr) {
+      if (pr.scopesSupported.length > 0) {
+        scopes = pr.scopesSupported;
+      }
+
+      let as: AsMetadata | null = null;
+      if (pr.authorizationServers.length > 0) {
+        as = await discoverAuthorizationServer(pr.authorizationServers[0]);
+      }
+
       if (as) {
         tokenEndpoint = as.token_endpoint;
         if (as.scopes_supported && as.scopes_supported.length > 0) {
           scopes = as.scopes_supported;
         }
-        clientId = "clauxen-web-client";
+
+        // Try Dynamic Client Registration (RFC 7591)
+        if (as.registration_endpoint) {
+          const dcr = await registerDynamicClient(as.registration_endpoint, redirectUri);
+          if (dcr) {
+            clientId = dcr.client_id;
+            clientSecret = dcr.client_secret ?? null;
+            tokenEndpointAuthMethod = dcr.token_endpoint_auth_method ?? "client_secret_post";
+          }
+        }
+      }
+
+      // If DCR didn't yield a clientId, check cursor_client_id from protected resource
+      if (!clientId && pr.cursorClientId) {
+        clientId = pr.cursorClientId;
+        tokenEndpointAuthMethod = "none";
+      }
+
+      // If we resolved an authorization endpoint and a valid client ID
+      if (as && clientId) {
         const authUrl = new URL(as.authorization_endpoint);
         authUrl.searchParams.set("response_type", "code");
         authUrl.searchParams.set("client_id", clientId);
@@ -235,13 +338,29 @@ export async function startPluginAuthorizationFlow(
         authUrl.searchParams.set("scope", scopes.join(" "));
         authUrl.searchParams.set("code_challenge", codeChallenge);
         authUrl.searchParams.set("code_challenge_method", "S256");
-        authUrl.searchParams.set("resource", target.mcpUrl);
+
+        if (
+          !pr.cursorOmitResourceIndicator &&
+          !as.authorization_endpoint.includes("google.com") &&
+          !as.authorization_endpoint.includes("googleapis.com") &&
+          !as.authorization_endpoint.includes("login.microsoftonline.com")
+        ) {
+          authUrl.searchParams.set("resource", pr.resource || target.mcpUrl);
+        }
+
+        // Merge platform-specific authorization params (e.g. access_type=offline, prompt=consent select_account)
+        if (pr.cursorAuthorizationParams) {
+          for (const [k, v] of Object.entries(pr.cursorAuthorizationParams)) {
+            authUrl.searchParams.set(k, v);
+          }
+        }
+
         authorizeUrl = authUrl.toString();
       }
     }
   }
 
-  // 2. Fallback to platform authorization portal if no external OAuth server is discovered
+  // 2. Fallback to platform authorization portal if no external OAuth server or client was resolved
   if (!authorizeUrl) {
     const platformAuthUrl = new URL(`${appOrigin}/platform/authorize`);
     platformAuthUrl.searchParams.set("pluginId", pluginId);
@@ -263,8 +382,8 @@ export async function startPluginAuthorizationFlow(
     redirectUri,
     tokenEndpoint,
     clientId,
-    clientSecret: null,
-    tokenEndpointAuthMethod: "none",
+    clientSecret,
+    tokenEndpointAuthMethod,
     returnUrl,
     createdAt: Date.now(),
   });
@@ -313,22 +432,42 @@ export async function completePluginAuthorizationFlow(
 
   if (tx.tokenEndpoint && code) {
     try {
-      const body = new URLSearchParams({
+      const headers: Record<string, string> = {
+        "content-type": "application/x-www-form-urlencoded",
+        accept: "application/json",
+      };
+
+      const bodyParams: Record<string, string> = {
         grant_type: "authorization_code",
         code,
         redirect_uri: tx.redirectUri,
         code_verifier: tx.codeVerifier,
-        client_id: tx.clientId || "clauxen-web-client",
-        resource: tx.resource,
-      });
+      };
+
+      if (tx.tokenEndpointAuthMethod === "client_secret_basic" && tx.clientId && tx.clientSecret) {
+        const creds = Buffer.from(`${tx.clientId}:${tx.clientSecret}`).toString("base64");
+        headers["authorization"] = `Basic ${creds}`;
+      } else {
+        if (tx.clientId) {
+          bodyParams.client_id = tx.clientId;
+        }
+        if (tx.clientSecret) {
+          bodyParams.client_secret = tx.clientSecret;
+        }
+      }
+
+      if (
+        !tx.tokenEndpoint.includes("googleapis.com") &&
+        !tx.tokenEndpoint.includes("login.microsoftonline.com") &&
+        tx.resource
+      ) {
+        bodyParams.resource = tx.resource;
+      }
 
       const tokenRes = await fetch(tx.tokenEndpoint, {
         method: "POST",
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-          accept: "application/json",
-        },
-        body: body.toString(),
+        headers,
+        body: new URLSearchParams(bodyParams).toString(),
         signal: AbortSignal.timeout(15_000),
       });
 
@@ -349,6 +488,9 @@ export async function completePluginAuthorizationFlow(
             expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
           }
         }
+      } else {
+        const errText = await tokenRes.text().catch(() => "");
+        console.warn(`External token exchange returned ${tokenRes.status}: ${errText}`);
       }
     } catch (err) {
       console.warn("External token exchange failed, using platform session tokens:", err);

@@ -124,11 +124,7 @@ export function PluginDetailDialog({
                 <p className="mt-2 text-center text-[11.5px] text-emerald-700">
                   ✓ Plugin is connected and ready to use in chats.
                 </p>
-              ) : (
-                <p className="mt-2 text-center text-[11.5px] text-[var(--ui-fg-placeholder)]">
-                  Opens a new tab to authorize and authenticate with {name}.
-                </p>
-              )}
+              ) : null}
             </div>
           </>
         ) : null}
