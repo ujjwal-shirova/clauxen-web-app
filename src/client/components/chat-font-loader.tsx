@@ -5,6 +5,8 @@ import type { ChatFontId } from "@/lib/app-preferences";
 
 /** Google Fonts CSS for preference fonts not bundled in the root layout. */
 const CHAT_FONT_STYLESHEETS: Partial<Record<ChatFontId, string>> = {
+  "Clauxen Serif":
+    "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap",
   Lora: "https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap",
   "Source Serif":
     "https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap",

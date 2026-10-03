@@ -15,6 +15,7 @@
 
 @layer base {
   :root {
+    --font-playfair: "Playfair Display", Georgia, "Times New Roman", serif;
     /*
      * Clauxen product palette — cool slate shell, white elevated panels,
      * ink CTAs. Soft elevation + true borders (not hairline-only cards).

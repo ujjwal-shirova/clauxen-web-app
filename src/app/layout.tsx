@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClientToaster } from "@/components/client-toaster";
 import { SavedNotificationHost } from "@/components/saved-notification";
@@ -22,12 +22,6 @@ const inter = Inter({
   weight: ["400", "500", "600", "700"],
 });
 
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-playfair",
-  weight: ["400", "700"],
-});
 
 /** Avoid FOUC for theme + chat font before React hydrates. */
 const preferenceBootScript = `(function(){try{var a=localStorage.getItem("clauxen.appearance");var t=localStorage.getItem("theme");var mode=t==="dark"||t==="light"?t:a==="Dark"?"dark":a==="Light"?"light":null;if(!mode)mode=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";var r=document.documentElement;if(mode==="dark")r.classList.add("dark");else r.classList.remove("dark");r.style.colorScheme=mode;r.setAttribute("data-resolved-theme",mode);var tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.setAttribute("content",mode==="dark"?"#111113":"#fafaf9");var f=localStorage.getItem("clauxen.chatFont");if(f)r.setAttribute("data-chat-font",f);var m=localStorage.getItem("clauxen.motion");var reduce=m==="Reduced"||((!m||m==="System")&&window.matchMedia("(prefers-reduced-motion: reduce)").matches);if(reduce)r.setAttribute("data-reduce-motion","1");else r.removeAttribute("data-reduce-motion");var s=localStorage.getItem("clauxen.followUpSuggestions");if(s==="0"||s==="1")r.setAttribute("data-follow-up-suggestions",s);var ac=localStorage.getItem("clauxen.accent");r.setAttribute("data-accent",(ac==="Forest"||ac==="Amber"||ac==="Rose")?ac:"Blue");var cm=localStorage.getItem("clauxen.contrast");r.setAttribute("data-contrast",(cm==="Default"||cm==="Increased")?cm:"System");var sw=parseInt(localStorage.getItem("clauxen.sidebarWidth")||"",10);if(sw>=232&&sw<=420)r.style.setProperty("--app-sidebar-width",sw+"px");}catch(e){}})();`;
@@ -71,11 +65,21 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${playfair.variable}`}
+      className={inter.variable}
       suppressHydrationWarning
     >
       <head>
         <meta name="theme-color" content="#fafaf9" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+        />
         {/* Static preference boot script (no user input) — must execute
             before hydration to avoid theme flash. */}
         {/* eslint-disable-next-line react/no-danger */}
