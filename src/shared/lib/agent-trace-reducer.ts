@@ -108,7 +108,9 @@ export function applyAgentStreamEvent(
 ): Message {
   switch (event.type) {
     case "start": {
-      if (event.agentMode !== true) {
+      const isAgent =
+        event.agentMode !== undefined ? event.agentMode : (message.agentMode ?? true);
+      if (!isAgent) {
         return {
           ...message,
           generationFailed: false,

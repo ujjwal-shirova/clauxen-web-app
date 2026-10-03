@@ -366,7 +366,10 @@ function ChatViewBody({
   );
 
   const switchingRouteChat = Boolean(
-    routeChatId && routeChatId !== activeChatId && !isIncognito,
+    !isGenerating &&
+      routeChatId &&
+      routeChatId !== activeChatId &&
+      !isIncognito,
   );
   const displayMessages =
     blankNewChatComposer || switchingRouteChat ? [] : messages;

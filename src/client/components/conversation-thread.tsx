@@ -15,14 +15,10 @@ import {
   SquarePen,
   Volume2,
 } from "lucide-react";
-import { AssistantContentRenderer } from "./assistant-content-renderer";
-import { ThinkingBlock } from "./thinking-block";
 import { AgentMessageContent } from "./agent/agent-message-content";
-import { AgentWorkingRow } from "./agent/agent-trace-view";
 import { HintTooltip } from "./ui/hint-tooltip";
 import type { Message } from "@/lib/types";
 import { agentStepsVisuallyEqual } from "@/lib/agent-trace";
-import { shouldUseAgentTraceLayout } from "@/components/agent/agent-message-content";
 import { UserMessageInlineEditor } from "./user-message-inline-editor";
 import { cn } from "@/lib/utils";
 import { useMessageDetailLevel } from "@/hooks/use-message-visibility";
@@ -48,9 +44,7 @@ import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
 import { groupMessagesIntoTurns } from "@/lib/chat-turns";
 import type { ConversationTurnGroup } from "@/lib/chat-turns";
 import { hasCompletedAssistantOutput } from "@/lib/assistant-output-state";
-import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
 
-const USER_MESSAGE_PREVIEW_LINES = 2;
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
 
 function messageAnchorId(messageId: string) {
@@ -258,42 +252,7 @@ const MessageRow = React.memo(
     const activeBranchIndex = message.variantIndex ?? branchVersions - 1;
     const [previewAttachment, setPreviewAttachment] =
       React.useState<MessageAttachment | null>(null);
-    const [userExpanded, setUserExpanded] = React.useState(false);
-    const previewTextRef = React.useRef<HTMLParagraphElement>(null);
-    const [previewOverflows, setPreviewOverflows] = React.useState(false);
 
-    // The collapsed preview clamps to two lines. Only offer an explicit
-    // Show more/less toggle when text actually overflows — measured live so
-    // short messages never get a dead control. Length/newline fallbacks cover
-    // long messages even if line-clamp metrics are unavailable.
-    React.useLayoutEffect(() => {
-      if (message.role !== "user") return;
-      const el = previewTextRef.current;
-      if (!el || !message.content.trim()) {
-        setPreviewOverflows(false);
-        return;
-      }
-      if (userExpanded) return;
-      const measure = () => {
-        setPreviewOverflows(el.scrollHeight > el.clientHeight + 2);
-      };
-      measure();
-      const observer = new ResizeObserver(measure);
-      observer.observe(el);
-      return () => observer.disconnect();
-    }, [message.role, message.content, userExpanded]);
-
-    const userNewlineCount =
-      message.role === "user"
-        ? (message.content.match(/\n/g) ?? []).length
-        : 0;
-    const showExpandToggle =
-      message.role === "user" &&
-      message.content.trim().length > 0 &&
-      (userExpanded ||
-        previewOverflows ||
-        message.content.length > 320 ||
-        userNewlineCount >= 2);
     // Structural markdown must keep one DOM tree. Downgrading a code block or
     // table to plain text off-screen changes its height and horizontal scroll,
     // which makes the chat jump when that message approaches the viewport.
@@ -317,12 +276,6 @@ const MessageRow = React.memo(
       [message],
     );
     const outputComplete = hasCompletedAssistantOutput(message);
-    const liveStreaming = message.isStreaming === true && chatIsGenerating;
-    const showWaitingOrb = shouldShowAssistantStreamingOrb({
-      isStreaming: liveStreaming,
-      answerStreaming: liveStreaming && message.content.trim().length > 0,
-      chatIsGenerating,
-    });
 
     return (
       <div
@@ -356,10 +309,7 @@ const MessageRow = React.memo(
                 }}
               />
             ) : (
-              <div
-                className="user-message-card__body user-msg-bubble no-hover-overlay relative ml-auto w-fit max-w-full text-left"
-                data-user-expanded={userExpanded || undefined}
-              >
+              <div className="user-message-card__body user-msg-bubble no-hover-overlay relative ml-auto w-fit max-w-full text-left">
                 {message.attachments && message.attachments.length > 0 ? (
                   <div className="mb-2">
                     <ComposerAttachmentStrip>
@@ -376,48 +326,10 @@ const MessageRow = React.memo(
                 ) : null}
                 {message.content.trim() ? (
                   <div className="user-message-card__preview relative">
-                    <p
-                      ref={previewTextRef}
-                      className={cn(
-                        "user-msg-text whitespace-pre-wrap break-words text-[15px] leading-[1.6] text-[var(--ui-fg)]",
-                        !userExpanded && "overflow-hidden",
-                      )}
-                      style={
-                        userExpanded
-                          ? undefined
-                          : {
-                              display: "-webkit-box",
-                              WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
-                              WebkitBoxOrient: "vertical",
-                            }
-                      }
-                    >
+                    <p className="user-msg-text whitespace-pre-wrap break-words text-[15px] leading-[1.6] text-[var(--ui-fg)]">
                       {message.content}
                     </p>
-                    {!userExpanded && showExpandToggle ? (
-                      <div
-                        className="user-message-card__preview-fade"
-                        aria-hidden
-                      />
-                    ) : null}
                   </div>
-                ) : null}
-                {showExpandToggle ? (
-                  <button
-                    type="button"
-                    onClick={() => setUserExpanded((prev) => !prev)}
-                    aria-expanded={userExpanded}
-                    className="user-message-card__toggle user-msg-toggle no-hover-overlay mt-1.5 inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[12px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                  >
-                    {userExpanded ? "Show less" : "Show more"}
-                    <ChevronDown
-                      className={cn(
-                        "size-3.5 transition-transform duration-150",
-                        userExpanded && "rotate-180",
-                      )}
-                      strokeWidth={2}
-                    />
-                  </button>
                 ) : null}
               </div>
             )}
@@ -496,13 +408,21 @@ const MessageRow = React.memo(
           <div
             className={cn(
               "assistant-message group w-full min-w-0 max-w-full",
-              isAssistantGenerationError(message) &&
-                !shouldUseAgentTraceLayout(message)
+              isAssistantGenerationError(message)
                 ? "text-[var(--settings-danger)]"
                 : "text-[var(--ui-fg-body)]",
             )}
           >
-            {shouldUseAgentTraceLayout(message) ? (
+            {isAssistantGenerationError(message) ? (
+              <p
+                data-message-id={message.id}
+                data-assistant-error="true"
+                className="min-w-0 text-[15px] font-medium leading-[1.55] text-[var(--settings-danger)]"
+                role="alert"
+              >
+                {toUserFacingChatError(message.content)}
+              </p>
+            ) : (
               <div
                 data-message-id={message.id}
                 data-assistant-content="true"
@@ -514,59 +434,6 @@ const MessageRow = React.memo(
                   chatIsGenerating={chatIsGenerating}
                 />
               </div>
-            ) : isAssistantGenerationError(message) ? (
-              <p
-                data-message-id={message.id}
-                data-assistant-error="true"
-                className="min-w-0 text-[15px] font-medium leading-[1.55] text-[var(--settings-danger)]"
-                role="alert"
-              >
-                {toUserFacingChatError(message.content)}
-              </p>
-            ) : (
-              <>
-                {(message.hasThinking ||
-                  (message.thinkingContent?.trim().length ?? 0) > 0) && (
-                  <ThinkingBlock
-                    content={message.thinkingContent}
-                    isStreaming={
-                      !!message.isThinkingStreaming && chatIsGenerating
-                    }
-                    thinkingDurationSeconds={message.thinkingDurationSeconds}
-                    thinkingStartedAtMs={message.thinkingStartedAtMs}
-                    className="mb-4"
-                  />
-                )}
-                {showWaitingOrb &&
-                message.content.length === 0 &&
-                !(
-                  message.hasThinking ||
-                  (message.thinkingContent?.trim().length ?? 0) > 0
-                ) ? (
-                  <AgentWorkingRow
-                    startedAtMs={
-                      message.agentTrace?.startedAtMs ?? message.createdAt
-                    }
-                  />
-                ) : null}
-                {message.content.length > 0 ? (
-                  <div
-                    data-message-id={message.id}
-                    data-assistant-content="true"
-                    className="agent-answer-body min-w-0"
-                  >
-                    <AssistantContentRenderer
-                      content={message.content}
-                      messageId={message.id}
-                      isStreaming={liveStreaming}
-                      streamKey={messageUiKey(message)}
-                      detailLevel={renderDetailLevel}
-                      agentArtifacts={message.agentArtifacts}
-                      {...({ sources: messageSources } as any)}
-                    />
-                  </div>
-                ) : null}
-              </>
             )}
             {outputComplete && !isAssistantGenerationError(message) ? (
               <>

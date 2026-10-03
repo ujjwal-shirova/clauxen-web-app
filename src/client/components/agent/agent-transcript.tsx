@@ -14,6 +14,7 @@ import {
   isAssistantGenerationError,
   toUserFacingChatError,
 } from "@/lib/assistant-generation-error";
+import { ThinkingBlock } from "@/components/thinking-block";
 import { AgentTraceView } from "./agent-trace-view";
 import { AgentWorkCursor } from "./agent-work-cursor";
 
@@ -72,16 +73,23 @@ export function AgentTranscriptView({
       !answer,
   );
 
+  const hasLegacyThinking =
+    !traceSteps.some((step) => step.kind === "thinking") &&
+    (message.hasThinking || (message.thinkingContent?.trim().length ?? 0) > 0);
+
   const hasTurnClock =
     typeof (trace?.startedAtMs ?? message.createdAt) === "number";
-  if (!hasTranscript && !answer && !streaming && !trace) return null;
+  if (!hasTranscript && !hasLegacyThinking && !answer && !streaming && !trace) return null;
 
   const stableMessageKey = messageUiKey(message);
   const isWorking = streaming && active && !awaitingInput;
   const showTrace =
-    hasTranscript ||
-    isWorking ||
-    (trace?.complete === true && hasTurnClock);
+    hasTranscript &&
+    (isWorking ||
+      trace?.complete === true ||
+      activitySteps.length > 0 ||
+      narrationSteps.length > 0 ||
+      hasTurnClock);
   // The work cursor stays pinned at the bottom of the turn through the whole
   // run — including while the final answer streams — like an output cursor.
   const showWorkCursor = streaming || isWorking;
@@ -118,6 +126,16 @@ export function AgentTranscriptView({
           startedAtMs={trace?.startedAtMs ?? message.createdAt}
           completedAtMs={trace?.completedAtMs}
           keepExpanded={awaitingInput}
+        />
+      ) : null}
+
+      {hasLegacyThinking ? (
+        <ThinkingBlock
+          content={message.thinkingContent}
+          isStreaming={!!message.isThinkingStreaming && chatIsGenerating}
+          thinkingDurationSeconds={message.thinkingDurationSeconds}
+          thinkingStartedAtMs={message.thinkingStartedAtMs}
+          className="mb-4"
         />
       ) : null}
 

@@ -509,7 +509,7 @@ export function AgentTraceView({
     [visibleSteps],
   );
 
-  if (visibleSteps.length === 0 && !isActive && !isWorking) return null;
+  if (visibleSteps.length === 0) return null;
 
   const failedCount = visibleSteps.filter(
     (step) => step.kind === "tool" && step.status === "error",
@@ -537,7 +537,7 @@ export function AgentTraceView({
           });
         }}
       />
-      {expanded ? (
+      {expanded && visibleSteps.length > 0 ? (
         <div className="agent-ledger mt-2">
           {visibleSteps.map((step) => {
             if (step.kind === "thinking") {

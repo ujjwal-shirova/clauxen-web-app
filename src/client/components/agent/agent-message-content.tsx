@@ -14,7 +14,7 @@ import { collectMessageSources } from "@/lib/chat-sources";
  * trace steps and the final answer. Switching renderers at those boundaries
  * resets both the morph animation and streamed markdown presentation. */
 export function shouldUseAgentTraceLayout(message: Message): boolean {
-  return Boolean(message.agentMode);
+  return true;
 }
 
 export function AgentMessageContent({
