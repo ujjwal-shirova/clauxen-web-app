@@ -9019,7 +9019,7 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
 
 .cx-pin-tip {
   position: fixed;
-  z-index: 80;
+  z-index: 20;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -9033,6 +9033,26 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   line-height: 18px;
   font-weight: 500;
   box-shadow: 0 8px 20px rgba(47, 107, 255, 0.28);
+}
+
+/* Ensure the tip never overlaps modals, dialogs, or popups */
+body:has([role="dialog"]) .cx-pin-tip,
+body:has([data-state="open"][role="dialog"]) .cx-pin-tip,
+body:has(.cx-dialog) .cx-pin-tip,
+body:has([data-radix-portal]) .cx-pin-tip {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.bi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.bi::before {
+  vertical-align: 0 !important;
 }
 
 .cx-pin-tip::before {

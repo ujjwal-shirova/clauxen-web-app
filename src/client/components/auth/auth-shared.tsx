@@ -113,7 +113,7 @@ export function GitlabIcon({ className }: { className?: string }) {
   );
 }
 
-function ProviderMark({
+export function ProviderMark({
   icon,
   className,
 }: {
@@ -122,10 +122,16 @@ function ProviderMark({
 }) {
   return (
     <span
-      className="inline-flex w-[18px] shrink-0 items-center justify-center"
-      aria-hidden
+      className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-[18px] leading-none"
+      aria-hidden="true"
     >
-      <i className={cn("bi text-[16px] leading-none", icon, className)} />
+      <i
+        className={cn(
+          "bi inline-flex items-center justify-center leading-none",
+          icon,
+          className,
+        )}
+      />
     </span>
   );
 }
@@ -155,7 +161,10 @@ export function AuthOAuthButtons({
           pending("google") && "opacity-75 cursor-wait",
         )}
       >
-        <GoogleIcon />
+        <ProviderMark
+          icon="bi-google"
+          className="text-[17px] text-[var(--ui-fg)]"
+        />
         <span>Continue with Google</span>
       </button>
 
@@ -169,7 +178,10 @@ export function AuthOAuthButtons({
           pending("github") && "opacity-75 cursor-wait",
         )}
       >
-        <GithubIcon />
+        <ProviderMark
+          icon="bi-github"
+          className="text-[18px] text-[var(--ui-fg)]"
+        />
         <span>Continue with GitHub</span>
       </button>
 
@@ -183,7 +195,10 @@ export function AuthOAuthButtons({
           pending("gitlab") && "opacity-75 cursor-wait",
         )}
       >
-        <GitlabIcon />
+        <ProviderMark
+          icon="bi-gitlab"
+          className="text-[18px] text-[#FC6D26]"
+        />
         <span>Continue with GitLab</span>
       </button>
 
@@ -199,7 +214,7 @@ export function AuthOAuthButtons({
       >
         <ProviderMark
           icon="bi-building"
-          className="text-[15px] text-[var(--ui-fg-muted)]"
+          className="text-[16px] text-[var(--ui-fg-muted)]"
         />
         <span>Continue with SSO</span>
       </button>

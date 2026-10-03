@@ -65,6 +65,7 @@ import type { RecentChat } from "@/lib/types";
 import { ShortcutBadge, ShortcutHint } from "@/components/ui/kbd";
 import { KS_EVENTS } from "@/lib/keyboard-shortcut-events";
 import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
+import { useAuth } from "@/hooks/use-auth";
 
 const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
 const SECTION_STORAGE_PREFIX = "clauxen_sidebar_section_";
@@ -75,22 +76,31 @@ const PIN_TIP_STORAGE_KEY = "clauxen_sidebar_pin_tip_dismissed";
 
 function SidebarPinTip({
   anchorRef,
+  enabled = true,
 }: {
   anchorRef: React.RefObject<HTMLElement | null>;
+  enabled?: boolean;
 }) {
+  const { isAuthenticated } = useAuth();
+  const authGate = useOptionalAuthGate();
   const [visible, setVisible] = useState(false);
   const [box, setBox] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
+    // Tip must never appear for guest users — only appear after login
+    if (!isAuthenticated || !enabled) {
+      setVisible(false);
+      return;
+    }
     try {
       setVisible(localStorage.getItem(PIN_TIP_STORAGE_KEY) !== "1");
     } catch {
       setVisible(true);
     }
-  }, []);
+  }, [isAuthenticated, enabled]);
 
   useLayoutEffect(() => {
-    if (!visible) return;
+    if (!visible || !isAuthenticated || !enabled) return;
     const anchor = anchorRef.current;
     if (!anchor) return;
     const update = () => {
@@ -109,9 +119,19 @@ function SidebarPinTip({
       scroller?.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, [anchorRef, visible]);
+  }, [anchorRef, visible, isAuthenticated, enabled]);
 
-  if (!visible || !box || typeof document === "undefined") return null;
+  // Never render for guest users, or when popups / auth modal are open
+  if (
+    !isAuthenticated ||
+    !enabled ||
+    !visible ||
+    !box ||
+    authGate?.isOpen ||
+    typeof document === "undefined"
+  ) {
+    return null;
+  }
 
   return createPortal(
     <div
@@ -892,7 +912,7 @@ export function Sidebar({
                   setUnpinDropHot(false);
                 }}
               >
-                <SidebarPinTip anchorRef={chatsSectionRef} />
+                <SidebarPinTip anchorRef={chatsSectionRef} enabled={!guestMode} />
                 <SidebarSectionLabel
                   label="Chats and tasks"
                   expanded={recentsExpanded}

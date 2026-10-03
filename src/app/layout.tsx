@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
 import { ClientToaster } from "@/components/client-toaster";
 import { SavedNotificationHost } from "@/components/saved-notification";
 import { ClientTelemetry } from "@/components/client-telemetry";
