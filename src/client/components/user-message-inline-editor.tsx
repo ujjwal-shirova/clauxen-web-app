@@ -298,23 +298,23 @@ export function UserMessageInlineEditor({
         }
       }}
     >
-      <div className="user-msg-editor__header">
-        <span className="user-msg-editor__title">
-          <SquarePen className="h-3.5 w-3.5" strokeWidth={1.9} aria-hidden />
-          Editing message
+      <div className="user-msg-editor__header flex w-full items-center justify-between mb-1.5 px-0.5 select-none text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+        <span className="user-msg-editor__title inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+          <SquarePen className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" strokeWidth={1.75} aria-hidden="true" />
+          <span>Editing message</span>
         </span>
         <span
           className={cn(
-            "user-msg-editor__status",
-            dictation.isListening && "user-msg-editor__status--live",
+            "user-msg-editor__status inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 dark:text-zinc-500",
+            dictation.isListening && "user-msg-editor__status--live text-red-500 dark:text-red-400",
           )}
         >
           {dictationConnecting ? (
             "Connecting…"
           ) : dictation.isListening ? (
             <>
-              <span className="user-msg-editor__live-dot" aria-hidden />
-              Listening
+              <span className="user-msg-editor__live-dot h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />
+              <span>Listening</span>
               {dictation.remainingSeconds !== null ? (
                 <span className="tabular-nums">
                   · {formatDictationRemaining(dictation.remainingSeconds)}
@@ -322,7 +322,7 @@ export function UserMessageInlineEditor({
               ) : null}
             </>
           ) : (
-            <span className="hidden sm:inline">Esc to cancel</span>
+            <span>Esc to cancel</span>
           )}
         </span>
       </div>
@@ -422,7 +422,7 @@ export function UserMessageInlineEditor({
         </p>
       ) : null}
 
-      <div className="user-msg-editor__footer">
+      <div className="user-msg-editor__footer flex w-full items-center justify-between pt-1 mt-1 border-t-0 border-none">
         <div className="user-msg-editor__tools">
           <HintTooltip content="Add files">
             <button

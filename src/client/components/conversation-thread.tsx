@@ -307,10 +307,7 @@ function MessageTimestamp({
       title={`${label} ${full}`}
       className="message-timestamp"
     >
-      {date.toLocaleTimeString(undefined, TIME_FORMAT)}
-      <span aria-hidden className="message-timestamp__dot">
-        ·
-      </span>
+      {date.toLocaleTimeString(undefined, TIME_FORMAT)},{" "}
       {date.toLocaleDateString(undefined, DATE_FORMAT)}
     </time>
   );

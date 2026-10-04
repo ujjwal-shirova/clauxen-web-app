@@ -78,14 +78,18 @@ export function StreamingMarkdown({
       />
       {showPrompts ? (
         <div
-          className="follow-up-list font-sans"
+          className="follow-up-list mt-5 flex w-full flex-col gap-1 border-t border-zinc-200/80 pt-3 dark:border-zinc-800 font-sans"
           role="group"
           aria-label="Suggested follow-ups"
         >
-          <div className="follow-up-list__title">Follow-ups</div>
-          {prompts.map((prompt) => (
-            <FollowUpPrompt key={prompt} prompt={prompt} variant="row" />
-          ))}
+          <div className="follow-up-list__title mb-1 px-1 text-[11.5px] font-medium tracking-wider text-zinc-400 dark:text-zinc-500 uppercase select-none">
+            Follow-ups
+          </div>
+          <div className="flex w-full flex-col gap-0.5">
+            {prompts.map((prompt) => (
+              <FollowUpPrompt key={prompt} prompt={prompt} variant="row" />
+            ))}
+          </div>
         </div>
       ) : null}
     </div>
