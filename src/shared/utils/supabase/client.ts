@@ -10,6 +10,12 @@ export function createClient(): SupabaseClient<Database> {
     return browserClient;
   }
   const { url, publishableKey } = requireSupabasePublicConfig();
-  browserClient = createBrowserClient<Database>(url, publishableKey);
+  browserClient = createBrowserClient<Database>(url, publishableKey, {
+    auth: {
+      // All code / token_hash exchanges run in /auth/callback on the server
+      // (PKCE verifier is HttpOnly). Never let the browser client race it.
+      detectSessionInUrl: false,
+    },
+  });
   return browserClient;
 }

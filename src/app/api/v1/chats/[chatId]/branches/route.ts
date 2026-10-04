@@ -16,9 +16,14 @@ export const dynamic = "force-dynamic";
 export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, request, params }) => {
     const user = requireSession(session); // authenticated user id — unauthenticated → reject
-    let body: { messageId?: unknown };
+    let body: {
+      messageId?: unknown;
+      direction?: unknown;
+      targetIndex?: unknown;
+      targetMessageId?: unknown;
+    };
     try {
-      body = (await request.json()) as { messageId?: unknown };
+      body = (await request.json()) as typeof body;
     } catch {
       throw new AppError("Invalid JSON body.", 400);
     }
@@ -27,11 +32,27 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     if (!messageId || messageId.length > 64) {
       throw new AppError("messageId is required.", 400, "invalid_message_id");
     }
+    const direction =
+      body.direction === "prev" || body.direction === "next"
+        ? body.direction
+        : null;
+    const targetIndex =
+      typeof body.targetIndex === "number" && Number.isFinite(body.targetIndex)
+        ? Math.max(0, Math.floor(body.targetIndex))
+        : null;
+    const targetMessageId =
+      typeof body.targetMessageId === "string" && body.targetMessageId.trim()
+        ? body.targetMessageId.trim()
+        : null;
+
     // Ownership verify + leaf move + refreshed active path page.
     const result = await chatService.switchThreadBranch(
       params.chatId,
       user.id,
       messageId,
+      direction,
+      targetIndex,
+      targetMessageId,
     );
     return jsonData(result);
   },

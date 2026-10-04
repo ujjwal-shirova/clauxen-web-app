@@ -1646,11 +1646,17 @@ export async function switchThreadBranch(
   chatId: string,
   userId: string,
   messageId: string,
+  direction?: "prev" | "next" | null,
+  targetIndex?: number | null,
+  targetMessageId?: string | null,
 ) {
   const { leafId } = await messagesRepo.switchThreadBranch({
     chatId,
     userId,
     messageId,
+    direction,
+    targetIndex,
+    targetMessageId,
   });
   // The active path changed — warm latest-page caches are stale by definition.
   const { invalidateChatHistoryCache } =

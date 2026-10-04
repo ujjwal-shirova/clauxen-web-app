@@ -54,6 +54,23 @@ function appOrigin() {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:9002";
 }
 
+/**
+ * Drop the browser Supabase session only when one exists. Calling signOut()
+ * unconditionally (e.g. for guests) emits SIGNED_OUT, re-triggers refresh,
+ * and wipes in-flight auth state — so guard it.
+ */
+async function clearLocalSupabaseSession() {
+  try {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    /* ignore */
+  }
+}
+
 function sessionFromSupabaseUser(user: {
   id: string;
   email?: string | null;
@@ -135,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearIdentityHintFromDocument();
       clearSupabaseAccessTokenSingleflight();
       clearSyncDeviceChatList();
-      void createClient().auth.signOut().catch(() => {});
+      await clearLocalSupabaseSession();
     } catch (err) {
       const code =
         err && typeof err === "object" && "code" in err
@@ -157,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearIdentityHintFromDocument();
         clearSupabaseAccessTokenSingleflight();
         clearSyncDeviceChatList();
-        void createClient().auth.signOut().catch(() => {});
+        await clearLocalSupabaseSession();
         return;
       }
 
@@ -181,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!opts?.quiet) setLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -217,7 +235,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         setUser((prev) => {
           const next = sessionFromSupabaseUser(session.user);
@@ -232,7 +250,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return next;
         });
       }
-      void refresh({ quiet: true });
+      // INITIAL_SESSION is handled by the bootstrap above; TOKEN_REFRESHED
+      // needs no BFF round-trip; SIGNED_OUT is already terminal. Refreshing
+      // on those caused a SIGNED_OUT → refresh → signOut loop for guests.
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        void refresh({ quiet: true });
+      } else if (event === "SIGNED_OUT") {
+        setUser(null);
+      }
     });
 
     return () => {
@@ -262,7 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             clearSupabaseAccessTokenSingleflight();
             clearSyncDeviceChatList();
             setUser(null);
-            void createClient().auth.signOut().catch(() => {});
+            void clearLocalSupabaseSession();
             return;
           }
           const row = payload.new as {
@@ -380,35 +405,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (provider: OAuthProvider, redirectTo = "/new") => {
       if (oauthNavigationStarted) return;
       oauthNavigationStarted = true;
-      const safetyTimer = window.setTimeout(() => {
+      // If the page is kept (bfcache / blocked navigation), unlock the button.
+      window.setTimeout(() => {
         oauthNavigationStarted = false;
-      }, 3000);
-
-      try {
-        const supabase = createClient();
-        const { provider: goTrueProvider, scopes } =
-          oauthSignInOptions(provider);
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: goTrueProvider,
-          options: {
-            redirectTo: `${appOrigin()}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
-            ...(scopes ? { scopes } : {}),
-          },
-        });
-        if (error) {
-          window.clearTimeout(safetyTimer);
-          oauthNavigationStarted = false;
-          throw new Error(mapSupabaseAuthError(error.message));
-        }
-        document.documentElement.setAttribute("data-auth-redirect", "1");
-        if (data?.url) {
-          window.location.href = data.url;
-        }
-      } catch (error) {
-        window.clearTimeout(safetyTimer);
-        oauthNavigationStarted = false;
-        throw error;
-      }
+      }, 8000);
+      // Validate locally so typos fail fast instead of on the server.
+      oauthSignInOptions(provider);
+      document.documentElement.setAttribute("data-auth-redirect", "1");
+      // Server mints the PKCE verifier as an HttpOnly cookie on this origin
+      // and 303-redirects to the provider. Nothing in client storage to lose.
+      const qs = new URLSearchParams({ provider, next: redirectTo });
+      window.location.assign(`${window.location.origin}/auth/oauth?${qs.toString()}`);
     },
     [],
   );
@@ -490,7 +497,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearSyncDeviceChatList();
       setUser(null);
       if (typeof window !== "undefined") {
-        window.location.href = "/new";
+        window.location.replace(`${window.location.origin}/new`);
       }
     }
   }, []);

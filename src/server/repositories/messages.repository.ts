@@ -17,6 +17,7 @@ export type MessageRow = {
   content_json: Record<string, unknown>;
   created_at: string;
   client_id?: string | null;
+  parent_message_id?: string | null;
 };
 
 /** Thread-path row: message fields + tree position for branch arrows. */
@@ -25,6 +26,8 @@ export type ThreadMessageRow = MessageRow & {
   depth: number;
   variant_index: number;
   variant_count: number;
+  sibling_ids?: string[];
+  sibling_variants?: Array<{ id: string; index: number; content: string }>;
 };
 
 export type ThreadPageCursor = {
@@ -111,7 +114,20 @@ export async function listThreadPage(input: {
   }
 
   const messages: ThreadMessageRow[] = rows.map(
-    ({ has_more: _hasMore, next_depth: _next, ...message }) => message,
+    ({ has_more: _hasMore, next_depth: _next, ...message }) => {
+      const meta = (message.metadata ?? {}) as Record<string, unknown>;
+      const sibling_ids = Array.isArray(meta.sibling_ids)
+        ? (meta.sibling_ids as string[])
+        : undefined;
+      const sibling_variants = Array.isArray(meta.sibling_variants)
+        ? (meta.sibling_variants as Array<{ id: string; index: number; content: string }>)
+        : undefined;
+      return {
+        ...message,
+        sibling_ids,
+        sibling_variants,
+      };
+    },
   );
   const hasMore = rows.some((row) => row.has_more) || false;
   const deepest = messages.reduce(
@@ -131,17 +147,52 @@ export async function listThreadPage(input: {
 
 /**
  * Activate a sibling branch at a fork point (branch arrows).
- * The RPC moves chats.active_leaf_message_id to the deepest turn under the
- * target sibling, so follow-ups previously sent on that branch are restored.
+ * Supports direction ('prev' | 'next'), targetIndex, and targetMessageId.
+ * Resolves optimistic client IDs (e.g. temp-* / asst-*) to durable DB rows.
+ * Updates chats.active_leaf_message_id and chats.metadata.active_children.
  */
 export async function switchThreadBranch(input: {
   chatId: string;
   userId: string;
   messageId: string;
+  direction?: "prev" | "next" | null;
+  targetIndex?: number | null;
+  targetMessageId?: string | null;
 }): Promise<{ leafId: string }> {
+  let targetId = input.messageId;
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(targetId)) {
+    const lookedUp = await queryOne<{ id: string }>(
+      `select id from public.chat_messages where chat_id = $1 and client_id = $2 limit 1`,
+      [input.chatId, targetId],
+    );
+    if (lookedUp?.id) {
+      targetId = lookedUp.id;
+    }
+  }
+
+  let explicitTargetId = input.targetMessageId ?? null;
+  if (explicitTargetId && !uuidRegex.test(explicitTargetId)) {
+    const lookedUp = await queryOne<{ id: string }>(
+      `select id from public.chat_messages where chat_id = $1 and client_id = $2 limit 1`,
+      [input.chatId, explicitTargetId],
+    );
+    if (lookedUp?.id) {
+      explicitTargetId = lookedUp.id;
+    }
+  }
+
   const row = await queryOne<{ switch_chat_branch: string | null }>(
-    `select public.switch_chat_branch($1, $2::uuid, $3::uuid) as switch_chat_branch`,
-    [input.chatId, input.userId, input.messageId],
+    `select public.switch_chat_branch($1, $2::uuid, $3::uuid, $4, $5, $6::uuid) as switch_chat_branch`,
+    [
+      input.chatId,
+      input.userId,
+      targetId,
+      input.direction ?? null,
+      input.targetIndex != null ? Math.max(0, input.targetIndex) : null,
+      explicitTargetId,
+    ],
   );
   const leafId = row?.switch_chat_branch ?? null;
   if (!leafId) throw notFound("Message not found.");
@@ -180,18 +231,37 @@ export async function resolveForkTarget(input: {
   const fork = input.fork;
   if (!fork) return null;
 
+  const isUuid = (val: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
   if (fork.kind === "edit") {
+    let targetId = fork.userMessageId;
+    if (!isUuid(targetId)) {
+      const match = await queryOne<{ id: string }>(
+        `select id from public.chat_messages where chat_id = $1 and user_id = $2 and client_id = $3 and role = 'user'`,
+        [input.chatId, input.userId, targetId.replace(/^temp-/, "")],
+      );
+      if (match?.id) targetId = match.id;
+    }
     // The edited prompt's parent — the fork point the new prompt siblings to.
     const row = await queryOne<{ parent_message_id: string | null }>(
       `select parent_message_id
        from public.chat_messages
        where id = $1 and chat_id = $2 and user_id = $3 and role = 'user'`,
-      [fork.userMessageId, input.chatId, input.userId],
+      [targetId, input.chatId, input.userId],
     );
     if (!row) throw notFound("Message not found.");
     return { parentMessageId: row.parent_message_id };
   }
 
+  let targetAssistantId = fork.assistantMessageId;
+  if (!isUuid(targetAssistantId)) {
+    const match = await queryOne<{ id: string }>(
+      `select id from public.chat_messages where chat_id = $1 and user_id = $2 and client_id = $3 and role = 'assistant'`,
+      [input.chatId, input.userId, targetAssistantId],
+    );
+    if (match?.id) targetAssistantId = match.id;
+  }
   // Regenerate: the new reply chains under the old reply's user prompt and
   // inherits its turn identity so hydrate re-pairs them.
   const row = await queryOne<{
@@ -201,7 +271,7 @@ export async function resolveForkTarget(input: {
     `select parent_message_id, client_id
      from public.chat_messages
      where id = $1 and chat_id = $2 and user_id = $3 and role = 'assistant'`,
-    [fork.assistantMessageId, input.chatId, input.userId],
+    [targetAssistantId, input.chatId, input.userId],
   );
   if (!row) throw notFound("Message not found.");
   const turnId = row.client_id
@@ -316,12 +386,30 @@ export async function createMessage(input: {
             limit 1)
          )
        )
-       returning id, chat_id, role, content, status, metadata, content_json, created_at, client_id
+       returning id, chat_id, role, content, status, metadata, content_json, created_at, client_id, parent_message_id
      ),
      touch as (
        update public.chats
        set updated_at = now(),
-           active_leaf_message_id = (select id from inserted)
+           active_leaf_message_id = (select id from inserted),
+           metadata = case
+             when (select parent_message_id from inserted) is not null then
+               jsonb_set(
+                 coalesce(metadata, '{}'::jsonb),
+                 '{active_children}',
+                 coalesce(metadata->'active_children', '{}'::jsonb) || jsonb_build_object(
+                   (select parent_message_id::text from inserted), (select id::text from inserted)
+                 )
+               )
+             else
+               jsonb_set(
+                 coalesce(metadata, '{}'::jsonb),
+                 '{active_children}',
+                 coalesce(metadata->'active_children', '{}'::jsonb) || jsonb_build_object(
+                   'root', (select id::text from inserted)
+                 )
+               )
+           end
        where id = $1
        returning id
      )
@@ -613,10 +701,24 @@ export async function beginChatTurn(input: {
       await client.query(
         `update public.chats
          set updated_at = now(),
-             active_leaf_message_id = $3
+             active_leaf_message_id = $3,
+             metadata = jsonb_set(
+               coalesce(metadata, '{}'::jsonb),
+               '{active_children}',
+               coalesce(metadata->'active_children', '{}'::jsonb) || jsonb_build_object(
+                 coalesce($4::text, 'root'), $5::text,
+                 $5::text, $3::text
+               )
+             )
          where id = $1 and user_id = $2
            and ($3::uuid is not null)`,
-        [input.chatId, input.userId, assistant.id],
+        [
+          input.chatId,
+          input.userId,
+          assistant.id,
+          input.parentMessageId ?? null,
+          user.id,
+        ],
       );
     }
 
@@ -661,7 +763,7 @@ export async function createUserMessageWithTranscript(input: {
          )
        )
        returning id, chat_id, role, content, status, metadata, content_json,
-                 created_at, client_id`,
+                 created_at, client_id, parent_message_id`,
       [
         input.chatId,
         input.userId,
@@ -693,9 +795,17 @@ export async function createUserMessageWithTranscript(input: {
     });
     await client.query(
       `update public.chats
-       set updated_at = now(), active_leaf_message_id = $2
+       set updated_at = now(),
+           active_leaf_message_id = $2,
+           metadata = jsonb_set(
+             coalesce(metadata, '{}'::jsonb),
+             '{active_children}',
+             coalesce(metadata->'active_children', '{}'::jsonb) || jsonb_build_object(
+               coalesce($3::text, 'root'), $2::text
+             )
+           )
        where id = $1`,
-      [input.chatId, message.id],
+      [input.chatId, message.id, message.parent_message_id ?? null],
     );
     return message;
   });

@@ -449,7 +449,7 @@ const MessageRow = React.memo(
                     total={branchVersions}
                     onPrev={() => onSwitchBranch(message.id, "prev")}
                     onNext={() => onSwitchBranch(message.id, "next")}
-                    disabled={chatIsGenerating}
+                    disabled={chatIsGenerating || Boolean(message.isStreaming)}
                   />
                 ) : null}
                 <MessageTimestamp
@@ -644,7 +644,7 @@ const MessageRow = React.memo(
                         total={branchVersions}
                         onPrev={() => onSwitchBranch(message.id, "prev")}
                         onNext={() => onSwitchBranch(message.id, "next")}
-                        disabled={chatIsGenerating}
+                        disabled={chatIsGenerating || Boolean(message.isStreaming)}
                       />
                     </div>
                   ) : null}

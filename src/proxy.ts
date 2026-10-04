@@ -11,10 +11,25 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url, 303);
   }
 
+  const pathname = request.nextUrl.pathname;
+
+  // If Supabase falls back to the Site URL (redirect URL not allow-listed),
+  // the OAuth `code` lands on `/` or `/new`. Forward it to the callback so
+  // the session is still exchanged server-side instead of erroring.
+  if (
+    !pathname.startsWith("/auth/") &&
+    !pathname.startsWith("/api/") &&
+    request.nextUrl.searchParams.has("code") &&
+    (pathname === "/" || pathname === "/new" || pathname === "/login")
+  ) {
+    const callback = request.nextUrl.clone();
+    callback.pathname = "/auth/callback";
+    return NextResponse.redirect(callback);
+  }
+
   // API handlers and auth callback/confirm/magic routes handle themselves.
   // Skipping edge session update here prevents middleware from wiping PKCE code verifier
   // cookies before exchangeCodeForSession runs.
-  const pathname = request.nextUrl.pathname;
   if (pathname.startsWith("/api/") || pathname.startsWith("/auth/")) {
     return NextResponse.next({ request });
   }

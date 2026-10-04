@@ -47,12 +47,14 @@ export type Message = {
   variantIndex?: number;
   /** Total sibling variants at this fork point (server truth). */
   variantCount?: number;
+  /** Sibling message IDs in chronological order. */
+  siblingIds?: string[];
   /**
    * Client cache of inactive sibling contents for instant arrow paint,
    * keyed by variant index. Authoritative content always comes from the
    * server switch response; this only removes the round-trip flicker.
    */
-  siblingVariants?: Array<{ index: number; content: string }>;
+  siblingVariants?: Array<{ id?: string; index: number; content: string }>;
   /** Optional creation timestamp (ms since epoch) for UI like message menus. */
   createdAt?: number;
 };

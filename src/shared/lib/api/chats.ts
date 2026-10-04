@@ -23,6 +23,8 @@ export type ApiMessage = {
   parent_message_id?: string | null;
   variant_index?: number;
   variant_count?: number;
+  sibling_ids?: string[];
+  sibling_variants?: Array<{ id?: string; index: number; content: string }>;
 };
 
 export async function searchChatTitles(query: string, limit = 40) {
@@ -243,7 +245,13 @@ export async function generateChatTitle(
  * Server-authoritative: repoints the chat's active leaf and returns the
  * refreshed active-path page for the client to render.
  */
-export async function switchThreadBranch(chatId: string, messageId: string) {
+export async function switchThreadBranch(
+  chatId: string,
+  messageId: string,
+  direction?: "prev" | "next",
+  targetIndex?: number,
+  targetMessageId?: string,
+) {
   return apiFetch<{
     leafId: string;
     messages: ApiMessage[];
@@ -252,7 +260,12 @@ export async function switchThreadBranch(chatId: string, messageId: string) {
   }>(`/api/v1/chats/${encodeURIComponent(chatId)}/branches`, {
     method: "POST",
     // JSON.stringify — request body serialize
-    body: JSON.stringify({ messageId }),
+    body: JSON.stringify({
+      messageId,
+      direction,
+      targetIndex,
+      targetMessageId,
+    }),
   });
 }
 

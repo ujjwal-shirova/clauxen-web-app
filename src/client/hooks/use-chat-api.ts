@@ -197,13 +197,15 @@ function clearIdleStreamingFlags(message: Message): Message {
 }
 
 function mapApiMessage(row: chatsApi.ApiMessage): Message {
-  const meta = row.metadata as {
+  const meta = (row.metadata ?? {}) as {
     thinkingContent?: string;
     hasThinking?: boolean;
     thinkingDurationSeconds?: number;
     /** Turn identity for rows whose client id encodes a fresh turn (regenerations). */
     turnId?: string;
     attachments?: Message["attachments"];
+    sibling_ids?: string[];
+    sibling_variants?: Array<{ id?: string; index: number; content: string }>;
   };
   const createdAt = row.created_at
     ? new Date(row.created_at).getTime()
@@ -255,6 +257,8 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     parentId: row.parent_message_id ?? undefined,
     variantIndex: row.variant_index,
     variantCount: row.variant_count,
+    siblingIds: row.sibling_ids ?? meta.sibling_ids,
+    siblingVariants: row.sibling_variants ?? meta.sibling_variants,
     attachments: sanitizeMessageAttachments(meta.attachments),
     createdAt,
     isStreaming:
@@ -1161,6 +1165,11 @@ export function useChatApi(
                 id: match.id,
                 clientId: local.clientId ?? match.clientId ?? local.id,
                 turnId: local.turnId ?? match.turnId,
+                parentId: match.parentId ?? local.parentId,
+                variantIndex: match.variantIndex ?? local.variantIndex,
+                variantCount: match.variantCount ?? local.variantCount,
+                siblingIds: match.siblingIds ?? local.siblingIds,
+                siblingVariants: match.siblingVariants ?? local.siblingVariants,
               };
             }
             return {
@@ -3362,9 +3371,17 @@ export function useChatApi(
           ...prev,
           [chatId]: sealCompletedAssistantMessages(finalMessages),
         }));
+        try {
+          const bundle = await chatsApi.listAllChatMessages(chatId);
+          if (bundle?.messages?.length) {
+            applyHydratedMessages(chatId, bundle.messages);
+          }
+        } catch {
+          // ignore background sync errors
+        }
       }
     },
-    [streamAssistantResponse],
+    [streamAssistantResponse, applyHydratedMessages],
   );
 
   const redoUserMessageWithBranch = useCallback(
@@ -3421,9 +3438,17 @@ export function useChatApi(
           ...prev,
           [chatId]: sealCompletedAssistantMessages(finalMessages),
         }));
+        try {
+          const bundle = await chatsApi.listAllChatMessages(chatId);
+          if (bundle?.messages?.length) {
+            applyHydratedMessages(chatId, bundle.messages);
+          }
+        } catch {
+          // ignore background sync errors
+        }
       }
     },
-    [streamAssistantResponse],
+    [streamAssistantResponse, applyHydratedMessages],
   );
 
   const retryAssistantWithBranch = useCallback(
@@ -3471,9 +3496,17 @@ export function useChatApi(
           ...prev,
           [chatId]: sealCompletedAssistantMessages(finalMessages),
         }));
+        try {
+          const bundle = await chatsApi.listAllChatMessages(chatId);
+          if (bundle?.messages?.length) {
+            applyHydratedMessages(chatId, bundle.messages);
+          }
+        } catch {
+          // ignore background sync errors
+        }
       }
     },
-    [streamAssistantResponse],
+    [streamAssistantResponse, applyHydratedMessages],
   );
 
   const switchMessageBranch = useCallback(
@@ -3499,14 +3532,30 @@ export function useChatApi(
       // The message tree is server-owned: repoint the active leaf, then
       // render the refreshed active path it returns.
       try {
-        await chatsApi.switchThreadBranch(chatId, messageId);
-        const bundle = await chatsApi.listAllChatMessages(chatId);
-        applyHydratedMessages(chatId, bundle.messages);
-      } catch {
-        // Keep the optimistic paint; the next hydrate reconciles.
+        const res = await chatsApi.switchThreadBranch(
+          chatId,
+          messageId,
+          direction,
+          result.variantIndex,
+          result.targetSiblingId,
+        );
+        const bundle = res?.messages?.length
+          ? res
+          : await chatsApi.listAllChatMessages(chatId);
+        if (bundle?.messages?.length) {
+          const hydrated = assignLegacyTurnIds(
+            hydrateThreadPage(bundle.messages.map(mapApiMessage)),
+          );
+          setAllChats((prev) => ({
+            ...prev,
+            [chatId]: hydrated,
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to switch branch:", err);
       }
     },
-    [isGenerating, applyHydratedMessages],
+    [isGenerating],
   );
 
   const generatingChatIds = useChatStore(

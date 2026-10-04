@@ -23,11 +23,11 @@ function rememberSibling(
   message: Message,
   index: number,
   content: string,
-): Array<{ index: number; content: string }> {
+): Array<{ id?: string; index: number; content: string }> {
   const siblings = (message.siblingVariants ?? []).filter(
     (variant) => variant.index !== index,
   );
-  siblings.push({ index, content });
+  siblings.push({ id: message.id, index, content });
   return siblings;
 }
 
@@ -109,9 +109,17 @@ export function editMessageWithBranchHelper(
   const turnId = createTurnId();
   const userClientId = userClientIdForTurn(turnId);
   const assistantClientId = assistantClientIdForTurn(turnId);
+  const forkedUserMessageId = `temp-${userClientId}`;
+
+  const existingSiblingIds =
+    target.siblingIds && target.siblingIds.length > 0
+      ? target.siblingIds
+      : target.id
+        ? [target.id]
+        : [];
 
   const forkedUserMessage: Message = {
-    id: `temp-${userClientId}`,
+    id: forkedUserMessageId,
     clientId: userClientId,
     turnId,
     role: "user",
@@ -120,6 +128,7 @@ export function editMessageWithBranchHelper(
     parentId: target.parentId,
     variantIndex: forkedIndex,
     variantCount: forkedIndex + 1,
+    siblingIds: [...existingSiblingIds, forkedUserMessageId],
     siblingVariants: rememberSibling(target, oldVariantIndex, target.content),
     createdAt: Date.now(),
   };
@@ -209,6 +218,13 @@ export function retryAssistantWithBranchHelper(
   const assistantClientId = assistantClientIdForTurn(createTurnId());
   const forkedAtMs = Date.now();
 
+  const existingSiblingIds =
+    target.siblingIds && target.siblingIds.length > 0
+      ? target.siblingIds
+      : target.id
+        ? [target.id]
+        : [];
+
   const assistantMessage: Message = {
     ...target,
     id: assistantClientId,
@@ -227,6 +243,7 @@ export function retryAssistantWithBranchHelper(
     parentId: target.parentId,
     variantIndex: forkedIndex,
     variantCount: forkedIndex + 1,
+    siblingIds: [...existingSiblingIds, assistantClientId],
     siblingVariants: rememberSibling(target, oldVariantIndex, target.content),
   };
 
@@ -254,6 +271,7 @@ export function switchMessageBranchHelper(
   changed: boolean;
   variantIndex: number;
   variantCount: number;
+  targetSiblingId?: string;
 } {
   const targetMessage = chatMessages.find((msg) => msg.id === messageId);
   if (!targetMessage) {
@@ -278,6 +296,10 @@ export function switchMessageBranchHelper(
     };
   }
 
+  const targetSiblingId =
+    targetMessage.siblingIds?.[next] ??
+    targetMessage.siblingVariants?.find((v) => v.index === next)?.id;
+
   const targetContent = takeSibling(targetMessage, next);
   if (targetContent === undefined) {
     // Sibling content not cached — let the server response paint it.
@@ -286,6 +308,7 @@ export function switchMessageBranchHelper(
       changed: false,
       variantIndex: next,
       variantCount: count,
+      targetSiblingId,
     };
   }
 
@@ -293,6 +316,7 @@ export function switchMessageBranchHelper(
     msg.id === messageId
       ? {
           ...msg,
+          id: targetSiblingId ?? msg.id,
           content: targetContent,
           variantIndex: next,
           siblingVariants: rememberSibling(msg, current, msg.content),
@@ -304,5 +328,6 @@ export function switchMessageBranchHelper(
     changed: true,
     variantIndex: next,
     variantCount: count,
+    targetSiblingId,
   };
 }
