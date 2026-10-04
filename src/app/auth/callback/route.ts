@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -7,15 +7,6 @@ import {
   DISPOSABLE_EMAIL_MESSAGE,
   isDisposableEmailSafe,
 } from "@/server/email-verifier/disposable-email";
-
-function withSecureCookieDefaults(options: CookieOptions = {}): CookieOptions {
-  const isProduction = process.env.NODE_ENV === "production";
-  return {
-    ...options,
-    sameSite: options.sameSite ?? "lax",
-    ...(isProduction ? { secure: true } : {}),
-  };
-}
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -26,13 +17,23 @@ export async function GET(request: NextRequest) {
     searchParams.get("error_description") || searchParams.get("error");
   if (errorParam) {
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(errorParam)}`,
+      `${origin}/new?auth=1&error=${encodeURIComponent(errorParam)}`,
     );
   }
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=missing_code`);
+    return NextResponse.redirect(`${origin}/new?auth=1&error=missing_code`);
   }
+
+  const safeNext =
+    next.startsWith("/") && !next.startsWith("//")
+      ? next === "/"
+        ? "/new"
+        : next
+      : "/new";
+
+  const redirectUrl = `${origin}${safeNext}`;
+  const response = NextResponse.redirect(redirectUrl);
 
   const cookieStore = await cookies();
   const { url, publishableKey } = requireSupabasePublicConfig();
@@ -44,7 +45,8 @@ export async function GET(request: NextRequest) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, withSecureCookieDefaults(options));
+          cookieStore.set(name, value, options);
+          response.cookies.set(name, value, options);
         });
       },
     },
@@ -52,8 +54,9 @@ export async function GET(request: NextRequest) {
 
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
+    console.error("[auth/callback] exchangeCodeForSession failed:", error.message);
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(error.message)}`,
+      `${origin}/new?auth=1&error=${encodeURIComponent(error.message)}`,
     );
   }
 
@@ -64,15 +67,9 @@ export async function GET(request: NextRequest) {
   if (user?.email && isDisposableEmailSafe(user.email)) {
     await supabase.auth.signOut();
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(DISPOSABLE_EMAIL_MESSAGE)}`,
+      `${origin}/new?auth=1&error=${encodeURIComponent(DISPOSABLE_EMAIL_MESSAGE)}`,
     );
   }
 
-  const safeNext =
-    next.startsWith("/") && !next.startsWith("//")
-      ? next === "/"
-        ? "/new"
-        : next
-      : "/new";
-  return NextResponse.redirect(`${origin}${safeNext}`);
+  return response;
 }

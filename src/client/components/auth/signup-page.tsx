@@ -45,9 +45,9 @@ export function SignupPage() {
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
   const [useMagicLink, setUseMagicLink] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
-  const [pendingProvider, setPendingProvider] = useState<
-    OAuthProvider | "sso" | null
-  >(null);
+  const [pendingProvider, setPendingProvider] = useState<OAuthProvider | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(
     urlError ? mapSupabaseAuthError(decodeURIComponent(urlError)) : null,
   );
@@ -167,16 +167,6 @@ export function SignupPage() {
         <div className="mt-7">
           <AuthOAuthButtons
             onOAuth={handleOAuth}
-            onSso={() => {
-              setError(null);
-              setPendingProvider("sso");
-              window.setTimeout(() => {
-                setPendingProvider(null);
-                setInfo(
-                  "Enterprise SSO is available on Team plans — contact sales@clauxen.com.",
-                );
-              }, 450);
-            }}
             disabled={busy}
             pendingProvider={pendingProvider}
           />

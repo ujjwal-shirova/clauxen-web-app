@@ -11,9 +11,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url, 303);
   }
 
-  // API handlers authenticate themselves. Skipping edge getUser() here cuts
-  // stacked TTFB on /c cold loads (document + session + messages + branches).
-  if (request.nextUrl.pathname.startsWith("/api/")) {
+  // API handlers and auth callback/confirm/magic routes handle themselves.
+  // Skipping edge session update here prevents middleware from wiping PKCE code verifier
+  // cookies before exchangeCodeForSession runs.
+  const pathname = request.nextUrl.pathname;
+  if (pathname.startsWith("/api/") || pathname.startsWith("/auth/")) {
     return NextResponse.next({ request });
   }
 

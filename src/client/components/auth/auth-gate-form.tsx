@@ -52,9 +52,9 @@ export function AuthGateForm({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formSubmitting, setFormSubmitting] = useState(false);
-  const [pendingProvider, setPendingProvider] = useState<
-    OAuthProvider | "sso" | null
-  >(null);
+  const [pendingProvider, setPendingProvider] = useState<OAuthProvider | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(
     initialError ? mapSupabaseAuthError(decodeURIComponent(initialError)) : null,
   );
@@ -369,17 +369,6 @@ export function AuthGateForm({
             <div className="mt-6">
               <AuthOAuthButtons
                 onOAuth={handleOAuth}
-                onSso={() => {
-                  if (pendingProvider) return;
-                  setError(null);
-                  setPendingProvider("sso");
-                  window.setTimeout(() => {
-                    setPendingProvider(null);
-                    setInfo(
-                      "Enterprise SSO is available on Team plans. Contact sales@clauxen.com.",
-                    );
-                  }, 450);
-                }}
                 disabled={busy}
                 pendingProvider={pendingProvider}
               />

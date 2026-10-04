@@ -392,7 +392,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           provider: goTrueProvider,
           options: {
             redirectTo: `${appOrigin()}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
-            skipBrowserRedirect: true,
             ...(scopes ? { scopes } : {}),
           },
         });
@@ -401,15 +400,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           oauthNavigationStarted = false;
           throw new Error(mapSupabaseAuthError(error.message));
         }
-        const url = data?.url;
-        if (!url) {
-          window.clearTimeout(safetyTimer);
-          oauthNavigationStarted = false;
-          throw new Error("Could not open the sign-in page. Try again.");
-        }
         document.documentElement.setAttribute("data-auth-redirect", "1");
-        // Immediate top-level navigation to OAuth provider
-        window.location.href = url;
+        if (data?.url) {
+          window.location.href = data.url;
+        }
       } catch (error) {
         window.clearTimeout(safetyTimer);
         oauthNavigationStarted = false;
@@ -488,11 +482,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const supabase = createClient();
       await supabase.auth.signOut();
       await authApi.logout();
+    } catch (e) {
+      console.warn("[auth] signOut error:", e);
     } finally {
       clearIdentityHintFromDocument();
       clearSupabaseAccessTokenSingleflight();
       clearSyncDeviceChatList();
       setUser(null);
+      if (typeof window !== "undefined") {
+        window.location.href = "/new";
+      }
     }
   }, []);
 

@@ -141,6 +141,9 @@ async function resolveOnboardingComplete(
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
   const pathname = request.nextUrl.pathname;
+  if (isAuthFreePath(pathname)) {
+    return supabaseResponse;
+  }
 
   const publicConfig = getSupabasePublicConfig();
   if (!publicConfig.url || !publicConfig.publishableKey) {
@@ -196,7 +199,11 @@ export async function updateSession(request: NextRequest) {
     : null;
   const hasAuthCookie = request.cookies
     .getAll()
-    .some((cookie) => /^sb-.+-auth-token/.test(cookie.name));
+    .some(
+      (cookie) =>
+        /^sb-.+-auth-token(\.\d+)?$/.test(cookie.name) &&
+        !cookie.name.endsWith("-code-verifier"),
+    );
 
   if (!user && hasAuthCookie) {
     const {

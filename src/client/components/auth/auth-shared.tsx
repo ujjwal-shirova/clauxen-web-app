@@ -164,16 +164,14 @@ export function AuthSpinner({ className }: { className?: string }) {
 
 export function AuthOAuthButtons({
   onOAuth,
-  onSso,
   disabled,
   pendingProvider,
 }: {
   onOAuth: (provider: OAuthProvider) => void;
-  onSso?: () => void;
   disabled?: boolean;
-  pendingProvider?: OAuthProvider | "sso" | null;
+  pendingProvider?: OAuthProvider | null;
 }) {
-  const pending = (id: OAuthProvider | "sso") => pendingProvider === id;
+  const pending = (id: OAuthProvider) => pendingProvider === id;
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -226,30 +224,12 @@ export function AuthOAuthButtons({
         {pending("gitlab") ? (
           <AuthSpinner className="text-[#FC6D26]" />
         ) : (
-          <GitlabIcon />
-        )}
-        <span>{pending("gitlab") ? "Connecting to GitLab…" : "Continue with GitLab"}</span>
-      </button>
-
-      <button
-        type="button"
-        disabled={disabled}
-        aria-busy={pending("sso") || undefined}
-        onClick={onSso}
-        className={cn(
-          authPageStyles.outlinedBtn,
-          pending("sso") && "opacity-80 cursor-wait",
-        )}
-      >
-        {pending("sso") ? (
-          <AuthSpinner className="text-[var(--ui-fg-muted)]" />
-        ) : (
-          <ProviderMark
-            icon="bi-building"
-            className="text-[16px] text-[var(--ui-fg-muted)]"
+          <i
+            className="bi bi-gitlab text-[18px] text-[#FC6D26] leading-none shrink-0"
+            aria-hidden="true"
           />
         )}
-        <span>{pending("sso") ? "Checking SSO…" : "Continue with SSO"}</span>
+        <span>{pending("gitlab") ? "Connecting to GitLab…" : "Continue with GitLab"}</span>
       </button>
     </div>
   );
