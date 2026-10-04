@@ -22,6 +22,22 @@ import type {
   DictationStatus,
 } from "@/features/dictation/types";
 
+/** Client-side mirrors of the server caps (used when the server omits them). */
+const DEFAULT_MAX_SESSION_SECONDS = 4 * 60;
+const DEFAULT_INACTIVITY_TIMEOUT_SECONDS = 30;
+
+const AUTO_STOP_NOTICES: Partial<Record<DictationFinishReason, string>> = {
+  "time-limit": "Dictation stopped after the 4-minute limit. Tap the mic to continue.",
+  silence: "Dictation stopped — no speech detected.",
+  "remote-closed": "Dictation session ended. Tap the mic to continue.",
+};
+
+/** `m:ss` label for the remaining-session countdown. */
+export function formatDictationRemaining(seconds: number): string {
+  const safe = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
+}
+
 type UseStreamingDictationOptions = {
   readDraft: () => string;
   readCaret: () => CaretRange;
@@ -35,6 +51,15 @@ export function useStreamingDictation({
 }: UseStreamingDictationOptions) {
   const [status, setStatus] = useState<DictationStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(
+    null,
+  );
+  const limitTimerRef = useRef<number | null>(null);
+  const silenceTimerRef = useRef<number | null>(null);
+  const tickTimerRef = useRef<number | null>(null);
+  const silenceMsRef = useRef(DEFAULT_INACTIVITY_TIMEOUT_SECONDS * 1000);
+  const finishRef = useRef<(reason: DictationFinishReason) => void>(() => {});
   const statusRef = useRef<DictationStatus>("idle");
   const originDraftRef = useRef("");
   const prefixRef = useRef("");
@@ -76,14 +101,33 @@ export function useStreamingDictation({
     });
   }, [currentInsertion, onDraftChange]);
 
+  const clearWatchdogs = useCallback(() => {
+    if (limitTimerRef.current) window.clearTimeout(limitTimerRef.current);
+    if (silenceTimerRef.current) window.clearTimeout(silenceTimerRef.current);
+    if (tickTimerRef.current) window.clearInterval(tickTimerRef.current);
+    limitTimerRef.current = null;
+    silenceTimerRef.current = null;
+    tickTimerRef.current = null;
+    setRemainingSeconds(null);
+  }, []);
+
+  /** Restart the silence watchdog — called whenever speech is transcribed. */
+  const armSilenceWatchdog = useCallback(() => {
+    if (silenceTimerRef.current) window.clearTimeout(silenceTimerRef.current);
+    silenceTimerRef.current = window.setTimeout(() => {
+      finishRef.current("silence");
+    }, silenceMsRef.current);
+  }, []);
+
   const releaseRefs = useCallback(() => {
+    clearWatchdogs();
     connectionRef.current = null;
     captureRef.current = null;
     transcriptRef.current = EMPTY_STREAMING_TRANSCRIPT;
     endingRef.current = null;
     prefixRef.current = "";
     suffixRef.current = "";
-  }, []);
+  }, [clearWatchdogs]);
 
   const finish = useCallback(
     async (reason: DictationFinishReason) => {
@@ -91,6 +135,7 @@ export function useStreamingDictation({
       if (endingRef.current) return endingRef.current;
 
       const work = (async () => {
+        clearWatchdogs();
         updateStatus("stopping");
         const capture = captureRef.current;
         const connection = connectionRef.current;
@@ -108,6 +153,8 @@ export function useStreamingDictation({
           } else {
             publish();
           }
+          const autoNotice = AUTO_STOP_NOTICES[reason];
+          if (autoNotice) setNotice(autoNotice);
         } catch (finishError) {
           setError(
             finishError instanceof Error
@@ -123,8 +170,14 @@ export function useStreamingDictation({
       endingRef.current = work;
       return work;
     },
-    [onDraftChange, publish, releaseRefs, updateStatus],
+    [clearWatchdogs, onDraftChange, publish, releaseRefs, updateStatus],
   );
+  useEffect(() => {
+    finishRef.current = (reason) => {
+      if (statusRef.current !== "listening") return;
+      void finish(reason);
+    };
+  }, [finish]);
 
   const finishInBackground = useCallback(() => {
     if (statusRef.current === "idle") return;
@@ -156,6 +209,7 @@ export function useStreamingDictation({
     }
 
     setError(null);
+    setNotice(null);
     originDraftRef.current = readDraft();
     transcriptRef.current = EMPTY_STREAMING_TRANSCRIPT;
     captureSplit();
@@ -199,16 +253,31 @@ export function useStreamingDictation({
         throw new Error("Dictation session was incomplete.");
       }
 
+      const maxSessionSeconds =
+        data.maxSessionSeconds ?? DEFAULT_MAX_SESSION_SECONDS;
+      silenceMsRef.current =
+        (data.inactivityTimeoutSeconds ?? DEFAULT_INACTIVITY_TIMEOUT_SECONDS) *
+        1000;
+
       const connection = new AssemblyAiStreamingConnection(
         data,
         (turn) => {
+          const before = transcriptText(transcriptRef.current);
           transcriptRef.current = applyAssemblyTurn(
             transcriptRef.current,
             turn,
           );
+          if (
+            statusRef.current === "listening" &&
+            turn.transcript.trim() &&
+            transcriptText(transcriptRef.current) !== before
+          ) {
+            armSilenceWatchdog();
+          }
           publish();
         },
         () => setError("The live transcription stream reported an error."),
+        () => finishRef.current("remote-closed"),
       );
       connectionRef.current = connection;
       await connection.connect();
@@ -226,6 +295,20 @@ export function useStreamingDictation({
       originDraftRef.current = readDraft();
       captureSplit();
       updateStatus("listening");
+
+      // Cost guards: hard session cap + silence auto-stop. The server token
+      // enforces the same cap, so this only makes the stop graceful.
+      const deadline = Date.now() + maxSessionSeconds * 1000;
+      setRemainingSeconds(maxSessionSeconds);
+      tickTimerRef.current = window.setInterval(() => {
+        setRemainingSeconds(
+          Math.max(0, Math.ceil((deadline - Date.now()) / 1000)),
+        );
+      }, 1000);
+      limitTimerRef.current = window.setTimeout(() => {
+        finishRef.current("time-limit");
+      }, maxSessionSeconds * 1000);
+      armSilenceWatchdog();
     } catch (startError) {
       stream?.getTracks().forEach((track) => track.stop());
       connectionRef.current?.close();
@@ -243,6 +326,7 @@ export function useStreamingDictation({
       updateStatus("idle");
     }
   }, [
+    armSilenceWatchdog,
     captureSplit,
     finish,
     onDraftChange,
@@ -264,6 +348,10 @@ export function useStreamingDictation({
   return {
     status,
     error,
+    /** Informational message after an automatic stop (limit / silence). */
+    notice,
+    /** Seconds left before the session cap while listening, else null. */
+    remainingSeconds,
     isActive: status !== "idle",
     isConnecting: status === "connecting",
     isListening: status === "listening",

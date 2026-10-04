@@ -215,7 +215,7 @@ export function ShortcutHint({
           side={side}
           align={align}
           sideOffset={sideOffset}
-          className="z-[70] border-0 bg-transparent p-0 shadow-none"
+          className="z-[9999] border-0 bg-transparent p-0 shadow-none"
         >
           <div className="cx-shortcut-hint">
             <span className="text-[12px] font-medium leading-4 text-white/92">

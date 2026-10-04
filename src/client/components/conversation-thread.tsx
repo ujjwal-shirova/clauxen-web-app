@@ -7,13 +7,11 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  GitBranch,
-  MoreHorizontal,
+  ChevronUp,
   RotateCcw,
   Search,
   Sparkles,
   SquarePen,
-  Volume2,
 } from "lucide-react";
 import { AgentMessageContent } from "./agent/agent-message-content";
 import { HintTooltip } from "./ui/hint-tooltip";
@@ -204,6 +202,120 @@ function BranchSwitcher({
   );
 }
 
+/** Collapsed user-bubble height in lines before "Show more" appears. */
+const USER_TEXT_COLLAPSED_LINES = 6;
+
+/**
+ * User prompt body. Long text is clamped with an ellipsis + bottom fade and a
+ * "Show more" toggle; expanded pastes scroll inside the bubble (capped
+ * height) so a huge prompt never floods the thread.
+ */
+function UserMessageText({ content }: { content: string }) {
+  const textRef = React.useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = React.useState(false);
+  const [overflowing, setOverflowing] = React.useState(false);
+
+  React.useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el || expanded) return;
+    const measure = () => {
+      setOverflowing(el.scrollHeight - el.clientHeight > 2);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [content, expanded]);
+
+  const collapsible = overflowing || expanded;
+
+  return (
+    <div
+      className="user-text"
+      data-collapsible={collapsible || undefined}
+      data-expanded={expanded || undefined}
+    >
+      <div className="user-text__viewport">
+        <p
+          ref={textRef}
+          className="user-msg-text user-text__content whitespace-pre-wrap break-words text-[15px] leading-[1.6] text-[var(--ui-fg)]"
+          style={
+            {
+              "--user-text-lines": USER_TEXT_COLLAPSED_LINES,
+            } as React.CSSProperties
+          }
+        >
+          {content}
+        </p>
+        {collapsible && !expanded ? (
+          <span className="user-text__fade" aria-hidden />
+        ) : null}
+      </div>
+      {collapsible ? (
+        <button
+          type="button"
+          className="user-text__toggle no-hover-overlay"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Show less" : "Show more"}
+          {expanded ? (
+            <ChevronUp className="size-3.5" strokeWidth={2} aria-hidden />
+          ) : (
+            <ChevronDown className="size-3.5" strokeWidth={2} aria-hidden />
+          )}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+const TIME_FORMAT: Intl.DateTimeFormatOptions = {
+  hour: "numeric",
+  minute: "2-digit",
+};
+const DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+};
+const FULL_FORMAT: Intl.DateTimeFormatOptions = {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  second: "2-digit",
+};
+
+/** Muted "4:20 PM · Oct 4, 2026" stamp shown beside message actions. */
+function MessageTimestamp({
+  timestampMs,
+  label,
+}: {
+  timestampMs?: number;
+  label: string;
+}) {
+  if (typeof timestampMs !== "number" || timestampMs <= 0) return null;
+  const date = new Date(timestampMs);
+  if (Number.isNaN(date.getTime())) return null;
+  const full = date.toLocaleString(undefined, FULL_FORMAT);
+  return (
+    <time
+      dateTime={date.toISOString()}
+      title={`${label} ${full}`}
+      className="message-timestamp"
+    >
+      {date.toLocaleTimeString(undefined, TIME_FORMAT)}
+      <span aria-hidden className="message-timestamp__dot">
+        ·
+      </span>
+      {date.toLocaleDateString(undefined, DATE_FORMAT)}
+    </time>
+  );
+}
+
 interface MessageRowProps {
   message: Message;
   editingMessageId: string | null;
@@ -223,8 +335,6 @@ interface MessageRowProps {
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
   onOpenSources?: (messageId?: string) => void;
   forcedDetailLevel?: MessageDetailLevel;
-  moreMenuId?: string | null;
-  onToggleMoreMenu?: (id: string, anchor?: DOMRect) => void;
   chatIsGenerating?: boolean;
 }
 
@@ -244,8 +354,6 @@ const MessageRow = React.memo(
     onSwitchBranch,
     onOpenSources,
     forcedDetailLevel,
-    moreMenuId,
-    onToggleMoreMenu,
     chatIsGenerating = false,
   }: MessageRowProps) {
     const branchVersions = message.variantCount ?? 1;
@@ -325,11 +433,7 @@ const MessageRow = React.memo(
                   </div>
                 ) : null}
                 {message.content.trim() ? (
-                  <div className="user-message-card__preview relative">
-                    <p className="user-msg-text whitespace-pre-wrap break-words text-[15px] leading-[1.6] text-[var(--ui-fg)]">
-                      {message.content}
-                    </p>
-                  </div>
+                  <UserMessageText content={message.content} />
                 ) : null}
               </div>
             )}
@@ -351,6 +455,10 @@ const MessageRow = React.memo(
                     disabled={chatIsGenerating}
                   />
                 ) : null}
+                <MessageTimestamp
+                  timestampMs={message.createdAt}
+                  label="Sent"
+                />
                 <div className="user-message-actions__buttons">
                   <HintTooltip
                     content="Retry with same input"
@@ -505,23 +613,6 @@ const MessageRow = React.memo(
                       <ShareIcon />
                     </button>
                   </HintTooltip>
-                  <div className="relative" data-more-trigger>
-                    <HintTooltip content="More" side="bottom">
-                      <button
-                        type="button"
-                        aria-label="More actions"
-                        aria-expanded={moreMenuId === message.id}
-                        onClick={(event) => {
-                          const rect =
-                            event.currentTarget.getBoundingClientRect();
-                          onToggleMoreMenu?.(message.id, rect);
-                        }}
-                        className="ui-icon-button text-[var(--ui-fg-muted)] transition-all hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                      >
-                        <MoreHorizontal className="size-4" strokeWidth={1.75} />
-                      </button>
-                    </HintTooltip>
-                  </div>
                   {messageSources.length > 0 ? (
                     <HintTooltip content="Sources" side="bottom">
                       <button
@@ -560,7 +651,16 @@ const MessageRow = React.memo(
                       />
                     </div>
                   ) : null}
-
+                  <MessageTimestamp
+                    timestampMs={
+                      message.agentTrace?.completedAtMs ?? message.createdAt
+                    }
+                    label={
+                      message.agentTrace?.completedAtMs
+                        ? "Completed"
+                        : "Generated"
+                    }
+                  />
                 </div>
               </>
             ) : null}
@@ -593,8 +693,8 @@ const MessageRow = React.memo(
       prev.editingMessageId === next.editingMessageId &&
       prev.editValue === next.editValue &&
       prev.copiedId === next.copiedId &&
+      pm.createdAt === nm.createdAt &&
       prev.forcedDetailLevel === next.forcedDetailLevel &&
-      prev.moreMenuId === next.moreMenuId &&
       prev.chatIsGenerating === next.chatIsGenerating
     );
   },
@@ -619,8 +719,6 @@ interface ConversationTurnProps {
   onRetryAssistant: (messageId: string) => void;
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
   onOpenSources?: (messageId?: string) => void;
-  moreMenuId?: string | null;
-  onToggleMoreMenu?: (id: string, anchor?: DOMRect) => void;
   turnIndex: number;
   chatIsGenerating?: boolean;
 }
@@ -641,8 +739,6 @@ const ConversationTurn = React.memo(
     onRetryAssistant,
     onSwitchBranch,
     onOpenSources,
-    moreMenuId,
-    onToggleMoreMenu,
     turnIndex,
     chatIsGenerating = false,
   }: ConversationTurnProps) {
@@ -674,8 +770,6 @@ const ConversationTurn = React.memo(
               onRetryAssistant={onRetryAssistant}
               onSwitchBranch={onSwitchBranch}
               onOpenSources={onOpenSources}
-              moreMenuId={moreMenuId}
-              onToggleMoreMenu={onToggleMoreMenu}
               chatIsGenerating={chatIsGenerating}
             />
           </div>
@@ -696,8 +790,6 @@ const ConversationTurn = React.memo(
             onRetryAssistant={onRetryAssistant}
             onSwitchBranch={onSwitchBranch}
             onOpenSources={onOpenSources}
-            moreMenuId={moreMenuId}
-            onToggleMoreMenu={onToggleMoreMenu}
             chatIsGenerating={chatIsGenerating}
           />
         ))}
@@ -713,6 +805,7 @@ const ConversationTurn = React.memo(
         nu &&
         (pu.id !== nu.id ||
           pu.content !== nu.content ||
+          pu.createdAt !== nu.createdAt ||
           pu.variantIndex !== nu.variantIndex ||
           pu.variantCount !== nu.variantCount))
     ) {
@@ -738,7 +831,9 @@ const ConversationTurn = React.memo(
         pa.agentFrameComplete !== na.agentFrameComplete ||
         !agentStepsVisuallyEqual(pa.agentTrace?.steps, na.agentTrace?.steps) ||
         pa.variantIndex !== na.variantIndex ||
-        pa.variantCount !== na.variantCount
+        pa.variantCount !== na.variantCount ||
+        pa.createdAt !== na.createdAt ||
+        pa.agentTrace?.completedAtMs !== na.agentTrace?.completedAtMs
       ) {
         return false;
       }
@@ -749,7 +844,6 @@ const ConversationTurn = React.memo(
       prev.editValue === next.editValue &&
       prev.copiedId === next.copiedId &&
       prev.onOpenSources === next.onOpenSources &&
-      prev.moreMenuId === next.moreMenuId &&
       prev.turnIndex === next.turnIndex &&
       prev.chatIsGenerating === next.chatIsGenerating
     );
@@ -775,12 +869,6 @@ export function ConversationThread({
   );
   const [editValue, setEditValue] = React.useState("");
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
-  const [moreMenuId, setMoreMenuId] = React.useState<string | null>(null);
-  const [moreMenuAnchor, setMoreMenuAnchor] = React.useState<{
-    top: number;
-    left: number;
-    placement: "above" | "below";
-  } | null>(null);
   const [selectionMenu, setSelectionMenu] = React.useState<null | {
     x: number;
     y: number;
@@ -800,67 +888,6 @@ export function ConversationThread({
       // ignore clipboard failures
     }
   }, []);
-
-  const toggleMoreMenu = React.useCallback((id: string, anchor?: DOMRect) => {
-    setMoreMenuId((current) => {
-      if (current === id) {
-        setMoreMenuAnchor(null);
-        return null;
-      }
-      if (anchor) {
-        const menuHeight = 148;
-        const gap = 8;
-        const spaceAbove = anchor.top;
-        const placement =
-          spaceAbove >= menuHeight + gap + 12 ? "above" : "below";
-        setMoreMenuAnchor({
-          left: Math.max(12, Math.min(anchor.left, window.innerWidth - 232)),
-          top: placement === "above" ? anchor.top - gap : anchor.bottom + gap,
-          placement,
-        });
-      } else {
-        setMoreMenuAnchor(null);
-      }
-      return id;
-    });
-  }, []);
-
-  const closeMoreMenu = React.useCallback(() => {
-    setMoreMenuId(null);
-    setMoreMenuAnchor(null);
-  }, []);
-
-  const moreMenuMessage = React.useMemo(
-    () => messages.find((message) => message.id === moreMenuId) ?? null,
-    [messages, moreMenuId],
-  );
-
-  React.useLayoutEffect(() => {
-    if (!moreMenuId) return;
-    const onDocClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        !target.closest("[data-more-menu]") &&
-        !target.closest("[data-more-trigger]")
-      ) {
-        closeMoreMenu();
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeMoreMenu();
-    };
-    const onScroll = () => closeMoreMenu();
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onScroll);
-    window.addEventListener("scroll", onScroll, true);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onScroll);
-      window.removeEventListener("scroll", onScroll, true);
-    };
-  }, [moreMenuId, closeMoreMenu]);
 
   // Desktop-only text selection floating menu for assistant answers.
   // Debounced so the bar appears after a short intentional highlight, not
@@ -1015,8 +1042,6 @@ export function ConversationThread({
     onRetryAssistant,
     onSwitchBranch,
     onOpenSources,
-    moreMenuId,
-    onToggleMoreMenu: toggleMoreMenu,
     chatIsGenerating: isGeneratingProp,
   };
 
@@ -1102,70 +1127,6 @@ export function ConversationThread({
             document.body,
           )}
 
-        {moreMenuId &&
-          moreMenuAnchor &&
-          moreMenuMessage &&
-          createPortal(
-            <div
-              data-more-menu
-              className="fixed z-[95] w-[220px] rounded-[14px] border border-[var(--popup-border)] bg-[var(--popup-bg)] p-1 text-[13px] text-[var(--ui-fg)] shadow-[var(--popup-shadow)]"
-              style={{
-                left: `${moreMenuAnchor.left}px`,
-                top: `${moreMenuAnchor.top}px`,
-                transform:
-                  moreMenuAnchor.placement === "above"
-                    ? "translateY(-100%)"
-                    : undefined,
-              }}
-            >
-              <div className="px-3 py-1.5 text-[11px] text-[var(--ui-fg-muted)]">
-                {moreMenuMessage.createdAt
-                  ? new Date(moreMenuMessage.createdAt).toLocaleString(
-                      undefined,
-                      {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      },
-                    )
-                  : "Just now"}
-              </div>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                onClick={() => {
-                  closeMoreMenu();
-                  const branchText = `Continuing from: ${moreMenuMessage.content.slice(0, 120)}${moreMenuMessage.content.length > 120 ? "…" : ""}`;
-                  navigator.clipboard.writeText(branchText).catch(() => {});
-                }}
-              >
-                <GitBranch className="h-3.5 w-3.5" />
-                <span>Branch in new chat</span>
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                onClick={() => {
-                  closeMoreMenu();
-                  try {
-                    const utter = new SpeechSynthesisUtterance(
-                      moreMenuMessage.content
-                        .replace(/\s+/g, " ")
-                        .slice(0, 1200),
-                    );
-                    window.speechSynthesis?.speak(utter);
-                  } catch {
-                    // ignore TTS failures
-                  }
-                }}
-              >
-                <Volume2 className="h-3.5 w-3.5" />
-                <span>Read aloud</span>
-              </button>
-            </div>,
-            document.body,
-          )}
       </div>
     </FollowUpPromptProvider>
   );

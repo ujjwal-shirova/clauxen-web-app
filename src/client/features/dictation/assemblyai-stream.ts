@@ -6,6 +6,7 @@ type StreamConfig = {
   sampleRate: number;
   speechModel: string;
   mode: string;
+  inactivityTimeoutSeconds?: number;
 };
 
 type ServerEvent = Record<string, unknown> & { type?: string; error?: string };
@@ -35,7 +36,11 @@ export class AssemblyAiStreamingConnection {
     private readonly config: StreamConfig,
     private readonly onTurn: (turn: AssemblyTurnEvent) => void,
     private readonly onError: (message: string) => void,
+    /** Fired when the server closes an open stream (time cap / inactivity). */
+    private readonly onRemoteClose?: () => void,
   ) {}
+
+  private closingLocally = false;
 
   connect(): Promise<void> {
     const url = new URL(`wss://${this.config.streamingHost}/v3/ws`);
@@ -43,6 +48,12 @@ export class AssemblyAiStreamingConnection {
     url.searchParams.set("sample_rate", String(this.config.sampleRate));
     url.searchParams.set("speech_model", this.config.speechModel);
     url.searchParams.set("mode", this.config.mode);
+    if (this.config.inactivityTimeoutSeconds) {
+      url.searchParams.set(
+        "inactivity_timeout",
+        String(this.config.inactivityTimeoutSeconds),
+      );
+    }
 
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -72,12 +83,14 @@ export class AssemblyAiStreamingConnection {
       socket.onerror = () =>
         settle(() => reject(new Error("Could not connect to dictation.")));
       socket.onclose = () => {
+        const wasReady = settled;
         if (!settled) {
           settle(() =>
             reject(new Error("Dictation connection closed before ready.")),
           );
         }
         if (!this.terminated) this.terminationResolve?.();
+        if (wasReady && !this.closingLocally) this.onRemoteClose?.();
       };
       socket.onmessage = (event) => {
         if (typeof event.data !== "string") return;
@@ -103,6 +116,7 @@ export class AssemblyAiStreamingConnection {
 
   async finish() {
     if (this.socket?.readyState !== WebSocket.OPEN) return;
+    this.closingLocally = true;
     this.socket.send(JSON.stringify({ type: "Terminate" }));
     await Promise.race([
       this.termination,
@@ -112,6 +126,7 @@ export class AssemblyAiStreamingConnection {
   }
 
   close() {
+    this.closingLocally = true;
     if (
       this.socket?.readyState === WebSocket.OPEN ||
       this.socket?.readyState === WebSocket.CONNECTING

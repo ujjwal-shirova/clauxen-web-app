@@ -64,7 +64,10 @@ import { AttachmentPreviewHost } from "@/components/composer/attachment-preview-
 import { ComposerAttachmentStrip } from "@/components/composer/attachment-strip";
 import * as settingsApi from "@/lib/api/settings";
 import { overlayToHash } from "@/lib/app-routes";
-import { useStreamingDictation } from "@/features/dictation/use-streaming-dictation";
+import {
+  formatDictationRemaining,
+  useStreamingDictation,
+} from "@/features/dictation/use-streaming-dictation";
 import type { CaretRange } from "@/features/dictation/transcript";
 
 function openOverlayHash(overlay: Parameters<typeof overlayToHash>[0]) {
@@ -1098,6 +1101,17 @@ export function PromptInput({
     if (showDictationActions) {
       return (
         <>
+          {dictation.remainingSeconds !== null ? (
+            <span
+              className={cn(
+                "dictation-countdown",
+                dictation.remainingSeconds <= 30 && "dictation-countdown--low",
+              )}
+              aria-label={`${dictation.remainingSeconds} seconds of dictation left`}
+            >
+              {formatDictationRemaining(dictation.remainingSeconds)}
+            </span>
+          ) : null}
           <HintTooltip content="Cancel dictation">
             <button
               type="button"
@@ -1548,6 +1562,13 @@ export function PromptInput({
                   role="alert"
                 >
                   {dictation.error}
+                </p>
+              ) : dictation.notice ? (
+                <p
+                  className="px-2.5 pt-1 text-[11px] text-[var(--ui-fg-muted)] sm:px-3"
+                  role="status"
+                >
+                  {dictation.notice}
                 </p>
               ) : null}
 

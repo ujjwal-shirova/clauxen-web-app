@@ -1,7 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Check, LoaderCircle, Mic, Paperclip, X } from "lucide-react";
+import {
+  ArrowUp,
+  Check,
+  LoaderCircle,
+  Mic,
+  Plus,
+  SquarePen,
+  X,
+} from "lucide-react";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { AttachmentChip } from "@/components/composer/attachment-chip";
 import { AttachmentPreviewHost } from "@/components/composer/attachment-preview-host";
@@ -18,7 +26,10 @@ import {
   beginComposerAttachmentWork,
   cancelComposerAttachment,
 } from "@/lib/composer-upload";
-import { useStreamingDictation } from "@/features/dictation/use-streaming-dictation";
+import {
+  formatDictationRemaining,
+  useStreamingDictation,
+} from "@/features/dictation/use-streaming-dictation";
 import type { CaretRange } from "@/features/dictation/transcript";
 import { cn } from "@/lib/utils";
 import { useActiveChatId } from "@/stores/chat-store";
@@ -287,25 +298,37 @@ export function UserMessageInlineEditor({
         }
       }}
     >
-      <div className="user-msg-editor__label">
-        <span>Edit message</span>
+      <div className="user-msg-editor__header">
+        <span className="user-msg-editor__title">
+          <SquarePen className="h-3.5 w-3.5" strokeWidth={1.9} aria-hidden />
+          Editing message
+        </span>
         <span
           className={cn(
-            "user-msg-editor__rec",
-            dictation.isListening && "user-msg-editor__rec--live",
+            "user-msg-editor__status",
+            dictation.isListening && "user-msg-editor__status--live",
           )}
-          aria-hidden={!dictation.isListening}
         >
-          {dictationConnecting
-            ? "Connecting…"
-            : dictation.isListening
-              ? "Listening…"
-              : ""}
+          {dictationConnecting ? (
+            "Connecting…"
+          ) : dictation.isListening ? (
+            <>
+              <span className="user-msg-editor__live-dot" aria-hidden />
+              Listening
+              {dictation.remainingSeconds !== null ? (
+                <span className="tabular-nums">
+                  · {formatDictationRemaining(dictation.remainingSeconds)}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="hidden sm:inline">Esc to cancel</span>
+          )}
         </span>
       </div>
 
       {attachments.length > 0 ? (
-        <div className="mb-2.5">
+        <div className="mb-2">
           <ComposerAttachmentStrip>
             {attachments.map((attachment) => (
               <AttachmentChip
@@ -382,50 +405,57 @@ export function UserMessageInlineEditor({
       </span>
 
       {attachmentError ? (
-        <p className="mt-1.5 text-[12px] font-medium text-[var(--settings-danger)]">
+        <p className="user-msg-editor__message user-msg-editor__message--error">
           {attachmentError}
         </p>
       ) : null}
       {dictation.error ? (
-        <p className="mt-1.5 text-[12px] font-medium text-[var(--settings-danger)]" role="alert">
+        <p
+          className="user-msg-editor__message user-msg-editor__message--error"
+          role="alert"
+        >
           {dictation.error}
+        </p>
+      ) : dictation.notice ? (
+        <p className="user-msg-editor__message" role="status">
+          {dictation.notice}
         </p>
       ) : null}
 
       <div className="user-msg-editor__footer">
-        <div className="flex items-center gap-1">
-          <HintTooltip content="Attach files" side="bottom">
+        <div className="user-msg-editor__tools">
+          <HintTooltip content="Add files">
             <button
               type="button"
-              aria-label="Attach files"
+              aria-label="Add files"
               disabled={disabled || isSubmitting}
               onClick={() => fileInputRef.current?.click()}
               className="user-msg-editor__icon-btn no-hover-overlay"
             >
-              <Paperclip className="h-4 w-4" strokeWidth={1.75} />
+              <Plus className="h-[18px] w-[18px]" strokeWidth={1.75} />
             </button>
           </HintTooltip>
 
           {showDictationActions ? (
             <>
-              <HintTooltip content="Cancel dictation" side="bottom">
+              <HintTooltip content="Discard dictation">
                 <button
                   type="button"
                   onClick={() => void dictation.cancel()}
                   disabled={dictation.status === "stopping"}
-                  aria-label="Cancel dictation"
-                  className="user-msg-editor__icon-btn user-msg-editor__icon-btn--active no-hover-overlay"
+                  aria-label="Discard dictation"
+                  className="user-msg-editor__icon-btn no-hover-overlay"
                 >
                   <X className="h-4 w-4" strokeWidth={2} />
                 </button>
               </HintTooltip>
-              <HintTooltip content="Keep dictated text" side="bottom">
+              <HintTooltip content="Keep dictated text">
                 <button
                   type="button"
                   onClick={() => void dictation.submit()}
                   disabled={dictation.status === "stopping"}
                   aria-label="Keep dictated text"
-                  className="user-msg-editor__icon-btn no-hover-overlay"
+                  className="user-msg-editor__icon-btn user-msg-editor__icon-btn--active no-hover-overlay"
                 >
                   <Check className="h-4 w-4" strokeWidth={2.25} />
                 </button>
@@ -434,7 +464,6 @@ export function UserMessageInlineEditor({
           ) : (
             <HintTooltip
               content={dictationConnecting ? "Connecting…" : "Dictate"}
-              side="bottom"
             >
               <button
                 type="button"
@@ -455,12 +484,9 @@ export function UserMessageInlineEditor({
               </button>
             </HintTooltip>
           )}
-          <span className="user-msg-editor__hint hidden sm:inline">
-            Enter to save · Shift+Enter for new line
-          </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="user-msg-editor__actions">
           <button
             type="button"
             onClick={onCancel}
@@ -481,9 +507,9 @@ export function UserMessageInlineEditor({
             {isSubmitting ? (
               <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Check className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
+              <ArrowUp className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
             )}
-            <span>Save &amp; send</span>
+            <span>Send</span>
           </button>
         </div>
       </div>

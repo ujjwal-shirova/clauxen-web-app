@@ -4,7 +4,16 @@ import { AppError } from "@/server/db/errors";
 import { env, requireAssemblyAiApiKey } from "@/server/config/env";
 
 const TOKEN_REDEMPTION_SECONDS = 60;
-export const DICTATION_MAX_SESSION_SECONDS = 15 * 60;
+/**
+ * Hard cost cap: AssemblyAI terminates the stream server-side after this many
+ * seconds, independent of the client, so a tampered client cannot run longer.
+ */
+export const DICTATION_MAX_SESSION_SECONDS = 4 * 60;
+/**
+ * AssemblyAI closes the socket when no speech is detected for this long
+ * (`inactivity_timeout`); the client also enforces it as a silence watchdog.
+ */
+export const DICTATION_INACTIVITY_TIMEOUT_SECONDS = 30;
 
 type AssemblyTokenResponse = {
   token?: string;

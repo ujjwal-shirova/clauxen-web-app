@@ -78,12 +78,13 @@ export function StreamingMarkdown({
       />
       {showPrompts ? (
         <div
-          className="follow-up-prompt-list mt-4 flex w-full flex-col gap-2.5 font-sans"
+          className="follow-up-list font-sans"
           role="group"
           aria-label="Suggested follow-ups"
         >
+          <div className="follow-up-list__title">Follow-ups</div>
           {prompts.map((prompt) => (
-            <FollowUpPrompt key={prompt} prompt={prompt} />
+            <FollowUpPrompt key={prompt} prompt={prompt} variant="row" />
           ))}
         </div>
       ) : null}
