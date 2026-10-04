@@ -135,16 +135,49 @@ async function getCookieSession(
   };
 }
 
+const userActiveCache = new Map<string, { active: boolean; checkedAt: number }>();
+
+export async function isUserActiveInDb(userId: string): Promise<boolean> {
+  const now = Date.now();
+  const cached = userActiveCache.get(userId);
+  if (cached && now - cached.checkedAt < 15_000) {
+    return cached.active;
+  }
+  try {
+    const row = await queryOne<{ id: string }>(
+      `select id from public.profiles where id = $1`,
+      [userId],
+    );
+    const active = Boolean(row?.id);
+    userActiveCache.set(userId, { active, checkedAt: now });
+    return active;
+  } catch {
+    return true; // Fail open on transient pool blips
+  }
+}
+
+export function invalidateUserActiveCache(userId?: string) {
+  if (!userId) {
+    userActiveCache.clear();
+  } else {
+    userActiveCache.delete(userId);
+  }
+}
+
 /**
- * Identity from the verified Supabase JWT only — no GoTrue round-trip and no
- * DB read. Display fields come from `user_metadata` claims; routes that need
- * the editable profile (display name / avatar) use `getSessionWithProfile`.
+ * Identity from the verified Supabase JWT only — no GoTrue round-trip.
+ * Verifies the user actually exists in the database so admin deletions take effect immediately.
  */
 async function getSupabaseSession(
   request: NextRequest,
 ): Promise<SessionUser | null> {
   const claims = await getSupabaseClaimsFromRequest(request);
   if (!claims) return null;
+
+  // Validate that user exists in database (prevents deleted users from persisting sessions)
+  const active = await isUserActiveInDb(claims.sub);
+  if (!active) return null;
+
   return sessionFromAuthUser({
     id: claims.sub,
     email: claims.email ?? null,

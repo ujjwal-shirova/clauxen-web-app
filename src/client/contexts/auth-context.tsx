@@ -130,34 +130,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session);
         return;
       }
-      // API said null — confirm with Supabase JWT before clearing.
-      const supabase = createClient();
-      const {
-        data: { user: sbUser },
-      } = await supabase.auth.getUser();
-      if (sbUser?.id) {
-        setUser(sessionFromSupabaseUser(sbUser));
-        return;
-      }
+      // Authoritative API returned null session (e.g. account removed or signed out)
       setUser(null);
       clearIdentityHintFromDocument();
+      clearSupabaseAccessTokenSingleflight();
+      clearSyncDeviceChatList();
+      void createClient().auth.signOut().catch(() => {});
     } catch (err) {
       const code =
         err && typeof err === "object" && "code" in err
           ? String((err as { code?: string }).code)
           : "";
-      // Keep optimistic session on challenge / network blips.
+      const status =
+        err && typeof err === "object" && "status" in err
+          ? Number((err as { status?: number }).status)
+          : 0;
+
+      // Definite unauthenticated or account deleted signal from server
+      if (
+        code === "account_deleted" ||
+        code === "unauthorized" ||
+        status === 401 ||
+        status === 403
+      ) {
+        setUser(null);
+        clearIdentityHintFromDocument();
+        clearSupabaseAccessTokenSingleflight();
+        clearSyncDeviceChatList();
+        void createClient().auth.signOut().catch(() => {});
+        return;
+      }
+
+      // Check local in-memory session on transient network errors
       if (code !== "security_challenge" && code !== "invalid_json") {
-        const supabase = createClient();
-        const {
-          data: { user: sbUser },
-        } = await supabase.auth.getUser().catch(() => ({
-          data: { user: null },
-        }));
-        if (sbUser?.id) {
-          setUser(sessionFromSupabaseUser(sbUser));
-        } else if (!opts?.quiet) {
-          setUser(null);
+        try {
+          const supabase = createClient();
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session?.user) {
+            setUser(sessionFromSupabaseUser(session.user));
+          } else if (!opts?.quiet) {
+            setUser(null);
+          }
+        } catch {
+          if (!opts?.quiet) setUser(null);
         }
       }
     } finally {
@@ -224,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refresh]);
 
-  // Live profile updates (onboarding name, settings) → sidebar + welcome
+  // Live profile updates & deletion handling when admin modifies user in Supabase
   useEffect(() => {
     if (!user?.id) return;
     const supabase = createClient();
@@ -239,6 +256,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           filter: `id=eq.${user.id}`,
         },
         (payload) => {
+          if (payload.eventType === "DELETE") {
+            // Admin removed user from Supabase — log out immediately
+            clearIdentityHintFromDocument();
+            clearSupabaseAccessTokenSingleflight();
+            clearSyncDeviceChatList();
+            setUser(null);
+            void createClient().auth.signOut().catch(() => {});
+            return;
+          }
           const row = payload.new as {
             display_name?: string | null;
             preferred_name?: string | null;
@@ -354,6 +380,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (provider: OAuthProvider, redirectTo = "/new") => {
       if (oauthNavigationStarted) return;
       oauthNavigationStarted = true;
+      const safetyTimer = window.setTimeout(() => {
+        oauthNavigationStarted = false;
+      }, 3000);
+
       try {
         const supabase = createClient();
         const { provider: goTrueProvider, scopes } =
@@ -367,23 +397,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         });
         if (error) {
+          window.clearTimeout(safetyTimer);
           oauthNavigationStarted = false;
           throw new Error(mapSupabaseAuthError(error.message));
         }
         const url = data?.url;
         if (!url) {
+          window.clearTimeout(safetyTimer);
           oauthNavigationStarted = false;
           throw new Error("Could not open the sign-in page. Try again.");
         }
         document.documentElement.setAttribute("data-auth-redirect", "1");
-        // Immediate redirection to the OAuth provider
-        window.location.assign(url);
-
-        // Safety fallback so the button can be used again if navigation was interrupted
-        window.setTimeout(() => {
-          oauthNavigationStarted = false;
-        }, 4000);
+        // Immediate top-level navigation to OAuth provider
+        window.location.href = url;
       } catch (error) {
+        window.clearTimeout(safetyTimer);
         oauthNavigationStarted = false;
         throw error;
       }

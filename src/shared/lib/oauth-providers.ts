@@ -21,7 +21,7 @@ export const OAUTH_PROVIDER_OPTIONS: Record<
     scopes: "tweet.read users.read offline.access users.email",
   },
   apple: { provider: "apple" },
-  gitlab: { provider: "gitlab" },
+  gitlab: { provider: "gitlab", scopes: "read_user" },
 };
 
 export function oauthSignInOptions(provider: OAuthProvider): {

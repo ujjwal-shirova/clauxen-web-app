@@ -98,7 +98,7 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
     if (isAuthenticated && isOpen) closeAuthGate();
   }, [isAuthenticated, isOpen, closeAuthGate]);
 
-  // Deep-link bounce from middleware or first-visit open for new users
+  // Deep-link bounce from middleware (?auth=1)
   useEffect(() => {
     const gateQuery = readGateQuery();
     if (gateQuery.auth) {
@@ -106,17 +106,8 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
       setInitialError(gateQuery.error);
       setIsOpen(true);
       stripGateQuery();
-      return;
     }
-    if (!loading && !isAuthenticated) {
-      const dismissed =
-        typeof sessionStorage !== "undefined" &&
-        sessionStorage.getItem("clx_auth_gate_dismissed") === "1";
-      if (!dismissed) {
-        setIsOpen(true);
-      }
-    }
-  }, [loading, isAuthenticated]);
+  }, []);
 
   const value = useMemo<AuthGateContextValue>(
     () => ({ isOpen, openAuthGate, closeAuthGate, requireAuth }),

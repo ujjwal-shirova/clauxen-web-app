@@ -9,6 +9,7 @@ import { getSupabaseClaimsFromRequest } from "@/server/auth/supabase-session";
 import {
   sessionCookieHeader,
   clearSessionCookieHeader,
+  isUserActiveInDb,
   type SessionUser,
 } from "@/server/auth/session";
 import { assertEmailNotDisposable } from "@/server/email-verifier/disposable-email";
@@ -42,12 +43,14 @@ function sessionFromAuthUser(user: {
   };
 }
 
-/** Quiet boot: local JWT / hint only — no Auth round-trip or profile sync. */
+/** Quiet boot: local JWT / hint only — verifies user is active in DB without round-trips. */
 async function resolveQuietSession(
   request: NextRequest,
 ): Promise<SessionUser | null> {
   const claims = await getSupabaseClaimsFromRequest(request);
   if (claims) {
+    const active = await isUserActiveInDb(claims.sub);
+    if (!active) return null;
     return sessionFromAuthUser({
       id: claims.sub,
       email: claims.email ?? null,
@@ -59,6 +62,8 @@ async function resolveQuietSession(
   if (hintRaw) {
     const hint = parseIdentityHintCookie(hintRaw);
     if (hint?.id) {
+      const active = await isUserActiveInDb(hint.id);
+      if (!active) return null;
       return {
         id: hint.id,
         email: hint.email,
@@ -100,21 +105,26 @@ function attachSessionCookies(
 
 /**
  * Full session: verified JWT claims, provision once, return merged session.
- * No GoTrue round-trip; the browser client owns token refresh.
+ * Detects deleted accounts immediately and wipes cookies.
  */
 const fullSessionHandler = withApiHandler(async ({ request, session }) => {
-  // Verified JWT claims carry email + user_metadata — no GoTrue round-trip.
   const claims = await getSupabaseClaimsFromRequest(request);
-  let resolved: SessionUser | null = session;
 
   if (claims) {
+    // If the user was removed/deleted by admin in Supabase, invalidate immediately
+    const active = await isUserActiveInDb(claims.sub);
+    if (!active) {
+      const response = jsonData({ session: null, accountDeleted: true });
+      attachSessionCookies(response, null);
+      return response;
+    }
+
     const user = {
       id: claims.sub,
       email: claims.email ?? null,
       user_metadata: claims.user_metadata ?? {},
     };
     if (user.email) {
-      // Disposable addresses are rejected; the client signs out on this code.
       assertEmailNotDisposable(user.email);
       const authFullName = resolveAuthFullName(user.user_metadata);
       await ensureUserRecord({
@@ -123,7 +133,7 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
         displayName: authFullName,
       });
     }
-    resolved = await profileService.syncProfileFromAuth({
+    const resolved = await profileService.syncProfileFromAuth({
       userId: user.id,
       email: user.email ?? null,
       authMetadata: user.user_metadata,
@@ -143,17 +153,31 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
           resolveAuthAvatarUrl(user.user_metadata),
       } satisfies SessionUser;
     });
+
+    const response = jsonData({ session: resolved });
+    attachSessionCookies(response, resolved);
+    return response;
   } else if (session?.id && session.email) {
+    const active = await isUserActiveInDb(session.id);
+    if (!active) {
+      const response = jsonData({ session: null, accountDeleted: true });
+      attachSessionCookies(response, null);
+      return response;
+    }
+
     assertEmailNotDisposable(session.email);
     await ensureUserRecord({
       userId: session.id,
       email: session.email,
       displayName: session.displayName,
     });
+    const response = jsonData({ session });
+    attachSessionCookies(response, session);
+    return response;
   }
 
-  const response = jsonData({ session: resolved });
-  attachSessionCookies(response, resolved);
+  const response = jsonData({ session: null });
+  attachSessionCookies(response, null);
   return response;
 });
 

@@ -237,6 +237,10 @@ export async function updateSession(request: NextRequest) {
       ...identityHintCookieOptions(0),
       maxAge: 0,
     });
+    supabaseResponse.cookies.set(SESSION_COOKIE_NAME, "", {
+      path: "/",
+      maxAge: 0,
+    });
   }
 
   // Disposable-email enforcement lives on signup + /api/v1/auth/session —

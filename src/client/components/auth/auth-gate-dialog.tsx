@@ -53,8 +53,7 @@ export function AuthGateDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        // Large sign-in container — the login form scaled up as a popup.
-        className="cx-auth-gate-dialog max-h-[min(720px,calc(100dvh-2rem))] w-[min(560px,calc(100%-1.5rem))] max-w-[560px] overflow-y-auto rounded-[18px] border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-6 shadow-[0_24px_80px_-16px_rgba(24,24,27,0.35)] sm:p-8"
+        className="cx-auth-gate-dialog max-h-[min(680px,calc(100dvh-2rem))] w-[min(440px,calc(100%-1.5rem))] max-w-[440px] overflow-y-auto rounded-2xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-6 sm:p-7 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.35)] backdrop-blur-xl"
         data-auth-gate-dialog
       >
         <DialogTitle className="sr-only">Sign in to Clauxen</DialogTitle>

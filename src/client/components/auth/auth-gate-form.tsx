@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useClearAuthBusyOnReturn } from "@/hooks/use-clear-auth-busy-on-return";
 import {
   AuthOAuthButtons,
+  AuthSpinner,
   authPageStyles,
   mapSupabaseAuthError,
   type OAuthProvider,
@@ -335,8 +336,10 @@ export function AuthGateForm({
           variant === "dialog" ? "py-1 sm:py-2" : "py-6",
         )}
       >
-        <ClauxenWordmark height={26} className="text-[var(--ui-fg)]" />
-        <h1 className="mt-6 font-serif text-[40px] font-normal leading-none tracking-[-0.02em] text-[var(--ui-fg)]">
+        <div className="flex items-center">
+          <ClauxenWordmark height={24} className="text-[var(--ui-fg)]" />
+        </div>
+        <h1 className="mt-5 text-[22px] sm:text-[24px] font-semibold leading-tight tracking-[-0.02em] text-[var(--ui-fg)]">
           {step === "create"
             ? "Create account"
             : step === "login"
@@ -345,11 +348,11 @@ export function AuthGateForm({
                 ? "Magic link"
                 : step === "email"
                   ? "Email"
-                  : "Sign in"}
+                  : "Sign in to Clauxen"}
         </h1>
-        <p className="mt-3 text-[14px] leading-relaxed text-[var(--ui-fg-muted)]">
+        <p className="mt-1.5 text-[13.5px] leading-relaxed text-[var(--ui-fg-muted)]">
           {step === "chooser"
-            ? "Continue with your account."
+            ? "Choose your preferred sign-in method to continue."
             : step === "create"
               ? "Set a password for this email."
               : step === "login"
@@ -363,7 +366,7 @@ export function AuthGateForm({
 
         {step === "chooser" ? (
           <>
-            <div className="mt-7">
+            <div className="mt-6">
               <AuthOAuthButtons
                 onOAuth={handleOAuth}
                 onSso={() => {
@@ -387,7 +390,7 @@ export function AuthGateForm({
               ) : null}
             </div>
 
-            <div className="my-5 flex items-center gap-3">
+            <div className="my-4 flex items-center gap-3">
               <div className="h-px flex-1 bg-[var(--ui-border)]" />
               <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--ui-fg-subtle)]">
                 or
@@ -401,16 +404,23 @@ export function AuthGateForm({
               onClick={openEmailFlow}
               className={authPageStyles.outlinedBtn}
             >
-              <span
-                className="inline-flex w-[18px] shrink-0 items-center justify-center"
-                aria-hidden
+              <svg
+                className="h-[18px] w-[18px] shrink-0 text-[var(--ui-fg)]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
               >
-                <i className="bi bi-envelope text-[16px] leading-none" />
-              </span>
-              Continue with Email
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+              <span>Continue with Email</span>
             </button>
 
-            <div className="mt-3.5 flex justify-center">
+            <div className="mt-3 flex justify-center">
               <button
                 type="button"
                 disabled={busy}
@@ -591,7 +601,16 @@ export function AuthGateForm({
               aria-busy={formSubmitting || undefined}
               className={cn(authPageStyles.primaryBtn, "mt-4")}
             >
-              {step === "magic" ? "Send magic link" : "Continue"}
+              {formSubmitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <AuthSpinner className="text-white dark:text-zinc-900" />
+                  <span>Please wait…</span>
+                </span>
+              ) : step === "magic" ? (
+                "Send magic link"
+              ) : (
+                "Continue"
+              )}
             </button>
 
             <button

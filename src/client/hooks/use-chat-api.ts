@@ -829,7 +829,20 @@ export function useChatApi(
           schema: "public",
           table: "chats",
         },
-        scheduleRefresh,
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const deletedId = (payload.old as { id?: string })?.id;
+            if (deletedId) {
+              const currentActive = useChatStore.getState().activeChatId;
+              useChatStore.getState().removeChat(deletedId);
+              useChatStore.getState().setRecentChats((prev) => prev.filter((c) => c.id !== deletedId));
+              if (deletedId === currentActive && typeof window !== "undefined") {
+                window.location.replace("/new");
+              }
+            }
+          }
+          scheduleRefresh();
+        },
       )
       .subscribe((status, err) => {
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
@@ -1378,8 +1391,12 @@ export function useChatApi(
     let ticking = false;
     const tick = async () => {
       if (cancelled || ticking) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        // Paused while tab is in background — resumes automatically on visibilitychange
+        return;
+      }
       ticking = true;
-      let delay = 4_000;
+      let delay = 30_000;
       try {
         const { ids } = await chatsApi.listGeneratingChatIds();
         if (cancelled) return;
@@ -1410,9 +1427,20 @@ export function useChatApi(
         const stillGenerating = Object.keys(
           useChatStore.getState().generatingChatIds,
         );
-        if (stillGenerating.length > 0 || live.size > 0) delay = 1_200;
-      } catch {
-        // The next tick retries. A failed poll must not clear a live turn.
+        // Fast polling only when actively generating, otherwise relaxed 30s idle heartbeat
+        if (stillGenerating.length > 0 || live.size > 0) {
+          delay = 1_500;
+        } else {
+          delay = 30_000;
+        }
+      } catch (err: unknown) {
+        // If unauthorized or account removed, stop polling entirely
+        const status = (err as { status?: number })?.status;
+        if (status === 401 || status === 403) {
+          cancelled = true;
+          return;
+        }
+        delay = 20_000;
       } finally {
         ticking = false;
       }

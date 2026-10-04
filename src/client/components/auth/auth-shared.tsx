@@ -20,13 +20,13 @@ export const authPageStyles = {
   ink: "#18181b",
   muted: "#71717a",
   outlinedBtn:
-    "auth-oauth-btn relative inline-flex h-11 w-full items-center justify-center gap-3 rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-5 text-sm font-medium tracking-[-0.01em] text-[var(--ui-fg)] shadow-[var(--field-shadow)] transition-all duration-150 ease-out hover:bg-[var(--ui-hover-wash)] hover:border-[var(--ui-border-strong)] active:scale-[0.985] active:brightness-95 disabled:pointer-events-none disabled:opacity-60 cursor-pointer select-none",
+    "auth-oauth-btn relative inline-flex h-[46px] w-full items-center justify-center gap-3 rounded-xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-4 text-[14px] font-medium tracking-[-0.01em] text-[var(--ui-fg)] shadow-sm transition-all duration-150 ease-out hover:bg-[var(--ui-hover-wash)] hover:border-[var(--ui-border-strong)] active:scale-[0.985] disabled:pointer-events-none disabled:opacity-60 cursor-pointer select-none",
   iconBtn:
-    "relative inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-2.5 text-sm font-medium tracking-[-0.01em] text-[var(--ui-fg)] shadow-[var(--field-shadow)] transition-all duration-150 ease-out hover:bg-[var(--ui-hover-wash)] hover:border-[var(--ui-border-strong)] active:scale-[0.985] disabled:pointer-events-none disabled:opacity-60 cursor-pointer select-none",
+    "relative inline-flex h-[46px] min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-3 text-[14px] font-medium tracking-[-0.01em] text-[var(--ui-fg)] shadow-sm transition-all duration-150 ease-out hover:bg-[var(--ui-hover-wash)] hover:border-[var(--ui-border-strong)] active:scale-[0.985] disabled:pointer-events-none disabled:opacity-60 cursor-pointer select-none",
   primaryBtn:
-    "relative flex h-11 w-full items-center justify-center rounded-[var(--radius-md)] bg-[#18181b] px-5 text-sm font-medium tracking-[-0.01em] text-white shadow-sm transition-all duration-150 ease-out hover:bg-[#27272a] active:scale-[0.985] disabled:pointer-events-none disabled:opacity-70 dark:bg-[#f4f4f5] dark:text-[#18181b] dark:hover:bg-[#e4e4e7] cursor-pointer select-none",
+    "relative flex h-[46px] w-full items-center justify-center rounded-xl bg-[#18181b] px-5 text-[14px] font-medium tracking-[-0.01em] text-white shadow-sm transition-all duration-150 ease-out hover:bg-[#27272a] active:scale-[0.985] disabled:pointer-events-none disabled:opacity-70 dark:bg-[#f4f4f5] dark:text-[#18181b] dark:hover:bg-[#e4e4e7] cursor-pointer select-none",
   input:
-    "h-11 w-full rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-3.5 text-sm font-medium text-[var(--ui-fg)] shadow-[var(--field-shadow)] outline-none transition-[border-color,box-shadow] placeholder:text-[var(--ui-fg-placeholder)] focus-visible:border-[var(--ui-field-focus-border)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+    "h-[46px] w-full rounded-xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-3.5 text-[14px] font-medium text-[var(--ui-fg)] shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-[var(--ui-fg-placeholder)] focus-visible:border-[var(--ui-field-focus-border)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
   /** Clickable label — no button hover wash; see `.auth-text-link` in globals.css */
   textLink: "auth-text-link text-[13px]",
 };
@@ -136,6 +136,32 @@ export function ProviderMark({
   );
 }
 
+export function AuthSpinner({ className }: { className?: string }) {
+  return (
+    <svg
+      className={cn("h-4 w-4 animate-spin shrink-0", className)}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+}
+
 export function AuthOAuthButtons({
   onOAuth,
   onSso,
@@ -158,14 +184,15 @@ export function AuthOAuthButtons({
         onClick={() => onOAuth("google")}
         className={cn(
           authPageStyles.outlinedBtn,
-          pending("google") && "opacity-75 cursor-wait",
+          pending("google") && "opacity-80 cursor-wait",
         )}
       >
-        <ProviderMark
-          icon="bi-google"
-          className="text-[17px] text-[var(--ui-fg)]"
-        />
-        <span>Continue with Google</span>
+        {pending("google") ? (
+          <AuthSpinner className="text-[var(--ui-fg)]" />
+        ) : (
+          <GoogleIcon />
+        )}
+        <span>{pending("google") ? "Connecting to Google…" : "Continue with Google"}</span>
       </button>
 
       <button
@@ -175,14 +202,15 @@ export function AuthOAuthButtons({
         onClick={() => onOAuth("github")}
         className={cn(
           authPageStyles.outlinedBtn,
-          pending("github") && "opacity-75 cursor-wait",
+          pending("github") && "opacity-80 cursor-wait",
         )}
       >
-        <ProviderMark
-          icon="bi-github"
-          className="text-[18px] text-[var(--ui-fg)]"
-        />
-        <span>Continue with GitHub</span>
+        {pending("github") ? (
+          <AuthSpinner className="text-[var(--ui-fg)]" />
+        ) : (
+          <GithubIcon />
+        )}
+        <span>{pending("github") ? "Connecting to GitHub…" : "Continue with GitHub"}</span>
       </button>
 
       <button
@@ -192,14 +220,15 @@ export function AuthOAuthButtons({
         onClick={() => onOAuth("gitlab")}
         className={cn(
           authPageStyles.outlinedBtn,
-          pending("gitlab") && "opacity-75 cursor-wait",
+          pending("gitlab") && "opacity-80 cursor-wait",
         )}
       >
-        <ProviderMark
-          icon="bi-gitlab"
-          className="text-[18px] text-[#FC6D26]"
-        />
-        <span>Continue with GitLab</span>
+        {pending("gitlab") ? (
+          <AuthSpinner className="text-[#FC6D26]" />
+        ) : (
+          <GitlabIcon />
+        )}
+        <span>{pending("gitlab") ? "Connecting to GitLab…" : "Continue with GitLab"}</span>
       </button>
 
       <button
@@ -209,14 +238,18 @@ export function AuthOAuthButtons({
         onClick={onSso}
         className={cn(
           authPageStyles.outlinedBtn,
-          pending("sso") && "opacity-75 cursor-wait",
+          pending("sso") && "opacity-80 cursor-wait",
         )}
       >
-        <ProviderMark
-          icon="bi-building"
-          className="text-[16px] text-[var(--ui-fg-muted)]"
-        />
-        <span>Continue with SSO</span>
+        {pending("sso") ? (
+          <AuthSpinner className="text-[var(--ui-fg-muted)]" />
+        ) : (
+          <ProviderMark
+            icon="bi-building"
+            className="text-[16px] text-[var(--ui-fg-muted)]"
+          />
+        )}
+        <span>{pending("sso") ? "Checking SSO…" : "Continue with SSO"}</span>
       </button>
     </div>
   );
@@ -397,8 +430,8 @@ export function AuthEmailForm({
       </label>
       <div
         className={cn(
-          "flex h-11 w-full items-center gap-2 rounded-[10px] border border-zinc-200 bg-white px-2 transition-colors focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-zinc-900/10",
-          phoneMode && "pl-1.5",
+          "flex h-[46px] w-full items-center gap-2 rounded-xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-2.5 transition-colors focus-within:border-[var(--ui-field-focus-border)] focus-within:ring-2 focus-within:ring-[var(--brand-ring)]",
+          phoneMode && "pl-2",
         )}
       >
         {phoneMode ? (
@@ -416,7 +449,7 @@ export function AuthEmailForm({
           required={!awaitingPhoneOtp}
           value={email}
           onChange={(e) => onEmailChange(e.target.value)}
-          className="h-full min-w-0 flex-1 bg-transparent px-1.5 text-sm font-medium text-zinc-900 outline-none placeholder:text-zinc-400"
+          className="h-full min-w-0 flex-1 bg-transparent px-1.5 text-[14px] font-medium text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)]"
         />
       </div>
 
@@ -484,7 +517,14 @@ export function AuthEmailForm({
         aria-busy={submitting}
         className={cn(authPageStyles.primaryBtn, submitting && "opacity-90")}
       >
-        {submitting ? "Please wait…" : submitLabel}
+        {submitting ? (
+          <span className="inline-flex items-center gap-2">
+            <AuthSpinner className="text-white dark:text-zinc-900" />
+            <span>Please wait…</span>
+          </span>
+        ) : (
+          submitLabel
+        )}
       </button>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">

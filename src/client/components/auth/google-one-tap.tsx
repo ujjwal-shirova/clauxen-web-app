@@ -91,7 +91,9 @@ export function GoogleOneTap() {
     // Never compete with the in-app sign-in dialog.
     if (gateOpen) return;
 
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
+    const clientId =
+      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() ||
+      "103785677444-ctlfhurfg8864m59bclrqsvt6h9f7t8r.apps.googleusercontent.com";
     if (!clientId) return;
 
     let cancelled = false;
