@@ -9958,3 +9958,18 @@ button.agent-ledger__row-head:hover {
   outline: 1px dashed rgba(239, 68, 68, 0.45);
   outline-offset: 1px;
 }
+
+/* Inline code: red text accent, consistent across chat, narration and thinking. */
+.markdown-content :not(pre) > code,
+.agent-narration .markdown-content code,
+.agent-thinking__card .markdown-content code,
+.agent-thinking-body .markdown-content code {
+  color: #c7372f;
+}
+
+.dark .markdown-content :not(pre) > code,
+.dark .agent-narration .markdown-content code,
+.dark .agent-thinking__card .markdown-content code,
+.dark .agent-thinking-body .markdown-content code {
+  color: #ff8f86;
+}
