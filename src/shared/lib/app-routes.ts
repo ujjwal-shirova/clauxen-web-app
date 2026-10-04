@@ -166,12 +166,14 @@ export function parseOverlayPath(
     return { type: "pricing" };
   }
   if (pathname === "/gift") return { type: "gift" };
-  const settingsMatch = pathname.match(/^\/settings(?:\/([^/]+))?\/?$/);
-  if (settingsMatch) {
-    return {
-      type: "settings",
-      tab: normalizeSettingsTab(settingsMatch[1] || "general"),
-    };
+  if (pathname.startsWith("/settings")) {
+    const parts = pathname.split("/").filter(Boolean);
+    if (parts[0] === "settings" && parts.length <= 2) {
+      return {
+        type: "settings",
+        tab: normalizeSettingsTab(parts[1] || "general"),
+      };
+    }
   }
   return null;
 }

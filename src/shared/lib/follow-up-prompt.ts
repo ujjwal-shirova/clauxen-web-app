@@ -26,24 +26,26 @@ Rules:
 </follow_up_prompts>`;
 }
 
-const PROMPT_TAG_RE =
-  /<prompt(?:\s[^>]*)?>([\s\S]*?)<\/prompt>/gi;
-const INCOMPLETE_PROMPT_OPEN_RE = /<prompt(?:\s[^>]*)?(?:>[\s\S]*)?$/i;
-
-/** Remove complete + incomplete prompt tags (toggle off / model hygiene). */
-export function stripFollowUpPromptTags(text: string): string {
-  if (!text) return "";
-  // Remove the whole tag — do not leave the inner text in the markdown body
-  // (dedicated FollowUpPrompt buttons render the prompts separately).
-  let cleaned = text.replace(PROMPT_TAG_RE, "");
-  cleaned = cleaned.replace(INCOMPLETE_PROMPT_OPEN_RE, "");
-  return cleaned.replace(/\n{3,}/g, "\n\n").trimEnd();
-}
+const PROMPT_TAG_RE = /<prompt\b[^>]*>([\s\S]*?)<\/prompt>/gi;
 
 /** Hide incomplete trailing `<prompt` while streaming; leave complete tags intact. */
 export function stripIncompleteFollowUpPromptTags(text: string): string {
   if (!text || !text.includes("<prompt")) return text;
-  return text.replace(INCOMPLETE_PROMPT_OPEN_RE, "");
+  const lastOpen = text.lastIndexOf("<prompt");
+  if (lastOpen === -1) return text;
+  const lastClose = text.lastIndexOf("</prompt>");
+  if (lastClose < lastOpen) {
+    return text.slice(0, lastOpen).trimEnd();
+  }
+  return text;
+}
+
+/** Remove complete + incomplete prompt tags (toggle off / model hygiene). */
+export function stripFollowUpPromptTags(text: string): string {
+  if (!text) return "";
+  let cleaned = text.replace(PROMPT_TAG_RE, "");
+  cleaned = stripIncompleteFollowUpPromptTags(cleaned);
+  return cleaned.replace(/\n{3,}/g, "\n\n").trimEnd();
 }
 
 export function extractFollowUpPrompts(text: string): string[] {

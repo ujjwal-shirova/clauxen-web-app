@@ -10,6 +10,7 @@
  */
 
 import { z } from "zod";
+import { parse as parsePartialJson } from "partial-json";
 
 export type ToolExecutionContext = {
   userId?: string;
@@ -90,8 +91,9 @@ function applyHeuristics(
   for (const [key, value] of Object.entries(healed)) {
     if (typeof value === "string") {
       // "50" → 50, "true" → true, "null" → null
-      if (/^-?\d+(\.\d+)?$/.test(value)) {
-        healed[key] = parseFloat(value);
+      const trimmed = value.trim();
+      if (trimmed !== "" && !Number.isNaN(Number(trimmed)) && !trimmed.startsWith("0x")) {
+        healed[key] = Number(trimmed);
       } else if (value === "true") {
         healed[key] = true;
       } else if (value === "false") {
@@ -155,20 +157,20 @@ function coerceToSchema(
 
 /** Extract partial JSON from malformed strings (e.g. missing closing brace). */
 function extractPartialJson(raw: string): ToolCallArgs {
-  const result: ToolCallArgs = {};
+  try {
+    const parsed = parsePartialJson(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as ToolCallArgs;
+    }
+  } catch {
+    // fallback
+  }
 
+  const result: ToolCallArgs = {};
   // Extract "key": "value" pairs
   const stringMatch = raw.matchAll(/"(\w+)"\s*:\s*"([^"]*)"/g);
   for (const m of stringMatch) {
     result[m[1]] = m[2];
-  }
-
-  // Extract "key": number
-  const numMatch = raw.matchAll(/"(\w+)"\s*:\s*(\d+(?:\.\d+)?)/g);
-  for (const m of numMatch) {
-    if (!(m[1] in result)) {
-      result[m[1]] = parseFloat(m[2]);
-    }
   }
 
   return result;

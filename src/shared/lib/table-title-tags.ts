@@ -4,13 +4,36 @@ export type ParsedTableSegment =
   | { type: "markdown"; content: string }
   | { type: "titled_table"; id: string; title: string; tableMarkdown: string };
 
-const TABLE_TITLE_OPEN_RE = /<table_title(\s[^>]*)?\s*\/?>/gi;
+const TABLE_TITLE_OPEN_RE = /<table_title\b([^>]*)>/gi;
 const TABLE_TITLE_CLOSE_RE = /^\s*<\/table_title>/i;
-// ponytail: naive "starts with |" heuristic — matches the leading-pipe GFM
-// style the system prompt asks for. A table written without a leading pipe
-// on every row won't be captured here; it just falls through and renders as
-// a normal (untitled) table instead of breaking.
-const TABLE_BLOCK_RE = /^[ \t]*\n*((?:[ \t]*\|.*(?:\n|$))*)/;
+function extractTableBlock(text: string): { length: number; tableMarkdown: string } {
+  const lines = text.split("\n");
+  let i = 0;
+  let charCount = 0;
+  // skip leading blank/whitespace lines
+  while (i < lines.length && lines[i].trim() === "") {
+    charCount += lines[i].length + 1; // +1 for \n
+    i++;
+  }
+  const tableLines: string[] = [];
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.trimStart().startsWith("|")) {
+      tableLines.push(line);
+      charCount += line.length + 1;
+      i++;
+    } else {
+      break;
+    }
+  }
+  if (tableLines.length === 0) {
+    return { length: 0, tableMarkdown: "" };
+  }
+  return {
+    length: Math.min(charCount, text.length),
+    tableMarkdown: tableLines.join("\n"),
+  };
+}
 
 /**
  * Split assistant content around `<table_title title="...">` markers that
@@ -40,8 +63,8 @@ export function parseTitledTableSegments(content: string): ParsedTableSegment[] 
     const closeMatch = TABLE_TITLE_CLOSE_RE.exec(content.slice(afterTag));
     if (closeMatch) afterTag += closeMatch[0].length;
 
-    const tableMatch = TABLE_BLOCK_RE.exec(content.slice(afterTag));
-    const tableMarkdown = tableMatch?.[1] ?? "";
+    const tableBlock = extractTableBlock(content.slice(afterTag));
+    const tableMarkdown = tableBlock.tableMarkdown;
 
     segments.push({
       type: "titled_table",
@@ -50,7 +73,7 @@ export function parseTitledTableSegments(content: string): ParsedTableSegment[] 
       tableMarkdown,
     });
 
-    cursor = afterTag + (tableMatch?.[0].length ?? 0);
+    cursor = afterTag + tableBlock.length;
     TABLE_TITLE_OPEN_RE.lastIndex = cursor;
   }
 

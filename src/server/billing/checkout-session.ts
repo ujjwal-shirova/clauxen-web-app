@@ -178,17 +178,28 @@ export function checkoutSessionPath(
   return `/checkout/${merchant}/${token}`;
 }
 
-const SAFE_RETURN_PATH =
-  /^\/(?:new|onboarding|c\/[A-Za-z0-9_-]+|library|scheduled|projects(?:\/[A-Za-z0-9_-]+)?|my-clauxen)?\/?$/;
+const SAFE_RETURN_PREFIXES = new Set([
+  "/new",
+  "/onboarding",
+  "/library",
+  "/scheduled",
+  "/my-clauxen",
+]);
 
 /** Sanitize client-provided return path; fall back to /new. */
 export function normalizeCheckoutReturnPath(
   raw: string | null | undefined,
 ): string {
   if (!raw || typeof raw !== "string") return "/new";
-  const path = raw.trim().split("?")[0]?.split("#")[0] ?? "";
+  const path = (raw.trim().split("?")[0]?.split("#")[0] ?? "").replace(/\/+$/, "");
   if (!path.startsWith("/") || path.startsWith("//")) return "/new";
-  if (path === "/" || path === "/new" || path === "/new/") return "/new";
-  if (SAFE_RETURN_PATH.test(path)) return path.replace(/\/$/, "") || "/new";
+  if (path === "" || path === "/new") return "/new";
+  if (SAFE_RETURN_PREFIXES.has(path)) return path;
+  if (path === "/projects" || path.startsWith("/projects/")) {
+    const parts = path.split("/").filter(Boolean);
+    if (parts.length === 1 || (parts.length === 2 && /^[A-Za-z0-9_-]+$/.test(parts[1]))) {
+      return path;
+    }
+  }
   return "/new";
 }

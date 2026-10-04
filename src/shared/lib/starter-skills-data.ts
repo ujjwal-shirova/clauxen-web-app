@@ -5,8 +5,7 @@ export interface FileItem {
 }
 
 // Match real skill-repo paths: hidden dirs, hyphen-prefixed slugs, Python modules.
-const STARTER_SKILL_SEGMENT_PATTERN =
-  /^(?:\.?[a-zA-Z0-9][a-zA-Z0-9._-]*|-[a-zA-Z0-9][a-zA-Z0-9._-]*|__[a-zA-Z0-9_]+__(?:\.[a-zA-Z0-9_]+)*)$/;
+const STARTER_SKILL_SEGMENT_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
 function assertStarterSkillTreeNames(
   items: readonly FileItem[],

@@ -62,7 +62,9 @@ export function generateChatId(existingIds?: Iterable<string>): string {
  * collision-fallback suffixes (hyphenated lowercase alphanumeric).
  */
 export function isValidChatId(id: string): boolean {
-  return /^[a-z0-9]+(-[a-z0-9]+)+$/.test(id) && id.length >= 20;
+  if (!id || typeof id !== "string" || id.length < 20 || id.length > 120) return false;
+  if (!id.includes("-") || id.startsWith("-") || id.endsWith("-") || id.includes("--")) return false;
+  return /^[a-z0-9-]+$/.test(id);
 }
 
 /**

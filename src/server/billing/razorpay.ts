@@ -953,8 +953,16 @@ export function constructRazorpayUpiIntent(input: {
 /** Ensure GPay `am=` matches the charged checkout total. */
 export function assertUpiIntentAmount(intent: string, amountPaise: number) {
   const expected = (amountPaise / 100).toFixed(2);
-  const match = /(?:^|[?&])am=([0-9]+(?:\.[0-9]+)?)/i.exec(intent);
-  if (!match || match[1] !== expected) {
+  let parsedAmount: string | null = null;
+  try {
+    const qIndex = intent.indexOf("?");
+    const queryString = qIndex !== -1 ? intent.slice(qIndex + 1) : intent;
+    const params = new URLSearchParams(queryString);
+    parsedAmount = params.get("am");
+  } catch {
+    parsedAmount = null;
+  }
+  if (!parsedAmount || parsedAmount !== expected) {
     throw new AppError(
       `UPI amount mismatch (expected ₹${expected}).`,
       502,

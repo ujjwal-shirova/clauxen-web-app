@@ -56,8 +56,22 @@ const CITATION_CLUSTER_LINE = new RegExp(
   String.raw`^\s*(?:[-*•]\s*)?(?:(?:${CITATION_TOKEN_SOURCE})[\s,;·|]*)+$`,
 );
 
-const SOURCES_HEADING_LINE =
-  /^\s*(?:#{1,6}\s*)?(?:\*\*)?(?:sources?|references?|citations?)(?:\*\*)?\s*:?\s*$/i;
+function isSourcesHeadingLine(trimmed: string): boolean {
+  const clean = trimmed
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/^\*\*|\*\*$/g, "")
+    .replace(/:$/, "")
+    .trim()
+    .toLowerCase();
+  return (
+    clean === "source" ||
+    clean === "sources" ||
+    clean === "reference" ||
+    clean === "references" ||
+    clean === "citation" ||
+    clean === "citations"
+  );
+}
 
 /**
  * Drop a trailing block that is nothing but citations (optionally under a
@@ -81,7 +95,7 @@ export function stripTrailingCitationClusters(input: string): string {
       removedCluster = true;
       continue;
     }
-    if (removedCluster && SOURCES_HEADING_LINE.test(trimmed)) {
+    if (removedCluster && isSourcesHeadingLine(trimmed)) {
       end -= 1;
       continue;
     }
@@ -238,24 +252,21 @@ export function convertCitationReferencesToLinks(
 
   let result = text;
 
-  // Multi-cite paren cluster: ([A][1], [B][2]) → links without wrapping parens
+  // Parenthesized citations: ([A][1], [B][2]) or ([Title][1]) → links without wrapping parens
   result = result.replace(
-    /\(\s*((?:\[[^\]]+?\]\[\d+\]\s*[,;·|]?\s*){2,})\s*\)/g,
-    (_match, inner: string) =>
-      String(inner)
-        .replace(/\[([^\]]+?)\]\[(\d+)\]/g, (_m, title: string, nStr: string) =>
-          citationTokenToLink(sources, title, nStr),
-        )
-        .replace(/\s*[,;·|]\s*/g, " ")
-        .replace(/\s+/g, " ")
-        .trim(),
-  );
-
-  // Handle parenthesized citation form used by the model: ([Title][N])
-  result = result.replace(
-    /\(\s*\[([^\]]+?)\]\[(\d+)\]\s*\)/g,
-    (_match, title: string, nStr: string) =>
-      citationTokenToLink(sources, title, nStr),
+    /\(\s*(\[[^)\n]+\])\s*\)/g,
+    (match, inner: string) => {
+      if (inner.includes("][")) {
+        return inner
+          .replace(/\[([^\]]+?)\]\[(\d+)\]/g, (_m, title: string, nStr: string) =>
+            citationTokenToLink(sources, title, nStr),
+          )
+          .replace(/[ \t]*[,;·|][ \t]*/g, " ")
+          .replace(/[ \t]+/g, " ")
+          .trim();
+      }
+      return match;
+    },
   );
 
   // [TitleOrDomain][N]  -->  [TitleOrDomain](https://url)
