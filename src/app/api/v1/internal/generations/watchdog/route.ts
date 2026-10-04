@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isGenerationsInternalRequest } from "@/server/http/internal-generations-auth";
 import { recoverStalledJobs } from "@/server/chat/durable-generation";
 import { query } from "@/server/db/pool";
+import { settleOrphanedStreamingMessages } from "@/server/repositories/messages.repository";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +31,16 @@ async function run(request: NextRequest) {
   const limit = Number.isFinite(limitRaw)
     ? Math.min(Math.max(1, Math.floor(limitRaw)), 25)
     : 10;
-  const result = await recoverStalledJobs(url.origin, limit);
+  const recovered = await recoverStalledJobs(url.origin, limit);
+  // Orphaned 'streaming' rows (no live job) are settled here — never on the
+  // chat read path.
+  const orphansSettled = await settleOrphanedStreamingMessages().catch(
+    (error: unknown) => {
+      console.error("[watchdog] orphan sweep failed:", error);
+      return 0;
+    },
+  );
+  const result = { ...recovered, orphansSettled };
   // Liveness signal: one tiny upsert per poke, best-effort, never blocks.
   const source = (url.searchParams.get("source") ?? "manual")
     .trim()

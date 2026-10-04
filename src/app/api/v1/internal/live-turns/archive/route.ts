@@ -68,27 +68,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const recent = await messagesRepo.listRecentMessagesForChat(chatId, 40);
-  const existing = recent.find((row) => row.id === assistantId);
-  // Terminal rows win: the durable finalize already wrote the authoritative
-  // transcript. Only backfill streaming/queued rows that missed it.
-  if (
-    existing &&
-    (existing.status === "complete" ||
-      existing.status === "failed" ||
-      existing.status === "cancelled")
-  ) {
-    await chatsRepo.setChatGenerating(chatId, userId, false);
-    return NextResponse.json({ ok: true, deduped: true });
-  }
-
-  await messagesRepo.updateMessageContent(
-    assistantId,
+  // Guarded single-statement backfill (works for any thread length — the old
+  // "latest 40 messages" lookup overwrote finished rows in long chats).
+  const written = await messagesRepo.backfillLiveTurn({
+    messageId: assistantId,
     chatId,
-    answer,
+    content: answer,
     status,
     contentJson,
+  });
+  // Only clear the generating flag when no generation is live for the chat —
+  // this callback can arrive while a newer turn is streaming.
+  const { isChatJobActive } = await import(
+    "@/server/repositories/generation-jobs.repository"
   );
-  await chatsRepo.setChatGenerating(chatId, userId, false);
-  return NextResponse.json({ ok: true });
+  if (!(await isChatJobActive(chatId))) {
+    await chatsRepo.setChatGenerating(chatId, userId, false);
+  }
+  return NextResponse.json({ ok: true, deduped: !written });
 }

@@ -436,31 +436,6 @@ export async function executeAutonomousTool(
       }
     }
 
-    // Emit an Agent Trace record so this AI-generated file is attributable.
-    try {
-      const { recordAgentFileContribution } = await import(
-        "@/server/agent-trace/trace-store"
-      );
-      recordAgentFileContribution({
-        type: "ai",
-        filePath: output.path,
-        model: ctx.modelId,
-        conversationUrl: ctx.conversationId
-          ? `https://clauxen.com/chat/${ctx.conversationId}`
-          : undefined,
-        metadata: {
-          chat_id: ctx.conversationId,
-          user_id: ctx.userId,
-          tool_call_id: ctx.toolCallId,
-          tool_name: name,
-          file_id: persisted?.fileId,
-          storage_path: persisted?.storagePath,
-          bytes: content.length,
-        },
-      });
-    } catch (error) {
-      console.warn("[agent-trace] record failed:", error);
-    }
 
     return {
       output: {

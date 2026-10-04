@@ -1,7 +1,7 @@
 import { withApiHandler } from "@/server/http/api-handler";
 import { jsonData } from "@/server/http/api-response";
 import { requireSession } from "@/server/auth/require-session";
-import { createSupabaseClientFromRequest } from "@/server/auth/supabase-session";
+import { getSupabaseClaimsFromRequest } from "@/server/auth/supabase-session";
 import * as onboardingService from "@/server/services/onboarding.service";
 import type { OnboardingAnswers } from "@/server/services/onboarding.service";
 import {
@@ -51,17 +51,9 @@ export const PATCH = withApiHandler(
       answers?: OnboardingAnswers;
     };
 
-    let authMetadata: Record<string, unknown> | null = null;
-    const supabase = createSupabaseClientFromRequest(request);
-    if (supabase) {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-      authMetadata = (authUser?.user_metadata ?? null) as Record<
-        string,
-        unknown
-      > | null;
-    }
+    const claims = await getSupabaseClaimsFromRequest(request);
+    const authMetadata: Record<string, unknown> | null =
+      claims?.user_metadata ?? null;
 
     const onboarding = await onboardingService.updateOnboardingState(user.id, {
       step: body.step,

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "24.x",
+    "node": ">=20.0.0",
     "npm": ">=10.0.0"
   },
   "packageManager": "npm@11.12.1",
@@ -74,7 +74,6 @@
     "@vercel/functions": "^3.7.5",
     "bcrypt": "^6.0.0",
     "bootstrap-icons": "^1.13.1",
-    "bullmq": "^5.78.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -85,7 +84,6 @@
     "hibp": "^15.2.1",
     "idb-keyval": "^6.2.5",
     "input-otp": "^1.4.2",
-    "ioredis": "^5.11.1",
     "jose": "^6.2.3",
     "jsonwebtoken": "^9.0.3",
     "jsqr": "^1.4.0",

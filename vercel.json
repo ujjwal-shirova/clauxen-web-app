@@ -4,7 +4,9 @@
   "fluid": true,
   "buildCommand": "npm run build",
   "installCommand": "npm ci",
-  "regions": ["pdx1"],
+  "regions": [
+    "pdx1"
+  ],
   "headers": [
     {
       "source": "/_next/static/(.*)",
@@ -113,8 +115,19 @@
     }
   ],
   "images": {
-    "sizes": [64, 128, 256, 384, 640, 1080, 1920],
-    "formats": ["image/avif", "image/webp"],
+    "sizes": [
+      64,
+      128,
+      256,
+      384,
+      640,
+      1080,
+      1920
+    ],
+    "formats": [
+      "image/avif",
+      "image/webp"
+    ],
     "minimumCacheTTL": 2592000,
     "localPatterns": [
       {
@@ -128,10 +141,6 @@
       "memory": 512
     },
     "src/app/api/v1/chats/**/generate/route.ts": {
-      "memory": 1024,
-      "maxDuration": 300
-    },
-    "src/app/api/chat/route.ts": {
       "memory": 1024,
       "maxDuration": 300
     },

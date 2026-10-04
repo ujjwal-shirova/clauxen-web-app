@@ -173,13 +173,25 @@ export async function createGenerationJob(input: {
   chatId: string;
   userId: string;
   jobInput: GenerationJobInput;
+  /**
+   * Worker id of the live slice that runs this job right now. The job is
+   * born 'running' + heartbeating, so the watchdog only takes it over when
+   * the live slice actually dies (stale heartbeat) — never while it streams.
+   */
+  lockedBy: string;
 }): Promise<GenerationJobRow> {
   try {
     const row = await queryOne<GenerationJobRow>(
-      `insert into public.chat_generation_jobs (chat_id, user_id, input)
-       values ($1, $2, $3::jsonb)
+      `insert into public.chat_generation_jobs
+         (chat_id, user_id, input, status, locked_by, locked_at, heartbeat_at)
+       values ($1, $2, $3::jsonb, 'running', $4, now(), now())
        returning ${JOB_COLUMNS}`,
-      [input.chatId, input.userId, JSON.stringify(input.jobInput ?? {})],
+      [
+        input.chatId,
+        input.userId,
+        JSON.stringify(input.jobInput ?? {}),
+        input.lockedBy,
+      ],
     );
     if (!row) {
       throw new AppError("Could not start the background task.", 500);
@@ -322,7 +334,10 @@ export async function finishGenerationJob(input: {
          locked_at = null,
          completed_at = now(),
          updated_at = now()
-     where id = $1`,
+     where id = $1
+       -- Never overwrite a terminal job (a user 'cancelled', or a takeover
+       -- slice that already completed it while a stale slice was finishing).
+       and status = any($6)`,
     [
       input.jobId,
       input.status,
@@ -334,6 +349,7 @@ export async function finishGenerationJob(input: {
             version: GENERATION_CHECKPOINT_VERSION,
           })
         : null,
+      ACTIVE_JOB_STATUSES,
     ],
   );
 }

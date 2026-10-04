@@ -2,6 +2,7 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -133,6 +134,34 @@ export async function getObject(
   const bytes = await response.Body?.transformToByteArray();
   if (!bytes) throw new Error(`Object not found: ${bucket}/${key}`);
   return Buffer.from(bytes);
+}
+
+export async function headObject(
+  purpose: StoragePurpose,
+  key: string,
+  bucketOverride?: string,
+): Promise<{ contentLength?: number; contentType?: string; etag?: string } | null> {
+  const bucket = bucketOverride ?? bucketForPurpose(purpose);
+  const client = getR2Client();
+  if (!client) {
+    return null;
+  }
+  try {
+    const response = await client.send(
+      new HeadObjectCommand({ Bucket: bucket, Key: key }),
+    );
+    return {
+      contentLength: response.ContentLength,
+      contentType: response.ContentType,
+      etag: response.ETag,
+    };
+  } catch (error: unknown) {
+    const candidate = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+    if (candidate?.name === "NotFound" || candidate?.$metadata?.httpStatusCode === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function deleteObject(

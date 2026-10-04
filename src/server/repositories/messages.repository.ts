@@ -83,21 +83,32 @@ export async function listThreadPage(input: {
     MAX_PAGE_LIMIT,
     Math.max(1, input.limit ?? DEFAULT_PAGE_LIMIT),
   );
-  const rows = await query<
-    ThreadMessageRow & { has_more: boolean; next_depth: number | null }
-  >(
-    `select id, chat_id, role, content, status, metadata, content_json, created_at,
-            client_id, parent_message_id, depth, variant_index, variant_count,
-            has_more, next_depth
-     from public.fetch_chat_thread_page($1, $2::uuid, $3::uuid, $4::bigint, $5)`,
-    [
-      input.chatId,
-      input.userId,
-      input.leafId ?? null,
-      input.depthCursor ?? null,
-      limit,
-    ],
-  );
+  let rows: (ThreadMessageRow & { has_more: boolean; next_depth: number | null })[];
+  try {
+    rows = await query<
+      ThreadMessageRow & { has_more: boolean; next_depth: number | null }
+    >(
+      `select id, chat_id, role, content, status, metadata, content_json, created_at,
+              client_id, parent_message_id, depth, variant_index, variant_count,
+              has_more, next_depth
+       from public.fetch_chat_thread_page($1, $2::uuid, $3::uuid, $4::bigint, $5)`,
+      [
+        input.chatId,
+        input.userId,
+        input.leafId ?? null,
+        input.depthCursor ?? null,
+        limit,
+      ],
+    );
+  } catch (error) {
+    // mapPgError maps the RPC's 'chat not found' to 404 already; keep a
+    // message-based fallback for errors that bypassed the mapper.
+    if (error instanceof AppError) throw error;
+    if (/chat not found/i.test(String((error as Error)?.message ?? error))) {
+      throw notFound("Chat not found.");
+    }
+    throw error;
+  }
 
   const messages: ThreadMessageRow[] = rows.map(
     ({ has_more: _hasMore, next_depth: _next, ...message }) => message,
@@ -854,6 +865,30 @@ export async function searchMessagesForUser(
   );
 }
 
+/**
+ * Mid-stream checkpoint of a live assistant row. Only touches rows still
+ * 'streaming' (a finalized answer can never be overwritten by a late
+ * snapshot) and does not touch `chats` (avoids lock contention with the
+ * finalize transaction's FOR UPDATE on the chat row).
+ */
+export async function checkpointStreamingMessage(
+  messageId: string,
+  chatId: string,
+  content: string,
+  contentJson: Record<string, unknown>,
+): Promise<boolean> {
+  const rows = await query<{ id: string }>(
+    `update public.chat_messages
+     set content = $3,
+         content_json = $4::jsonb,
+         updated_at = now()
+     where id = $1 and chat_id = $2 and status = 'streaming'
+     returning id`,
+    [messageId, chatId, content, JSON.stringify(contentJson)],
+  );
+  return rows.length > 0;
+}
+
 export async function updateMessageContent(
   messageId: string,
   chatId: string,
@@ -1067,10 +1102,17 @@ export async function finalizeStaleStreamingMessages(
   const stale = await query<StaleStreamingRow>(
     `select id, content, coalesce(content_json, '{}'::jsonb) as content_json,
             created_at
-     from public.chat_messages
-     where chat_id = $1
-       and status = 'streaming'
-       and created_at < now() - make_interval(secs => $2)
+     from public.chat_messages m
+     where m.chat_id = $1
+       and m.status = 'streaming'
+       and m.updated_at < now() - make_interval(secs => $2)
+       -- A live / resumable job still owns this turn (long agent runs exceed
+       -- 90s). Only orphaned rows are settled.
+       and not exists (
+         select 1 from public.chat_generation_jobs j
+         where j.chat_id = m.chat_id
+           and j.status in ('queued', 'running', 'continuing')
+       )
      limit 25`,
     [chatId, olderThanSeconds],
   );
@@ -1104,4 +1146,71 @@ export async function finalizeStaleStreamingMessages(
     }
   }
   return settled;
+}
+
+/**
+ * Global orphan sweep (watchdog): settle 'streaming' rows whose generation is
+ * gone (no live job) and that have not been checkpointed recently. Replaces
+ * the old per-read sweep, so opening a chat never performs writes.
+ */
+export async function settleOrphanedStreamingMessages(
+  olderThanSeconds = 120,
+  chatLimit = 25,
+): Promise<number> {
+  const chats = await query<{ chat_id: string }>(
+    `select distinct m.chat_id
+     from public.chat_messages m
+     where m.status = 'streaming'
+       and m.updated_at < now() - make_interval(secs => $1)
+       and not exists (
+         select 1 from public.chat_generation_jobs j
+         where j.chat_id = m.chat_id
+           and j.status in ('queued', 'running', 'continuing')
+       )
+     limit $2`,
+    [olderThanSeconds, chatLimit],
+  );
+  let settled = 0;
+  for (const { chat_id } of chats) {
+    settled += await finalizeStaleStreamingMessages(chat_id, olderThanSeconds);
+  }
+  return settled;
+}
+
+/**
+ * Idempotent backfill of a Durable-Object live trace into Postgres.
+ * Writes only when the row never received its authoritative finalize:
+ * still streaming/queued, or settled as an EMPTY failure by the orphan sweep
+ * while the DO held the real partial answer. Finished rows are never touched.
+ */
+export async function backfillLiveTurn(input: {
+  messageId: string;
+  chatId: string;
+  content: string;
+  status: "complete" | "failed" | "cancelled";
+  contentJson?: Record<string, unknown>;
+}): Promise<boolean> {
+  const rows = await query<{ id: string }>(
+    `update public.chat_messages
+     set content = $3,
+         status = $4,
+         content_json = coalesce($5::jsonb, content_json),
+         updated_at = now()
+     where id = $1
+       and chat_id = $2
+       and role = 'assistant'
+       and (
+         status in ('streaming', 'queued')
+         or (status = 'failed' and coalesce(trim(content), '') = '' and length(trim($3)) > 0)
+       )
+     returning id`,
+    [
+      input.messageId,
+      input.chatId,
+      input.content,
+      input.status,
+      input.contentJson ? JSON.stringify(input.contentJson) : null,
+    ],
+  );
+  return rows.length > 0;
 }

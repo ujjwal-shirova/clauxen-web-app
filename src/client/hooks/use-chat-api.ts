@@ -39,6 +39,7 @@ import {
   useChatStore,
 } from "@/stores/chat-store";
 import * as chatsApi from "@/lib/api/chats";
+import { ApiError } from "@/lib/api/client";
 import { generateChatId } from "@/lib/chat-id";
 import {
   mergeMessageAttachments,
@@ -560,6 +561,8 @@ export function useChatApi(
   const pendingDeletedChatIdsRef = useRef<Set<string>>(new Set());
   /** Chats that already received a full-thread hydrate this session. */
   const hydratedChatIdsRef = useRef<Set<string>>(new Set());
+  /** In-flight hydrate per chat — aborted when superseded or switched away. */
+  const loadControllersRef = useRef<Map<string, AbortController>>(new Map());
   const titleGenerationInProgressRef = useRef<Set<string>>(new Set());
   const handleSendMessageRef = useRef<
     | ((
@@ -1262,6 +1265,10 @@ export function useChatApi(
       if (silent && ownsStream) {
         return;
       }
+      // One in-flight hydrate per chat: a newer load supersedes the old one.
+      loadControllersRef.current.get(chatId)?.abort();
+      const controller = new AbortController();
+      loadControllersRef.current.set(chatId, controller);
       if (!silent) {
         setLoadingChatId(chatId);
       }
@@ -1272,7 +1279,25 @@ export function useChatApi(
         return next;
       });
       try {
-        const bundle = await chatsApi.listAllChatMessages(chatId);
+        let bundle: { messages: chatsApi.ApiMessage[] } | null = null;
+        for (let attempt = 0; attempt < 2 && !bundle; attempt += 1) {
+          try {
+            bundle = await chatsApi.listAllChatMessages(chatId, {
+              signal: controller.signal,
+            });
+          } catch (error) {
+            const status =
+              error instanceof ApiError ? error.status : undefined;
+            const permanent =
+              controller.signal.aborted ||
+              status === 401 ||
+              status === 403 ||
+              status === 404;
+            if (permanent || attempt === 1) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 600));
+          }
+        }
+        if (!bundle || controller.signal.aborted) return;
         // Re-check after await — generation may have started while fetching.
         if (Boolean(getGeneration(chatId))) {
           applyHydratedMessages(chatId, bundle.messages);
@@ -1293,10 +1318,15 @@ export function useChatApi(
           );
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
         const message =
-          error instanceof Error
-            ? error.message
-            : "Could not load this conversation.";
+          error instanceof ApiError && error.status === 404
+            ? "This conversation no longer exists."
+            : error instanceof Error && error.name === "TimeoutError"
+              ? "Loading this conversation timed out. Please retry."
+              : error instanceof Error
+                ? error.message
+                : "Could not load this conversation.";
         console.warn("[chat] hydrate failed:", error);
         if (!silent) {
           setMessageLoadErrors((current) => ({
@@ -1305,7 +1335,13 @@ export function useChatApi(
           }));
         }
       } finally {
-        if (!silent) {
+        // A newer load for the same chat owns the spinner; don't clear it.
+        const owner = loadControllersRef.current.get(chatId);
+        const stillOwner = !owner || owner === controller;
+        if (owner === controller) {
+          loadControllersRef.current.delete(chatId);
+        }
+        if (!silent && stillOwner) {
           setLoadingChatId((current) => (current === chatId ? null : current));
         }
       }
@@ -1415,6 +1451,14 @@ export function useChatApi(
         return;
       }
       setActiveChatId(chatId);
+      // Cancel hydrates for chats we navigated away from so they can't
+      // re-insert stale rows after clearInactiveChatMessages below.
+      for (const [id, controller] of loadControllersRef.current) {
+        if (id !== chatId) {
+          controller.abort();
+          loadControllersRef.current.delete(id);
+        }
+      }
       if (
         useChatStore.getState().generatingChatIds[chatId] &&
         !getGeneration(chatId)
@@ -1456,40 +1500,25 @@ export function useChatApi(
           }
         }
         setLoadingChatId((current) => (current === chatId ? null : current));
+        // A live turn painted by the background poller is NOT the history.
+        // Fetch the thread silently (loadChatMessages no-ops when this tab
+        // owns the stream, so optimistic sends are never disturbed).
+        if (!alreadyHydrated) {
+          void loadChatMessages(chatId, { silent: true });
+        }
         return;
       }
 
-      // Warm local turns always win over a sparse/empty SSR seed (brand-new
-      // /c/[id] right after create often has 0–1 DB rows while UI already
-      // painted the optimistic user + assistant placeholder).
+      // Partial local state (stale device cache, a single polled row): show
+      // what we have immediately, but ALWAYS fetch the real thread — skipping
+      // the fetch here used to leave truncated / blank chats forever.
       if (hasLocalTurns) {
         const ssrSeed = takePendingChatRouteSeed(chatId);
-        const seedCount = ssrSeed?.messages?.length ?? 0;
-        const seedHasRicherAssistant = Boolean(
-          ssrSeed?.messages?.some((message) => {
-            if (message.role !== "assistant") return false;
-            const localAssistant = existingMessages.find(
-              (local) =>
-                local.role === "assistant" &&
-                (local.id === message.id ||
-                  local.clientId ===
-                    (message as { client_id?: string }).client_id),
-            );
-            const seedLen = (message.content ?? "").trim().length;
-            const localLen = (localAssistant?.content ?? "").trim().length;
-            return seedLen > localLen && !localAssistant?.isStreaming;
-          }),
-        );
-        if (
-          ssrSeed &&
-          seedCount > existingMessages.length &&
-          seedHasRicherAssistant
-        ) {
+        if (ssrSeed && ssrSeed.messages.length >= existingMessages.length) {
           applyHydratedMessages(chatId, ssrSeed.messages);
-        } else {
-          hydratedChatIdsRef.current.add(chatId);
         }
         setLoadingChatId((current) => (current === chatId ? null : current));
+        void loadChatMessages(chatId, { silent: true });
         return;
       }
 
@@ -1497,8 +1526,8 @@ export function useChatApi(
       if (ssrSeed) {
         applyHydratedMessages(chatId, ssrSeed.messages);
         setLoadingChatId((current) => (current === chatId ? null : current));
-        // Only silent-reconcile when idle — never during a live send/stream.
-        if (!isChatActivelyGenerating(chatId)) {
+        // Long threads (seed is one page) or idle reconcile.
+        if (ssrSeed.hasMore || !isChatActivelyGenerating(chatId)) {
           void loadChatMessages(chatId, { silent: true });
         }
         return;

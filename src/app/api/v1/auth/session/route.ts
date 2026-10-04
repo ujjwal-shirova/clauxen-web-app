@@ -5,16 +5,13 @@ import { jsonData, jsonError } from "@/server/http/api-response";
 import { AppError } from "@/server/db/errors";
 import { ensureUserRecord } from "@/server/services/identity.service";
 import * as profileService from "@/server/services/profile.service";
-import { createSupabaseClientFromRequest } from "@/server/auth/supabase-session";
+import { getSupabaseClaimsFromRequest } from "@/server/auth/supabase-session";
 import {
   sessionCookieHeader,
   clearSessionCookieHeader,
   type SessionUser,
 } from "@/server/auth/session";
-import {
-  assertEmailNotDisposable,
-  DISPOSABLE_EMAIL_CODE,
-} from "@/server/email-verifier/disposable-email";
+import { assertEmailNotDisposable } from "@/server/email-verifier/disposable-email";
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
 import {
   IDENTITY_HINT_COOKIE,
@@ -49,14 +46,13 @@ function sessionFromAuthUser(user: {
 async function resolveQuietSession(
   request: NextRequest,
 ): Promise<SessionUser | null> {
-  const supabase = createSupabaseClientFromRequest(request);
-  if (supabase) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.user?.id) {
-      return sessionFromAuthUser(session.user);
-    }
+  const claims = await getSupabaseClaimsFromRequest(request);
+  if (claims) {
+    return sessionFromAuthUser({
+      id: claims.sub,
+      email: claims.email ?? null,
+      user_metadata: claims.user_metadata ?? null,
+    });
   }
 
   const hintRaw = request.cookies.get(IDENTITY_HINT_COOKIE)?.value;
@@ -103,56 +99,50 @@ function attachSessionCookies(
 }
 
 /**
- * Full session: one Auth user read, provision once, return merged session.
- * Avoids the old triple-getUser + unconditional profile UPDATE on every boot.
+ * Full session: verified JWT claims, provision once, return merged session.
+ * No GoTrue round-trip; the browser client owns token refresh.
  */
 const fullSessionHandler = withApiHandler(async ({ request, session }) => {
-  const supabase = createSupabaseClientFromRequest(request);
+  // Verified JWT claims carry email + user_metadata — no GoTrue round-trip.
+  const claims = await getSupabaseClaimsFromRequest(request);
   let resolved: SessionUser | null = session;
 
-  if (supabase) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user?.id) {
-      if (user.email) {
-        try {
-          assertEmailNotDisposable(user.email);
-        } catch (err) {
-          if (err instanceof AppError && err.code === DISPOSABLE_EMAIL_CODE) {
-            await supabase.auth.signOut();
-            throw err;
-          }
-          throw err;
-        }
-        const authFullName = resolveAuthFullName(user.user_metadata);
-        await ensureUserRecord({
-          userId: user.id,
-          email: user.email,
-          displayName: authFullName,
-        });
-      }
-      resolved = await profileService.syncProfileFromAuth({
+  if (claims) {
+    const user = {
+      id: claims.sub,
+      email: claims.email ?? null,
+      user_metadata: claims.user_metadata ?? {},
+    };
+    if (user.email) {
+      // Disposable addresses are rejected; the client signs out on this code.
+      assertEmailNotDisposable(user.email);
+      const authFullName = resolveAuthFullName(user.user_metadata);
+      await ensureUserRecord({
         userId: user.id,
-        email: user.email ?? null,
-        authMetadata: user.user_metadata,
-      }).then((row) => {
-        if (!row) return sessionFromAuthUser(user);
-        return {
-          id: row.id,
-          email: row.email ?? user.email ?? null,
-          displayName:
-            row.display_name ??
-            resolveAuthFullName(user.user_metadata) ??
-            user.email?.split("@")[0] ??
-            null,
-          preferredName: row.preferred_name ?? null,
-          avatarUrl:
-            profileService.toClientAvatarUrl(row) ??
-            resolveAuthAvatarUrl(user.user_metadata),
-        } satisfies SessionUser;
+        email: user.email,
+        displayName: authFullName,
       });
     }
+    resolved = await profileService.syncProfileFromAuth({
+      userId: user.id,
+      email: user.email ?? null,
+      authMetadata: user.user_metadata,
+    }).then((row) => {
+      if (!row) return sessionFromAuthUser(user);
+      return {
+        id: row.id,
+        email: row.email ?? user.email ?? null,
+        displayName:
+          row.display_name ??
+          resolveAuthFullName(user.user_metadata) ??
+          user.email?.split("@")[0] ??
+          null,
+        preferredName: row.preferred_name ?? null,
+        avatarUrl:
+          profileService.toClientAvatarUrl(row) ??
+          resolveAuthAvatarUrl(user.user_metadata),
+      } satisfies SessionUser;
+    });
   } else if (session?.id && session.email) {
     assertEmailNotDisposable(session.email);
     await ensureUserRecord({

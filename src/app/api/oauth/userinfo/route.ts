@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getSessionFromRequest } from "@/server/auth/session";
+import { getSessionWithProfile } from "@/server/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionWithProfile(request);
   if (!session) {
     return NextResponse.json(
       { error: "invalid_token", error_description: "Missing or invalid access token." },

@@ -41,6 +41,11 @@ export function mapPgError(error: unknown, scope = "query"): AppError {
     logDbError(scope, error);
   });
 
+  // Ownership-checking RPCs raise 'chat not found' (P0001) for missing,
+  // foreign or deleted chats — that is a 404, not a server error.
+  if (pg.code === "P0001" && /chat not found/i.test(pg.message ?? "")) {
+    return notFound("Chat not found.");
+  }
   if (pg.code === "23505") {
     return conflict("Resource already exists.");
   }

@@ -195,7 +195,6 @@ export async function searchChats(userId: string, query: string, limit = 40) {
 export async function getChatWithMessages(chatId: string, userId: string) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
-  await messagesRepo.finalizeStaleStreamingMessages(chatId).catch(() => 0);
   // Full ACTIVE branch path (tree walk) — legacy callers (share/export seed)
   // must never see inactive sibling rows.
   const first = await messagesRepo.listThreadPage({
@@ -237,20 +236,29 @@ export async function getChatMessagesPage(
     accessToken?: string | null;
   },
 ) {
-  const chat = await chatsRepo.getChatForUser(chatId, userId);
+  // The thread RPC enforces ownership itself, so both reads run in parallel.
+  // No writes on the read path: stale-turn settlement is owned by the
+  // generation watchdog, not by whoever happens to open the chat.
+  const [chat, page] = await Promise.all([
+    chatsRepo.getChatForUser(chatId, userId),
+    listChatThreadPage(chatId, userId, input),
+  ]);
   if (!chat) throw notFound("Chat not found.");
-  // Do not await — a write must not sit on the GET hydrate path (pool.max=1).
-  void messagesRepo.finalizeStaleStreamingMessages(chatId).catch(() => 0);
-  const { listThreadPagePreferEdge } =
-    await import("@/server/chat/list-messages-page");
-  const page = await listThreadPagePreferEdge({
+  return { chat, ...page };
+}
+
+/** Active-branch keyset page only (ownership enforced in SQL). */
+export async function listChatThreadPage(
+  chatId: string,
+  userId: string,
+  input?: { cursorDepth?: number | null; limit?: number },
+) {
+  return messagesRepo.listThreadPage({
     chatId,
     userId,
-    accessToken: input?.accessToken,
-    cursorDepth: input?.cursorDepth,
+    depthCursor: input?.cursorDepth,
     limit: input?.limit,
   });
-  return { chat, ...page };
 }
 
 /** Recent chronological messages for inference when client history is partial. */
@@ -902,13 +910,18 @@ export async function streamChatGeneration(input: {
         const chat = await chatPromise;
         if (!chat) throw notFound("Chat not found.");
 
-        await Promise.race([
-          turnPromise.catch(() => undefined),
-          new Promise<void>((resolve) => {
-            setTimeout(resolve, CHAT_CONTEXT_BUDGET_MS);
-          }),
-        ]);
+        // The turn rows MUST exist before the model streams: otherwise a
+        // slow insert left the whole answer with nowhere to be saved. The
+        // insert is a single short transaction (~tens of ms).
+        await turnPromise.catch(() => undefined);
         if (turnFailure) throw turnFailure;
+        if (input.turn && !turnState.assistant?.id) {
+          throw new AppError(
+            "Could not save your message. Please try again.",
+            503,
+            "turn_not_persisted",
+          );
+        }
 
         const [dbRecent, personalization] = await Promise.all([
           // Worker cache is usually <50ms; allow a bit more than personalization
@@ -973,19 +986,28 @@ export async function streamChatGeneration(input: {
   const conversationForModel: IncomingMessage[] = clientConversation;
 
   /**
-   * Checkpoint the growing answer on Cloudflare. Supabase is not written on
-   * each tick — the Durable Object keeps the live trace, and the transcript
-   * is archived to Postgres 24 hours after the turn finishes.
+   * Live trace checkpoints.
+   * - Durable Object (live viewers on other tabs): every 1.5s, fire-and-forget.
+   * - Postgres (source of truth): every 4s, ALWAYS — so a crash / timeout
+   *   mid-stream still leaves the partial answer and agent trace in Supabase.
+   * Saves never queue: if one is still in flight the tick is skipped, so a
+   * slow dependency can't build an unbounded chain that delays finalize.
    */
-  const PARTIAL_SAVE_INTERVAL_MS = 1_500;
+  const LIVE_PUBLISH_INTERVAL_MS = 1_500;
+  const DB_CHECKPOINT_INTERVAL_MS = 4_000;
   let lastPartialSaveAtMs = 0;
+  let lastDbCheckpointAtMs = 0;
+  let publishInFlight = false;
+  let dbCheckpointInFlight: Promise<unknown> | null = null;
   let partialSaveInFlight: Promise<unknown> = Promise.resolve();
   const maybeSavePartialTurn = () => {
     if (input.signal?.aborted) return;
     const now = Date.now();
-    if (now - lastPartialSaveAtMs < PARTIAL_SAVE_INTERVAL_MS) {
+    if (now - lastPartialSaveAtMs < LIVE_PUBLISH_INTERVAL_MS) {
       return;
     }
+    const assistantId = turnState.assistant?.id;
+    if (!assistantId) return;
     const snapshotAnswer = finalizeChatTitleStrippedAnswer(answer);
     if (
       !snapshotAnswer.trim() &&
@@ -1021,34 +1043,48 @@ export async function streamChatGeneration(input: {
         actions: snapshotTools,
       },
     });
-    partialSaveInFlight = partialSaveInFlight
-      .catch(() => undefined)
-      .then(async () => {
-        // The turn insert may still be in flight; wait for it once.
-        try {
-          await turnPromise;
-        } catch {
-          return;
-        }
-        if (!turnState.assistant?.id) return;
-        const published = await publishLiveTurn({
-          chatId: input.chatId,
-          userId: input.userId,
-          assistantId: turnState.assistant.id,
-          status: "running",
-          answer: snapshotAnswer,
-          contentJson: snapshotContentJson,
+
+    if (!publishInFlight) {
+      publishInFlight = true;
+      void publishLiveTurn({
+        chatId: input.chatId,
+        userId: input.userId,
+        assistantId,
+        status: "running",
+        answer: snapshotAnswer,
+        contentJson: snapshotContentJson,
+      })
+        .catch(() => false)
+        .finally(() => {
+          publishInFlight = false;
         });
-        if (published) return;
-        await messagesRepo.updateMessageContent(
-          turnState.assistant.id,
+    }
+
+    if (
+      !dbCheckpointInFlight &&
+      now - lastDbCheckpointAtMs >= DB_CHECKPOINT_INTERVAL_MS
+    ) {
+      lastDbCheckpointAtMs = now;
+      const checkpoint = messagesRepo
+        .checkpointStreamingMessage(
+          assistantId,
           input.chatId,
           snapshotAnswer,
-          "streaming",
           snapshotContentJson,
-        );
-      })
-      .catch(() => undefined);
+        )
+        .catch((error: unknown) => {
+          console.error("[chat] partial checkpoint failed", {
+            chatId: input.chatId,
+            assistantId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        })
+        .finally(() => {
+          dbCheckpointInFlight = null;
+        });
+      dbCheckpointInFlight = checkpoint;
+      partialSaveInFlight = checkpoint;
+    }
   };
 
   const beginThinkingPhase = () => {
@@ -1316,12 +1352,6 @@ export async function streamChatGeneration(input: {
         },
       });
       if (assistantRow?.id) {
-        const liveStatus =
-          completionStatus === "cancelled"
-            ? "cancelled"
-            : completionStatus === "failed"
-              ? "failed"
-              : "complete";
         // Postgres is the durable transcript the moment the turn ends — the
         // UI, history cache, and reloads all read the finished row at once,
         // so spinners and "still working" states clear immediately. The same
@@ -1341,38 +1371,8 @@ export async function streamChatGeneration(input: {
             status: wasCancelled ? "cancelled" : failed ? "error" : "success",
           }),
         });
-        await publishLiveTurn({
-          chatId: input.chatId,
-          userId: input.userId,
-          assistantId: assistantRow.id,
-          status: liveStatus,
-          answer: cleanedAnswer,
-          contentJson,
-        }).catch(() => false);
-        if (!wasCancelled && generatedTitle) {
-          await chatsRepo.updateChat(input.chatId, input.userId, {
-            title: generatedTitle,
-          });
-        }
       }
       const latencyMs = Date.now() - started;
-      await logInferenceTelemetry({
-        userId: input.userId,
-        mode: "chat",
-        status: wasCancelled || failed ? "error" : "success",
-        model: modelForTelemetry,
-        messageCount: clientConversation.length,
-        responseCharacterCount: answer.length,
-        latencyMs,
-        requestId: input.requestId,
-        ...(wasCancelled
-          ? { errorMessage: "Generation cancelled." }
-          : streamError
-            ? { errorMessage: streamError }
-            : failed
-              ? { errorMessage: "Model completed without visible output." }
-              : {}),
-      });
       const sliceOutcome: ChatSliceOutcome =
         wasCancelled || loopResult.outcome === "aborted"
           ? { status: "cancelled" }
@@ -1382,8 +1382,9 @@ export async function streamChatGeneration(input: {
               ? { status: "paused" }
               : { status: "complete" };
 
-      // Durable jobs close here: the transcript is already in Postgres, so
-      // the watchdog never touches this job again.
+      // Close the durable job IMMEDIATELY after the transcript commit. Any
+      // later failure (title, live mirror, telemetry) must never leave the
+      // job open — the watchdog would re-run a finished turn and overwrite it.
       if (input.slice?.jobId) {
         await finishGenerationJob({
           jobId: input.slice.jobId,
@@ -1404,8 +1405,57 @@ export async function streamChatGeneration(input: {
               ? streamError ?? "Model completed without visible output."
               : null,
           checkpoint: buildSliceCheckpoint(),
-        }).catch(() => undefined);
+        }).catch((error: unknown) => {
+          console.error("[chat] finishGenerationJob failed", {
+            jobId: input.slice?.jobId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
       }
+
+      if (assistantRow?.id) {
+        const liveStatus =
+          completionStatus === "cancelled"
+            ? "cancelled"
+            : completionStatus === "failed"
+              ? "failed"
+              : "complete";
+        await publishLiveTurn({
+          chatId: input.chatId,
+          userId: input.userId,
+          assistantId: assistantRow.id,
+          status: liveStatus,
+          answer: cleanedAnswer,
+          contentJson,
+        }).catch(() => false);
+        if (!wasCancelled && generatedTitle) {
+          await chatsRepo
+            .updateChat(input.chatId, input.userId, { title: generatedTitle })
+            .catch((error: unknown) => {
+              console.error("[chat] title update failed", {
+                chatId: input.chatId,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            });
+        }
+      }
+      await logInferenceTelemetry({
+        userId: input.userId,
+        mode: "chat",
+        status: wasCancelled || failed ? "error" : "success",
+        model: modelForTelemetry,
+        messageCount: clientConversation.length,
+        responseCharacterCount: answer.length,
+        latencyMs,
+        requestId: input.requestId,
+        ...(wasCancelled
+          ? { errorMessage: "Generation cancelled." }
+          : streamError
+            ? { errorMessage: streamError }
+            : failed
+              ? { errorMessage: "Model completed without visible output." }
+              : {}),
+      }).catch(() => undefined);
 
       if (wasCancelled || failed) return sliceOutcome;
       try {
@@ -1701,32 +1751,5 @@ export async function getChatTranscript(chatId: string, userId: string) {
   };
 }
 
-export async function legacyStreamFromMessages(
-  messages: IncomingMessage[],
-  signal?: AbortSignal,
-  options?: {
-    userId?: string;
-    userCountryCode?: string;
-    generateChatTitle?: boolean;
-    chatModel?: string;
-    conversationId?: string;
-    homerReasoningEffort?: HomerReasoningEffort;
-  },
-): Promise<ReadableStream<Uint8Array>> {
-  const generateChatTitle = resolveGenerateChatTitle(
-    messages,
-    options?.generateChatTitle,
-  );
-
-  return createChatStream(messages, {
-    chatModel: options?.chatModel,
-    userId: options?.userId,
-    userCountryCode: options?.userCountryCode,
-    generateChatTitle,
-    conversationId: options?.conversationId,
-    signal,
-    homerReasoningEffort: options?.homerReasoningEffort,
-  });
-}
 
 export { sanitizeMessages, encodeSseEvent };

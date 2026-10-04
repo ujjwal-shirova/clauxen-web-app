@@ -12,8 +12,11 @@ import {
   createPresignedPutUrl,
   deleteObject,
   getObject,
+  headObject,
   type StoragePurpose,
 } from "@/server/storage/object-store";
+
+import { logWarn, logged } from "@/server/observability/log";
 
 const PRESIGN_TTL_SECONDS = 900;
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
@@ -69,9 +72,9 @@ function buildStorageKey(
 }
 
 /**
- * Product uploads go through clauxen-r2-gateway only.
- * Direct S3 presign is local/dev fallback; production requires WORKER_URL.
- * Vercel Blob and Supabase Storage are not used for chat binaries.
+ * Direct S3 presigned URLs directly to Cloudflare R2 are preferred.
+ * WORKER_URL (clauxen-r2-gateway) is supported as secondary/optional fallback.
+ * Local/dev stub is used when neither is configured in non-production.
  */
 async function buildUploadPresign(input: {
   purpose: StoragePurpose;
@@ -82,26 +85,6 @@ async function buildUploadPresign(input: {
   const expiresAt = new Date(
     Date.now() + PRESIGN_TTL_SECONDS * 1000,
   ).toISOString();
-
-  if (env.workerUrl) {
-    const base = env.workerUrl.replace(/\/+$/, "");
-    return {
-      method: "PUT" as const,
-      uploadUrl: `${base}/upload/put?bucket=${encodeURIComponent(input.bucket)}&key=${encodeURIComponent(input.key)}`,
-      downloadUrl: `${base}/download/${encodeURIComponent(input.key)}?bucket=${encodeURIComponent(input.bucket)}`,
-      expiresAt,
-      stub: false,
-      worker: true,
-    };
-  }
-
-  if (env.isProduction) {
-    throw new AppError(
-      "File uploads require WORKER_URL (clauxen-r2-gateway). Direct R2/Blob paths are disabled in production.",
-      503,
-      "storage_worker_required",
-    );
-  }
 
   if (isR2Configured()) {
     const put = await createPresignedPutUrl({
@@ -129,6 +112,26 @@ async function buildUploadPresign(input: {
     }
   }
 
+  if (env.workerUrl) {
+    const base = env.workerUrl.replace(/\/+$/, "");
+    return {
+      method: "PUT" as const,
+      uploadUrl: `${base}/upload/put?bucket=${encodeURIComponent(input.bucket)}&key=${encodeURIComponent(input.key)}`,
+      downloadUrl: `${base}/download/${encodeURIComponent(input.key)}?bucket=${encodeURIComponent(input.bucket)}`,
+      expiresAt,
+      stub: false,
+      worker: true,
+    };
+  }
+
+  if (env.isProduction) {
+    throw new AppError(
+      "Direct Cloudflare R2 credentials or WORKER_URL required for file uploads in production.",
+      503,
+      "storage_unconfigured",
+    );
+  }
+
   const base = env.r2PublicBaseUrl || env.appUrl;
   return {
     method: "PUT" as const,
@@ -145,25 +148,6 @@ async function buildDownloadPresign(input: {
   bucket: string;
   key: string;
 }) {
-  if (env.workerUrl) {
-    const base = env.workerUrl.replace(/\/+$/, "");
-    return {
-      downloadUrl: `${base}/download/${encodeURIComponent(input.key)}?bucket=${encodeURIComponent(input.bucket)}`,
-      expiresAt: new Date(
-        Date.now() + PRESIGN_TTL_SECONDS * 1000,
-      ).toISOString(),
-      stub: false,
-    };
-  }
-
-  if (env.isProduction) {
-    throw new AppError(
-      "File downloads require WORKER_URL (clauxen-r2-gateway).",
-      503,
-      "storage_worker_required",
-    );
-  }
-
   if (isR2Configured()) {
     const get = await createPresignedGetUrl({
       purpose: input.purpose,
@@ -178,6 +162,25 @@ async function buildDownloadPresign(input: {
         stub: false,
       };
     }
+  }
+
+  if (env.workerUrl) {
+    const base = env.workerUrl.replace(/\/+$/, "");
+    return {
+      downloadUrl: `${base}/download/${encodeURIComponent(input.key)}?bucket=${encodeURIComponent(input.bucket)}`,
+      expiresAt: new Date(
+        Date.now() + PRESIGN_TTL_SECONDS * 1000,
+      ).toISOString(),
+      stub: false,
+    };
+  }
+
+  if (env.isProduction) {
+    throw new AppError(
+      "Direct Cloudflare R2 credentials or WORKER_URL required for file downloads in production.",
+      503,
+      "storage_unconfigured",
+    );
   }
 
   const base = env.r2PublicBaseUrl || env.appUrl;
@@ -316,10 +319,40 @@ export async function completeUserFileUpload(
     sizeBytes?: number;
   },
 ) {
+  const existing = await userFilesRepo.getUserFile(input.fileId, userId);
+  if (!existing) throw notFound("File not found.");
+
+  let sizeBytes = input.sizeBytes ?? existing.size_bytes;
+  let contentHash = input.contentHash ?? existing.content_hash;
+
+  if (isR2Configured()) {
+    try {
+      const purpose = storagePurposeForUserFile(existing);
+      const meta = await headObject(
+        purpose,
+        existing.storage_path,
+        existing.storage_bucket,
+      );
+      if (meta) {
+        if (meta.contentLength != null && meta.contentLength > 0) {
+          sizeBytes = meta.contentLength;
+        }
+        if (meta.etag) {
+          contentHash = meta.etag.replace(/^"|"$/g, "");
+        }
+      }
+    } catch (err) {
+      logWarn("files.service", "headObject check failed", {
+        fileId: input.fileId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   const file = await userFilesRepo.updateUserFile(input.fileId, userId, {
     status: "uploaded",
-    contentHash: input.contentHash ?? null,
-    sizeBytes: input.sizeBytes,
+    contentHash: contentHash ?? null,
+    sizeBytes,
   });
   if (!file) throw notFound("File not found.");
   return file;
@@ -368,13 +401,16 @@ export async function getUserStorageSummary(userId: string) {
 export async function deleteUploadedUserFile(userId: string, fileId: string) {
   const file = await userFilesRepo.deleteUserFile(fileId, userId);
   if (!file) throw notFound("File not found.");
-  const purpose = file.storage_bucket.includes("attachment")
+  const purpose: StoragePurpose = file.storage_bucket.includes("attachment")
     ? "attachments"
     : file.storage_bucket.includes("image")
       ? "images"
       : "documents";
   await deleteObject(purpose, file.storage_path, file.storage_bucket).catch(
-    () => undefined,
+    logged("files.service.deleteUploadedUserFile", {
+      fileId,
+      storagePath: file.storage_path,
+    }),
   );
   return { id: file.id };
 }

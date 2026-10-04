@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { formatChatTabTitle } from "@/lib/document-title";
-import { createClient } from "@/utils/supabase/server";
+import { getClaimsFromCookies } from "@/server/auth/jwt";
 import * as chatsRepo from "@/server/repositories/chats.repository";
 
 /** Tab title for `/c/:id` and project chats. One title lookup, not the thread. */
@@ -9,13 +10,9 @@ export async function chatDocumentMetadata(chatId: string): Promise<Metadata> {
   if (!chatId || chatId.length > 200) return fallback;
 
   try {
-    const supabase = await createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-    if (!userId) return fallback;
-    const chat = await chatsRepo.getChatForUser(chatId, userId);
+    const claims = await getClaimsFromCookies(await cookies());
+    if (!claims) return fallback;
+    const chat = await chatsRepo.getChatForUser(chatId, claims.sub);
     return { title: formatChatTabTitle(chat?.title) };
   } catch {
     return fallback;

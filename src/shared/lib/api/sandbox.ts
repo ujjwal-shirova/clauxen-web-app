@@ -27,6 +27,7 @@ export async function createSandbox(payload?: {
 }) {
   return apiFetch<SandboxInfo>("/api/v1/sandbox", {
     method: "POST",
+    timeoutMs: 300_000,
     body: JSON.stringify(payload ?? {}),
   });
 }
@@ -83,6 +84,7 @@ export async function runSandboxCommand(
 ) {
   return apiFetch<unknown>(`/api/v1/sandbox/${sandboxId}/commands`, {
     method: "POST",
+    timeoutMs: 300_000,
     body: JSON.stringify(payload),
   });
 }

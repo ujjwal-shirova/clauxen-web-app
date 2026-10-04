@@ -1,4 +1,5 @@
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import { attachDatabasePool } from "@vercel/functions";
 import "@/lib/vercel-env";
 import { env, requireDatabaseUrl } from "@/server/config/env";
 import { AppError, mapPgError } from "@/server/db/errors";
@@ -67,13 +68,15 @@ function normalizeDatabaseUrl(url: string): string {
 function resolvePoolMax(): number {
   const configured = Number(process.env.DATABASE_POOL_MAX);
   if (Number.isFinite(configured) && configured >= 1) {
-    return Math.min(Math.floor(configured), 10);
+    return Math.min(Math.floor(configured), 20);
   }
 
-  // A Vercel function can scale into several isolates. One checked-out
-  // connection per isolate is deliberate: Supabase session poolers otherwise
-  // exhaust their client budget before a single user interaction completes.
-  return env.isVercel ? 1 : 10;
+  // Vercel Fluid compute serves many concurrent requests from one instance.
+  // A single connection serialised every query of every user on the instance
+  // (reads queued behind heartbeats/checkpoints). Supavisor transaction mode
+  // multiplexes these client sockets onto a small server pool, so a handful
+  // per instance is safe.
+  return env.isVercel ? 5 : 10;
 }
 
 export function getPool(): Pool {
@@ -90,19 +93,23 @@ export function getPool(): Pool {
     pool = new Pool({
       connectionString,
       max: resolvePoolMax(),
-      // Reusing a warm transaction-pooler socket avoids a new TLS handshake on
-      // every request while allowExitOnIdle still lets a Vercel isolate finish.
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-      statement_timeout: 30_000,
-      query_timeout: 35_000,
-      lock_timeout: 5_000,
-      idle_in_transaction_session_timeout: 10_000,
-      allowExitOnIdle: env.isVercel,
+      // Short idle timeout: attachDatabasePool releases idle clients before
+      // the Fluid instance suspends, so sockets are never leaked.
+      idleTimeoutMillis: 5_000,
+      connectionTimeoutMillis: 5_000,
+      // Client-side guard only. Server-side statement/lock/idle-in-tx limits
+      // are set on the database role (transaction pooler drops startup GUCs).
+      query_timeout: 30_000,
       ssl: connectionString.includes("localhost")
         ? false
         : { rejectUnauthorized: false },
     });
+    pool.on("error", (error) => {
+      // An idle client died (pooler restart / network). pg removes it; log so
+      // it is visible instead of crashing the isolate.
+      console.error("[db] idle client error:", error.message);
+    });
+    if (env.isVercel) attachDatabasePool(pool);
   }
 
   return pool;
@@ -156,6 +163,10 @@ export async function withTransaction<T>(
       }
     }
     await client.query("BEGIN");
+    // SET LOCAL is transaction-scoped, so it is safe on a shared pooler socket.
+    await client.query(
+      "SET LOCAL lock_timeout = '5s'; SET LOCAL statement_timeout = '30s'",
+    );
     const value = await fn(client);
     await client.query("COMMIT");
     return value;

@@ -62,6 +62,7 @@ export async function uploadSkillFile(input: {
   if (input.description) formData.set("description", input.description);
   return apiFetch<{ skill: ApiFileSkill }>("/api/v1/customize/skills/upload", {
     method: "POST",
+    timeoutMs: 120_000,
     body: formData,
   });
 }

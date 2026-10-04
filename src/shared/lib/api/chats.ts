@@ -1,6 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
 import { FULL_CHAT_HYDRATE_LIMIT } from "@/lib/chat-history-page-size";
-import { getSupabaseAccessTokenSingleflight } from "@/lib/supabase-session-singleflight";
 
 export type ApiChat = {
   id: string;
@@ -25,46 +24,6 @@ export type ApiMessage = {
   variant_index?: number;
   variant_count?: number;
 };
-
-function chatHistoryWorkerBase(): string {
-  return (process.env.NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL ?? "").replace(
-    /\/+$/,
-    "",
-  );
-}
-
-/** Prefer Cloudflare Worker (Hyperdrive + cache ladder) when configured. */
-async function listChatsViaWorker(): Promise<{
-  chats: ApiChat[];
-} | null> {
-  const base = chatHistoryWorkerBase();
-  if (!base || typeof window === "undefined") return null;
-
-  try {
-    const accessToken = await getSupabaseAccessTokenSingleflight();
-    if (!accessToken) return null;
-
-    const params = new URLSearchParams({ limit: "50", fresh: "0" });
-    const response = await fetch(`${base}/v1/chats?${params}`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-      credentials: "omit",
-      signal: AbortSignal.timeout(1_500),
-    });
-    if (!response.ok) return null;
-    const payload = (await response.json()) as {
-      data?: { chats?: ApiChat[] };
-      chats?: ApiChat[];
-    };
-    const chats = payload.data?.chats ?? payload.chats;
-    if (!Array.isArray(chats)) return null;
-    return { chats };
-  } catch {
-    return null;
-  }
-}
 
 export async function searchChatTitles(query: string, limit = 40) {
   const params = new URLSearchParams();
@@ -97,24 +56,12 @@ export async function getLiveTurn(chatId: string) {
   );
 }
 
+/**
+ * Sidebar chat list. Postgres via the Next API is the single source of truth —
+ * the former edge-cache race could return a stale list (new chats missing).
+ */
 export async function listChats() {
-  const nextPromise = apiFetch<{ chats: ApiChat[] }>("/api/v1/chats");
-  const workerPromise = listChatsViaWorker();
-
-  // Race Worker vs Next — first usable result wins.
-  const first = await Promise.race([
-    workerPromise
-      .then((result) =>
-        result ? { ok: true as const, result } : { ok: false as const },
-      )
-      .catch(() => ({ ok: false as const })),
-    nextPromise
-      .then((result) => ({ ok: true as const, result }))
-      .catch(() => ({ ok: false as const })),
-  ]);
-
-  if (first.ok) return first.result;
-  return nextPromise;
+  return apiFetch<{ chats: ApiChat[] }>("/api/v1/chats", { timeoutMs: 15_000 });
 }
 
 export async function createChat(input?: {
@@ -139,63 +86,13 @@ export type MessagesPage = {
   hasMore: boolean;
 };
 
-/** Prefer Cloudflare Worker (Hyperdrive) when configured; fall back to Next API. */
-async function listMessagesPageViaWorker(
-  chatId: string,
-  input?: {
-    cursorDepth?: number;
-    limit?: number;
-  },
-): Promise<MessagesPage | null> {
-  const base = chatHistoryWorkerBase();
-  if (!base || typeof window === "undefined") return null;
-
-  try {
-    const accessToken = await getSupabaseAccessTokenSingleflight();
-    if (!accessToken) return null;
-
-    const params = new URLSearchParams();
-    params.set("fresh", "0");
-    if (input?.limit) params.set("limit", String(input.limit));
-    if (typeof input?.cursorDepth === "number") {
-      params.set("cursor_depth", String(input.cursorDepth));
-    }
-    const qs = params.toString();
-    const response = await fetch(
-      `${base}/v1/chats/${encodeURIComponent(chatId)}/messages${qs ? `?${qs}` : ""}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: "application/json",
-        },
-        credentials: "omit",
-        // Fail open to Next API fast if Worker hangs — avoids stuck shimmer.
-        signal: AbortSignal.timeout(1_200),
-      },
-    );
-    if (!response.ok) return null;
-    const payload = (await response.json()) as { data?: MessagesPage };
-    return payload.data ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export async function getChat(chatId: string) {
-  return apiFetch<{
-    chat: unknown;
-    messages: ApiMessage[];
-    nextCursor?: MessagePageCursor | null;
-    hasMore?: boolean;
-  }>(`/api/v1/chats/${encodeURIComponent(chatId)}`);
-}
-
 /** Keyset page — latest when cursor omitted; older when cursor provided. */
 export async function listMessagesPage(
   chatId: string,
   input?: {
     cursorDepth?: number;
     limit?: number;
+    signal?: AbortSignal;
   },
 ): Promise<MessagesPage> {
   const params = new URLSearchParams();
@@ -204,42 +101,27 @@ export async function listMessagesPage(
     params.set("cursor_depth", String(input.cursorDepth));
   }
   const qs = params.toString();
-  const nextPromise = apiFetch<MessagesPage>(
+  // Single source of truth (Postgres). The old Worker race accepted stale or
+  // empty edge-cache pages, which painted blank / truncated threads.
+  return apiFetch<MessagesPage>(
     `/api/v1/chats/${encodeURIComponent(chatId)}/messages${qs ? `?${qs}` : ""}`,
+    { signal: input?.signal, timeoutMs: 15_000 },
   );
-  const workerPromise = listMessagesPageViaWorker(chatId, input);
-
-  // Race Worker vs Next — first usable result wins.
-  const first = await Promise.race([
-    workerPromise
-      .then((result) =>
-        result && Array.isArray(result.messages)
-          ? { ok: true as const, result }
-          : { ok: false as const },
-      )
-      .catch(() => ({ ok: false as const })),
-    nextPromise
-      .then((result) =>
-        result && Array.isArray(result.messages)
-          ? { ok: true as const, result }
-          : { ok: false as const },
-      )
-      .catch(() => ({ ok: false as const })),
-  ]);
-
-  if (first.ok) return first.result;
-  return nextPromise;
 }
 
 /**
- * Load the full conversation in one shot (Worker-first).
+ * Load the full conversation in one shot.
  * Silently continues keyset pages only when a thread exceeds the hydrate window.
  */
-export async function listAllChatMessages(chatId: string): Promise<{
+export async function listAllChatMessages(
+  chatId: string,
+  options?: { signal?: AbortSignal },
+): Promise<{
   messages: ApiMessage[];
 }> {
   const limit = FULL_CHAT_HYDRATE_LIMIT;
-  const first = await listMessagesPage(chatId, { limit });
+  const signal = options?.signal;
+  const first = await listMessagesPage(chatId, { limit, signal });
   if (!first.hasMore || !first.nextCursor) {
     return { messages: first.messages };
   }
@@ -254,6 +136,7 @@ export async function listAllChatMessages(chatId: string): Promise<{
     const page = await listMessagesPage(chatId, {
       limit,
       cursorDepth: cursor.depth,
+      signal,
     });
     const older = page.messages.filter((message) => !seen.has(message.id));
     for (const message of older) seen.add(message.id);

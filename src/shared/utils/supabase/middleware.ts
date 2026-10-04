@@ -15,6 +15,7 @@ import {
 } from "@/utils/identity-cookie";
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
 import { logSupabaseQueryError } from "@/lib/supabase-query-error";
+import { getClaimsFromCookies } from "@/server/auth/jwt";
 
 /**
  * Paths anyone may open with no session at all (auth screens, share links,
@@ -177,25 +178,37 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Prefer local JWT read for document gates. Only hit GoTrue when the token
-  // is missing or within ~30s of expiry — cold opens must not pay a full
-  // Auth round-trip on every return visit.
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  let user = session?.user ?? null;
-  const expiresAtMs =
-    typeof session?.expires_at === "number" ? session.expires_at * 1000 : 0;
-  const needsRemoteValidation =
-    !user ||
-    !session?.access_token ||
-    expiresAtMs < Date.now() + 30 * 1000;
+  // Verify the access token locally (ES256 via cached JWKS). Only when the
+  // token is missing/expired but a session cookie exists do we call GoTrue —
+  // getUser() then refreshes once and setAll() persists the rotated cookies.
+  type ProxyUser = {
+    id: string;
+    email?: string | null;
+    user_metadata?: Record<string, unknown> | null;
+  };
+  const claims = await getClaimsFromCookies(request.cookies);
+  let user: ProxyUser | null = claims
+    ? {
+        id: claims.sub,
+        email: claims.email ?? null,
+        user_metadata: claims.user_metadata ?? null,
+      }
+    : null;
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some((cookie) => /^sb-.+-auth-token/.test(cookie.name));
 
-  if (needsRemoteValidation) {
+  if (!user && hasAuthCookie) {
     const {
       data: { user: remoteUser },
     } = await supabase.auth.getUser();
-    user = remoteUser;
+    user = remoteUser
+      ? {
+          id: remoteUser.id,
+          email: remoteUser.email ?? null,
+          user_metadata: remoteUser.user_metadata ?? null,
+        }
+      : null;
   }
 
   // Fast UI identity hint (non-HttpOnly) for early paint.

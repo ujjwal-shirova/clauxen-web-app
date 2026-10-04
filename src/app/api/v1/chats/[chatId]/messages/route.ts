@@ -30,8 +30,8 @@ export const GET = withApiRouteParams<{ chatId: string }>(
         ? Number(cursorDepthParam)
         : null;
 
-    const page = await chatService.getChatMessagesPage(params.chatId, user.id, {
-      cursorDepth,
+    const page = await chatService.listChatThreadPage(params.chatId, user.id, {
+      cursorDepth: Number.isFinite(cursorDepth) ? cursorDepth : null,
       limit,
     });
 

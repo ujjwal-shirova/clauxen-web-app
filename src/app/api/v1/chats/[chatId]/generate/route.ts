@@ -20,6 +20,7 @@ import {
 } from "@/server/repositories/generation-jobs.repository";
 import {
   runLiveSlice,
+  workerId,
   type LiveSliceInput,
 } from "@/server/chat/durable-generation";
 import * as chatsRepo from "@/server/repositories/chats.repository";
@@ -225,6 +226,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         chatId: params.chatId,
         userId: user.id,
         jobInput,
+        lockedBy: workerId(),
       });
     } catch (error) {
       await endChatGeneration(params.chatId, generation.controller);

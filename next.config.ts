@@ -185,8 +185,6 @@ const nextConfig: NextConfig = {
     "pdf-parse",
     "mammoth",
     "openai",
-    "bullmq",
-    "ioredis",
     "ws",
     "exa-js",
     "parallel-web",

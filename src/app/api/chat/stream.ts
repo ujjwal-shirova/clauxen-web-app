@@ -309,5 +309,3 @@ export async function createChatStream(
 }
 
 /** @deprecated Use createChatStream / @/server/agent-core. */
-export const streamNovitaChat = createChatStream;
-export const streamAiSdkChat = createChatStream;

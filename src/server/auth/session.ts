@@ -2,10 +2,7 @@ import type { NextRequest } from "next/server";
 import { env } from "@/server/config/env";
 import { queryOne } from "@/server/db/pool";
 import { resolveUserIdFromApiKey } from "@/server/repositories/api-keys.repository";
-import {
-  createSupabaseClientFromRequest,
-  getSupabaseUserIdFromRequest,
-} from "@/server/auth/supabase-session";
+import { getSupabaseClaimsFromRequest } from "@/server/auth/supabase-session";
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
 import { resolveClientAvatarUrl } from "@/lib/avatar-url";
 import { resolveAccessTokenUser } from "@/server/oauth/service";
@@ -139,37 +136,32 @@ async function getCookieSession(
 }
 
 /**
- * Prefer DB profile; if missing/unreachable, still return JWT claims so the
- * client never paints "Guest" while middleware already authenticated the user.
+ * Identity from the verified Supabase JWT only — no GoTrue round-trip and no
+ * DB read. Display fields come from `user_metadata` claims; routes that need
+ * the editable profile (display name / avatar) use `getSessionWithProfile`.
  */
 async function getSupabaseSession(
   request: NextRequest,
 ): Promise<SessionUser | null> {
-  const client = createSupabaseClientFromRequest(request);
-  if (!client) {
-    const userId = await getSupabaseUserIdFromRequest(request);
-    if (!userId) return null;
-    return profileForUserId(userId);
-  }
-
-  const {
-    data: { user },
-  } = await client.auth.getUser();
-  if (!user?.id) return null;
-
-  const fromJwt = sessionFromAuthUser(user);
-  const profile = await profileForUserId(user.id);
-  return mergeProfilePreferred(profile, fromJwt);
+  const claims = await getSupabaseClaimsFromRequest(request);
+  if (!claims) return null;
+  return sessionFromAuthUser({
+    id: claims.sub,
+    email: claims.email ?? null,
+    user_metadata: claims.user_metadata ?? null,
+  });
 }
 
 export async function getSessionFromRequest(
   request: NextRequest,
 ): Promise<SessionUser | null> {
-  const bearerSession = await getBearerSession(request);
-  if (bearerSession) return bearerSession;
-
+  // Supabase JWT first: it is the browser's credential on every call and
+  // verifies locally. API keys / OAuth tokens need a DB lookup.
   const supabaseSession = await getSupabaseSession(request);
   if (supabaseSession) return supabaseSession;
+
+  const bearerSession = await getBearerSession(request);
+  if (bearerSession) return bearerSession;
 
   // Dev cookie bypass — local only when AUTH_DEV_BYPASS=true
   if (env.authDevBypass) {
@@ -177,6 +169,16 @@ export async function getSessionFromRequest(
   }
 
   return null;
+}
+
+/** Session merged with the editable `profiles` row (names, avatar). */
+export async function getSessionWithProfile(
+  request: NextRequest,
+): Promise<SessionUser | null> {
+  const session = await getSessionFromRequest(request);
+  if (!session) return null;
+  const profile = await profileForUserId(session.id);
+  return mergeProfilePreferred(profile, session);
 }
 
 export function sessionCookieHeader(userId: string): string {

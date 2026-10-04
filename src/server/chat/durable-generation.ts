@@ -24,6 +24,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { logged } from "@/server/observability/log";
 import * as chatService from "@/server/services/chat.service";
 import type { ChatSliceOutcome } from "@/server/services/chat.service";
 import {
@@ -73,7 +74,7 @@ const SLICE_HEARTBEAT_MS = 15_000;
 const SLICE_CANCEL_POLL_MS = 2_000;
 const CONTINUATION_TIMEOUT_MS = 10_000;
 
-function workerId(): string {
+export function workerId(): string {
   const region = process.env.VERCEL_REGION ?? "local";
   return `slice-${region}-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
 }
@@ -114,7 +115,9 @@ export function startSliceRuntime(input: {
 
   const heartbeat = setInterval(() => {
     if (disposed) return;
-    void heartbeatGenerationJob(input.jobId).catch(() => undefined);
+    void heartbeatGenerationJob(input.jobId).catch(
+      logged("generation.heartbeat", { jobId: input.jobId }),
+    );
     void chatsRepo
       .setChatGenerating(input.chatId, input.userId, true)
       .catch(() => undefined);
@@ -283,7 +286,9 @@ export async function runLiveSlice(input: LiveSliceInput): Promise<{
         shouldYield: runtime.shouldYield,
         yieldSignal: runtime.yieldSignal,
         onTurnInserted: (ids) => {
-          void attachTurnMessageIds(job.id, ids).catch(() => undefined);
+          void attachTurnMessageIds(job.id, ids).catch(
+            logged("generation.attach_turn_ids", { jobId: job.id }),
+          );
         },
       },
     });
@@ -457,7 +462,9 @@ export async function runHeadlessSlice(input: {
         ? "This task kept failing to resume. Please try sending it again."
         : "This task ran longer than the background budget. Please break it into smaller steps.",
     }).catch(() => undefined);
-    await finalizeMessageAs(job, "failed").catch(() => undefined);
+    await finalizeMessageAs(job, "failed").catch(
+      logged("generation.finalize_failed", { jobId: job.id }),
+    );
     await chatsRepo
       .setChatGenerating(job.chat_id, job.user_id, false)
       .catch(() => undefined);
@@ -531,7 +538,9 @@ export async function runHeadlessSlice(input: {
         shouldYield: runtime.shouldYield,
         yieldSignal: runtime.yieldSignal,
         onTurnInserted: (ids) => {
-          void attachTurnMessageIds(job.id, ids).catch(() => undefined);
+          void attachTurnMessageIds(job.id, ids).catch(
+            logged("generation.attach_turn_ids", { jobId: job.id }),
+          );
         },
       },
     });
@@ -568,7 +577,9 @@ export async function runHeadlessSlice(input: {
       status: "failed",
       error: toUserFacingChatError(message),
     }).catch(() => undefined);
-    await finalizeMessageAs(job, "failed", message).catch(() => undefined);
+    await finalizeMessageAs(job, "failed", message).catch(
+      logged("generation.finalize_failed", { jobId: job.id }),
+    );
     await publishLiveTurn({
       chatId: job.chat_id,
       userId: job.user_id,

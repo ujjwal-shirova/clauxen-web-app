@@ -541,6 +541,9 @@ export function Sidebar({
           data-keynav-item
           onClick={(event) => {
             if (!isPlainLeftClick(event)) return;
+            // onSelectChat navigates itself; stop AppHref from pushing the
+            // same route a second time (double RSC fetch + history entry).
+            event.preventDefault();
             onSelectChat(chat);
             if (isMobileLayout) onNavigate?.();
           }}

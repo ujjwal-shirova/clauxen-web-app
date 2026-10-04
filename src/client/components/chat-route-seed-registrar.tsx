@@ -7,29 +7,32 @@ import {
   type ChatRouteSeed,
 } from "@/lib/chat-route-seed";
 
+/** Seeds already handed to the store — never re-register a consumed seed. */
+const registeredSeeds = new WeakSet<ChatRouteSeed>();
+
 /**
- * Registers SSR chat messages before ChatView's select effect runs,
- * so the first paint can show real content instead of shimmer.
+ * Registers the SSR chat seed (hard loads only) before ChatView's select
+ * effect runs, so first paint shows real content instead of a skeleton.
  */
 export function ChatRouteSeedRegistrar({
   seed,
 }: {
   seed: ChatRouteSeed | null;
 }) {
-  // Sync before paint / useEffect in ChatView.
-  useLayoutEffect(() => {
+  // Register during render so the first select effect in the same commit
+  // sees it — but only once per seed object. Re-registering on every render
+  // used to resurrect a stale seed after it had been consumed.
+  if (seed && !registeredSeeds.has(seed)) {
+    registeredSeeds.add(seed);
     setPendingChatRouteSeed(seed);
+  }
+
+  useLayoutEffect(() => {
     return () => {
-      // Do not clear a newer route's synchronous render seed during a fast
-      // /c/A → /c/B transition.
+      // Do not clear a newer route's seed during a fast /c/A → /c/B switch.
       clearPendingChatRouteSeed(seed?.chatId);
     };
   }, [seed]);
-
-  // Also set during render so the first select effect in the same commit sees it.
-  if (seed) {
-    setPendingChatRouteSeed(seed);
-  }
 
   return null;
 }
