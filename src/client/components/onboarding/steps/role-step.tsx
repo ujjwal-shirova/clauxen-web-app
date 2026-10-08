@@ -1,96 +1,87 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { Check } from "lucide-react";
 import type { OnboardingState } from "../onboarding-types";
 import { OnboardingShell } from "../onboarding-shell";
-import { OnboardingGhostButton, OnboardingHeading } from "../onboarding-ui";
-import { RoleSelectionDropdown } from "../role-selection-dropdown";
-import { cn } from "@/lib/utils";
+import { OnboardingHeading, OnboardingPrimaryButton } from "../onboarding-ui";
+import { getCheckoutPlanDetails } from "@/lib/plans-catalog";
 
-type RoleStepProps = {
+export function RoleStep({
+  state,
+  onContinue,
+  busy = false,
+}: {
   state: OnboardingState;
   onChange: (patch: Partial<OnboardingState>) => void;
   onContinue: (role?: string) => void;
   onSkip: () => void;
   busy?: boolean;
-};
-
-export function RoleStep({
-  state,
-  onChange,
-  onContinue,
-  onSkip,
-  busy = false,
-}: RoleStepProps) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
-
-  const openDropdown = () => {
-    if (busy) return;
-    const rect = triggerRef.current?.getBoundingClientRect() ?? null;
-    setAnchorRect(rect);
-    setDropdownOpen(true);
-  };
-
+}) {
+  const ready =
+    state.termsAccepted &&
+    state.privacyAccepted &&
+    state.displayName.trim().length > 0 &&
+    typeof state.modelImprovementOptIn === "boolean";
+  const summary = [
+    ["Preferred name", state.displayName.trim() || "Not set"],
+    ["Your work", state.role || "Not specified"],
+    [
+      "Response length",
+      state.responsePreference === "concise"
+        ? "Short and direct"
+        : state.responsePreference === "detailed"
+          ? "Detailed"
+          : "Balanced",
+    ],
+    ["Custom instructions", state.customInstructions.trim() || "None"],
+    [
+      "Model training",
+      state.modelImprovementOptIn === true
+        ? "Allowed"
+        : state.modelImprovementOptIn === false
+          ? "Not allowed"
+          : "Choice required",
+    ],
+    ["Product emails", state.marketingOptIn ? "Subscribed" : "Off"],
+    ["Your plan", getCheckoutPlanDetails(state.selectedPlanId).name],
+  ];
   return (
     <OnboardingShell>
-      <div className="flex w-full max-w-[450px] flex-col items-center gap-5">
+      <div className="flex w-full max-w-xl flex-col gap-8">
+        <div className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200">
+          <Check className="h-5 w-5" aria-hidden />
+        </div>
         <OnboardingHeading
-          title="What kind of work do you do?"
-          subtitle="Pick a role so Clauxen can tailor your experience."
+          title={`Make yourself at home${state.displayName.trim() ? `, ${state.displayName.trim()}` : ""}.`}
+          subtitle="Here’s how your space is set up. Review your choices, then start your first conversation."
         />
-
-        <fieldset className="w-full min-w-0 border-0 p-0" disabled={busy}>
-          <div className="w-full">
-            <button
-              ref={triggerRef}
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                dropdownOpen ? setDropdownOpen(false) : openDropdown()
-              }
-              className={cn(
-                "flex h-16 w-full items-center rounded-2xl border border-zinc-200 bg-white px-6 text-left text-lg transition-colors",
-                "hover:border-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/15",
-                "disabled:cursor-not-allowed disabled:opacity-60",
-              )}
-              aria-expanded={dropdownOpen}
-              aria-haspopup="listbox"
+        <dl className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 px-5">
+          {summary.map(([label, value]) => (
+            <div
+              key={label}
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4 py-4 text-sm"
             >
-              <span
-                className={cn(
-                  "flex-1 truncate font-medium",
-                  state.role ? "text-zinc-900" : "text-zinc-500",
-                )}
-              >
-                {state.role || "Select your role"}
-              </span>
-              <ChevronDown className="h-5 w-5 shrink-0 text-zinc-500" />
-            </button>
-          </div>
-        </fieldset>
-
-        <RoleSelectionDropdown
-          open={dropdownOpen && !busy}
-          onOpenChange={setDropdownOpen}
-          anchorRect={anchorRect}
-          value={state.role}
-          onSelect={(role) => {
-            onChange({ role });
-            onContinue(role);
-          }}
-        />
-
-        <OnboardingGhostButton
-          type="button"
-          disabled={busy}
-          onClick={onSkip}
-          className="mt-2"
+              <dt className="text-zinc-500">{label}</dt>
+              <dd className="break-words text-right font-medium">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        {!ready ? (
+          <p role="alert" className="text-sm text-rose-700">
+            Use Back to complete your name, agreements, and training choice
+            before continuing.
+          </p>
+        ) : null}
+        <OnboardingPrimaryButton
+          disabled={busy || !ready}
+          onClick={() => onContinue(state.role)}
         >
-          {busy ? "Finishing…" : "Set up later"}
-        </OnboardingGhostButton>
+          {busy ? "Finishing setup…" : "Open Clauxen"}
+        </OnboardingPrimaryButton>
+        <p className="text-xs leading-relaxed text-zinc-500">
+          You can update your preferences in Settings. Clauxen can make
+          mistakes, so check important information and review generated work.
+        </p>
       </div>
     </OnboardingShell>
   );

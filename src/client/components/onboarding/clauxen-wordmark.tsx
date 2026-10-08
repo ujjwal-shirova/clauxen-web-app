@@ -12,7 +12,10 @@ export function ClauxenWordmark({
 }: ClauxenWordmarkProps) {
   return (
     <div
-      className={cn("inline-flex items-center gap-2.5 text-zinc-900", className)}
+      className={cn(
+        "inline-flex items-center gap-2.5 text-zinc-900",
+        className,
+      )}
       role="img"
       aria-label="Clauxen"
     >

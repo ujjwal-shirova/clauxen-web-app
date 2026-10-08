@@ -1,163 +1,139 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { PlansCarouselSection } from "@/components/subscription";
-import type { MaxTier } from "@/components/billing-checkout";
+import { useState } from "react";
+import { Check } from "lucide-react";
 import { BillingCheckout } from "@/components/billing-checkout";
-import { CHECKOUT_PLAN_IDS } from "@/lib/plans-catalog";
-import type { OnboardingAnswers } from "@/lib/api/onboarding";
-import type { OnboardingPlanId, OnboardingState } from "../onboarding-types";
-import { OnboardingShell } from "../onboarding-shell";
 import {
-  OnboardingGhostButton,
-  OnboardingHeading,
-} from "../onboarding-ui";
+  PERSONAL_PLANS,
+  formatInr,
+  MAX_TIER_OPTIONS,
+} from "@/lib/plans-catalog";
+import type { OnboardingAnswers } from "@/lib/api/onboarding";
+import type { OnboardingState } from "../onboarding-types";
+import { OnboardingShell } from "../onboarding-shell";
+import { OnboardingHeading, OnboardingPrimaryButton } from "../onboarding-ui";
 
-type PlanSelectionStepProps = {
+export function PlanSelectionStep({
+  onContinue,
+  onSelectFree,
+  busy = false,
+}: {
   state: OnboardingState;
   onChange: (patch: Partial<OnboardingState>) => void;
   onContinue: (answers?: OnboardingAnswers) => void;
   onSelectFree: () => void;
   busy?: boolean;
-};
+}) {
+  const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
 
-type BillingCycle = "monthly" | "yearly";
-type ViewState = "plans" | "checkout";
-
-export function PlanSelectionStep({
-  state,
-  onChange,
-  onContinue,
-  onSelectFree,
-  busy = false,
-}: PlanSelectionStepProps) {
-  const [view, setView] = useState<ViewState>("plans");
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [selectedBillingCycle, setSelectedBillingCycle] =
-    useState<BillingCycle>("monthly");
-  const [selectedMaxTier, setSelectedMaxTier] = useState<MaxTier>("5x");
-
-  const startCheckout = useCallback(
-    (
-      planId: string,
-      billingCycle: BillingCycle,
-      maxTier?: MaxTier,
-      _planDisplayName?: string,
-    ) => {
-      onChange({
-        selectedPlanId: planId as OnboardingPlanId,
-        selectedBillingCycle: billingCycle,
-      });
-      setSelectedPlanId(planId);
-      setSelectedBillingCycle(billingCycle);
-      if (maxTier) setSelectedMaxTier(maxTier);
-      setView("checkout");
-    },
-    [onChange],
-  );
-
-  const handlePersonalSelect = (
-    plan: { id: string; name: string },
-    cycle: BillingCycle,
-    tier?: MaxTier,
-    displayName?: string,
-  ) => {
-    if (plan.id === "free" || !CHECKOUT_PLAN_IDS.has(plan.id)) {
-      onChange({
-        selectedPlanId: "free",
-        selectedBillingCycle: "monthly",
-      });
-      onSelectFree();
-      return;
-    }
-    startCheckout(plan.id, cycle, tier, displayName ?? plan.name);
-  };
-
-  const handleOrganizationSelect = (
-    plan: { id: string; name: string },
-    cycle: BillingCycle,
-    displayName?: string,
-  ) => {
-    onChange({
-      selectedPlanId: plan.id,
-      selectedBillingCycle: cycle,
-    });
-    if (!CHECKOUT_PLAN_IDS.has(plan.id)) {
-      onContinue({
-        selectedPlanId: plan.id,
-        selectedBillingCycle: cycle,
-      });
-      return;
-    }
-    startCheckout(plan.id, cycle, undefined, displayName ?? plan.name);
-  };
-
-  const backToPlans = () => {
-    setView("plans");
-    setSelectedPlanId(null);
-  };
-
-  if (view === "checkout" && selectedPlanId) {
+  if (checkoutPlan) {
     return (
-      <div className="fixed inset-0 z-[100] overflow-hidden bg-[var(--app-shell-bg)]">
+      <div
+        className="fixed inset-0 z-[100] overflow-auto bg-white"
+        style={{ colorScheme: "light" }}
+      >
         <BillingCheckout
-          onBack={backToPlans}
-          onPaymentSuccess={() => {
-            onChange({
-              selectedPlanId: selectedPlanId as OnboardingPlanId,
-              selectedBillingCycle,
-            });
+          planId={checkoutPlan}
+          initialBillingCycle="monthly"
+          initialMaxTier="5x"
+          returnPath="/onboarding#plan-selection"
+          onBack={() => setCheckoutPlan(null)}
+          onPaymentSuccess={() =>
             onContinue({
-              selectedPlanId,
-              selectedBillingCycle,
-            });
-          }}
-          planId={selectedPlanId}
-          initialBillingCycle={selectedBillingCycle}
-          initialMaxTier={selectedMaxTier}
-          returnPath="/onboarding"
+              selectedPlanId: checkoutPlan === "max" ? "max5x" : checkoutPlan,
+              selectedBillingCycle: "monthly",
+            })
+          }
         />
       </div>
     );
   }
 
   return (
-    <OnboardingShell contentClassName="!items-stretch !justify-start !py-4 md:!py-6">
-      <div className="mx-auto flex w-full min-h-0 max-w-[1100px] flex-col items-center gap-6 pb-10">
+    <OnboardingShell>
+      <div className="flex w-full flex-col gap-8">
         <OnboardingHeading
-          title="Plans that grow with you"
-          subtitle="Pro is ₹1,999 a month. Max is for the highest limits."
+          title="Start with what you need."
+          subtitle="Free is a good place to begin. Choose a paid plan for more access, or upgrade later from Settings."
         />
-
-        <PlansCarouselSection
-          layout="tabs"
-          selectableCurrentPlanIds={["free"]}
-          onPersonalPlanSelect={handlePersonalSelect}
-          onOrganizationPlanSelect={handleOrganizationSelect}
-          className="w-full"
-        />
-
-        <p className="max-w-xl text-center text-sm text-zinc-500">
-          Usage limits apply. Prices and plans are subject to change.
+        <div className="grid gap-3 sm:grid-cols-2">
+          {PERSONAL_PLANS.map((plan) => {
+            const features =
+              typeof plan.features === "function"
+                ? plan.features({ maxTier: "5x" })
+                : plan.features;
+            const price =
+              plan.monthlyPriceInr ?? MAX_TIER_OPTIONS["5x"].monthlyPriceInr;
+            return (
+              <section
+                key={plan.id}
+                aria-labelledby={`plan-${plan.id}`}
+                className="flex flex-col rounded-xl border border-zinc-200 bg-white p-5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h2
+                    id={`plan-${plan.id}`}
+                    className="text-base font-semibold"
+                  >
+                    {plan.name}
+                    {plan.id === "max" ? " 5x" : ""}
+                  </h2>
+                  {plan.id === "free" ? (
+                    <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-600">
+                      Start here
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-4 text-2xl font-semibold tracking-tight">
+                  {formatInr(price)}
+                  <span className="text-xs font-normal tracking-normal text-zinc-500">
+                    {" "}
+                    / month
+                  </span>
+                </p>
+                <p className="mt-2 min-h-10 text-sm leading-relaxed text-zinc-500">
+                  {plan.description}
+                </p>
+                <ul className="my-5 flex-1 space-y-2.5">
+                  {features.slice(0, 3).map((feature) => (
+                    <li
+                      key={feature}
+                      className="flex gap-2 text-xs leading-relaxed text-zinc-600"
+                    >
+                      <Check
+                        className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                        aria-hidden
+                      />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <OnboardingPrimaryButton
+                  disabled={busy}
+                  onClick={() =>
+                    plan.id === "free"
+                      ? onSelectFree()
+                      : setCheckoutPlan(plan.id)
+                  }
+                  className={
+                    plan.id === "free"
+                      ? ""
+                      : "border border-zinc-200 bg-white text-zinc-950 hover:bg-zinc-50"
+                  }
+                >
+                  {plan.id === "free"
+                    ? "Continue with Free"
+                    : `Choose ${plan.name}`}
+                </OnboardingPrimaryButton>
+              </section>
+            );
+          })}
+        </div>
+        <p className="text-xs leading-relaxed text-zinc-500">
+          No payment details needed for Free. Paid plans renew monthly;
+          applicable taxes and the total are shown at checkout. Usage limits
+          apply. Explore annual billing and team plans in Settings.
         </p>
-
-        <OnboardingGhostButton
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            if (busy) return;
-            const selectedPlanId = (state.selectedPlanId ||
-              "free") as OnboardingPlanId;
-            onChange({ selectedPlanId });
-            onContinue({
-              selectedPlanId: String(selectedPlanId),
-              selectedBillingCycle: state.selectedBillingCycle,
-            });
-          }}
-          className="max-w-[280px]"
-        >
-          {busy ? "Saving…" : "Skip for now"}
-        </OnboardingGhostButton>
       </div>
     </OnboardingShell>
   );

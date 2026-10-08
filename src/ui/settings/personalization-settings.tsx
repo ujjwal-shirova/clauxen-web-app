@@ -171,6 +171,25 @@ export function PersonalizationSettingsPanel({
         title="Style"
         description="Tone and formatting of replies."
       >
+        <SettingsRow label="Response length">
+          <SettingsOptionPicker
+            value={p.responsePreference || "balanced"}
+            options={[
+              { value: "balanced", label: "Balanced" },
+              { value: "concise", label: "Short and direct" },
+              { value: "detailed", label: "Detailed" },
+            ]}
+            onValueChange={(value) => {
+              if (
+                value === "balanced" ||
+                value === "concise" ||
+                value === "detailed"
+              )
+                onChange({ responsePreference: value });
+            }}
+            aria-label="Response length"
+          />
+        </SettingsRow>
         <SettingsRow label="Base style and tone">
           <SettingsOptionPicker
             value={p.baseStyleTone || "Default"}

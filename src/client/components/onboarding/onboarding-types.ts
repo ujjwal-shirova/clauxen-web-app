@@ -13,7 +13,9 @@ export interface OnboardingState {
   selectedBillingCycle: "monthly" | "yearly";
   displayName: string;
   role: string;
-  modelImprovementOptIn: boolean;
+  modelImprovementOptIn: boolean | null;
+  responsePreference: "balanced" | "concise" | "detailed";
+  customInstructions: string;
   verifiedEmail?: string;
 }
 
@@ -25,5 +27,7 @@ export const DEFAULT_ONBOARDING_STATE: OnboardingState = {
   selectedBillingCycle: "monthly",
   displayName: "",
   role: "",
-  modelImprovementOptIn: true,
+  modelImprovementOptIn: null,
+  responsePreference: "balanced",
+  customInstructions: "",
 };

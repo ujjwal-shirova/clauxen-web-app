@@ -26,6 +26,7 @@ export type PersonalizationSettings = {
   characteristicEnthusiastic: string;
   characteristicHeadersLists: string;
   characteristicEmoji: string;
+  responsePreference?: "balanced" | "concise" | "detailed";
   fastAnswers: boolean;
   customInstructions: string;
   fullName: string;

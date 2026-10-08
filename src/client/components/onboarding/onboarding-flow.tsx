@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Check } from "lucide-react";
+import { ClauxenWordmark } from "./clauxen-wordmark";
 import {
   DEFAULT_ONBOARDING_STATE,
   type OnboardingState,
@@ -12,6 +21,7 @@ import { BeforeChatStep } from "./steps/before-chat-step";
 import { NameStep } from "./steps/name-step";
 import { RoleStep } from "./steps/role-step";
 import { PlanSelectionStep } from "./steps/plan-selection-step";
+import { OnboardingNavigation } from "./onboarding-shell";
 import { OnboardingSplash } from "./onboarding-splash";
 import * as onboardingApi from "@/lib/api/onboarding";
 import * as authApi from "@/lib/api/auth";
@@ -50,8 +60,19 @@ function answersFromApi(
     ...(typeof a.modelImprovementOptIn === "boolean"
       ? { modelImprovementOptIn: a.modelImprovementOptIn }
       : {}),
-    ...(typeof a.displayName === "string" ? { displayName: a.displayName } : {}),
+    ...(typeof a.displayName === "string"
+      ? { displayName: a.displayName }
+      : {}),
     ...(typeof a.role === "string" ? { role: a.role } : {}),
+    ...(["balanced", "concise", "detailed"].includes(a.responsePreference ?? "")
+      ? {
+          responsePreference:
+            a.responsePreference as OnboardingState["responsePreference"],
+        }
+      : {}),
+    ...(typeof a.customInstructions === "string"
+      ? { customInstructions: a.customInstructions }
+      : {}),
     ...(typeof a.selectedPlanId === "string"
       ? { selectedPlanId: a.selectedPlanId }
       : {}),
@@ -79,9 +100,16 @@ function answersForStep(
         selectedBillingCycle: state.selectedBillingCycle,
       };
     case "before-chat":
-      return { modelImprovementOptIn: state.modelImprovementOptIn };
+      return typeof state.modelImprovementOptIn === "boolean"
+        ? { modelImprovementOptIn: state.modelImprovementOptIn }
+        : {};
     case "name":
-      return { displayName: state.displayName };
+      return { displayName: state.displayName.trim(), role: state.role };
+    case "desktop":
+      return {
+        responsePreference: state.responsePreference,
+        customInstructions: state.customInstructions,
+      };
     case "role":
       return { role: state.role };
     default:
@@ -92,6 +120,7 @@ function answersForStep(
 function enterApp() {
   // Hard navigation so middleware re-reads onboarding_completed_at
   // and we never soft-loop back onto a stale OnboardingFlow instance.
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Refresh the server onboarding gate and session after completion.
   window.location.assign("/new");
 }
 
@@ -100,10 +129,18 @@ export function OnboardingFlow() {
   const [state, setState] = useState<OnboardingState>(DEFAULT_ONBOARDING_STATE);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const reduceMotion = useReducedMotion();
   const [splashMessage, setSplashMessage] = useState("Setting things up…");
   const [error, setError] = useState<string | null>(null);
   const stepRef = useRef(step);
   const syncingHashRef = useRef(false);
+
+  useEffect(() => {
+    if (!finishing) return;
+    const timer = window.setTimeout(enterApp, reduceMotion ? 150 : 1100);
+    return () => window.clearTimeout(timer);
+  }, [finishing, reduceMotion]);
 
   useEffect(() => {
     stepRef.current = step;
@@ -128,11 +165,9 @@ export function OnboardingFlow() {
       if (fromHash && fromHash !== stepRef.current) {
         setStep(fromHash);
         // Persist soft jump so reload / new tab land on the same step.
-        void onboardingApi
-          .updateOnboarding({ step: fromHash })
-          .catch(() => {
-            /* best-effort */
-          });
+        void onboardingApi.updateOnboarding({ step: fromHash }).catch(() => {
+          /* best-effort */
+        });
       }
     };
 
@@ -156,9 +191,7 @@ export function OnboardingFlow() {
         }
         const answers = answersFromApi(onboarding.answers);
         const fromSession =
-          session?.preferredName?.trim() ||
-          session?.displayName?.trim() ||
-          "";
+          session?.preferredName?.trim() || session?.displayName?.trim() || "";
 
         // URL hash wins on first paint (copy/paste / reload deep link).
         const hashStep = parseOnboardingHash(
@@ -178,11 +211,9 @@ export function OnboardingFlow() {
 
         // If the user opened a later hash than the server step, advance server.
         if (hashStep && hashStep !== onboarding.step) {
-          void onboardingApi
-            .updateOnboarding({ step: hashStep })
-            .catch(() => {
-              /* best-effort */
-            });
+          void onboardingApi.updateOnboarding({ step: hashStep }).catch(() => {
+            /* best-effort */
+          });
         } else {
           replaceOnboardingStepHash(resolvedStep);
         }
@@ -238,14 +269,30 @@ export function OnboardingFlow() {
           ...(opts.nextStep ? { step: opts.nextStep } : {}),
           ...(opts.completed ? { completed: true } : {}),
           answers: {
+            ...(opts.completed
+              ? {
+                  termsAccepted: mergedState.termsAccepted,
+                  privacyAccepted: mergedState.privacyAccepted,
+                  marketingOptIn: mergedState.marketingOptIn,
+                  ...(typeof mergedState.modelImprovementOptIn === "boolean"
+                    ? {
+                        modelImprovementOptIn:
+                          mergedState.modelImprovementOptIn,
+                      }
+                    : {}),
+                  displayName: mergedState.displayName.trim(),
+                  role: mergedState.role,
+                  responsePreference: mergedState.responsePreference,
+                  customInstructions: mergedState.customInstructions,
+                }
+              : {}),
             ...answersForStep(step, mergedState),
             ...opts.answerOverride,
           },
         });
 
         if (opts.completed || onboarding.completed) {
-          setSplashMessage("Taking you to Clauxen…");
-          enterApp();
+          setFinishing(true);
           return;
         }
 
@@ -320,7 +367,19 @@ export function OnboardingFlow() {
     </div>
   ) : null;
 
-  const splash = busy ? <OnboardingSplash message={splashMessage} /> : null;
+  const splash = busy ? (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-6 left-1/2 z-[200] flex -translate-x-1/2 items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-600 shadow-sm"
+    >
+      <span
+        aria-hidden
+        className="h-3.5 w-3.5 rounded-full border-2 border-zinc-200 border-t-zinc-950 motion-safe:animate-spin"
+      />
+      {splashMessage}
+    </div>
+  ) : null;
 
   let body: ReactNode = null;
 
@@ -331,9 +390,7 @@ export function OnboardingFlow() {
           state={state}
           onChange={patch}
           busy={busy}
-          onContinue={() =>
-            goNext({ splash: "Creating your account…" })
-          }
+          onContinue={() => goNext({ splash: "Saving your agreement…" })}
         />
       );
       break;
@@ -379,9 +436,19 @@ export function OnboardingFlow() {
     case "desktop":
       body = (
         <DesktopStep
+          state={state}
+          onChange={patch}
           busy={busy}
           onContinue={() => goNext({ splash: "Continuing…" })}
-          onSkip={() => goNext({ splash: "Continuing…" })}
+          onSkip={() =>
+            goNext({
+              stateOverride: {
+                responsePreference: "balanced",
+                customInstructions: "",
+              },
+              splash: "Saving defaults…",
+            })
+          }
         />
       );
       break;
@@ -425,11 +492,59 @@ export function OnboardingFlow() {
       body = null;
   }
 
+  const goBack = () => {
+    if (busy) return;
+    const previous = STEP_ORDER[STEP_ORDER.indexOf(step) - 1];
+    if (previous) {
+      pushOnboardingStepHash(previous);
+      setStep(previous);
+    }
+  };
+
   return (
-    <>
-      {body}
-      {splash}
+    <OnboardingNavigation.Provider value={{ step, busy, onBack: goBack }}>
+      <div className="min-h-dvh bg-white" style={{ colorScheme: "light" }}>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={finishing ? "complete" : step}
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
+            transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+          >
+            {finishing ? (
+              <motion.div
+                className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-white px-6 text-center text-zinc-950"
+                initial={{ opacity: 1 }}
+                animate={{ opacity: reduceMotion ? 1 : 0 }}
+                transition={{ delay: 0.65, duration: 0.25 }}
+                role="status"
+                aria-live="polite"
+              >
+                <ClauxenWordmark />
+                <motion.div
+                  initial={{ scale: reduceMotion ? 1 : 0.85 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.3 }}
+                  className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200"
+                >
+                  <Check className="h-5 w-5" aria-hidden />
+                </motion.div>
+                <div>
+                  <h1 className="text-2xl font-semibold tracking-tight">
+                    Your space is ready.
+                  </h1>
+                  <p className="mt-2 text-sm text-zinc-500">Opening Clauxen…</p>
+                </div>
+              </motion.div>
+            ) : (
+              body
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      {finishing ? null : splash}
       {errorBanner}
-    </>
+    </OnboardingNavigation.Provider>
   );
 }

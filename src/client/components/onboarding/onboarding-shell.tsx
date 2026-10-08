@@ -1,47 +1,63 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+import { ArrowLeft } from "lucide-react";
 import { ClauxenWordmark } from "./clauxen-wordmark";
 import { cn } from "@/lib/utils";
+import type { OnboardingStepId } from "@/lib/onboarding-steps";
 
-type OnboardingShellProps = {
-  children: ReactNode;
-  footer?: ReactNode;
-  className?: string;
-  contentClassName?: string;
-};
+export const OnboardingNavigation = createContext<{
+  step: OnboardingStepId;
+  busy: boolean;
+  onBack: () => void;
+} | null>(null);
 
 export function OnboardingShell({
   children,
   footer,
   className,
   contentClassName,
-}: OnboardingShellProps) {
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+  className?: string;
+  contentClassName?: string;
+}) {
+  const navigation = useContext(OnboardingNavigation);
   return (
     <div
       className={cn(
-        "flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg,#f9f9f9)] font-sans text-zinc-900",
+        "min-h-dvh bg-white font-sans text-zinc-950 selection:bg-zinc-200",
         className,
       )}
+      style={{ colorScheme: "light" }}
     >
-      <div className="flex shrink-0 justify-center pt-8 md:pt-10">
-        <ClauxenWordmark />
-      </div>
-
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 flex-col items-center overflow-y-auto overscroll-contain px-4 py-8 md:py-10",
-          contentClassName,
-        )}
-      >
-        {children}
-      </div>
-
-      {footer ? (
-        <div className="flex shrink-0 flex-col items-center px-4 pb-8 md:pb-10">
-          {footer}
+      <header className="flex h-20 items-center border-b border-zinc-100 px-6 md:px-12">
+        <ClauxenWordmark height={26} />
+      </header>
+      <main className="mx-auto w-full max-w-2xl px-6 py-10 md:py-16">
+        <div className="mb-7 flex h-6 items-center">
+          {navigation && navigation.step !== "create-account" ? (
+            <button
+              type="button"
+              onClick={navigation.onBack}
+              disabled={navigation.busy}
+              className="inline-flex items-center gap-2 rounded text-sm text-zinc-500 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-4 disabled:opacity-50"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              Back
+            </button>
+          ) : null}
         </div>
-      ) : null}
+        <div className={cn("flex flex-col items-start", contentClassName)}>
+          {children}
+        </div>
+        {footer ? (
+          <div className="mt-8 border-t border-zinc-100 pt-6 text-sm text-zinc-500">
+            {footer}
+          </div>
+        ) : null}
+      </main>
     </div>
   );
 }

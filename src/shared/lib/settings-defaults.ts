@@ -26,6 +26,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     characteristicEnthusiastic: "Default",
     characteristicHeadersLists: "Default",
     characteristicEmoji: "Default",
+    responsePreference: "balanced",
     fastAnswers: true,
     customInstructions: "",
     fullName: "",

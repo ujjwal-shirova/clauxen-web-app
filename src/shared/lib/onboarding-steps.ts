@@ -5,10 +5,10 @@
 
 export const ONBOARDING_STEPS = [
   "create-account",
-  "plan-selection",
+  "name",
   "desktop",
   "before-chat",
-  "name",
+  "plan-selection",
   "role",
 ] as const;
 

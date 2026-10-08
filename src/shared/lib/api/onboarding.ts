@@ -7,6 +7,8 @@ export type OnboardingAnswers = {
   modelImprovementOptIn?: boolean;
   displayName?: string;
   role?: string;
+  responsePreference?: "balanced" | "concise" | "detailed";
+  customInstructions?: string;
   selectedPlanId?: string;
   selectedBillingCycle?: string;
 };

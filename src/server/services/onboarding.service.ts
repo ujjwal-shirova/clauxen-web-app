@@ -14,47 +14,16 @@ const DEFAULT_STEP: OnboardingStepId = "create-account";
 
 const ALLOWED_STEPS = new Set<string>(ONBOARDING_STEPS);
 
-export type OnboardingAnswers = {
-  termsAccepted?: boolean;
-  privacyAccepted?: boolean;
-  marketingOptIn?: boolean;
-  modelImprovementOptIn?: boolean;
-  displayName?: string;
-  role?: string;
-  selectedPlanId?: string;
-  selectedBillingCycle?: string;
-};
+import {
+  sanitizeAnswers,
+  validateOnboardingCompletion,
+} from "./onboarding-validation";
+import type { OnboardingAnswers } from "@/lib/api/onboarding";
+export type { OnboardingAnswers } from "@/lib/api/onboarding";
 
-function sanitizeAnswers(input: OnboardingAnswers): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  if (typeof input.termsAccepted === "boolean") {
-    out.termsAccepted = input.termsAccepted;
-  }
-  if (typeof input.privacyAccepted === "boolean") {
-    out.privacyAccepted = input.privacyAccepted;
-  }
-  if (typeof input.marketingOptIn === "boolean") {
-    out.marketingOptIn = input.marketingOptIn;
-  }
-  if (typeof input.modelImprovementOptIn === "boolean") {
-    out.modelImprovementOptIn = input.modelImprovementOptIn;
-  }
-  if (typeof input.displayName === "string") {
-    out.displayName = input.displayName.trim().slice(0, 120);
-  }
-  if (typeof input.role === "string") {
-    out.role = input.role.trim().slice(0, 120);
-  }
-  if (typeof input.selectedPlanId === "string") {
-    out.selectedPlanId = input.selectedPlanId.trim().slice(0, 64);
-  }
-  if (typeof input.selectedBillingCycle === "string") {
-    out.selectedBillingCycle = input.selectedBillingCycle.trim().slice(0, 16);
-  }
-  return out;
-}
-
-function toClientState(row: Awaited<ReturnType<typeof onboardingRepo.getOnboarding>>) {
+function toClientState(
+  row: Awaited<ReturnType<typeof onboardingRepo.getOnboarding>>,
+) {
   const rawStep = row?.onboarding_step ?? DEFAULT_STEP;
   return {
     step: isOnboardingStep(rawStep) ? rawStep : DEFAULT_STEP,
@@ -87,7 +56,11 @@ export async function updateOnboardingState(
     authMetadata?: Record<string, unknown> | null;
   },
 ) {
-  if (input.step && !isOnboardingStep(input.step) && !ALLOWED_STEPS.has(input.step)) {
+  if (
+    input.step &&
+    !isOnboardingStep(input.step) &&
+    !ALLOWED_STEPS.has(input.step)
+  ) {
     throw new AppError("Unknown onboarding step.", 400);
   }
 
@@ -109,6 +82,9 @@ export async function updateOnboardingState(
 
   if (!current) throw notFound("User settings not found.");
 
+  const mergedAnswers = { ...current.onboarding_answers, ...answers };
+  if (input.completed === true) validateOnboardingCompletion(mergedAnswers);
+
   const nextSettings = { ...(current.settings ?? {}) } as Record<
     string,
     unknown
@@ -127,10 +103,18 @@ export async function updateOnboardingState(
       displayName = answers.displayName as string;
       personalization.nickname = displayName;
     }
-    if (typeof answers.role === "string" && answers.role) {
+    if (typeof answers.role === "string") {
       personalization.occupation = answers.role;
     }
+    if (typeof answers.responsePreference === "string") {
+      personalization.responsePreference = answers.responsePreference;
+    }
+    if (typeof answers.customInstructions === "string") {
+      personalization.customInstructions = answers.customInstructions;
+    }
     if (
+      typeof answers.responsePreference === "string" ||
+      typeof answers.customInstructions === "string" ||
       typeof answers.displayName === "string" ||
       typeof answers.role === "string"
     ) {
@@ -140,6 +124,11 @@ export async function updateOnboardingState(
 
     if (typeof answers.modelImprovementOptIn === "boolean") {
       dataTrainingOptIn = answers.modelImprovementOptIn;
+      nextSettings.privacy = {
+        ...((nextSettings.privacy as Record<string, unknown>) ?? {}),
+        helpImproveModels: dataTrainingOptIn,
+      };
+      settingsPatch = nextSettings;
     }
 
     if (
@@ -150,10 +139,11 @@ export async function updateOnboardingState(
     ) {
       consentEvidence = {
         onboarding: {
-          termsAccepted: answers.termsAccepted ?? null,
-          privacyAccepted: answers.privacyAccepted ?? null,
-          marketingOptIn: answers.marketingOptIn ?? null,
-          modelImprovementOptIn: answers.modelImprovementOptIn ?? null,
+          termsAccepted: mergedAnswers.termsAccepted ?? null,
+          privacyAccepted: mergedAnswers.privacyAccepted ?? null,
+          marketingOptIn: mergedAnswers.marketingOptIn ?? null,
+          modelImprovementOptIn: mergedAnswers.modelImprovementOptIn ?? null,
+          disclosureVersion: "2026-10-08",
           capturedAt: new Date().toISOString(),
         },
       };

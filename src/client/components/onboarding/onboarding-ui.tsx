@@ -2,7 +2,6 @@
 
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { appBtn } from "@/lib/app-buttons";
 import type { ButtonHTMLAttributes, InputHTMLAttributes } from "react";
 
 export function OnboardingHeading({
@@ -13,12 +12,12 @@ export function OnboardingHeading({
   subtitle?: string;
 }) {
   return (
-    <header className="mx-auto max-w-md text-center">
-      <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-zinc-900 md:text-[32px]">
+    <header className="max-w-xl text-left">
+      <h1 className="text-3xl font-semibold leading-tight tracking-[-0.04em] text-zinc-950 md:text-4xl">
         {title}
       </h1>
       {subtitle ? (
-        <p className="mt-2 text-sm leading-snug text-zinc-500 md:text-[15px]">
+        <p className="mt-3 text-sm leading-relaxed text-zinc-500 md:text-[15px]">
           {subtitle}
         </p>
       ) : null}
@@ -36,7 +35,7 @@ export function OnboardingCard({
   return (
     <div
       className={cn(
-        "w-full rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(24,24,27,0.04)] md:p-6",
+        "w-full rounded-xl border border-zinc-200 bg-white p-5 md:p-6",
         className,
       )}
     >
@@ -55,7 +54,10 @@ export function OnboardingPrimaryButton({
     <button
       type="button"
       disabled={disabled}
-      className={cn(appBtn.primaryLg, className)}
+      className={cn(
+        "inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-950 disabled:cursor-not-allowed disabled:opacity-40",
+        className,
+      )}
       {...props}
     >
       {children}
@@ -75,7 +77,7 @@ export function OnboardingGhostButton({
       disabled={disabled}
       className={cn(
         "inline-flex h-11 w-full items-center justify-center rounded-lg px-5 text-sm font-medium text-zinc-600 transition-colors",
-        "hover:bg-zinc-100 hover:text-zinc-900",
+        "hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2",
         "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-zinc-600",
         className,
       )}
@@ -116,8 +118,8 @@ export function OnboardingCheckboxRow({
           className={cn(
             "flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border-2 transition-colors",
             "border-zinc-300 bg-white",
-            "peer-focus-visible:ring-2 peer-focus-visible:ring-[#1b67b2]/25 peer-focus-visible:ring-offset-1",
-            "peer-checked:border-[#1b67b2] peer-checked:bg-[#1b67b2]",
+            "peer-focus-visible:ring-2 peer-focus-visible:ring-[#18181b]/25 peer-focus-visible:ring-offset-1",
+            "peer-checked:border-[#18181b] peer-checked:bg-[#18181b]",
           )}
           aria-hidden
         >
@@ -144,7 +146,7 @@ export function OnboardingTextInput({
   return (
     <input
       className={cn(
-        "h-auto w-full rounded-2xl border border-zinc-200 bg-white px-3 py-4 text-center text-sm font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] outline-none",
+        "min-h-12 w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-left text-sm font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] outline-none",
         "placeholder:text-zinc-400 focus-visible:ring-2 focus-visible:ring-zinc-900/15",
         className,
       )}

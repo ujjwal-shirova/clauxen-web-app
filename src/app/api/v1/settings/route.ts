@@ -42,6 +42,7 @@ const defaultPersonalization = {
   characteristicEnthusiastic: "Default",
   characteristicHeadersLists: "Default",
   characteristicEmoji: "Default",
+  responsePreference: "balanced",
   fastAnswers: true,
   customInstructions: "",
   fullName: "",

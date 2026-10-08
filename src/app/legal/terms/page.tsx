@@ -67,7 +67,7 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-lg font-semibold text-zinc-900">
+            <h2 id="acceptable-use" className="text-lg font-semibold text-zinc-900">
               Acceptable use
             </h2>
             <p>

@@ -1,102 +1,100 @@
 "use client";
 
-import { Ban, ShieldCheck } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { ShieldCheck } from "lucide-react";
 import type { OnboardingState } from "../onboarding-types";
 import { OnboardingShell } from "../onboarding-shell";
 import {
-  OnboardingCard,
   OnboardingHeading,
   OnboardingLink,
   OnboardingPrimaryButton,
 } from "../onboarding-ui";
-
-type BeforeChatStepProps = {
-  state: OnboardingState;
-  onChange: (patch: Partial<OnboardingState>) => void;
-  onContinue: () => void;
-  busy?: boolean;
-};
-
-const DISCLAIMERS = [
-  {
-    iconBg: "bg-zinc-100",
-    icon: <Ban className="h-5 w-5 text-zinc-700" aria-hidden />,
-    title: "Ad-free chats:",
-    body: "We won't show you ads or let advertisers influence what Clauxen says.",
-  },
-  {
-    iconBg: "bg-zinc-100",
-    icon: <ShieldCheck className="h-5 w-5 text-zinc-700" aria-hidden />,
-    title: "Built to help, not harm:",
-    body: "Automated safeguards protect your chats from violent, abusive, or deceptive content.",
-  },
-] as const;
 
 export function BeforeChatStep({
   state,
   onChange,
   onContinue,
   busy = false,
-}: BeforeChatStepProps) {
+}: {
+  state: OnboardingState;
+  onChange: (patch: Partial<OnboardingState>) => void;
+  onContinue: () => void;
+  busy?: boolean;
+}) {
   return (
-    <OnboardingShell contentClassName="!py-8">
-      <div className="flex w-full max-w-lg flex-col gap-6">
+    <OnboardingShell>
+      <div className="flex w-full max-w-xl flex-col gap-8">
         <OnboardingHeading
-          title="Before your first chat"
-          subtitle="A few things to know, plus one setting to review"
+          title="Your data. Your choice."
+          subtitle="Decide whether your conversations can help train and improve Clauxen. This is optional and separate from using the service."
         />
-
-        <OnboardingCard className="rounded-3xl p-6">
-          <ul className="flex flex-col gap-6" role="list">
-            {DISCLAIMERS.map((item) => (
-              <li key={item.title} className="flex gap-4">
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${item.iconBg}`}
-                >
-                  {item.icon}
-                </div>
-                <p className="text-sm font-medium leading-relaxed text-zinc-600">
-                  <span className="font-semibold text-zinc-900">
-                    {item.title}
-                  </span>{" "}
-                  {item.body}
-                </p>
-              </li>
-            ))}
-
-            <li className="flex gap-4">
-              <div className="mt-0.5 shrink-0 pt-1">
-                <Switch
-                  checked={state.modelImprovementOptIn}
-                  onCheckedChange={(modelImprovementOptIn) =>
-                    onChange({ modelImprovementOptIn })
-                  }
-                  disabled={busy}
-                  aria-labelledby="disclaimer-grove-toggle-label"
-                />
-              </div>
-              <p
-                id="disclaimer-grove-toggle-label"
-                className="text-sm font-medium leading-relaxed text-zinc-600"
-              >
-                <span className="font-semibold text-zinc-900">
-                  Help Clauxen improve:
-                </span>{" "}
-                Allow the use of your chats and coding sessions to train and
-                improve Clauxen. Change anytime in privacy settings.{" "}
-                <OnboardingLink href="/legal/privacy">Learn more</OnboardingLink>
-              </p>
-            </li>
-          </ul>
-        </OnboardingCard>
-
-        <OnboardingPrimaryButton
-          type="button"
+        <fieldset
           disabled={busy}
+          aria-describedby="training-disclosure"
+          className="space-y-3"
+        >
+          <legend className="mb-3 text-sm font-medium">
+            Allow your data to be used for model training?
+          </legend>
+          {(
+            [
+              [
+                false,
+                "Don’t allow training",
+                "Do not use my chats and coding sessions to train or improve Clauxen.",
+              ],
+              [
+                true,
+                "Allow training",
+                "My chats and coding sessions may be used to train and improve Clauxen.",
+              ],
+            ] as const
+          ).map(([value, title, description]) => (
+            <label
+              key={String(value)}
+              className={`flex cursor-pointer items-start gap-4 rounded-xl border p-5 transition-colors ${state.modelImprovementOptIn === value ? "border-zinc-950 bg-zinc-50" : "border-zinc-200 hover:border-zinc-400"}`}
+            >
+              <input
+                type="radio"
+                name="training-consent"
+                checked={state.modelImprovementOptIn === value}
+                onChange={() => onChange({ modelImprovementOptIn: value })}
+                className="mt-1 h-4 w-4 shrink-0 accent-zinc-950"
+              />
+              <span>
+                <span className="block text-sm font-medium">{title}</span>
+                <span className="mt-1 block text-sm leading-relaxed text-zinc-500">
+                  {description}
+                </span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <div
+          id="training-disclosure"
+          className="flex gap-3 text-sm leading-relaxed text-zinc-500"
+        >
+          <ShieldCheck
+            className="mt-0.5 h-5 w-5 shrink-0 text-zinc-700"
+            aria-hidden
+          />
+          <p>
+            Either choice lets you use Clauxen. Your data is still processed to
+            provide the service as described in our{" "}
+            <OnboardingLink href="/legal/privacy">
+              Privacy Policy
+            </OnboardingLink>
+            . Change your choice in Settings → Data controls.
+          </p>
+        </div>
+        <p className="border-t border-zinc-100 pt-5 text-xs leading-relaxed text-zinc-500">
+          Clauxen can make mistakes. Check important information and review
+          generated work before using it.
+        </p>
+        <OnboardingPrimaryButton
+          disabled={busy || state.modelImprovementOptIn === null}
           onClick={onContinue}
         >
-          {busy ? "Saving…" : "Continue"}
+          Save my choice
         </OnboardingPrimaryButton>
       </div>
     </OnboardingShell>

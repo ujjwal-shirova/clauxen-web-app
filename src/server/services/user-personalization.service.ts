@@ -26,6 +26,7 @@ export type UserPersonalization = {
   characteristicEnthusiastic: string | null;
   characteristicHeadersLists: string | null;
   characteristicEmoji: string | null;
+  responsePreference?: "balanced" | "concise" | "detailed";
   fastAnswers: boolean;
   referenceSavedMemories: boolean;
   referenceChatHistory: boolean;
@@ -88,10 +89,7 @@ export async function loadUserPersonalization(
     ),
     personality: asStyleChoice(personalization?.personality, 64),
     baseStyleTone: asStyleChoice(personalization?.baseStyleTone, 64),
-    characteristicWarm: asStyleChoice(
-      personalization?.characteristicWarm,
-      32,
-    ),
+    characteristicWarm: asStyleChoice(personalization?.characteristicWarm, 32),
     characteristicEnthusiastic: asStyleChoice(
       personalization?.characteristicEnthusiastic,
       32,
@@ -104,6 +102,11 @@ export async function loadUserPersonalization(
       personalization?.characteristicEmoji,
       32,
     ),
+    responsePreference:
+      personalization?.responsePreference === "concise" ||
+      personalization?.responsePreference === "detailed"
+        ? personalization.responsePreference
+        : "balanced",
     fastAnswers: asBool(personalization?.fastAnswers, true),
     referenceSavedMemories: asBool(
       personalization?.referenceSavedMemories,
@@ -119,9 +122,7 @@ export async function loadUserPersonalization(
 }
 
 /** Format personalization as a dynamic system-prompt suffix. */
-export function formatPersonalizationAppend(
-  p: UserPersonalization,
-): string {
+export function formatPersonalizationAppend(p: UserPersonalization): string {
   const profileLines: string[] = [];
   const callName = p.nickname || p.fullName;
   if (callName) {
@@ -184,6 +185,11 @@ export function formatPersonalizationAppend(
     [
       "<response_preferences>",
       fastAnswersLine,
+      p.responsePreference === "concise"
+        ? "The user prefers short, direct answers. Keep explanations brief unless more detail is requested or necessary."
+        : p.responsePreference === "detailed"
+          ? "The user prefers detailed answers with useful context, reasoning, and practical examples."
+          : "Balance clear, direct answers with detail when it helps.",
       "</response_preferences>",
     ].join("\n"),
   );
@@ -222,9 +228,8 @@ export async function buildUserPersonalizationAppend(
     const base = formatPersonalizationAppend(personalization);
     let selfGrowthBlock = "";
     try {
-      const { getInsights } = await import(
-        "@/server/repositories/my-clauxen.repository"
-      );
+      const { getInsights } =
+        await import("@/server/repositories/my-clauxen.repository");
       const insights = await getInsights(userId);
       if (insights?.self_growth_enabled) {
         selfGrowthBlock = [

@@ -44,14 +44,14 @@ export function CreateAccountStep({
   return (
     <OnboardingShell
       footer={
-        <div className="w-full max-w-[450px] text-center text-sm text-zinc-500">
+        <div className="w-full max-w-xl text-left text-sm text-zinc-500">
           {email ? (
             <p>
-              Email verified as{" "}
+              Signed in as{" "}
               <span className="font-medium text-zinc-700">{email}</span>
             </p>
           ) : (
-            <p>Verifying your email…</p>
+            <p>Your account is ready for setup.</p>
           )}
           <button
             type="button"
@@ -63,21 +63,22 @@ export function CreateAccountStep({
         </div>
       }
     >
-      <div className="flex w-full max-w-[450px] flex-col items-center gap-5">
+      <div className="flex w-full max-w-xl flex-col gap-8">
         <OnboardingHeading
-          title="Let's create your account"
-          subtitle="A few things for you to review"
+          title="Welcome to Clauxen"
+          subtitle="Make room for your next idea. First, review the essentials to finish setting up your account."
         />
 
         <OnboardingCard>
           <form
-            className="flex flex-col gap-3 text-left"
+            className="flex flex-col gap-6 text-left"
             onSubmit={(e) => {
               e.preventDefault();
               if (canSubmit) onContinue();
             }}
           >
             <OnboardingCheckboxRow
+              disabled={busy}
               checked={state.termsAccepted}
               onCheckedChange={(termsAccepted) => onChange({ termsAccepted })}
             >
@@ -86,20 +87,20 @@ export function CreateAccountStep({
                 Terms of Service
               </OnboardingLink>{" "}
               and{" "}
-              <OnboardingLink href="/legal/acceptable-use">
+              <OnboardingLink href="/legal/terms#acceptable-use">
                 Acceptable Use Policy
               </OnboardingLink>{" "}
               and confirm that I am at least 18 years of age.
             </OnboardingCheckboxRow>
 
             <OnboardingCheckboxRow
+              disabled={busy}
               checked={state.privacyAccepted}
               onCheckedChange={(privacyAccepted) =>
                 onChange({ privacyAccepted })
               }
             >
-              I consent to collection and use of my personal information in
-              accordance with the{" "}
+              I have read and acknowledge the{" "}
               <OnboardingLink href="/legal/privacy">
                 Privacy Policy
               </OnboardingLink>
@@ -107,11 +108,12 @@ export function CreateAccountStep({
             </OnboardingCheckboxRow>
 
             <OnboardingCheckboxRow
+              disabled={busy}
               checked={state.marketingOptIn}
               onCheckedChange={(marketingOptIn) => onChange({ marketingOptIn })}
             >
-              Subscribe to occasional promotional emails and notifications. You
-              can opt out any time.
+              Send me occasional product news and tips. Optional — unsubscribe
+              anytime.
             </OnboardingCheckboxRow>
 
             <OnboardingPrimaryButton
@@ -119,7 +121,7 @@ export function CreateAccountStep({
               disabled={!canSubmit}
               className="mt-1"
             >
-              {busy ? "Creating…" : "Create account"}
+              {busy ? "Saving…" : "Agree and continue"}
             </OnboardingPrimaryButton>
           </form>
         </OnboardingCard>
