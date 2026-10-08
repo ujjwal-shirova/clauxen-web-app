@@ -180,7 +180,6 @@ export function checkoutSessionPath(
 
 const SAFE_RETURN_PREFIXES = new Set([
   "/new",
-  "/onboarding",
   "/library",
   "/scheduled",
   "/my-clauxen",

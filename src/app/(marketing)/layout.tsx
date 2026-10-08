@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import styles from "./marketing.module.css";
 
 export const metadata = {
   title: "Clauxen",
@@ -10,7 +11,5 @@ export const metadata = {
  * Header/footer navigation gets built out here as the pages land.
  */
 export default function MarketingLayout({ children }: { children: ReactNode }) {
-  return (
-    <div className="min-h-[100dvh] bg-[var(--app-shell-bg)]">{children}</div>
-  );
+  return <div className={styles.shell}>{children}</div>;
 }

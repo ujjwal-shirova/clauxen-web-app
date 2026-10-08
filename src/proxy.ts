@@ -13,6 +13,25 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // Public marketing routes use their own shell and never require an app
+  // session. Match route boundaries, not arbitrary prefixes.
+  const marketingRoots = [
+    "/overview",
+    "/business",
+    "/plans",
+    "/download",
+    "/features",
+    "/use-cases",
+    "/apps",
+  ];
+  if (
+    marketingRoots.some(
+      (root) => pathname === root || pathname.startsWith(`${root}/`),
+    )
+  ) {
+    return NextResponse.next({ request });
+  }
+
   // If Supabase falls back to the Site URL (redirect URL not allow-listed),
   // the OAuth `code` lands on `/` or `/new`. Forward it to the callback so
   // the session is still exchanged server-side instead of erroring.

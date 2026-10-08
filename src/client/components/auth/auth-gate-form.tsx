@@ -11,7 +11,7 @@ import {
   type OAuthProvider,
 } from "@/components/auth/auth-shared";
 import { SignupOtpDialog } from "@/components/auth/signup-otp-dialog";
-import { ClauxenWordmark } from "@/components/onboarding/clauxen-wordmark";
+import { ClauxenWordmark } from "@/components/auth/clauxen-wordmark";
 import * as authApi from "@/lib/api/auth";
 import { redirectTargetWithHash } from "@/lib/auth-redirect";
 import { looksLikeEmail } from "@/lib/phone-countries";

@@ -6405,9 +6405,6 @@ export type Database = {
           email_notifications: boolean
           language: string
           memory_enabled: boolean
-          onboarding_answers: Json
-          onboarding_completed_at: string | null
-          onboarding_step: string | null
           personalization_training_enabled: boolean
           privacy_review_reason: string | null
           privacy_review_required: boolean
@@ -6444,9 +6441,6 @@ export type Database = {
           email_notifications?: boolean
           language?: string
           memory_enabled?: boolean
-          onboarding_answers?: Json
-          onboarding_completed_at?: string | null
-          onboarding_step?: string | null
           personalization_training_enabled?: boolean
           privacy_review_reason?: string | null
           privacy_review_required?: boolean
@@ -6483,9 +6477,6 @@ export type Database = {
           email_notifications?: boolean
           language?: string
           memory_enabled?: boolean
-          onboarding_answers?: Json
-          onboarding_completed_at?: string | null
-          onboarding_step?: string | null
           personalization_training_enabled?: boolean
           privacy_review_reason?: string | null
           privacy_review_required?: boolean

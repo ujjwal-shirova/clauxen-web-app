@@ -1,6 +1,6 @@
 /**
  * Single source of truth for personal plan pricing, features, and checkout IDs.
- * Update values here — subscription, checkout, gift, and onboarding read from this file.
+ * Update values here — subscription, checkout, and gift flows read from this file.
  */
 
 export const YEARLY_DISCOUNT = 0.2;
@@ -715,38 +715,4 @@ export function formatPlanPriceLabel(
     return "";
   }
   return price.toLocaleString("en-IN");
-}
-
-/** Onboarding cards — Pro and Max. */
-export const ONBOARDING_PLAN_IDS = ["pro", "max"] as const;
-export type OnboardingPlanId = (typeof ONBOARDING_PLAN_IDS)[number];
-
-export function getOnboardingPlanCards(): Array<{
-  id: OnboardingPlanId;
-  name: string;
-  subtitle: string;
-  priceDisplay: string;
-  priceSuffix?: string;
-  features: string[];
-  highlight?: string;
-  cta: string;
-  yearlySupported: boolean;
-}> {
-  return PERSONAL_PLANS.filter(
-    (plan): plan is PlanCard & { id: OnboardingPlanId } =>
-      (ONBOARDING_PLAN_IDS as readonly string[]).includes(plan.id),
-  ).map((plan) => ({
-    id: plan.id as OnboardingPlanId,
-    name: plan.name,
-    subtitle: plan.subtitle,
-    priceDisplay:
-      plan.id === "max"
-        ? `From ${formatInr(MAX_TIER_OPTIONS["5x"].monthlyPriceInr)}`
-        : formatInr(plan.monthlyPriceInr ?? 0),
-    priceSuffix: plan.id === "max" || plan.monthlyPriceInr ? "/ month" : undefined,
-    features: resolvePlanFeatures(plan),
-    highlight: plan.highlight,
-    cta: plan.id === "max" ? "Get Max plan" : "Get Pro plan",
-    yearlySupported: plan.yearlySupported,
-  }));
 }

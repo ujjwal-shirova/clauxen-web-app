@@ -107,7 +107,6 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (
-      pathname === "/onboarding" ||
       pathname === "/login" ||
       pathname === "/signup"
     ) {
@@ -226,7 +225,6 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
   const openOverlay = useCallback(
     (next: Overlay) => {
       if (
-        pathname === "/onboarding" ||
         pathname === "/login" ||
         pathname === "/signup"
       ) {

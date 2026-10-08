@@ -109,7 +109,7 @@ export function VoiceCall({ isOpen, onClose }: VoiceCallProps) {
               </div>
             </div>
 
-            {/* Integration CTA — secondary action, integrations onboarding placeholder */}
+            {/* Integration CTA — secondary action, setup placeholder */}
             <button className="flex items-center gap-2 px-4 py-2.5 bg-white/60 backdrop-blur-2xl rounded-2xl border border-zinc-200 shadow-sm hover:bg-white transition-all text-[#5B5B64] hover:text-zinc-800 group">
               <div className="w-6 h-6 flex items-center justify-center">
                 <Blocks className="w-4 h-4 opacity-70 group-hover:opacity-100" />

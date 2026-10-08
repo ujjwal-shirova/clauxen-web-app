@@ -11,8 +11,8 @@ export async function ensureUserRecord(input: {
   // email normalize — lowercase + trim; duplicate account matching consistent
   const email = input.email.toLowerCase().trim();
   assertEmailNotDisposable(email);
-  // Only treat an explicit name as authoritative — never clobber onboarding
-  // /settings display_name with the email local-part on every session hit.
+  // Only treat an explicit name as authoritative; do not replace a chosen
+  // display name with the email local-part on every session hit.
   const explicitName = input.displayName?.trim() || null;
   const insertName = explicitName || email.split("@")[0] || "User";
 

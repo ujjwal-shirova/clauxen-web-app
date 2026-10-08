@@ -35,7 +35,7 @@ function MagicLinkSetupInner() {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.replace("/onboarding");
+      router.replace("/new");
     }
   }, [authLoading, isAuthenticated, router]);
 
@@ -114,7 +114,7 @@ function MagicLinkSetupInner() {
           password,
         });
         await login(created.email, password);
-        router.replace("/onboarding");
+        router.replace("/new");
       } catch (err) {
         setError(
           err instanceof Error

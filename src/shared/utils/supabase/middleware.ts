@@ -1,25 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
-import type { Database } from "@/types/database.types";
 import { getSupabasePublicConfig, requireSupabasePublicConfig } from "./env";
-import {
-  ONBOARDING_DONE_COOKIE,
-  onboardingDoneCookieOptions,
-  onboardingDoneCookieValue,
-} from "@/utils/onboarding-cookie";
 import {
   IDENTITY_HINT_COOKIE,
   identityHintCookieOptions,
   identityHintCookieValue,
 } from "@/utils/identity-cookie";
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
-import { logSupabaseQueryError } from "@/lib/supabase-query-error";
 import { getClaimsFromCookies } from "@/server/auth/jwt";
 
 /**
  * Paths anyone may open with no session at all (auth screens, share links,
- * legal pages). No onboarding gate either. `/login` is intentionally absent —
+ * legal pages). `/login` is intentionally absent —
  * it no longer renders; it redirects into the app preview (see below).
  */
 const AUTH_FREE_PREFIXES = [
@@ -69,73 +61,6 @@ function withSessionCookies(
     to.cookies.set(cookie.name, cookie.value);
   });
   return to;
-}
-
-function readOnboardingCache(
-  request: NextRequest,
-  userId: string,
-): boolean | null {
-  const raw = request.cookies.get(ONBOARDING_DONE_COOKIE)?.value;
-  if (!raw) return null;
-  const [id, flag] = raw.split(".");
-  if (id !== userId) return null;
-  if (flag === "1") return true;
-  if (flag === "0") return false;
-  return null;
-}
-
-function writeOnboardingCache(
-  response: NextResponse,
-  userId: string,
-  complete: boolean,
-) {
-  response.cookies.set(
-    ONBOARDING_DONE_COOKIE,
-    onboardingDoneCookieValue(userId, complete),
-    onboardingDoneCookieOptions(complete),
-  );
-}
-
-/**
- * Fail closed: missing row / query error → incomplete → /onboarding.
- * Uses the Edge-safe Supabase client (not pg) so the gate actually runs.
- */
-async function isOnboardingComplete(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from("user_settings")
-      .select("onboarding_completed_at")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (error) {
-      logSupabaseQueryError("middleware.user_settings", error, {
-        table: "user_settings",
-        filter: `user_id=eq.${userId}`,
-        userId,
-      });
-      return false;
-    }
-    return Boolean(data?.onboarding_completed_at);
-  } catch {
-    return false;
-  }
-}
-
-async function resolveOnboardingComplete(
-  request: NextRequest,
-  response: NextResponse,
-  supabase: SupabaseClient<Database>,
-  userId: string,
-): Promise<boolean> {
-  const cached = readOnboardingCache(request, userId);
-  if (cached != null) return cached;
-  const complete = await isOnboardingComplete(supabase, userId);
-  writeOnboardingCache(response, userId, complete);
-  return complete;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -297,66 +222,9 @@ export async function updateSession(request: NextRequest) {
     return withSessionCookies(supabaseResponse, NextResponse.redirect(gateUrl));
   }
 
-  const userId = user?.id ?? null;
-
-  // New / incomplete users must finish onboarding before the app.
-  // Dev-bypass cookie alone has no Supabase JWT → treat as incomplete.
-  // CLI OAuth consent/device pages must work even if web onboarding is incomplete.
-  if (
-    isAuthenticated &&
-    !isAuthFreePath(pathname) &&
-    pathname !== "/onboarding" &&
-    !pathname.startsWith("/api/") &&
-    !pathname.startsWith("/cli/")
-  ) {
-    const complete = userId
-      ? await resolveOnboardingComplete(
-          request,
-          supabaseResponse,
-          supabase,
-          userId,
-        )
-      : false;
-    if (!complete) {
-      const onboardingUrl = request.nextUrl.clone();
-      onboardingUrl.pathname = "/onboarding";
-      onboardingUrl.search = "";
-      const redirect = withSessionCookies(
-        supabaseResponse,
-        NextResponse.redirect(onboardingUrl),
-      );
-      if (userId) writeOnboardingCache(redirect, userId, false);
-      return redirect;
-    }
-  }
-
-  // Completed users who land on /onboarding → home.
-  if (isAuthenticated && pathname === "/onboarding" && userId) {
-    const complete = await resolveOnboardingComplete(
-      request,
-      supabaseResponse,
-      supabase,
-      userId,
-    );
-    if (complete) {
-      const home = request.nextUrl.clone();
-      home.pathname = "/new";
-      home.search = "";
-      return withSessionCookies(supabaseResponse, NextResponse.redirect(home));
-    }
-  }
-
   if (isAuthenticated && (pathname === "/login" || pathname === "/signup")) {
-    const complete = userId
-      ? await resolveOnboardingComplete(
-          request,
-          supabaseResponse,
-          supabase,
-          userId,
-        )
-      : false;
     const dest = request.nextUrl.clone();
-    dest.pathname = complete ? "/new" : "/onboarding";
+    dest.pathname = "/new";
     dest.search = "";
     return withSessionCookies(supabaseResponse, NextResponse.redirect(dest));
   }

@@ -64,20 +64,14 @@ export async function loadUserPersonalization(
   const capabilities = stored.capabilities as
     | Record<string, unknown>
     | undefined;
-  const onboardingAnswers =
-    ((settingsRow as { onboarding_answers?: Record<string, unknown> } | null)
-      ?.onboarding_answers as Record<string, unknown> | undefined) ?? undefined;
-
   const fullName =
     trimProfileName(profile?.display_name) ??
     asTrimmedString(personalization?.fullName, 120);
   const nickname =
     trimProfileName(profile?.preferred_name) ??
-    asTrimmedString(personalization?.nickname, 120) ??
-    asTrimmedString(onboardingAnswers?.displayName, 120);
+    asTrimmedString(personalization?.nickname, 120);
   const occupation =
-    asTrimmedString(personalization?.occupation, 120) ??
-    asTrimmedString(onboardingAnswers?.role, 120);
+    asTrimmedString(personalization?.occupation, 120);
 
   return {
     fullName,

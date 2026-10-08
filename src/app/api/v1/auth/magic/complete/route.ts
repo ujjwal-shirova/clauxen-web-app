@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Consume magic link → create confirmed Supabase user.
- * Client then signs in with email/password and lands on onboarding.
+ * Client then signs in with email/password and lands in the app.
  */
 export const POST = withApiHandler(async ({ request }) => {
   const body = (await request.json().catch(() => ({}))) as {

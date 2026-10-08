@@ -78,62 +78,6 @@ export async function syncProfileFromAuth(input: {
   return row;
 }
 
-export async function applyOnboardingProfile(
-  userId: string,
-  input: {
-    preferredName?: string | null;
-    role?: string | null;
-    authFullName?: string | null;
-  },
-) {
-  const preferredName = trimProfileName(input.preferredName);
-  const role = trimProfileName(input.role);
-  const authFullName = trimProfileName(input.authFullName);
-  const existing = await profileRepo.getProfile(userId);
-
-  const displayName =
-    authFullName ??
-    trimProfileName(existing?.display_name) ??
-    preferredName ??
-    null;
-
-  await profileRepo.updateProfile(userId, {
-    displayName,
-    preferredName: preferredName ?? undefined,
-  });
-
-  if (preferredName || role || displayName) {
-    await mirrorPersonalizationNames(userId, {
-      fullName: displayName,
-      nickname: preferredName,
-      occupation: role,
-    });
-  }
-
-  if (preferredName) {
-    await query(
-      `update auth.users
-       set raw_user_meta_data =
-             coalesce(raw_user_meta_data, '{}'::jsonb)
-             || jsonb_build_object('preferred_name', $2::text),
-           updated_at = now()
-       where id = $1`,
-      [userId, preferredName],
-    );
-  }
-
-  if (displayName) {
-    await query(
-      `update public.user_settings
-       set display_name = $2, updated_at = now()
-       where user_id = $1`,
-      [userId, displayName],
-    );
-  }
-
-  return profileRepo.getProfile(userId);
-}
-
 export async function updateUserProfile(
   userId: string,
   input: {

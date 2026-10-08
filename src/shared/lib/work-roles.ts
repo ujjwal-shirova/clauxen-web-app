@@ -1,4 +1,4 @@
-/** Shared work/role options for onboarding + Settings → Profile. */
+/** Shared work/role options for Settings → Profile. */
 
 export const WORK_ROLE_OPTIONS = [
   "Product management",
@@ -20,6 +20,3 @@ export const WORK_ROLE_OPTIONS = [
 ] as const;
 
 export type WorkRoleOption = (typeof WORK_ROLE_OPTIONS)[number];
-
-/** Onboarding role picker uses the same catalog. */
-export const ONBOARDING_ROLES = WORK_ROLE_OPTIONS;

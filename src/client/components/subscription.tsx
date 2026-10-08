@@ -277,7 +277,7 @@ function PlanCarouselCard({
   onMaxTierChange?: (tier: MaxTier) => void;
   onSelect: () => void;
   ctaLabel?: string;
-  /** When true, treat isCurrent plans as selectable (onboarding Free). */
+  /** When true, treat isCurrent plans as selectable. */
   forceSelectable?: boolean;
   currentPlanId?: string;
 }) {
@@ -607,7 +607,7 @@ export type PlansCarouselSectionProps = {
   ) => void;
   /** When set, every plan CTA invokes this instead of the select handlers */
   onCtaClick?: () => void;
-  /** Plan ids that stay selectable even when marked `isCurrent` (e.g. Free in onboarding). */
+  /** Plan ids that stay selectable even when marked `isCurrent`. */
   selectableCurrentPlanIds?: string[];
   /** Active subscription plan id for Current plan / hide lower-tier CTAs. */
   currentPlanId?: string | null;

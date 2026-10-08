@@ -23,7 +23,7 @@ export function segmentedOptionClass(
   );
 }
 
-/** Pricing / onboarding plan switcher pills — same chrome as settings. */
+/** Plan switcher pills — same chrome as settings. */
 export function subscriptionSegmentClass(active: boolean) {
   return segmentedOptionClass(active);
 }

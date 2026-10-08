@@ -199,30 +199,18 @@ function toClientPayload(
   stored: Record<string, unknown>,
   notifStored: Record<string, unknown>,
   profile?: Awaited<ReturnType<typeof profileRepo.getProfile>> | null,
-  onboardingAnswers?: Record<string, unknown> | null,
 ) {
   const personalization = mergeSettings(
     defaultPersonalization,
     stored.personalization as Record<string, unknown>,
   );
 
-  // Prefer canonical profile columns, then fall back to onboarding answers.
+  // Profile columns are canonical; settings remain a fallback for older rows.
   if (profile?.display_name) {
     personalization.fullName = profile.display_name;
   }
   if (profile?.preferred_name) {
     personalization.nickname = profile.preferred_name;
-  } else if (
-    !personalization.nickname &&
-    typeof onboardingAnswers?.displayName === "string"
-  ) {
-    personalization.nickname = String(onboardingAnswers.displayName).trim();
-  }
-  if (
-    !personalization.occupation &&
-    typeof onboardingAnswers?.role === "string"
-  ) {
-    personalization.occupation = String(onboardingAnswers.role).trim();
   }
 
   if (typeof personalization.customInstructions === "string") {
@@ -301,7 +289,6 @@ export const GET = withApiHandler(
     let notifStored: Record<string, unknown> = {};
     let profile: Awaited<ReturnType<typeof profileRepo.getProfile>> | null =
       null;
-    let onboardingAnswers: Record<string, unknown> | null = null;
 
     try {
       const [userSettings, notificationPrefs, profileRow] = await Promise.all([
@@ -315,9 +302,6 @@ export const GET = withApiHandler(
         unknown
       >;
       profile = profileRow;
-      onboardingAnswers =
-        ((userSettings as { onboarding_answers?: Record<string, unknown> } | null)
-          ?.onboarding_answers as Record<string, unknown> | null) ?? null;
     } catch (error) {
       // Return defaults rather than 500 — UI must stay usable during DB blips.
       console.error("[settings] read failed, returning defaults:", error);
@@ -327,7 +311,6 @@ export const GET = withApiHandler(
       stored,
       notifStored,
       profile,
-      onboardingAnswers,
     );
     void cacheUserSettings(user.id, payload);
     return jsonData(payload);
@@ -340,7 +323,7 @@ export const PATCH = withApiHandler(
     const user = requireSession(session);
     // A write can be the first product request after authentication. Seed only
     // the rows this route owns; full profile/workspace bootstrap belongs to the
-    // auth/onboarding flow and must not run on every settings read.
+    // auth flow and must not run on every settings read.
     await settingsRepo.ensureSettingsRows(user.id, user.email);
     const body = (await request.json()) as {
       general?: Record<string, unknown>;
@@ -501,15 +484,10 @@ export const PATCH = withApiHandler(
       string,
       unknown
     >;
-    const onboardingAnswers =
-      ((userSettings as { onboarding_answers?: Record<string, unknown> } | null)
-        ?.onboarding_answers as Record<string, unknown> | null) ?? null;
-
     const payload = toClientPayload(
       stored,
       notifStored,
       profile,
-      onboardingAnswers,
     );
     await invalidateUserSettingsCache(user.id);
     void cacheUserSettings(user.id, payload);

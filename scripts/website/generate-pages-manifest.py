@@ -25,7 +25,6 @@ APP_RESERVED_SEGMENTS = frozenset(
         "customize",
         "library",
         "login",
-        "onboarding",
         "plugins",
         "projects",
         "share",
