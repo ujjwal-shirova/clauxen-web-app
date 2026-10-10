@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,8 @@ type PromptModelSelectorProps = {
    * dialog from the caller instead).
    */
   canOpen?: () => boolean;
+  thinkingEnabled?: boolean;
+  onThinkingEnabledChange?: (enabled: boolean) => void;
 };
 
 export function PromptModelSelector({
@@ -32,6 +35,8 @@ export function PromptModelSelector({
   isFreePlan = false,
   onUpgradeClick,
   canOpen,
+  thinkingEnabled = false,
+  onThinkingEnabledChange,
 }: PromptModelSelectorProps) {
   const activeModel = getChatModelOption(selectedModel);
   const [open, setOpen] = useState(false);
@@ -114,6 +119,24 @@ export function PromptModelSelector({
             </DropdownMenuItem>
           );
         })}
+        {onThinkingEnabledChange ? (
+          <>
+            <div
+              role="separator"
+              className="mx-2 my-1 h-px bg-[var(--ui-border-subtle,rgba(24,24,27,0.1))]"
+            />
+            <div className="flex min-h-[40px] items-center justify-between gap-3 rounded-[var(--menu-item-radius)] px-2">
+              <span className="text-[13px] font-medium leading-[18px] text-[var(--ui-fg)]">
+                Thinking
+              </span>
+              <Switch
+                checked={thinkingEnabled}
+                onCheckedChange={onThinkingEnabledChange}
+                aria-label="Thinking"
+              />
+            </div>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

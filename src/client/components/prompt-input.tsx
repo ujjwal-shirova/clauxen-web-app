@@ -28,7 +28,6 @@ import {
 import {
   PromptAddMenuPanel,
   type PromptComposeAction,
-  type ThinkingMode,
   type WebSearchMode,
 } from "./prompt-add-menu";
 import {
@@ -77,6 +76,8 @@ function openOverlayHash(overlay: Parameters<typeof overlayToHash>[0]) {
   window.history.pushState(null, "", url);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
+
+type ThinkingMode = "on" | "off";
 
 interface PromptInputProps {
   onSendMessage: (prompt: string, options?: SendMessageOptions) => void;
@@ -1302,11 +1303,6 @@ export function PromptInput({
         }}
         webSearchMode={webSearchMode}
         onWebSearchModeChange={handleWebSearchModeChange}
-        thinkingMode={thinkingMode}
-        onThinkingModeChange={handleThinkingModeChange}
-        onOpenSkills={() =>
-          openOverlayHash({ type: "settings", tab: "Skills" })
-        }
       />
     </div>
   );
@@ -1318,6 +1314,10 @@ export function PromptInput({
         onSelectedModelChange={onChatModelChange}
         canOpen={requireAuthGate}
         isFreePlan={isFreePlan}
+        thinkingEnabled={thinkingMode === "on"}
+        onThinkingEnabledChange={(enabled) =>
+          handleThinkingModeChange(enabled ? "on" : "off")
+        }
         onUpgradeClick={
           onUpgradeClick ?? (() => openOverlayHash({ type: "pricing" }))
         }

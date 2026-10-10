@@ -12,12 +12,10 @@ import {
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import {
-  Brain,
   Check,
   ChevronRight,
   Globe,
   Paperclip,
-  ScrollText,
   Telescope,
   type LucideIcon,
 } from "lucide-react";
@@ -26,16 +24,13 @@ import { useIsClient } from "@/hooks/use-is-client";
 
 export type PromptComposeAction = "deep-research";
 export type WebSearchMode = "auto" | "off";
-export type ThinkingMode = "on" | "off";
 
 type PromptAddMenuItemId =
   | "files"
-  | "skills"
   | "web-search"
-  | "thinking"
   | "deep-research";
 
-type SubmenuId = "skills" | "web-search" | "thinking";
+type SubmenuId = "web-search";
 
 type PromptAddMenuItem = {
   id: PromptAddMenuItemId;
@@ -56,9 +51,6 @@ export type PromptAddMenuPanelProps = {
   onDeepResearch?: () => void;
   webSearchMode?: WebSearchMode;
   onWebSearchModeChange?: (mode: WebSearchMode) => void;
-  thinkingMode?: ThinkingMode;
-  onThinkingModeChange?: (mode: ThinkingMode) => void;
-  onOpenSkills?: () => void;
   className?: string;
 };
 
@@ -166,40 +158,6 @@ function ToggleSubmenu<T extends string>({
   );
 }
 
-function PlaceholderSubmenu({
-  title,
-  body,
-  actionLabel,
-  onAction,
-}: {
-  title: string;
-  body: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <div className="flex min-w-[var(--popup-width)] flex-col gap-2 p-1">
-      <div>
-        <p className="text-[13px] font-medium leading-[18px] tracking-[-0.08px] text-[var(--ui-fg)]">
-          {title}
-        </p>
-        <p className="mt-0.5 text-[12px] leading-4 text-[var(--ui-fg-muted)]">
-          {body}
-        </p>
-      </div>
-      {actionLabel && onAction ? (
-        <button
-          type="button"
-          onClick={onAction}
-          className="rounded-[var(--menu-item-radius)] bg-[var(--ui-fg)] px-2 py-1.5 text-left text-[12.5px] font-medium leading-[18px] text-[var(--app-panel-bg)] transition-colors hover:opacity-90"
-        >
-          {actionLabel}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
 const HIDDEN_MENU_STYLE: CSSProperties = {
   position: "fixed",
   top: 0,
@@ -228,9 +186,10 @@ function useAnchoredMenuPosition(
     const anchorRect = anchor.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
     const viewportPadding = 12;
+    const panelWidth = Math.min(420, window.innerWidth - viewportPadding * 2);
 
     let left = anchorRect.left;
-    const maxLeft = window.innerWidth - panelRect.width - viewportPadding;
+    const maxLeft = window.innerWidth - panelWidth - viewportPadding;
     left = Math.max(viewportPadding, Math.min(left, maxLeft));
 
     let top: number;
@@ -259,7 +218,7 @@ function useAnchoredMenuPosition(
         prev.top === top &&
         prev.left === left &&
         prev.zIndex === 3000 &&
-        prev.width === anchorRect.width &&
+        prev.width === panelWidth &&
         prev.maxHeight === window.innerHeight - top - viewportPadding
       ) {
         return prev;
@@ -269,7 +228,7 @@ function useAnchoredMenuPosition(
         top,
         left,
         zIndex: 3000,
-        width: anchorRect.width,
+        width: panelWidth,
         maxHeight: window.innerHeight - top - viewportPadding,
         visibility: "visible",
       };
@@ -316,9 +275,6 @@ export function PromptAddMenuPanel({
   onDeepResearch,
   webSearchMode = "auto",
   onWebSearchModeChange,
-  thinkingMode = "off",
-  onThinkingModeChange,
-  onOpenSkills,
   className,
 }: PromptAddMenuPanelProps) {
   const isClient = useIsClient();
@@ -354,14 +310,6 @@ export function PromptAddMenuPanel({
         ]
       : []),
     {
-      id: "skills",
-      label: "Skills",
-      description: "Manage reusable instructions",
-      icon: ScrollText,
-      hasSubmenu: true,
-      onSelect: () => setActiveSubmenu("skills"),
-    },
-    {
       id: "web-search",
       label: "Web search",
       description: "Find real-time news and info",
@@ -380,14 +328,6 @@ export function PromptAddMenuPanel({
           },
         ]
       : []),
-    {
-      id: "thinking",
-      label: "Thinking",
-      description: "Reason through complex questions",
-      icon: Brain,
-      hasSubmenu: true,
-      onSelect: () => setActiveSubmenu("thinking"),
-    },
   ];
 
   const syncSubmenuPlacement = useCallback(
@@ -559,38 +499,6 @@ export function PromptAddMenuPanel({
               onSelect={(mode) => {
                 onWebSearchModeChange?.(mode);
                 onClose();
-              }}
-            />
-          ) : null}
-          {activeSubmenu === "thinking" ? (
-            <ToggleSubmenu
-              mode={thinkingMode}
-              options={[
-                {
-                  id: "on" as const,
-                  label: "On",
-                  description: "Extended reasoning before answering",
-                },
-                {
-                  id: "off" as const,
-                  label: "Off",
-                  description: "Answer without extended reasoning",
-                },
-              ]}
-              onSelect={(mode) => {
-                onThinkingModeChange?.(mode);
-                onClose();
-              }}
-            />
-          ) : null}
-          {activeSubmenu === "skills" ? (
-            <PlaceholderSubmenu
-              title="Skills"
-              body="Reusable instructions the assistant can follow."
-              actionLabel="Manage skills"
-              onAction={() => {
-                onClose();
-                onOpenSkills?.();
               }}
             />
           ) : null}
