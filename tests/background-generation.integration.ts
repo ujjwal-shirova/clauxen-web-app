@@ -422,6 +422,60 @@ async function main() {
         .status,
       404,
     );
+    // Concurrent creation and completed-task reactivation share the same quota lock.
+    await query(
+      `insert into public.scheduled_tasks(user_id,name,requirement,frequency,time_local,timezone,run_date,next_run_at,notification_mode)
+      select $1,'Quota fixture '||n,'No-op fixture','once','12:00','UTC',$2::date,($2||'T12:00:00Z')::timestamptz,'off'
+      from generate_series(1,14) n`,
+      [userId, futureDate],
+    );
+    const quotaBody = {
+      name: "Quota contender",
+      requirement: "No-op fixture",
+      frequency: "once",
+      runDate: futureDate,
+      timeLocal: "12:00",
+      timezone: "UTC",
+      notificationMode: "off",
+    };
+    const contenders = await Promise.all(
+      [1, 2].map(() =>
+        fetch(`${origin}/api/v1/scheduled-tasks`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(quotaBody),
+        }),
+      ),
+    );
+    assert.deepEqual(
+      contenders.map((response) => response.status).sort(),
+      [201, 400],
+    );
+    await query(
+      `update public.scheduled_tasks set status='completed' where id=$1`,
+      [task.id],
+    );
+    const reactivate = () =>
+      fetch(`${origin}/api/v1/scheduled-tasks/${task.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          frequency: "once",
+          runDate: futureDate,
+          dayOfWeek: null,
+          status: "active",
+        }),
+      });
+    assert.equal((await reactivate()).status, 400);
+    const active = await tasksRepo.listScheduledTasks(userId);
+    await tasksRepo.softDeleteScheduledTask(
+      active.find((task) => task.status === "active")!.id,
+      userId,
+    );
+    assert.equal((await reactivate()).status, 200);
+    console.log(
+      "PASS: concurrent creation and completed-task reactivation enforce the 15-task limit",
+    );
     console.log(
       "PASS: scheduled CRUD, validation, manual run deduplication, durable execution, stable result chat, atomic completion, preserved cadence, pause/edit/delete",
     );

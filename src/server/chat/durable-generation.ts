@@ -186,7 +186,9 @@ export async function triggerContinuation(
         headers: {
           "content-type": "application/json",
           "x-clauxen-internal": token,
-          ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+          "user-agent": "clauxen-generations-continuation/1.0",
+          ...(new URL(origin).hostname.endsWith(".vercel.app") &&
+          process.env.VERCEL_AUTOMATION_BYPASS_SECRET
             ? {
                 "x-vercel-protection-bypass":
                   process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
@@ -198,7 +200,15 @@ export async function triggerContinuation(
       },
     );
     // 202 claimed, 409 already handled elsewhere — both mean "not orphaned".
-    return response.status === 202 || response.status === 409;
+    const accepted = response.status === 202 || response.status === 409;
+    if (!accepted)
+      console.warn("[durable-generation] continuation rejected", {
+        jobId,
+        status: response.status,
+        origin,
+      });
+    await response.body?.cancel();
+    return accepted;
   } catch (error) {
     console.warn("[durable-generation] continuation trigger failed:", error);
     return false;

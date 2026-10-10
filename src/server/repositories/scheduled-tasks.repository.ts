@@ -194,8 +194,33 @@ export async function updateScheduledTask(
     attachmentRefs?: Array<Record<string, unknown>>;
   },
 ) {
-  return queryOne<ScheduledTaskRow>(
-    `update public.scheduled_tasks set
+  return withTransaction(async (client) => {
+    if (patch.status === "active" || patch.status === "paused") {
+      await client.query(
+        "select id from public.profiles where id=$1 for update",
+        [userId],
+      );
+      const existing = await client.query<{ status: string }>(
+        "select status from public.scheduled_tasks where id=$1 and user_id=$2 for update",
+        [taskId, userId],
+      );
+      if (
+        existing.rows[0] &&
+        !["active", "paused"].includes(existing.rows[0].status)
+      ) {
+        const active = await client.query<{ count: string }>(
+          "select count(*)::text as count from public.scheduled_tasks where user_id=$1 and status in ('active','paused')",
+          [userId],
+        );
+        if (Number(active.rows[0]?.count) >= 15)
+          throw new AppError(
+            "You can have at most 15 active scheduled tasks.",
+            400,
+          );
+      }
+    }
+    const result = await client.query<ScheduledTaskRow>(
+      `update public.scheduled_tasks set
        name = coalesce($3, name),
        requirement = coalesce($4, requirement),
        frequency = coalesce($5, frequency),
@@ -214,33 +239,35 @@ export async function updateScheduledTask(
        updated_at = now()
      where id = $1 and user_id = $2 and status <> 'deleted'
      returning ${TASK_COLUMNS}`,
-    [
-      taskId,
-      userId,
-      patch.name ?? null,
-      patch.requirement ?? null,
-      patch.frequency ?? null,
-      patch.timeLocal ?? null,
-      patch.timezone ?? null,
-      patch.runDate !== undefined,
-      patch.runDate ?? null,
-      patch.dayOfWeek !== undefined,
-      patch.dayOfWeek ?? null,
-      patch.dayOfMonth !== undefined,
-      patch.dayOfMonth ?? null,
-      patch.expiresAt !== undefined,
-      patch.expiresAt ?? null,
-      patch.nextRunAt !== undefined,
-      patch.nextRunAt ?? null,
-      patch.status ?? null,
-      patch.notificationMode ?? null,
-      patch.modelMode ?? null,
-      patch.skillIds ?? null,
-      patch.attachmentRefs === undefined
-        ? null
-        : JSON.stringify(patch.attachmentRefs),
-    ],
-  );
+      [
+        taskId,
+        userId,
+        patch.name ?? null,
+        patch.requirement ?? null,
+        patch.frequency ?? null,
+        patch.timeLocal ?? null,
+        patch.timezone ?? null,
+        patch.runDate !== undefined,
+        patch.runDate ?? null,
+        patch.dayOfWeek !== undefined,
+        patch.dayOfWeek ?? null,
+        patch.dayOfMonth !== undefined,
+        patch.dayOfMonth ?? null,
+        patch.expiresAt !== undefined,
+        patch.expiresAt ?? null,
+        patch.nextRunAt !== undefined,
+        patch.nextRunAt ?? null,
+        patch.status ?? null,
+        patch.notificationMode ?? null,
+        patch.modelMode ?? null,
+        patch.skillIds ?? null,
+        patch.attachmentRefs === undefined
+          ? null
+          : JSON.stringify(patch.attachmentRefs),
+      ],
+    );
+    return result.rows[0] ?? null;
+  });
 }
 
 export async function softDeleteScheduledTask(taskId: string, userId: string) {
