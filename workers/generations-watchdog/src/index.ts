@@ -9,12 +9,16 @@
  * Secrets (wrangler secret put):
  *   GENERATIONS_INTERNAL_TOKEN
  *   APP_ORIGIN (e.g. https://www.clauxen.com)
+ *   VERCEL_AUTOMATION_BYPASS_SECRET (for the direct Vercel alias)
  */
 
 export interface Env {
   GENERATIONS_INTERNAL_TOKEN?: string;
   /** e.g. https://www.clauxen.com — no trailing slash */
   APP_ORIGIN?: string;
+  /** Direct production alias, avoiding the public domain's bot challenge. */
+  CONTINUATION_ORIGIN?: string;
+  VERCEL_AUTOMATION_BYPASS_SECRET?: string;
 }
 
 const DEFAULT_ORIGIN = "https://www.clauxen.com";
@@ -126,13 +130,19 @@ export default {
         );
       // Destination is configured by the operator, never accepted from request JSON.
       const upstream = await fetch(
-        `${origin(env)}/api/v1/internal/generations/continue`,
+        `${(env.CONTINUATION_ORIGIN?.trim() || origin(env)).replace(/\/+$/, "")}/api/v1/internal/generations/continue`,
         {
           method: "POST",
           headers: {
             "content-type": "application/json",
             "x-clauxen-internal": token,
             "user-agent": "clauxen-generations-watchdog/1.0",
+            ...(env.VERCEL_AUTOMATION_BYPASS_SECRET
+              ? {
+                  "x-vercel-protection-bypass":
+                    env.VERCEL_AUTOMATION_BYPASS_SECRET,
+                }
+              : {}),
           },
           body: JSON.stringify({ jobId }),
           signal: AbortSignal.timeout(15_000),

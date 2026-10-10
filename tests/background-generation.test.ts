@@ -232,6 +232,8 @@ test("continuation relay rejects unauthorized calls before any upstream request"
     {
       GENERATIONS_INTERNAL_TOKEN: "fixture-secret",
       APP_ORIGIN: "https://trusted.test",
+      CONTINUATION_ORIGIN: "https://direct.vercel.app",
+      VERCEL_AUTOMATION_BYPASS_SECRET: "fixture-bypass",
     },
   );
   assert.equal(result.status, 401);
@@ -246,11 +248,15 @@ test("continuation relay validates jobs and ignores caller-provided destinations
     upstreamCalls++;
     assert.equal(
       String(input),
-      "https://trusted.test/api/v1/internal/generations/continue",
+      "https://direct.vercel.app/api/v1/internal/generations/continue",
     );
     assert.equal(
       new Headers(init?.headers).get("x-clauxen-internal"),
       "fixture-secret",
+    );
+    assert.equal(
+      new Headers(init?.headers).get("x-vercel-protection-bypass"),
+      "fixture-bypass",
     );
     assert.deepEqual(JSON.parse(String(init?.body)), {
       jobId: "12345678-1234-1234-1234-123456789abc",
@@ -270,6 +276,8 @@ test("continuation relay validates jobs and ignores caller-provided destinations
       {
         GENERATIONS_INTERNAL_TOKEN: "fixture-secret",
         APP_ORIGIN: "https://trusted.test",
+        CONTINUATION_ORIGIN: "https://direct.vercel.app",
+        VERCEL_AUTOMATION_BYPASS_SECRET: "fixture-bypass",
       },
     );
   try {
@@ -287,5 +295,64 @@ test("continuation relay validates jobs and ignores caller-provided destinations
     assert.equal(upstreamCalls, 1);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test("production continuations use the relay while previews and localhost keep their own origin", async () => {
+  const { env } = await import("../src/server/config/env");
+  const { triggerContinuation } =
+    await import("../src/server/chat/durable-generation");
+  const originalFetch = globalThis.fetch;
+  const saved = {
+    token: env.generationsInternalToken,
+    appUrl: env.appUrl,
+    relay: env.generationsContinuationWorkerUrl,
+    bypass: process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+  };
+  env.generationsInternalToken = "fixture-secret";
+  env.appUrl = "https://production.test";
+  env.generationsContinuationWorkerUrl = "https://relay.test";
+  process.env.VERCEL_AUTOMATION_BYPASS_SECRET = "fixture-bypass";
+  let calledUrl = "";
+  let headers = new Headers();
+  globalThis.fetch = (async (input, init) => {
+    calledUrl = String(input);
+    headers = new Headers(init?.headers);
+    return Response.json({ ok: true }, { status: 202 });
+  }) as typeof fetch;
+  try {
+    assert.equal(
+      await triggerContinuation("https://production.test", "fixture-job"),
+      true,
+    );
+    assert.equal(calledUrl, "https://relay.test/v1/continue");
+    assert.equal(headers.get("x-clauxen-internal"), "fixture-secret");
+    assert.equal(headers.get("x-vercel-protection-bypass"), null);
+    assert.equal(
+      await triggerContinuation("https://preview.vercel.app", "fixture-job"),
+      true,
+    );
+    assert.equal(
+      calledUrl,
+      "https://preview.vercel.app/api/v1/internal/generations/continue",
+    );
+    assert.equal(headers.get("x-vercel-protection-bypass"), "fixture-bypass");
+    assert.equal(
+      await triggerContinuation("http://localhost:9002", "fixture-job"),
+      true,
+    );
+    assert.equal(
+      calledUrl,
+      "http://localhost:9002/api/v1/internal/generations/continue",
+    );
+    assert.equal(headers.get("x-vercel-protection-bypass"), null);
+  } finally {
+    globalThis.fetch = originalFetch;
+    env.generationsInternalToken = saved.token;
+    env.appUrl = saved.appUrl;
+    env.generationsContinuationWorkerUrl = saved.relay;
+    if (saved.bypass === undefined)
+      delete process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    else process.env.VERCEL_AUTOMATION_BYPASS_SECRET = saved.bypass;
   }
 });
