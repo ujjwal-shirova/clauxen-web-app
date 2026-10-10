@@ -220,3 +220,72 @@ test("watchdog does not retry invalid credentials", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("continuation relay rejects unauthorized calls before any upstream request", async () => {
+  const { default: worker } =
+    await import("../workers/generations-watchdog/src/index");
+  const result = await worker.fetch(
+    new Request("https://relay.test/v1/continue", {
+      method: "POST",
+      body: "{}",
+    }),
+    {
+      GENERATIONS_INTERNAL_TOKEN: "fixture-secret",
+      APP_ORIGIN: "https://trusted.test",
+    },
+  );
+  assert.equal(result.status, 401);
+});
+
+test("continuation relay validates jobs and ignores caller-provided destinations", async () => {
+  const { default: worker } =
+    await import("../workers/generations-watchdog/src/index");
+  const originalFetch = globalThis.fetch;
+  let upstreamCalls = 0;
+  globalThis.fetch = (async (input, init) => {
+    upstreamCalls++;
+    assert.equal(
+      String(input),
+      "https://trusted.test/api/v1/internal/generations/continue",
+    );
+    assert.equal(
+      new Headers(init?.headers).get("x-clauxen-internal"),
+      "fixture-secret",
+    );
+    assert.deepEqual(JSON.parse(String(init?.body)), {
+      jobId: "12345678-1234-1234-1234-123456789abc",
+    });
+    return Response.json({ ok: true }, { status: 202 });
+  }) as typeof fetch;
+  const invoke = (body: unknown) =>
+    worker.fetch(
+      new Request("https://relay.test/v1/continue", {
+        method: "POST",
+        headers: {
+          "x-clauxen-internal": "fixture-secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }),
+      {
+        GENERATIONS_INTERNAL_TOKEN: "fixture-secret",
+        APP_ORIGIN: "https://trusted.test",
+      },
+    );
+  try {
+    assert.equal((await invoke({ jobId: "invalid" })).status, 400);
+    assert.equal(upstreamCalls, 0);
+    assert.equal(
+      (
+        await invoke({
+          jobId: "12345678-1234-1234-1234-123456789abc",
+          origin: "http://169.254.169.254",
+        })
+      ).status,
+      202,
+    );
+    assert.equal(upstreamCalls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

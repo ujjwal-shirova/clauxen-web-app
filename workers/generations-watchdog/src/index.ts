@@ -79,13 +79,72 @@ export async function pokeWatchdog(
 }
 
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/health") {
       return new Response(
         JSON.stringify({ ok: true, worker: "generations-watchdog" }),
         { headers: { "content-type": "application/json" } },
       );
+    }
+    if (url.pathname === "/v1/continue" && request.method === "POST") {
+      const token = env.GENERATIONS_INTERNAL_TOKEN?.trim();
+      const candidate = request.headers.get("x-clauxen-internal")?.trim() ?? "";
+      // Compare fixed-size digests so token contents never affect timing.
+      const digest = async (value: string) =>
+        new Uint8Array(
+          await crypto.subtle.digest(
+            "SHA-256",
+            new TextEncoder().encode(value),
+          ),
+        );
+      const [expected, actual] = await Promise.all([
+        digest(token ?? ""),
+        digest(candidate),
+      ]);
+      let mismatch = 0;
+      for (let i = 0; i < expected.length; i++)
+        mismatch |= expected[i] ^ actual[i];
+      if (!token || !candidate || mismatch)
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+      let body: { jobId?: unknown };
+      try {
+        body = (await request.json()) as { jobId?: unknown };
+      } catch {
+        return Response.json({ error: "Invalid JSON" }, { status: 400 });
+      }
+      const jobId = body?.jobId;
+      if (
+        typeof jobId !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          jobId,
+        )
+      )
+        return Response.json(
+          { error: "Valid jobId required" },
+          { status: 400 },
+        );
+      // Destination is configured by the operator, never accepted from request JSON.
+      const upstream = await fetch(
+        `${origin(env)}/api/v1/internal/generations/continue`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-clauxen-internal": token,
+            "user-agent": "clauxen-generations-watchdog/1.0",
+          },
+          body: JSON.stringify({ jobId }),
+          signal: AbortSignal.timeout(15_000),
+        },
+      );
+      return new Response(upstream.body, {
+        status: upstream.status,
+        headers: {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+        },
+      });
     }
     return new Response("Not found", { status: 404 });
   },

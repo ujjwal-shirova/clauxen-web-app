@@ -244,6 +244,9 @@ export const env = {
    * when unset so chaining works with zero extra configuration.
    */
   generationsInternalToken: optional("GENERATIONS_INTERNAL_TOKEN"),
+  generationsContinuationWorkerUrl: optional(
+    "GENERATIONS_CONTINUATION_WORKER_URL",
+  ),
 
   r2ImagesBucket: optional("R2_IMAGES_BUCKET", "clauxen-images"),
   r2AttachmentsBucket: optional(

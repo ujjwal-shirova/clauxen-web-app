@@ -179,26 +179,32 @@ export async function triggerContinuation(
     return false;
   }
   try {
-    const response = await fetch(
-      `${origin.replace(/\/+$/, "")}/api/v1/internal/generations/continue`,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-clauxen-internal": token,
-          "user-agent": "clauxen-generations-continuation/1.0",
-          ...(new URL(origin).hostname.endsWith(".vercel.app") &&
-          process.env.VERCEL_AUTOMATION_BYPASS_SECRET
-            ? {
-                "x-vercel-protection-bypass":
-                  process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
-              }
-            : {}),
-        },
-        body: JSON.stringify({ jobId }),
-        signal: AbortSignal.timeout(CONTINUATION_TIMEOUT_MS),
+    const target = new URL(origin);
+    const useRelay =
+      Boolean(env.generationsContinuationWorkerUrl) &&
+      target.protocol === "https:" &&
+      target.origin === new URL(env.appUrl).origin;
+    const endpoint = useRelay
+      ? `${env.generationsContinuationWorkerUrl.replace(/\/+$/, "")}/v1/continue`
+      : `${origin.replace(/\/+$/, "")}/api/v1/internal/generations/continue`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-clauxen-internal": token,
+        "user-agent": "clauxen-generations-continuation/1.0",
+        ...(!useRelay &&
+        target.hostname.endsWith(".vercel.app") &&
+        process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+          ? {
+              "x-vercel-protection-bypass":
+                process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+            }
+          : {}),
       },
-    );
+      body: JSON.stringify({ jobId }),
+      signal: AbortSignal.timeout(CONTINUATION_TIMEOUT_MS),
+    });
     // 202 claimed, 409 already handled elsewhere — both mean "not orphaned".
     const accepted = response.status === 202 || response.status === 409;
     if (!accepted)
