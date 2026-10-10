@@ -23,48 +23,59 @@ function origin(env: Env): string {
   return (env.APP_ORIGIN?.trim() || DEFAULT_ORIGIN).replace(/\/+$/, "");
 }
 
-async function pokeWatchdog(env: Env): Promise<{ ok: boolean; status: number }> {
+export async function pokeWatchdog(
+  env: Env,
+): Promise<{ ok: boolean; status: number }> {
   const token = env.GENERATIONS_INTERNAL_TOKEN?.trim();
   if (!token) {
-    console.error(
-      JSON.stringify({ event: "watchdog_poke_config_missing" }),
-    );
+    console.error(JSON.stringify({ event: "watchdog_poke_config_missing" }));
     return { ok: false, status: 0 };
   }
-  try {
-    const response = await fetch(
-      `${origin(env)}/api/v1/internal/generations/watchdog?source=cloudflare`,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-clauxen-internal": token,
-          "user-agent": "clauxen-generations-watchdog/1.0",
-          accept: "application/json",
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch(
+        `${origin(env)}/api/v1/internal/generations/watchdog?source=cloudflare`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-clauxen-internal": token,
+            "user-agent": "clauxen-generations-watchdog/1.0",
+            accept: "application/json",
+          },
+          body: "{}",
+          signal: AbortSignal.timeout(15_000),
         },
-        body: "{}",
-      },
-    );
-    const text = await response.text().catch(() => "");
-    if (!response.ok) {
+      );
+      await response.body?.cancel();
+      if (!response.ok) {
+        console.error(
+          JSON.stringify({
+            event: "watchdog_poke_failed",
+            status: response.status,
+            attempt,
+          }),
+        );
+      }
+      if (
+        response.ok ||
+        (response.status < 500 && response.status !== 429) ||
+        attempt === 2
+      ) {
+        return { ok: response.ok, status: response.status };
+      }
+    } catch (error) {
       console.error(
         JSON.stringify({
-          event: "watchdog_poke_failed",
-          status: response.status,
-          body: text.slice(0, 300),
+          event: "watchdog_poke_network_error",
+          error: error instanceof Error ? error.message : String(error),
         }),
       );
+      if (attempt === 2) return { ok: false, status: 0 };
     }
-    return { ok: response.ok, status: response.status };
-  } catch (error) {
-    console.error(
-      JSON.stringify({
-        event: "watchdog_poke_network_error",
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
-    return { ok: false, status: 0 };
+    await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
   }
+  return { ok: false, status: 0 };
 }
 
 export default {

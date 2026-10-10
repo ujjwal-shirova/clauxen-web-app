@@ -8,7 +8,6 @@ export interface Env {
 }
 
 const TURN_ARCHIVE_AFTER_MS = 24 * 60 * 60 * 1000;
-const TURN_STALE_MS = 3 * 60 * 1000;
 
 export type LiveTurnStatus = "running" | "complete" | "failed" | "cancelled";
 
@@ -65,9 +64,7 @@ export class ChatCoord extends DurableObject<Env> {
       times.push(lease.expiresAt ?? lease.startedAt + LEASE_TTL_MS);
     }
     const turn = await this.readTurn();
-    if (turn?.status === "running") {
-      times.push(Date.now() + 60_000);
-    } else if (turn?.archiveAt) {
+    if (turn?.archiveAt) {
       times.push(turn.archiveAt);
     }
     if (times.length === 0) {
@@ -168,8 +165,24 @@ export class ChatCoord extends DurableObject<Env> {
   }
 
   async putTurn(
-    input: Omit<LiveTurnRecord, "updatedAt" | "archiveAt">,
+    input: Omit<LiveTurnRecord, "updatedAt" | "archiveAt"> & {
+      leaseId?: string;
+    },
   ): Promise<{ ok: true; archiveAt: number | null }> {
+    const current = await this.readTurn();
+    if (input.leaseId) {
+      const lease = await this.readState();
+      if (!lease || lease.leaseId !== input.leaseId || lease.stopRequested) {
+        return { ok: true, archiveAt: current?.archiveAt ?? null };
+      }
+    }
+    if (
+      current?.assistantId === input.assistantId &&
+      current.status !== "running" &&
+      input.status === "running"
+    ) {
+      return { ok: true, archiveAt: current.archiveAt };
+    }
     const now = Date.now();
     const answer = input.answer.slice(0, 120_000);
     const terminal = input.status !== "running";
@@ -191,41 +204,28 @@ export class ChatCoord extends DurableObject<Env> {
   async readTurnPublic(): Promise<LiveTurnRecord | null> {
     const turn = await this.readTurn();
     if (!turn) return null;
-    if (
-      turn.status === "running" &&
-      Date.now() - turn.updatedAt > TURN_STALE_MS
-    ) {
-      const stalled: LiveTurnRecord = {
-        ...turn,
-        status: "failed",
-        archiveAt: Date.now() + TURN_ARCHIVE_AFTER_MS,
-        updatedAt: Date.now(),
-      };
-      await this.writeTurn(stalled);
-      await this.scheduleAlarm();
-      return stalled;
-    }
     return turn;
   }
 
   private async archiveTurn(turn: LiveTurnRecord): Promise<boolean> {
     const token = this.env.CHAT_COORD_INTERNAL_TOKEN?.trim();
     if (!token) return false;
-    const origin = (this.env.APP_ORIGIN?.trim() || "https://www.clauxen.com").replace(
-      /\/+$/,
-      "",
-    );
+    const origin = (
+      this.env.APP_ORIGIN?.trim() || "https://www.clauxen.com"
+    ).replace(/\/+$/, "");
     try {
       const response = await fetch(
-        `${origin}/api/v1/internal/live-turns/archive`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-clauxen-internal": token,
-          "user-agent": "ClauxenChatCoord/1.0 (+https://clauxen.com)",
+        `${origin}/api/v1/internal/live-turns/archive`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-clauxen-internal": token,
+            "user-agent": "ClauxenChatCoord/1.0 (+https://clauxen.com)",
+          },
+          body: JSON.stringify(turn),
         },
-        body: JSON.stringify(turn),
-      });
+      );
       return response.ok;
     } catch {
       return false;
@@ -238,16 +238,6 @@ export class ChatCoord extends DurableObject<Env> {
     if (lease) {
       const expiresAt = lease.expiresAt ?? lease.startedAt + LEASE_TTL_MS;
       if (now >= expiresAt) await this.writeState(null);
-    }
-
-    const turn = await this.readTurn();
-    if (turn?.status === "running" && now - turn.updatedAt > TURN_STALE_MS) {
-      await this.writeTurn({
-        ...turn,
-        status: "failed",
-        archiveAt: now + TURN_ARCHIVE_AFTER_MS,
-        updatedAt: now,
-      });
     }
 
     const due = await this.readTurn();
@@ -387,6 +377,7 @@ export default {
       }
       const result = await stub.putTurn({
         ...snapshot,
+        leaseId: typeof body.leaseId === "string" ? body.leaseId : undefined,
         chatId,
         answer: typeof snapshot.answer === "string" ? snapshot.answer : "",
       });

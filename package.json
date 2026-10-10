@@ -20,6 +20,8 @@
     "start": "NODE_OPTIONS='--disable-warning=DEP0205' next start",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
+    "test:scheduled": "tsx --test tests/scheduled-tasks.test.ts",
+    "test:background": "tsx --test tests/background-generation.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -29,7 +31,8 @@
     "supabase:functions:list": "supabase functions list",
     "strip:annotations": "node .tools/strip-hindi-annotations.mjs",
     "audit:public-env": "node scripts/audit-public-env.mjs",
-    "vercel:env:sync": "node scripts/sync-vercel-env-api.mjs"
+    "vercel:env:sync": "node scripts/sync-vercel-env-api.mjs",
+    "test:background:integration": "tsx tests/background-generation.integration.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",

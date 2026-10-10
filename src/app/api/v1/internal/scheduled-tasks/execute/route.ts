@@ -1,7 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { AppError } from "@/server/db/errors";
 import { isScheduledTasksInternalRequest } from "@/server/http/internal-scheduled-tasks-auth";
 import { executeScheduledRun } from "@/server/services/scheduled-tasks.service";
+
+import {
+  generationExecutionOrigin,
+  triggerContinuation,
+} from "@/server/chat/durable-generation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,7 +34,12 @@ export async function POST(request: NextRequest) {
     );
   }
   try {
-    const result = await executeScheduledRun(runId);
+    const origin = generationExecutionOrigin(request.url);
+    const result = await executeScheduledRun(runId, origin);
+    if (result.jobId)
+      after(async () => {
+        await triggerContinuation(origin, result.jobId!);
+      });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     const status = error instanceof AppError ? error.status : 500;

@@ -42,12 +42,13 @@ async function run(request: NextRequest) {
   );
   const result = { ...recovered, orphansSettled };
   // Liveness signal: one tiny upsert per poke, best-effort, never blocks.
-  const source = (url.searchParams.get("source") ?? "manual")
-    .trim()
-    .slice(0, 32)
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]/g, "") || "manual";
-  void query(
+  const source =
+    (url.searchParams.get("source") ?? "manual")
+      .trim()
+      .slice(0, 32)
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "") || "manual";
+  await query(
     `insert into private.watchdog_heartbeats (source, last_poke_at, last_result)
      values ($1, now(), $2::jsonb)
      on conflict (source) do update

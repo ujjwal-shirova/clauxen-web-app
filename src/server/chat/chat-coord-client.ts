@@ -119,6 +119,7 @@ export async function getChatCoordStatus(chatId: string): Promise<{
 }
 
 export type LiveTurnSnapshot = {
+  leaseId?: string;
   chatId: string;
   userId: string;
   assistantId: string;
@@ -156,7 +157,9 @@ async function coordPost(path: string, body: unknown) {
 }
 
 /** Hot path: the in-progress trace lives on the Cloudflare Durable Object. */
-export async function publishLiveTurn(snapshot: LiveTurnSnapshot): Promise<boolean> {
+export async function publishLiveTurn(
+  snapshot: LiveTurnSnapshot,
+): Promise<boolean> {
   if (!isChatCoordConfigured()) return false;
   const data = await coordPost("/turn", snapshot);
   return Boolean(data?.ok);

@@ -254,6 +254,17 @@ function buildHealingTools(): Map<string, ToolDefinition> {
   return map;
 }
 
+/** Persisted tool plan/results. An uncertain side effect is never replayed. */
+export type AgentPendingToolRound = {
+  step: number;
+  calls: Array<{ id: string; name: string; arguments: string }>;
+  executingCallId?: string;
+  results: Record<string, { output: unknown; pause: boolean }>;
+  modelOutput?: OpenAIOutputItem[];
+  reason?: string;
+  startedAtMs: number;
+};
+
 export type AgentStreamOptions = {
   messages: Array<{
     role: string;
@@ -306,7 +317,15 @@ export type AgentStreamOptions = {
     narrationCounter: number;
     /** Tool calls completed this round (empty on final/text rounds). */
     toolCallIds: string[];
+    terminalOutcome?: "done" | "paused";
   }) => void | Promise<void>;
+  initialPendingToolRound?: AgentPendingToolRound;
+  initialTerminalOutcome?: "done" | "paused";
+  beforeTool?: () => Promise<void>;
+  onToolRoundState?: (
+    conversation: OpenAIInputItem[],
+    pending: AgentPendingToolRound,
+  ) => Promise<void>;
   /** Outcome holder the caller reads after the stream finishes. */
   loopResult?: { outcome: AgentLoopOutcome };
 };
@@ -420,9 +439,9 @@ export async function runAutonomousAgent(
     options.initialConversation && options.initialConversation.length > 0
       ? // Deep copy: the loop mutates this list and must never mutate the
         // stored checkpoint it was restored from.
-        JSON.parse(
+        (JSON.parse(
           JSON.stringify(options.initialConversation),
-        ) as OpenAIInputItem[]
+        ) as OpenAIInputItem[])
       : rawMessages
           .filter((m) => m.role === "user" || m.role === "assistant")
           .map(
@@ -442,19 +461,16 @@ export async function runAutonomousAgent(
   const reportRoundEnd = async (
     nextStep: number,
     toolCallIds: string[] = [],
+    terminalOutcome?: "done" | "paused",
   ): Promise<void> => {
     if (!onRoundEnd) return;
-    try {
-      await onRoundEnd({
-        step: nextStep,
-        conversation: snapshotConversation(),
-        narrationCounter,
-        toolCallIds,
-      });
-    } catch {
-      // Checkpoint failures must never break the visible stream; the runner
-      // re-checkpoints on yield and the watchdog recovers dead slices.
-    }
+    await onRoundEnd({
+      step: nextStep,
+      conversation: snapshotConversation(),
+      narrationCounter,
+      toolCallIds,
+      terminalOutcome,
+    });
   };
   let activeNarrationId: string | null = null;
   let activeThinkingId: string | null = null;
@@ -489,6 +505,8 @@ export async function runAutonomousAgent(
   };
 
   try {
+    if (options.initialTerminalOutcome)
+      return finish(options.initialTerminalOutcome);
     for (let step = startStep; step < MAX_STEPS; step++) {
       if (signal?.aborted) {
         sse.writeError("Generation aborted.");
@@ -499,12 +517,20 @@ export async function runAutonomousAgent(
         // round has run, so the resume simply re-runs it.
         closeThinking();
         closeNarration();
-        await reportRoundEnd(step);
         return finish("yielded");
       }
 
-      const modelTurnStartedAtMs = Date.now();
-      const pendingToolCalls: PendingToolCall[] = [];
+      const recoveringRound =
+        step === startStep ? options.initialPendingToolRound : undefined;
+      if (recoveringRound?.executingCallId) {
+        throw new Error(
+          "A server interrupted a tool while it was executing. Its external result is uncertain, so the task stopped to avoid repeating that action.",
+        );
+      }
+      const modelTurnStartedAtMs = recoveringRound?.startedAtMs ?? Date.now();
+      const pendingToolCalls: PendingToolCall[] = [
+        ...(recoveringRound?.calls ?? []),
+      ];
       const toolCallBuffers = new Map<
         string,
         { name: string; argsBuffer: string }
@@ -529,117 +555,124 @@ export async function runAutonomousAgent(
           ? AbortSignal.any(roundSignals)
           : (roundSignals[0] ?? undefined);
 
-      const stream = deps.callModel({
-        model: options.model,
-        instructions: systemPrompt,
-        input: conversation,
-        tools: openAITools.length > 0 ? openAITools : undefined,
-        maxOutputTokens: maxTokens ?? 8192,
-        reasoningEffort:
-          thinkingBudget >= 10_000
-            ? "high"
-            : thinkingBudget >= 5_000
-              ? "medium"
-              : thinkingBudget > 0
-                ? "low"
-                : undefined,
-        signal: roundSignal,
-      });
+      if (!recoveringRound) {
+        const stream = deps.callModel({
+          model: options.model,
+          instructions: systemPrompt,
+          input: conversation,
+          tools: openAITools.length > 0 ? openAITools : undefined,
+          maxOutputTokens: maxTokens ?? 8192,
+          reasoningEffort:
+            thinkingBudget >= 10_000
+              ? "high"
+              : thinkingBudget >= 5_000
+                ? "medium"
+                : thinkingBudget > 0
+                  ? "low"
+                  : undefined,
+          signal: roundSignal,
+        });
 
-      for await (const part of stream) {
-        switch (part.type) {
-          case "reasoning-delta": {
-            if (!part.delta || thinkingBudget <= 0) break;
-            const thinkingId = ensureThinking();
-            sse.writeThinkingDelta(part.delta, thinkingId);
-            break;
-          }
+        for await (const part of stream) {
+          switch (part.type) {
+            case "reasoning-delta": {
+              if (!part.delta || thinkingBudget <= 0) break;
+              const thinkingId = ensureThinking();
+              sse.writeThinkingDelta(part.delta, thinkingId);
+              break;
+            }
 
-          case "text-delta": {
-            const visible = sanitizeAssistantStreamDelta(part.delta);
-            if (!visible) break;
-            closeThinking();
-            const segmentId = ensureNarration();
-            roundNarrationId = segmentId;
-            roundText += visible;
-            sse.writeNarrationDelta(segmentId, visible);
-            break;
-          }
+            case "text-delta": {
+              const visible = sanitizeAssistantStreamDelta(part.delta);
+              if (!visible) break;
+              closeThinking();
+              const segmentId = ensureNarration();
+              roundNarrationId = segmentId;
+              roundText += visible;
+              sse.writeNarrationDelta(segmentId, visible);
+              break;
+            }
 
-          case "tool-call-start":
-            closeThinking();
-            // Pre-tool prose stays as narration — close it before the tool row.
-            closeNarration();
-            sse.writeToolStart(
-              part.toolCallId,
-              part.toolName,
-              undefined,
-              undefined,
-              false,
-            );
-            toolCallBuffers.set(part.toolCallId, {
-              name: part.toolName,
-              argsBuffer: "",
-            });
-            break;
-
-          case "tool-call-delta": {
-            const entry = toolCallBuffers.get(part.toolCallId) ?? {
-              name: "",
-              argsBuffer: "",
-            };
-            entry.argsBuffer += part.argumentsDelta;
-            toolCallBuffers.set(part.toolCallId, entry);
-            const preview = previewToolArgs(entry.argsBuffer);
-            if (entry.name && Object.keys(preview).length > 0) {
-              const dynamicDescription =
-                typeof preview.description === "string"
-                  ? preview.description
-                  : undefined;
+            case "tool-call-start":
+              closeThinking();
+              // Pre-tool prose stays as narration — close it before the tool row.
+              closeNarration();
               sse.writeToolStart(
                 part.toolCallId,
-                entry.name,
-                preview,
-                dynamicDescription,
+                part.toolName,
+                undefined,
+                undefined,
                 false,
               );
+              toolCallBuffers.set(part.toolCallId, {
+                name: part.toolName,
+                argsBuffer: "",
+              });
+              break;
+
+            case "tool-call-delta": {
+              const entry = toolCallBuffers.get(part.toolCallId) ?? {
+                name: "",
+                argsBuffer: "",
+              };
+              entry.argsBuffer += part.argumentsDelta;
+              toolCallBuffers.set(part.toolCallId, entry);
+              const preview = previewToolArgs(entry.argsBuffer);
+              if (entry.name && Object.keys(preview).length > 0) {
+                const dynamicDescription =
+                  typeof preview.description === "string"
+                    ? preview.description
+                    : undefined;
+                sse.writeToolStart(
+                  part.toolCallId,
+                  entry.name,
+                  preview,
+                  dynamicDescription,
+                  false,
+                );
+              }
+              break;
             }
-            break;
+
+            case "tool-call-end":
+              pendingToolCalls.push({
+                id: part.toolCallId,
+                name: part.toolName,
+                arguments: part.arguments,
+              });
+              break;
+
+            case "finish":
+              finished = {
+                reason: part.reason,
+                output: part.output,
+                replay: part.replay,
+              };
+              break;
+
+            case "error":
+              console.error("[chat] model stream error:", part.error);
+              sse.writeError(part.error);
+              return finish("error");
+
+            case "abort":
+              if (!signal?.aborted && yieldSignal?.aborted) {
+                // Hard slice deadline hit mid-stream. This round issued
+                // nothing durable yet, so the next slice re-runs it cleanly.
+                closeThinking();
+                closeNarration();
+                return finish("yielded");
+              }
+              sse.writeError("Generation aborted.");
+              return finish("aborted");
           }
-
-          case "tool-call-end":
-            pendingToolCalls.push({
-              id: part.toolCallId,
-              name: part.toolName,
-              arguments: part.arguments,
-            });
-            break;
-
-          case "finish":
-            finished = {
-              reason: part.reason,
-              output: part.output,
-              replay: part.replay,
-            };
-            break;
-
-          case "error":
-            console.error("[chat] model stream error:", part.error);
-            sse.writeError(part.error);
-            return finish("error");
-
-          case "abort":
-            if (!signal?.aborted && yieldSignal?.aborted) {
-              // Hard slice deadline hit mid-stream. This round issued
-              // nothing durable yet, so the next slice re-runs it cleanly.
-              closeThinking();
-              closeNarration();
-              await reportRoundEnd(step);
-              return finish("yielded");
-            }
-            sse.writeError("Generation aborted.");
-            return finish("aborted");
         }
+      } else {
+        finished = {
+          reason: recoveringRound.reason ?? "tool_calls",
+          output: recoveringRound.modelOutput ?? [],
+          replay: [],
+        };
       }
 
       // A yield that landed between stream end and round handling still stops
@@ -648,7 +681,6 @@ export async function runAutonomousAgent(
       if (!signal?.aborted && (yieldSignal?.aborted || shouldYield?.())) {
         closeThinking();
         closeNarration();
-        await reportRoundEnd(step);
         return finish("yielded");
       }
 
@@ -675,12 +707,14 @@ export async function runAutonomousAgent(
             // Transcript capture must never break the visible response.
           }
         }
-        await reportRoundEnd(step + 1);
+        await reportRoundEnd(step + 1, [], "done");
         break;
       }
 
       // ── Tool round: the round's text stays as narration; execute tools. ──
-      if (!finished || finished.replay.length === 0) {
+      if (recoveringRound) {
+        // The persisted conversation already includes this round's tool plan.
+      } else if (!finished || finished.replay.length === 0) {
         if (pendingToolCalls.length === 0) {
           const finalText = stripChatTitleMarkup(roundText).trim();
           if (finalText) {
@@ -704,6 +738,15 @@ export async function runAutonomousAgent(
         conversation.push(...finished.replay);
       }
 
+      const durableRound: AgentPendingToolRound = recoveringRound ?? {
+        step,
+        calls: pendingToolCalls,
+        results: {},
+        modelOutput: finished?.output,
+        reason: finished?.reason,
+        startedAtMs: modelTurnStartedAtMs,
+      };
+      await options.onToolRoundState?.(snapshotConversation(), durableRound);
       let pauseForUser = false;
       const toolResults: Array<{
         toolCallId: string;
@@ -731,74 +774,102 @@ export async function runAutonomousAgent(
         let outcomeOutput: unknown;
         let outcomePause = false;
 
-        // Connected-plugin tools run through the MCP runtime rather than the
-        // built-in autonomous catalog. The name carries the plugin slug and
-        // the remote tool, e.g. mcp__gmail__search_emails.
-        const mcpTarget =
-          tc.name.startsWith("mcp__") && userId
-            ? await resolveMcpToolCall(userId, tc.name, rawArgs)
-            : null;
-
-        if (mcpTarget) {
-          const mcpOutcome = await executeMcpToolCall(mcpTarget);
-          outcomeOutput = {
-            plugin: mcpOutcome.pluginName,
-            tool: mcpTarget.toolName,
-            output: mcpOutcome.output,
-            ...(mcpOutcome.isError ? { error: true } : {}),
-          };
+        const savedResult = durableRound.results[tc.id];
+        if (savedResult) {
+          outcomeOutput = savedResult.output;
+          outcomePause = savedResult.pause;
         } else {
-          const healingTool = healingTools.get(tc.name);
-
-        if (healingTool) {
-          const ctx: ToolExecutionContext = {
-            userId,
-            conversationId: conversationId ?? "chat",
-            userCountryCode,
-            toolCallId: tc.id,
-            modelId: options.model,
-            onProgress: (data) => {
-              if (tc.name === "web_search") {
-                sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
-              } else if (
-                (tc.name === "bash_tool" || tc.name === "execute_code") &&
-                (data.kind === "stdout" || data.kind === "stderr") &&
-                typeof data.delta === "string"
-              ) {
-                sse.writeToolOutputDelta(tc.id, data.kind, data.delta);
-              }
-            },
-          };
-          const healed = healToolArgs(rawArgs, healingTool.inputSchema);
-          const result = await executeToolSafely(
-            healingTool,
-            healed ?? rawArgs,
-            ctx,
+          // Check ownership and journal intent before any external side effect.
+          await options.beforeTool?.();
+          durableRound.executingCallId = tc.id;
+          await options.onToolRoundState?.(
+            snapshotConversation(),
+            durableRound,
           );
-          outcomeOutput = result.output;
-          outcomePause = result.pauseForUser === true;
-        } else {
-          try {
-            const outcome = await executeAutonomousTool(tc.name, rawArgs, {
-              conversationId: conversationId ?? "chat",
-              userId,
-              userCountryCode,
-              toolCallId: tc.id,
-              modelId: options.model,
-              onToolProgress: (data) => {
-                if (tc.name === "web_search") {
-                  sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
-                }
-              },
-            });
-            outcomeOutput = outcome.output;
-            outcomePause = outcome.pauseForUser === true;
-          } catch (error) {
+
+          // Connected-plugin tools run through the MCP runtime rather than the
+          // built-in autonomous catalog. The name carries the plugin slug and
+          // the remote tool, e.g. mcp__gmail__search_emails.
+          const mcpTarget =
+            tc.name.startsWith("mcp__") && userId
+              ? await resolveMcpToolCall(userId, tc.name, rawArgs)
+              : null;
+
+          if (mcpTarget) {
+            const mcpOutcome = await executeMcpToolCall(mcpTarget);
             outcomeOutput = {
-              error: error instanceof Error ? error.message : String(error),
+              plugin: mcpOutcome.pluginName,
+              tool: mcpTarget.toolName,
+              output: mcpOutcome.output,
+              ...(mcpOutcome.isError ? { error: true } : {}),
             };
+          } else {
+            const healingTool = healingTools.get(tc.name);
+
+            if (healingTool) {
+              const ctx: ToolExecutionContext = {
+                userId,
+                conversationId: conversationId ?? "chat",
+                userCountryCode,
+                toolCallId: tc.id,
+                modelId: options.model,
+                onProgress: (data) => {
+                  if (tc.name === "web_search") {
+                    sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
+                  } else if (
+                    (tc.name === "bash_tool" || tc.name === "execute_code") &&
+                    (data.kind === "stdout" || data.kind === "stderr") &&
+                    typeof data.delta === "string"
+                  ) {
+                    sse.writeToolOutputDelta(tc.id, data.kind, data.delta);
+                  }
+                },
+              };
+              const healed = healToolArgs(rawArgs, healingTool.inputSchema);
+              const result = await executeToolSafely(
+                healingTool,
+                healed ?? rawArgs,
+                ctx,
+              );
+              outcomeOutput = result.output;
+              outcomePause = result.pauseForUser === true;
+            } else {
+              try {
+                const outcome = await executeAutonomousTool(tc.name, rawArgs, {
+                  conversationId: conversationId ?? "chat",
+                  userId,
+                  userCountryCode,
+                  toolCallId: tc.id,
+                  modelId: options.model,
+                  onToolProgress: (data) => {
+                    if (tc.name === "web_search") {
+                      sse.writeToolData(tc.id, {
+                        ...data,
+                        tool_call_id: tc.id,
+                      });
+                    }
+                  },
+                });
+                outcomeOutput = outcome.output;
+                outcomePause = outcome.pauseForUser === true;
+              } catch (error) {
+                outcomeOutput = {
+                  error: error instanceof Error ? error.message : String(error),
+                };
+              }
+            }
           }
-        }
+
+          durableRound.results[tc.id] = {
+            output: outcomeOutput ?? {},
+            pause: outcomePause,
+          };
+          delete durableRound.executingCallId;
+          // Save the result before the next tool can start. On recovery it is replayed.
+          await options.onToolRoundState?.(
+            snapshotConversation(),
+            durableRound,
+          );
         }
 
         // Streamed search hits for the results card.
@@ -879,9 +950,8 @@ export async function runAutonomousAgent(
       }
 
       if (userId) {
-        const { resolveVisionImageBlocks } = await import(
-          "@/server/inference/vision-attachments"
-        );
+        const { resolveVisionImageBlocks } =
+          await import("@/server/inference/vision-attachments");
         for (const result of toolResults) {
           if (!result.imageFileId) continue;
           const blocks = await resolveVisionImageBlocks({
@@ -923,6 +993,7 @@ export async function runAutonomousAgent(
       await reportRoundEnd(
         step + 1,
         toolResults.map((result) => result.toolCallId),
+        pauseForUser ? "paused" : undefined,
       );
 
       if (pauseForUser) {
@@ -935,10 +1006,7 @@ export async function runAutonomousAgent(
         break;
       }
 
-      if (
-        !signal?.aborted &&
-        (yieldSignal?.aborted || shouldYield?.())
-      ) {
+      if (!signal?.aborted && (yieldSignal?.aborted || shouldYield?.())) {
         return finish("yielded");
       }
     }

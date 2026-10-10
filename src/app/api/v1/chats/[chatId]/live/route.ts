@@ -5,6 +5,7 @@ import * as chatsRepo from "@/server/repositories/chats.repository";
 import { readLiveTurn } from "@/server/chat/chat-coord-client";
 import { getActiveGenerationJobForChat } from "@/server/repositories/generation-jobs.repository";
 import { buildAssistantTranscriptRecord } from "@/server/training/transcript-format";
+import { queryOne } from "@/server/db/pool";
 import { notFound } from "@/server/db/errors";
 
 export const runtime = "nodejs";
@@ -20,22 +21,47 @@ export const GET = withApiRouteParams<{ chatId: string }>(
     const user = requireSession(session);
     const chat = await chatsRepo.getChatForUser(params.chatId, user.id);
     if (!chat) throw notFound("Chat not found.");
-    const turn = await readLiveTurn(params.chatId);
-    if (turn) {
-      if (turn.userId !== user.id) {
-        return jsonData({ turn: null });
+    const [turn, job] = await Promise.all([
+      readLiveTurn(params.chatId),
+      getActiveGenerationJobForChat(params.chatId),
+    ]);
+    if (!job) {
+      if (turn?.userId !== user.id) return jsonData({ turn: null });
+      const saved = await queryOne<{
+        content: string;
+        content_json: unknown;
+        status: string;
+        updated_at: string;
+      }>(
+        `select content, content_json, status, updated_at from public.chat_messages
+         where id = $1 and chat_id = $2 and user_id = $3 and role = 'assistant'`,
+        [turn.assistantId, params.chatId, user.id],
+      );
+      // Terminal Postgres state always wins over a stale live mirror.
+      if (saved && ["complete", "failed", "cancelled"].includes(saved.status)) {
+        return jsonData({
+          turn: {
+            ...turn,
+            answer: saved.content ?? "",
+            contentJson: saved.content_json,
+            status: saved.status,
+            updatedAt: new Date(saved.updated_at).getTime(),
+          },
+        });
       }
-      return jsonData({ turn });
-    }
-
-    // Coordinator unreachable or trace expired: rebuild the live view from
-    // the durable job checkpoint (round-boundary state, at most one round
-    // behind the model).
-    const job = await getActiveGenerationJobForChat(params.chatId).catch(
-      () => null,
-    );
-    if (!job || job.user_id !== user.id) {
       return jsonData({ turn: null });
+    }
+    const identity = {
+      assistantClientId: job.input.turn?.assistantClientId,
+      userMessageId: job.user_message_id,
+      userClientId: job.input.turn?.userClientId,
+    };
+    if (
+      turn?.userId === user.id &&
+      turn.assistantId === job.assistant_message_id &&
+      turn.status === "running"
+    ) {
+      return jsonData({ turn: { ...turn, ...identity } });
     }
     const checkpoint = job.checkpoint ?? {};
     const assistantId =
@@ -43,10 +69,33 @@ export const GET = withApiRouteParams<{ chatId: string }>(
     if (!assistantId) {
       return jsonData({ turn: null });
     }
+    const partial = await queryOne<{
+      content: string;
+      content_json: unknown;
+      updated_at: string;
+    }>(
+      `select content, content_json, updated_at from public.chat_messages
+       where id = $1 and chat_id = $2 and user_id = $3 and status = 'streaming'`,
+      [assistantId, params.chatId, user.id],
+    );
+    if (partial)
+      return jsonData({
+        turn: {
+          ...identity,
+          chatId: params.chatId,
+          userId: user.id,
+          assistantId,
+          status: "running",
+          answer: partial.content ?? "",
+          contentJson: partial.content_json,
+          updatedAt: new Date(partial.updated_at).getTime(),
+        },
+      });
     const answer =
       typeof checkpoint.answer === "string" ? checkpoint.answer : "";
     return jsonData({
       turn: {
+        ...identity,
         chatId: params.chatId,
         userId: user.id,
         assistantId,
@@ -68,7 +117,7 @@ export const GET = withApiRouteParams<{ chatId: string }>(
               : [],
           },
         }),
-        updatedAt: Date.now(),
+        updatedAt: new Date(job.updated_at).getTime(),
       },
     });
   },

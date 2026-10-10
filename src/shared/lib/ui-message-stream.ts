@@ -257,6 +257,13 @@ export function uiMessageChunkToStreamEvents(
 
 const MAX_SSE_BUFFER_BYTES = 256 * 1024;
 
+export type ChatStreamOutcome =
+  | "completed"
+  | "failed"
+  | "backgrounded"
+  | "interrupted"
+  | "aborted";
+
 /**
  * Parse a Vercel AI SDK UI message SSE response into legacy StreamEvents.
  * Falls back to legacy JSON events when the response is not an AI SDK stream.
@@ -265,7 +272,7 @@ export async function consumeClauxenStreamResponse(
   response: Response,
   onEvent: (event: StreamEvent) => void,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<ChatStreamOutcome> {
   if (!response.ok || !response.body) {
     throw new Error("Failed to generate response");
   }
@@ -274,12 +281,12 @@ export async function consumeClauxenStreamResponse(
     response.headers.get("x-vercel-ai-ui-message-stream") === "v1";
 
   if (!isUiMessageStream) {
-    let streamComplete = false;
+    let outcome: ChatStreamOutcome = "interrupted";
     const parseChunk = createSseParser((event) => {
+      if (event.type === "done") outcome = "completed";
+      if (event.type === "error") outcome = "failed";
+      if (event.type === "backgrounded") outcome = "backgrounded";
       onEvent(event);
-      if (event.type === "done" || event.type === "error") {
-        streamComplete = true;
-      }
     });
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -292,7 +299,7 @@ export async function consumeClauxenStreamResponse(
         const { done, value } = await reader.read();
         if (done) break;
         parseChunk(decoder.decode(value, { stream: true }));
-        if (streamComplete) {
+        if (outcome !== "interrupted") {
           await reader.cancel();
           break;
         }
@@ -300,19 +307,15 @@ export async function consumeClauxenStreamResponse(
     } finally {
       reader.releaseLock();
     }
-    if (!streamComplete && !signal?.aborted) {
-      // Proxies idle-cut SSE mid-turn. Soft-complete so
-      // continues: keep painted tokens instead of "Connection was interrupted".
-      onEvent({ type: "done" });
-    }
-    return;
+    // EOF only ends the subscription. The server job can still be running.
+    return signal?.aborted ? "aborted" : outcome;
   }
 
   const state = createChunkAdapterState();
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let streamComplete = false;
+  let outcome: ChatStreamOutcome = "interrupted";
 
   try {
     while (true) {
@@ -338,7 +341,10 @@ export async function consumeClauxenStreamResponse(
         if (!dataLine) continue;
         const payload = dataLine.slice(6).trim();
         if (!payload || payload === "[DONE]") {
-          if (payload === "[DONE]") streamComplete = true;
+          if (payload === "[DONE]") {
+            outcome = "completed";
+            onEvent({ type: "done" });
+          }
           continue;
         }
 
@@ -352,14 +358,13 @@ export async function consumeClauxenStreamResponse(
         // event must reject the stream promise so the live assistant receives
         // a visible failure state instead of silently finalizing blank.
         for (const event of uiMessageChunkToStreamEvents(chunk, state)) {
+          if (event.type === "done") outcome = "completed";
+          if (event.type === "error") outcome = "failed";
           onEvent(event);
-          if (event.type === "done" || event.type === "error") {
-            streamComplete = true;
-          }
         }
       }
 
-      if (streamComplete) {
+      if (outcome !== "interrupted") {
         await reader.cancel();
         break;
       }
@@ -367,10 +372,5 @@ export async function consumeClauxenStreamResponse(
   } finally {
     reader.releaseLock();
   }
-  if (!streamComplete && !signal?.aborted) {
-    // Soft-complete when the upstream closed without a terminal event — common
-    // when a proxy briefly flaps. Prefer a finished partial answer over a hard
-    // "connection lost" wipe when the client already painted tokens.
-    onEvent({ type: "done" });
-  }
+  return signal?.aborted ? "aborted" : outcome;
 }

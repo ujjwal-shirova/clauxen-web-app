@@ -1,3 +1,4 @@
+import type { Database } from "@/types/database.types";
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { getSupabasePublicConfig, requireSupabasePublicConfig } from "./env";
@@ -33,8 +34,7 @@ const SESSION_COOKIE_NAME = "clauxen_session";
 
 function authDevBypassEnabled() {
   const isVercel = process.env.VERCEL === "1";
-  const isProduction =
-    process.env.NODE_ENV === "production" || isVercel;
+  const isProduction = process.env.NODE_ENV === "production" || isVercel;
   if (isProduction) return false;
   return process.env.AUTH_DEV_BYPASS?.trim() === "true";
 }
@@ -126,8 +126,10 @@ export async function updateSession(request: NextRequest) {
     .getAll()
     .some(
       (cookie) =>
-        /^sb-.+-auth-token(\.\d+)?$/.test(cookie.name) &&
-        !cookie.name.endsWith("-code-verifier"),
+        cookie.name.startsWith("sb-") &&
+        (cookie.name.endsWith("-auth-token") ||
+          (cookie.name.includes("-auth-token.") &&
+            /^[0-9]+$/.test(cookie.name.split("-auth-token.")[1] ?? ""))),
     );
 
   if (!user && hasAuthCookie) {
@@ -156,9 +158,7 @@ export async function updateSession(request: NextRequest) {
         id: user.id,
         email: user.email ?? null,
         displayName:
-          resolveAuthFullName(meta) ??
-          user.email?.split("@")[0] ??
-          null,
+          resolveAuthFullName(meta) ?? user.email?.split("@")[0] ?? null,
         preferredName: preferred,
         avatarUrl: resolveAuthAvatarUrl(meta),
       }),

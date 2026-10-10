@@ -86,7 +86,8 @@ export const autonomousAgentTools: AutonomousAgentTool[] = [
       properties: {
         query: {
           type: "string",
-          description: "What to search for, e.g. 'coffee shops in Brooklyn' or 'Eiffel Tower'.",
+          description:
+            "What to search for, e.g. 'coffee shops in Brooklyn' or 'Eiffel Tower'.",
         },
         max_results: {
           type: "integer",
@@ -135,7 +136,8 @@ export const autonomousAgentTools: AutonomousAgentTool[] = [
       properties: {
         location_name: {
           type: "string",
-          description: "Place name, e.g. 'San Francisco, CA' or 'Tokyo, Japan'.",
+          description:
+            "Place name, e.g. 'San Francisco, CA' or 'Tokyo, Japan'.",
         },
         units: {
           type: "string",
@@ -321,7 +323,8 @@ export const autonomousAgentTools: AutonomousAgentTool[] = [
         },
         description: {
           type: "string",
-          description: "Short label shown in the work timeline (e.g. Creating a short story file).",
+          description:
+            "Short label shown in the work timeline (e.g. Creating a short story file).",
         },
       },
       required: ["path", "content"],
@@ -409,17 +412,21 @@ export const autonomousAgentTools: AutonomousAgentTool[] = [
       "Gather name, requirement (what to do each run), frequency, local time HH:MM, timezone (IANA), and optional expiration YYYY-MM-DD before calling.",
       "For weekly require day_of_week (0=Sun..6=Sat). For monthly require day_of_month (1–31). For once require run_date YYYY-MM-DD.",
       "After success, confirm the schedule and next run in plain language. Link them to Scheduled Tasks in the sidebar if helpful.",
-      "DO NOT invent times — ask if missing. Prefer the user's stated timezone; otherwise use a timezone they mention or UTC.",
+      "DO NOT invent times — ask if missing. Prefer the user's stated timezone; otherwise ask for it. Pass null for fields that do not apply.",
     ].join(" "),
     parameters: {
       type: "object",
       properties: {
         name: {
           type: "string",
+          maxLength: 50,
+          minLength: 1,
           description: "Short task title (max 50 chars).",
         },
         requirement: {
           type: "string",
+          maxLength: 8000,
+          minLength: 1,
           description:
             "Full instruction Clauxen should execute on each run (the prompt).",
         },
@@ -437,21 +444,26 @@ export const autonomousAgentTools: AutonomousAgentTool[] = [
           description: "IANA timezone, e.g. Asia/Kolkata or America/New_York.",
         },
         run_date: {
-          type: "string",
+          type: ["string", "null"],
           description: "YYYY-MM-DD — required when frequency is once.",
         },
         day_of_week: {
-          type: "number",
-          description: "0=Sunday .. 6=Saturday — required when frequency is weekly.",
+          type: ["integer", "null"],
+          minimum: 0,
+          maximum: 6,
+          description:
+            "0=Sunday .. 6=Saturday — required when frequency is weekly.",
         },
         day_of_month: {
-          type: "number",
+          type: ["integer", "null"],
+          minimum: 1,
+          maximum: 31,
           description: "1–31 — required when frequency is monthly.",
         },
         expires_at: {
-          type: "string",
+          type: ["string", "null"],
           description:
-            "Optional YYYY-MM-DD — stop scheduling after this calendar day. Pass empty string if none.",
+            "Optional YYYY-MM-DD — stop scheduling after this calendar day. Pass null if none.",
         },
       },
       required: [

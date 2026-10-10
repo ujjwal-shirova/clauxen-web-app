@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { IsolatedChatInput } from "./isolated-chat-input";
 import type { Message } from "@/lib/types";
@@ -150,6 +151,7 @@ function ChatAreaLayout({
   isViewerOpenRef.current = isViewerOpen;
   const isMobile = useIsMobile();
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+  const scheduleSetup = useSearchParams().get("schedule");
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
@@ -370,7 +372,7 @@ function ChatAreaLayout({
       onSendQueuedMessageNow={onSendQueuedMessageNow}
       onRemoveQueuedMessage={onRemoveQueuedMessage}
       onPromptChange={handlePromptDraftChange}
-      focusKey={activeChatId ?? (incognito ? "incognito" : "new")}
+      focusKey={activeChatId ?? (incognito ? "incognito" : scheduleSetup ? `new-schedule-${scheduleSetup}` : "new")}
       onUpgradeClick={onUpgradeClick}
       isFreePlan={showFreePlanUpgrade}
       homerReasoningEffort={homerReasoningEffort}

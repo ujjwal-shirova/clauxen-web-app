@@ -2,7 +2,10 @@
 
 import { useCallback } from "react";
 import type { StreamEvent } from "@/lib/chat-stream";
-import { consumeClauxenStreamResponse } from "@/lib/ui-message-stream";
+import {
+  consumeClauxenStreamResponse,
+  type ChatStreamOutcome,
+} from "@/lib/ui-message-stream";
 
 export type StreamDeltaHandler = {
   onStart?: () => void;
@@ -54,22 +57,14 @@ export function useAiStream() {
       response: Response,
       handlers: StreamDeltaHandler,
       signal?: AbortSignal,
-    ): Promise<void> => {
-      let streamComplete = false;
-
-      await consumeClauxenStreamResponse(
+    ): Promise<ChatStreamOutcome> => {
+      return consumeClauxenStreamResponse(
         response,
         (event) => {
-          if (dispatchStreamEvent(event, handlers)) {
-            streamComplete = true;
-          }
+          dispatchStreamEvent(event, handlers);
         },
         signal,
       );
-
-      if (!streamComplete) {
-        handlers.onDone?.();
-      }
     },
     [],
   );

@@ -16,13 +16,16 @@ export type ScheduleSpec = {
   dayOfWeek?: number | null;
   /** 1..31 */
   dayOfMonth?: number | null;
-  /** YYYY-MM-DD exclusive end (task stops after this calendar day) */
+  /** YYYY-MM-DD inclusive end in the task timezone. */
   expiresAt?: string | null;
 };
 
 const TIME_RE = /^(\d{2}):(\d{2})$/;
 
-export function parseTimeLocal(timeLocal: string): { hour: number; minute: number } {
+export function parseTimeLocal(timeLocal: string): {
+  hour: number;
+  minute: number;
+} {
   const m = TIME_RE.exec(timeLocal.trim());
   if (!m) throw new Error("Invalid time_local. Use HH:MM.");
   const hour = Number(m[1]);
@@ -97,11 +100,28 @@ export function zonedLocalToUtc(
   minute: number,
   timeZone: string,
 ): Date {
-  // Initial guess: treat local as UTC
-  let utc = Date.UTC(year, month - 1, day, hour, minute, 0);
-  for (let i = 0; i < 3; i++) {
-    const parts = zonedParts(new Date(utc), timeZone);
-    const asUtc = Date.UTC(
+  const desired = Date.UTC(year, month - 1, day, hour, minute, 0);
+  const offsets = new Set<number>();
+  // Probe both sides of a transition. At a repeated time choose the first
+  // occurrence; at a missing time move forward by the DST gap.
+  for (const hours of [-36, -12, 0, 12, 36]) {
+    const probe = desired + hours * 3_600_000;
+    const parts = zonedParts(new Date(probe), timeZone);
+    offsets.add(
+      Date.UTC(
+        parts.year,
+        parts.month - 1,
+        parts.day,
+        parts.hour,
+        parts.minute,
+        parts.second,
+      ) - probe,
+    );
+  }
+  const candidates = [...offsets].map((offset) => {
+    const instant = desired - offset;
+    const parts = zonedParts(new Date(instant), timeZone);
+    const wall = Date.UTC(
       parts.year,
       parts.month - 1,
       parts.day,
@@ -109,12 +129,15 @@ export function zonedLocalToUtc(
       parts.minute,
       parts.second,
     );
-    const desired = Date.UTC(year, month - 1, day, hour, minute, 0);
-    const delta = desired - asUtc;
-    utc += delta;
-    if (delta === 0) break;
-  }
-  return new Date(utc);
+    return { instant, delta: wall - desired };
+  });
+  const exact = candidates
+    .filter((candidate) => candidate.delta === 0)
+    .sort((a, b) => a.instant - b.instant)[0];
+  const forward = candidates
+    .filter((candidate) => candidate.delta > 0)
+    .sort((a, b) => a.delta - b.delta)[0];
+  return new Date((exact ?? forward ?? candidates[0]).instant);
 }
 
 function addCalendarDays(
@@ -135,7 +158,11 @@ function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
-function clampDayOfMonth(year: number, month: number, dayOfMonth: number): number {
+function clampDayOfMonth(
+  year: number,
+  month: number,
+  dayOfMonth: number,
+): number {
   return Math.min(dayOfMonth, daysInMonth(year, month));
 }
 
@@ -159,6 +186,26 @@ export function computeNextRunAt(
   spec: ScheduleSpec,
   after: Date = new Date(),
 ): Date | null {
+  if (!["once", "daily", "weekly", "monthly"].includes(spec.frequency))
+    throw new Error("Invalid frequency.");
+  if (spec.runDate && !isCalendarDate(spec.runDate))
+    throw new Error("Invalid run date.");
+  if (spec.expiresAt && !isCalendarDate(spec.expiresAt))
+    throw new Error("Invalid expiration date.");
+  if (
+    spec.frequency === "weekly" &&
+    (!Number.isInteger(spec.dayOfWeek) ||
+      spec.dayOfWeek! < 0 ||
+      spec.dayOfWeek! > 6)
+  )
+    throw new Error("Invalid weekday.");
+  if (
+    spec.frequency === "monthly" &&
+    (!Number.isInteger(spec.dayOfMonth) ||
+      spec.dayOfMonth! < 1 ||
+      spec.dayOfMonth! > 31)
+  )
+    throw new Error("Invalid day of month.");
   const { hour, minute } = parseTimeLocal(spec.timeLocal);
   const tz = spec.timezone?.trim() || "UTC";
   const nowParts = zonedParts(after, tz);
@@ -180,17 +227,20 @@ export function computeNextRunAt(
     let d = nowParts.day;
 
     if (spec.frequency === "daily") {
-      ({ year: y, month: m, day: d } = addCalendarDays(
-        nowParts.year,
-        nowParts.month,
-        nowParts.day,
-        offset,
-      ));
+      ({
+        year: y,
+        month: m,
+        day: d,
+      } = addCalendarDays(nowParts.year, nowParts.month, nowParts.day, offset));
     } else if (spec.frequency === "weekly") {
       const targetDow = spec.dayOfWeek ?? 0;
       const delta = (targetDow - nowParts.weekday + 7) % 7;
       const daysAhead = delta + offset * 7;
-      ({ year: y, month: m, day: d } = addCalendarDays(
+      ({
+        year: y,
+        month: m,
+        day: d,
+      } = addCalendarDays(
         nowParts.year,
         nowParts.month,
         nowParts.day,
@@ -199,7 +249,9 @@ export function computeNextRunAt(
     } else if (spec.frequency === "monthly") {
       const targetDom = spec.dayOfMonth ?? 1;
       const monthOffset = offset;
-      const base = new Date(Date.UTC(nowParts.year, nowParts.month - 1 + monthOffset, 1));
+      const base = new Date(
+        Date.UTC(nowParts.year, nowParts.month - 1 + monthOffset, 1),
+      );
       y = base.getUTCFullYear();
       m = base.getUTCMonth() + 1;
       d = clampDayOfMonth(y, m, targetDom);
@@ -224,7 +276,9 @@ export function computeNextRunAt(
   return null;
 }
 
-export function formatExpirationLabel(expiresAt: string | null | undefined): string {
+export function formatExpirationLabel(
+  expiresAt: string | null | undefined,
+): string {
   if (!expiresAt) return "Never";
   const d = new Date(`${expiresAt.slice(0, 10)}T12:00:00Z`);
   return d.toLocaleDateString("en-US", {
@@ -251,4 +305,12 @@ export function frequencyLabel(frequency: ScheduleFrequency): string {
     case "monthly":
       return "Monthly";
   }
+}
+
+export function isCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return (
+    Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+  );
 }

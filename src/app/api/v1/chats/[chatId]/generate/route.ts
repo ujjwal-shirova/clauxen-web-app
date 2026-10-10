@@ -1,5 +1,4 @@
 import { after } from "next/server";
-import { waitUntil } from "@vercel/functions";
 import { withApiRouteParams } from "@/server/http/route-params";
 import { requireSession } from "@/server/auth/require-session";
 import * as chatService from "@/server/services/chat.service";
@@ -10,20 +9,12 @@ import {
   parseClientVisionImages,
   parseVisionFileIds,
 } from "@/server/inference/vision-attachments";
+import type { GenerationJobInput } from "@/server/repositories/generation-jobs.repository";
 import {
-  beginChatGeneration,
-  endChatGeneration,
-} from "@/server/chat/generation-registry";
-import {
-  createGenerationJob,
-  type GenerationJobInput,
-} from "@/server/repositories/generation-jobs.repository";
-import {
-  runLiveSlice,
-  workerId,
-  type LiveSliceInput,
+  generationExecutionOrigin,
+  triggerContinuation,
 } from "@/server/chat/durable-generation";
-import * as chatsRepo from "@/server/repositories/chats.repository";
+import { CLAUXEN_STREAM_HEADERS } from "@/server/inference/clauxen-sse-stream";
 import type { TurnFork } from "@/server/repositories/messages.repository";
 import { readEdgeFlags } from "@/server/config/edge-flags";
 import { assertDurableRateLimit } from "@/server/http/durable-rate-limit";
@@ -39,8 +30,16 @@ const UUID_RE =
 /** Client-supplied fork intent, hardened to owned-message uuid references. */
 function sanitizeFork(input: unknown): TurnFork | null {
   if (!input || typeof input !== "object") return null;
-  const raw = input as { kind?: unknown; userMessageId?: unknown; assistantMessageId?: unknown };
-  if (raw.kind === "edit" && typeof raw.userMessageId === "string" && UUID_RE.test(raw.userMessageId)) {
+  const raw = input as {
+    kind?: unknown;
+    userMessageId?: unknown;
+    assistantMessageId?: unknown;
+  };
+  if (
+    raw.kind === "edit" &&
+    typeof raw.userMessageId === "string" &&
+    UUID_RE.test(raw.userMessageId)
+  ) {
     return { kind: "edit", userMessageId: raw.userMessageId };
   }
   if (
@@ -146,46 +145,9 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       throw new AppError("Invalid chat turn identifiers.", 400, "invalid_turn");
     }
 
-    // Durable generations are only stopped explicitly. A duplicate request
-    // must never abort an existing turn and create a second assistant row.
-    // Local map claim is instant; the job row is the cross-isolate truth
-    // (one active job per chat); the DO lease overlaps SSE start inside
-    // resolveContext before turn insert / model.
-    const generation = beginChatGeneration(params.chatId);
-    if (!generation) {
-      // Persist the follow-up before asking the browser to wait. Previously the
-      // lease check happened first, so the optimistic user bubble was never
-      // committed and disappeared on reload after this 409.
-      if (turn) {
-        await chatService.reserveQueuedChatTurn({
-          chatId: params.chatId,
-          userId: user.id,
-          turn,
-          fork,
-        });
-      }
-      return Response.json(
-        {
-          error: {
-            message:
-              "The previous reply is still finishing. Your message is saved and queued.",
-            code: "generation_in_progress",
-          },
-        },
-        {
-          status: 409,
-          headers: {
-            "Cache-Control": "no-store",
-            "Retry-After": "1",
-          },
-        },
-      );
-    }
-
-    // The background job owns this turn from here on. Cross-isolate
-    // duplicates 409 here (unique active job per chat) instead of racing
-    // the coordinator lease.
+    const origin = generationExecutionOrigin(request.url);
     const jobInput: GenerationJobInput = {
+      executionOrigin: origin,
       messages: messages.map((message) => ({
         role: message.role,
         content: message.content,
@@ -220,127 +182,40 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       turnStartedAtMs: requestStartedAtMs,
     };
 
-    let job;
-    try {
-      job = await createGenerationJob({
-        chatId: params.chatId,
-        userId: user.id,
-        jobInput,
-        lockedBy: workerId(),
-      });
-    } catch (error) {
-      await endChatGeneration(params.chatId, generation.controller);
-      if (
-        error instanceof AppError &&
-        error.code === "generation_in_progress"
-      ) {
-        if (turn) {
-          await chatService.reserveQueuedChatTurn({
-            chatId: params.chatId,
-            userId: user.id,
-            turn,
-            fork,
-          });
-        }
-        return Response.json(
-          {
-            error: {
-              message:
-                "The previous reply is still finishing. Your message is saved and queued.",
-              code: "generation_in_progress",
-            },
-          },
-          {
-            status: 409,
-            headers: {
-              "Cache-Control": "no-store",
-              "Retry-After": "1",
-            },
-          },
-        );
-      }
-      throw error;
-    }
-
-    const generationController = generation.controller;
-    let resolveSettled: () => void = () => {};
-    const generationSettled = new Promise<void>((resolve) => {
-      resolveSettled = resolve;
+    // Admission commits before acknowledgement. The browser only subscribes;
+    // an internal server invocation owns every slice, including the first.
+    const job = await chatService.acceptBackgroundChatTurn({
+      chatId: params.chatId,
+      userId: user.id,
+      jobInput,
     });
-    // The live slice keeps running after the browser disconnects. after() and
-    // waitUntil() both extend the invocation until the slice completes or
-    // yields to the background chain.
-    after(() => generationSettled);
-    waitUntil(generationSettled);
-
-    await chatsRepo.setChatGenerating(params.chatId, user.id, true);
-
-    try {
-      const liveInput: LiveSliceInput = {
-        job,
-        messages,
-        fork: jobInput.fork ?? null,
-        turn: jobInput.turn ?? undefined,
-        vision: jobInput.vision ?? undefined,
-        chatModel: jobInput.chatModel,
-        homerReasoningEffort: jobInput.homerReasoningEffort,
-        extendedThinking: jobInput.extendedThinking,
-        clientTimezone: jobInput.clientTimezone,
-        userCountryCode: jobInput.userCountryCode,
-        generateChatTitle: jobInput.generateChatTitle,
-        requestId,
-        requestStartedAtMs,
-        origin: new URL(request.url).origin,
-        registrySignal: generationController.signal,
-        onPauseForUser: async () => {
-          // Free the DO/local lease as soon as ask_user_input pauses so the
-          // user's questionnaire answers can start a new turn without 409.
-          // (The job row closes as paused_for_user in persistOnDone.)
-          await chatsRepo.setChatGenerating(params.chatId, user.id, false);
-          await endChatGeneration(params.chatId, generationController);
+    after(async () => {
+      await triggerContinuation(origin, job.id);
+    });
+    const events = [
+      {
+        type: "turn_ready",
+        userMessageId: job.user_message_id,
+        assistantMessageId: job.assistant_message_id,
+      },
+      { type: "backgrounded", jobId: job.id, chatId: job.chat_id },
+    ];
+    return new Response(
+      events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+      {
+        status: 202,
+        headers: {
+          ...CLAUXEN_STREAM_HEADERS,
+          "X-Generation-Job-Id": job.id,
+          ...(job.user_message_id
+            ? { "X-User-Message-Id": job.user_message_id }
+            : {}),
+          ...(job.assistant_message_id
+            ? { "X-Assistant-Message-Id": job.assistant_message_id }
+            : {}),
         },
-        onSettled: (outcome) => {
-          // Runs when the live slice ends, while the invocation is alive.
-          void (async () => {
-            try {
-              // The DO lease always releases here: terminal turns are done,
-              // and yielded turns re-acquire it in the chained slice. The
-              // generating flag clears only on terminal outcomes — a yielded
-              // turn is still running in the background.
-              await endChatGeneration(params.chatId, generationController);
-              if (outcome.status !== "yielded") {
-                await chatsRepo.setChatGenerating(params.chatId, user.id, false);
-              }
-            } finally {
-              resolveSettled();
-            }
-          })();
-        },
-      };
-
-      // The DO lease gate still runs inside resolveContext (before turn
-      // insert / model) so a racing continuation slice wins cleanly: the
-      // loser 409s and its job row is failed without a trace.
-      liveInput.ensureLease = () => generation.lease;
-
-      const { response } = await runLiveSlice(liveInput);
-      return response;
-    } catch (error) {
-      // The live slice never started streaming: fail the job so the chat is
-      // not parked behind a queued row the watchdog would otherwise revive.
-      const { finishGenerationJob } = await import(
-        "@/server/repositories/generation-jobs.repository"
-      );
-      await finishGenerationJob({
-        jobId: job.id,
-        status: "failed",
-        error: error instanceof Error ? error.message : "Unknown error",
-      }).catch(() => undefined);
-      await chatsRepo.setChatGenerating(params.chatId, user.id, false);
-      await endChatGeneration(params.chatId, generationController);
-      resolveSettled();
-      throw error;
-    }
+      },
+    );
   },
   { requireAuth: true, requireChatAuth: true },
 );

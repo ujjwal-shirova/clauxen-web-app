@@ -88,6 +88,10 @@ export type ChatStreamOptions = {
   yieldSignal?: AbortSignal;
   /** Fired after every completed round with the resume state. */
   onRoundEnd?: AgentStreamOptions["onRoundEnd"];
+  initialPendingToolRound?: AgentStreamOptions["initialPendingToolRound"];
+  initialTerminalOutcome?: AgentStreamOptions["initialTerminalOutcome"];
+  beforeTool?: AgentStreamOptions["beforeTool"];
+  onToolRoundState?: AgentStreamOptions["onToolRoundState"];
   /** Outcome holder the caller reads after the stream finishes. */
   loopResult?: { outcome: AgentLoopOutcome };
 };
@@ -214,9 +218,8 @@ export async function createChatStream(
       let projectOnly = false;
       if (options.userId && options.conversationId && !options.incognito) {
         try {
-          const { loadProjectPromptAppend } = await import(
-            "@/server/services/project-context"
-          );
+          const { loadProjectPromptAppend } =
+            await import("@/server/services/project-context");
           const project = await loadProjectPromptAppend(
             options.userId,
             options.conversationId,
@@ -228,11 +231,12 @@ export async function createChatStream(
         }
       }
 
-      const personalizationForPrompt = options.incognito || projectOnly
-        ? personalization.personalizationAppend
-            .replace(/<memory_and_tools>[\s\S]*?<\/memory_and_tools>/g, "")
-            .trim()
-        : personalization.personalizationAppend;
+      const personalizationForPrompt =
+        options.incognito || projectOnly
+          ? personalization.personalizationAppend
+              .replace(/<memory_and_tools>[\s\S]*?<\/memory_and_tools>/g, "")
+              .trim()
+          : personalization.personalizationAppend;
 
       const temporalInstr = buildTemporalContextAppend({
         timezone: options.clientTimezone,
@@ -282,6 +286,10 @@ export async function createChatStream(
         shouldYield: options.shouldYield,
         yieldSignal: options.yieldSignal,
         onRoundEnd: options.onRoundEnd,
+        initialPendingToolRound: options.initialPendingToolRound,
+        initialTerminalOutcome: options.initialTerminalOutcome,
+        beforeTool: options.beforeTool,
+        onToolRoundState: options.onToolRoundState,
         loopResult: options.loopResult,
       };
 

@@ -816,7 +816,7 @@ export function Sidebar({
             </AppHref>
             {(
               [
-                { label: "Scheduled", icon: CalendarClock, href: "/new?app=scheduled" },
+                { label: "Scheduled", icon: CalendarClock, href: "/scheduled" },
                 { label: "Research", icon: Telescope, href: "/new?app=research" },
                 { label: "Build", icon: Hammer, href: "/new?app=build" },
               ] as const

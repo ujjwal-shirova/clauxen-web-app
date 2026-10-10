@@ -30,8 +30,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";
-  if (!jobId) {
-    return NextResponse.json({ error: "jobId is required" }, { status: 400 });
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      jobId,
+    )
+  ) {
+    return NextResponse.json(
+      { error: "A valid jobId is required" },
+      { status: 400 },
+    );
   }
 
   const worker = `continue-${process.env.VERCEL_REGION ?? "local"}-${randomUUID().slice(0, 8)}`;
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const origin = new URL(request.url).origin;
+  const origin = job.input.executionOrigin ?? new URL(request.url).origin;
   after(() =>
     runHeadlessSlice({ job, origin }).catch((error) => {
       console.error("[generations/continue] slice failed:", error);

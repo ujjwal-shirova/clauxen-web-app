@@ -26,6 +26,9 @@ export const POST = withApiHandler(
     } catch {
       throw new AppError("Invalid JSON body.", 400);
     }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      throw new AppError("JSON body must be an object.", 400);
+    }
 
     const task = await scheduledTasks.createTask(user.id, {
       name: typeof body.name === "string" ? body.name : "",

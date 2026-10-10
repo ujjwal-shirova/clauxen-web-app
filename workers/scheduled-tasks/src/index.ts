@@ -70,6 +70,7 @@ async function dispatch(env: Env, limit = 20): Promise<Response> {
   const res = await fetch(url, {
     method: "POST",
     headers: internalHeaders(token),
+    signal: AbortSignal.timeout(25_000),
   });
 
   const text = await res.text();
@@ -175,6 +176,7 @@ export default {
             method: "POST",
             headers: internalHeaders(token),
             body: JSON.stringify({ runId: message.body.runId }),
+            signal: AbortSignal.timeout(25_000),
           },
         );
         const responseText = await response.text();

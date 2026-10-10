@@ -31,10 +31,14 @@ import * as billingService from "@/server/services/billing.service";
 import { listRecentMessagesPreferCloudflare } from "@/server/chat/recent-messages";
 import { publishLiveTurn } from "@/server/chat/chat-coord-client";
 import {
+  assertGenerationJobOwnership,
+  createGenerationJob,
   finishGenerationJob,
   markJobContinuing,
   saveGenerationCheckpoint,
   type GenerationCheckpoint,
+  type GenerationJobInput,
+  type GenerationJobRow,
 } from "@/server/repositories/generation-jobs.repository";
 import type { AgentLoopOutcome } from "@/server/agent-core";
 import type { OpenAIInputItem } from "@/server/inference/openai-responses-client";
@@ -61,9 +65,7 @@ import {
   buildPromptMessagesFromDbRows,
   mergePromptHistories,
 } from "@/server/inference/build-chat-prompt-messages";
-import {
-  type ClientVisionImage,
-} from "@/server/inference/vision-attachments";
+import { type ClientVisionImage } from "@/server/inference/vision-attachments";
 import {
   toUserFacingChatError,
   EMPTY_ASSISTANT_RESPONSE_FALLBACK,
@@ -278,7 +280,8 @@ export async function createChatForUser(
 ) {
   let projectId = input?.projectId ?? null;
   if (projectId) {
-    const { getProject } = await import("@/server/repositories/projects.repository");
+    const { getProject } =
+      await import("@/server/repositories/projects.repository");
     const project = await getProject(projectId, userId);
     if (!project) projectId = null;
   }
@@ -376,6 +379,7 @@ export async function reserveQueuedChatTurn(input: {
     assistantClientId: string;
   };
   fork?: TurnFork | null;
+  onReserved?: Parameters<typeof messagesRepo.beginChatTurn>[0]["onReserved"];
 }) {
   const attachments = input.turn.fileIds?.length
     ? await resolveUserAttachmentMeta(input.userId, input.turn.fileIds)
@@ -393,16 +397,46 @@ export async function reserveQueuedChatTurn(input: {
     fileIds: input.turn.fileIds,
     userClientId: input.turn.userClientId,
     assistantClientId: input.turn.assistantClientId,
-    parentMessageId: (
-      await messagesRepo.resolveForkTarget({
-        chatId: input.chatId,
-        userId: input.userId,
-        fork: input.fork,
-      })
-    )?.parentMessageId ?? null,
+    parentMessageId:
+      (
+        await messagesRepo.resolveForkTarget({
+          chatId: input.chatId,
+          userId: input.userId,
+          fork: input.fork,
+        })
+      )?.parentMessageId ?? null,
     assistantContentJson: buildAssistantTranscriptRecord({ answer: "" }),
     assistantStatus: "queued",
+    onReserved: input.onReserved,
   });
+}
+
+/** Accept a prompt, reply placeholder and recoverable job in one commit. */
+export async function acceptBackgroundChatTurn(input: {
+  chatId: string;
+  userId: string;
+  jobInput: GenerationJobInput;
+}): Promise<GenerationJobRow> {
+  const turn = input.jobInput.turn;
+  if (!turn) return createGenerationJob(input);
+  let job: GenerationJobRow | undefined;
+  await reserveQueuedChatTurn({
+    chatId: input.chatId,
+    userId: input.userId,
+    turn,
+    fork: input.jobInput.fork,
+    onReserved: async (messageIds, client) => {
+      job = await createGenerationJob({ ...input, messageIds, client });
+      await client.query(
+        `update public.chats set metadata = coalesce(metadata, '{}'::jsonb)
+          || jsonb_build_object('generating', true, 'generating_at', now())
+         where id = $1 and user_id = $2`,
+        [input.chatId, input.userId],
+      );
+    },
+  });
+  if (!job) throw new AppError("Could not save the background task.", 500);
+  return job;
 }
 
 export async function appendUserMessage(
@@ -446,6 +480,8 @@ export type ChatSliceOutcome =
  */
 export type ChatSliceControl = {
   jobId: string;
+  lockedBy: string;
+  coordLeaseId?: string;
   /** Resume state from the job checkpoint (null on the first slice). */
   resume?: GenerationCheckpoint | null;
   /** Slice budget guard, checked by the agent loop at round boundaries. */
@@ -458,7 +494,7 @@ export type ChatSliceControl = {
   onTurnInserted?: (ids: {
     userMessageId: string | null;
     assistantMessageId: string | null;
-  }) => void;
+  }) => void | Promise<void>;
 };
 
 export async function streamChatGeneration(input: {
@@ -511,11 +547,20 @@ export async function streamChatGeneration(input: {
   // History prefers Cloudflare cache (not direct Supabase) on every continue.
   const chatPromise = chatsRepo.getChatForUser(input.chatId, input.userId);
   const personalizationPromise = loadChatStreamPersonalization(input.userId);
-  const historyPromise = listRecentMessagesPreferCloudflare({
-    chatId: input.chatId,
-    userId: input.userId,
-    limit: 40,
-  });
+  const historyPromise = input.slice?.resume?.userMessageId
+    ? messagesRepo
+        .listThreadPage({
+          chatId: input.chatId,
+          userId: input.userId,
+          leafId: input.slice.resume.userMessageId,
+          limit: 40,
+        })
+        .then((page) => page.messages)
+    : listRecentMessagesPreferCloudflare({
+        chatId: input.chatId,
+        userId: input.userId,
+        limit: 40,
+      });
 
   const clientConversation = sanitizeMessages(input.messages).filter(
     (message) => message.content.trim().length > 0,
@@ -575,6 +620,15 @@ export async function streamChatGeneration(input: {
       await leaseGate;
       const chat = await chatPromise;
       if (!chat) throw notFound("Chat not found.");
+      await assertGenerationJobOwnership(
+        input.slice!.jobId,
+        input.slice!.lockedBy,
+      );
+      await query(
+        `update public.chat_messages set status = 'streaming', updated_at = now()
+        where id = $1 and chat_id = $2 and status = 'queued'`,
+        [resume!.assistantMessageId!, input.chatId],
+      );
       turnState.assistant = {
         id: resume!.assistantMessageId!,
         status: "streaming",
@@ -582,9 +636,7 @@ export async function streamChatGeneration(input: {
       };
       turnState.userMessageId = resume!.userMessageId ?? null;
       return {
-        user: turnState.userMessageId
-          ? { id: turnState.userMessageId }
-          : null,
+        user: turnState.userMessageId ? { id: turnState.userMessageId } : null,
         assistant: turnState.assistant,
       };
     }
@@ -614,13 +666,14 @@ export async function streamChatGeneration(input: {
         assistantClientId: input.turn.assistantClientId,
         // Edit-resend forks chain the new prompt as a sibling of the edited
         // one; normal sends and regenerates resolve server-side (active leaf).
-        parentMessageId: (
-          await messagesRepo.resolveForkTarget({
-            chatId: input.chatId,
-            userId: input.userId,
-            fork: input.fork,
-          })
-        )?.parentMessageId ?? null,
+        parentMessageId:
+          (
+            await messagesRepo.resolveForkTarget({
+              chatId: input.chatId,
+              userId: input.userId,
+              fork: input.fork,
+            })
+          )?.parentMessageId ?? null,
         assistantContentJson: buildAssistantTranscriptRecord({ answer: "" }),
         assistantStatus: "streaming",
       });
@@ -676,16 +729,16 @@ export async function streamChatGeneration(input: {
     turnState.assistant = created;
     return { user: null, assistant: created };
   })()
-    .then((turn) => {
+    .then(async (turn) => {
       // Durable jobs record the turn rows so resume slices skip the insert.
       if (!resuming) {
         try {
-          input.slice?.onTurnInserted?.({
+          await input.slice?.onTurnInserted?.({
             userMessageId: turnState.userMessageId,
             assistantMessageId: turnState.assistant?.id ?? null,
           });
-        } catch {
-          // observability only — the job row is updated again on checkpoint
+        } catch (error) {
+          throw error; // Never execute a model/tools before durable turn identity.
         }
       }
       return turn;
@@ -702,8 +755,7 @@ export async function streamChatGeneration(input: {
   ];
   const started = Date.now();
   const turnStartedAtMs =
-    (typeof resume?.turnStartedAtMs === "number" &&
-    resume.turnStartedAtMs > 0
+    (typeof resume?.turnStartedAtMs === "number" && resume.turnStartedAtMs > 0
       ? resume.turnStartedAtMs
       : undefined) ??
     (typeof input.requestStartedAtMs === "number" &&
@@ -805,7 +857,11 @@ export async function streamChatGeneration(input: {
     step: number;
     conversation: OpenAIInputItem[] | null;
     narrationCounter: number;
+    pendingToolRound?: GenerationCheckpoint["pendingToolRound"];
+    terminalOutcome?: GenerationCheckpoint["terminalOutcome"];
   } = {
+    pendingToolRound: resume?.pendingToolRound,
+    terminalOutcome: resume?.terminalOutcome,
     step: resume?.step ?? 0,
     conversation: resume?.conversation
       ? (JSON.parse(JSON.stringify(resume.conversation)) as OpenAIInputItem[])
@@ -815,6 +871,8 @@ export async function streamChatGeneration(input: {
 
   const buildSliceCheckpoint = (): GenerationCheckpoint => ({
     version: 1,
+    pendingToolRound: latestRound.pendingToolRound,
+    terminalOutcome: latestRound.terminalOutcome,
     step: latestRound.step,
     conversation: latestRound.conversation ?? resume?.conversation,
     narrationCounter: latestRound.narrationCounter,
@@ -831,8 +889,8 @@ export async function streamChatGeneration(input: {
   });
 
   let roundCheckpointChain: Promise<unknown> = Promise.resolve();
-  const persistRoundCheckpoint = (toolCallIds: string[]): void => {
-    if (!input.slice?.jobId) return;
+  const persistRoundCheckpoint = (toolCallIds: string[]): Promise<unknown> => {
+    if (!input.slice?.jobId) return Promise.resolve();
     roundCheckpointChain = roundCheckpointChain
       .catch(() => undefined)
       .then(async () => {
@@ -850,6 +908,7 @@ export async function streamChatGeneration(input: {
             await new Promise((resolve) => setTimeout(resolve, 25));
           }
         }
+        await new Promise((resolve) => setTimeout(resolve, 0));
         try {
           await turnPromise;
         } catch {
@@ -858,9 +917,10 @@ export async function streamChatGeneration(input: {
         await saveGenerationCheckpoint(
           input.slice!.jobId,
           buildSliceCheckpoint(),
+          input.slice!.lockedBy,
         );
-      })
-      .catch(() => undefined);
+      });
+    return roundCheckpointChain;
   };
 
   // Prompt context runs INSIDE the SSE body after `start`. History /
@@ -890,17 +950,36 @@ export async function streamChatGeneration(input: {
         modelTurns.push(turn);
       },
       initialConversation: resume?.conversation,
+      initialPendingToolRound: resume?.pendingToolRound ?? undefined,
+      initialTerminalOutcome: resume?.terminalOutcome,
+      beforeTool: input.slice
+        ? () =>
+            assertGenerationJobOwnership(
+              input.slice!.jobId,
+              input.slice!.lockedBy,
+            )
+        : undefined,
+      onToolRoundState: input.slice
+        ? async (conversation, pending) => {
+            latestRound.step = pending.step;
+            latestRound.conversation = conversation;
+            latestRound.pendingToolRound = JSON.parse(JSON.stringify(pending));
+            await persistRoundCheckpoint([]);
+          }
+        : undefined,
       startStep: resume?.step,
       initialNarrationCounter: resume?.narrationCounter,
       shouldYield: input.slice?.shouldYield,
       yieldSignal: input.slice?.yieldSignal,
       loopResult,
       onRoundEnd: input.slice
-        ? (round) => {
+        ? async (round) => {
+            latestRound.pendingToolRound = null;
+            latestRound.terminalOutcome = round.terminalOutcome;
             latestRound.step = round.step;
             latestRound.conversation = round.conversation;
             latestRound.narrationCounter = round.narrationCounter;
-            persistRoundCheckpoint(round.toolCallIds);
+            await persistRoundCheckpoint(round.toolCallIds);
           }
         : undefined,
       resolveContext: async () => {
@@ -1047,6 +1126,7 @@ export async function streamChatGeneration(input: {
     if (!publishInFlight) {
       publishInFlight = true;
       void publishLiveTurn({
+        leaseId: input.slice?.coordLeaseId,
         chatId: input.chatId,
         userId: input.userId,
         assistantId,
@@ -1071,6 +1151,9 @@ export async function streamChatGeneration(input: {
           input.chatId,
           snapshotAnswer,
           snapshotContentJson,
+          input.slice
+            ? { jobId: input.slice.jobId, lockedBy: input.slice.lockedBy }
+            : undefined,
         )
         .catch((error: unknown) => {
           console.error("[chat] partial checkpoint failed", {
@@ -1258,6 +1341,7 @@ export async function streamChatGeneration(input: {
         const snapshotAnswer = checkpoint.answer ?? "";
         if (turnState.assistant?.id) {
           await publishLiveTurn({
+            leaseId: input.slice?.coordLeaseId,
             chatId: input.chatId,
             userId: input.userId,
             assistantId: turnState.assistant.id,
@@ -1278,7 +1362,11 @@ export async function streamChatGeneration(input: {
             }),
           }).catch(() => false);
         }
-        await markJobContinuing(input.slice.jobId, checkpoint);
+        await markJobContinuing(
+          input.slice.jobId,
+          checkpoint,
+          input.slice.lockedBy,
+        );
         return { status: "yielded" };
       }
 
@@ -1358,6 +1446,9 @@ export async function streamChatGeneration(input: {
         // payload is mirrored to Cloudflare for fast live reads; the 24h
         // archive path is now an idempotent backfill, not the primary write.
         await messagesRepo.finalizeAssistantTurn({
+          generationLease: input.slice
+            ? { jobId: input.slice.jobId, lockedBy: input.slice.lockedBy }
+            : undefined,
           messageId: assistantRow.id,
           chatId: input.chatId,
           userId: input.userId,
@@ -1388,6 +1479,7 @@ export async function streamChatGeneration(input: {
       if (input.slice?.jobId) {
         await finishGenerationJob({
           jobId: input.slice.jobId,
+          lockedBy: input.slice.lockedBy,
           status:
             sliceOutcome.status === "paused"
               ? "paused_for_user"
@@ -1402,7 +1494,7 @@ export async function streamChatGeneration(input: {
           },
           error:
             sliceOutcome.status === "failed"
-              ? streamError ?? "Model completed without visible output."
+              ? (streamError ?? "Model completed without visible output.")
               : null,
           checkpoint: buildSliceCheckpoint(),
         }).catch((error: unknown) => {
@@ -1421,6 +1513,7 @@ export async function streamChatGeneration(input: {
               ? "failed"
               : "complete";
         await publishLiveTurn({
+          leaseId: input.slice?.coordLeaseId,
           chatId: input.chatId,
           userId: input.userId,
           assistantId: assistantRow.id,
@@ -1535,6 +1628,11 @@ export async function streamChatGeneration(input: {
       onComplete: persistOnDone,
     };
   } catch (error) {
+    if (input.slice)
+      await assertGenerationJobOwnership(
+        input.slice.jobId,
+        input.slice.lockedBy,
+      );
     const assistantRow = turnState.assistant;
     const tools = Array.from(toolsById.values());
     if (assistantRow?.id) {
@@ -1564,6 +1662,9 @@ export async function streamChatGeneration(input: {
         },
       });
       await messagesRepo.finalizeAssistantTurn({
+        generationLease: input.slice
+          ? { jobId: input.slice.jobId, lockedBy: input.slice.lockedBy }
+          : undefined,
         messageId: assistantRow.id,
         chatId: input.chatId,
         userId: input.userId,
@@ -1593,6 +1694,7 @@ export async function streamChatGeneration(input: {
     if (input.slice?.jobId) {
       await finishGenerationJob({
         jobId: input.slice.jobId,
+        lockedBy: input.slice.lockedBy,
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",
       }).catch(() => undefined);
@@ -1756,6 +1858,5 @@ export async function getChatTranscript(chatId: string, userId: string) {
     jsonl: recordsToJsonl(rebuilt),
   };
 }
-
 
 export { sanitizeMessages, encodeSseEvent };

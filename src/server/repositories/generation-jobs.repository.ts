@@ -1,4 +1,6 @@
 import { query, queryOne } from "@/server/db/pool";
+import type { AgentPendingToolRound } from "@/server/agent-core/runtime/query-loop";
+import type { PoolClient } from "pg";
 import type { TurnFork } from "@/server/repositories/messages.repository";
 import { AppError } from "@/server/db/errors";
 import type { OpenAIInputItem } from "@/server/inference/openai-responses-client";
@@ -46,6 +48,8 @@ export type GenerationJobRow = {
 
 /** Everything a fresh slice needs to resume a turn without the HTTP request. */
 export type GenerationJobInput = {
+  /** Trusted server-derived origin: preview jobs recover on their own deployment. */
+  executionOrigin?: string;
   messages: Array<{ role: string; content: string }>;
   /** Tree fork intent — edit-resend or assistant regenerate. */
   fork?: TurnFork | null;
@@ -81,6 +85,8 @@ export const GENERATION_CHECKPOINT_VERSION = 1;
  */
 export type GenerationCheckpoint = {
   version?: number;
+  pendingToolRound?: AgentPendingToolRound | null;
+  terminalOutcome?: "done" | "paused";
   /** Next agent step index to run (0-based, MAX_STEPS = 24 in the loop). */
   step?: number;
   /** Full Responses/Chat-Completions input list incl. tool rounds so far. */
@@ -111,6 +117,16 @@ export function asCheckpoint(value: unknown): GenerationCheckpoint {
   if (!isRecord(value)) return emptyCheckpoint();
   return {
     version: GENERATION_CHECKPOINT_VERSION,
+    pendingToolRound:
+      isRecord(value.pendingToolRound) &&
+      Array.isArray(value.pendingToolRound.calls) &&
+      isRecord(value.pendingToolRound.results)
+        ? (value.pendingToolRound as AgentPendingToolRound)
+        : null,
+    terminalOutcome:
+      value.terminalOutcome === "done" || value.terminalOutcome === "paused"
+        ? value.terminalOutcome
+        : undefined,
     step: typeof value.step === "number" ? value.step : undefined,
     conversation: Array.isArray(value.conversation)
       ? (value.conversation as OpenAIInputItem[])
@@ -174,31 +190,79 @@ export async function createGenerationJob(input: {
   userId: string;
   jobInput: GenerationJobInput;
   /**
-   * Worker id of the live slice that runs this job right now. The job is
-   * born 'running' + heartbeating, so the watchdog only takes it over when
-   * the live slice actually dies (stale heartbeat) — never while it streams.
+   * Optional worker identity for legacy live slices. New submissions are
+   * durably queued before any execution starts or response is acknowledged.
    */
-  lockedBy: string;
+  lockedBy?: string;
+  messageIds?: { userMessageId: string; assistantMessageId: string };
+  client?: PoolClient;
 }): Promise<GenerationJobRow> {
   try {
-    const row = await queryOne<GenerationJobRow>(
-      `insert into public.chat_generation_jobs
-         (chat_id, user_id, input, status, locked_by, locked_at, heartbeat_at)
-       values ($1, $2, $3::jsonb, 'running', $4, now(), now())
-       returning ${JOB_COLUMNS}`,
-      [
-        input.chatId,
-        input.userId,
-        JSON.stringify(input.jobInput ?? {}),
-        input.lockedBy,
-      ],
-    );
+    const sql = `insert into public.chat_generation_jobs
+         (chat_id, user_id, input, status, locked_by, locked_at, heartbeat_at,
+          user_message_id, assistant_message_id, checkpoint)
+       values ($1, $2, $3::jsonb,
+         case when $4::text is null then 'queued' else 'running' end,
+         $4, case when $4::text is null then null else now() end, now(),
+         $5::uuid, $6::uuid, $7::jsonb)
+       on conflict do nothing
+       returning ${JOB_COLUMNS}`;
+    const values = [
+      input.chatId,
+      input.userId,
+      JSON.stringify(input.jobInput ?? {}),
+      input.lockedBy ?? null,
+      input.messageIds?.userMessageId ?? null,
+      input.messageIds?.assistantMessageId ?? null,
+      JSON.stringify({
+        version: GENERATION_CHECKPOINT_VERSION,
+        ...input.messageIds,
+      }),
+    ];
+    const row = input.client
+      ? (await input.client.query<GenerationJobRow>(sql, values)).rows[0]
+      : await queryOne<GenerationJobRow>(sql, values);
     if (!row) {
-      throw new AppError("Could not start the background task.", 500);
+      const clientId = input.jobInput.turn?.assistantClientId;
+      const lookup = `select ${JOB_COLUMNS} from public.chat_generation_jobs
+        where chat_id = $1 and user_id = $2 and input->'turn'->>'assistantClientId' = $3
+        order by created_at desc limit 1`;
+      const accepted = clientId
+        ? input.client
+          ? (
+              await input.client.query<GenerationJobRow>(lookup, [
+                input.chatId,
+                input.userId,
+                clientId,
+              ])
+            ).rows[0]
+          : await getGenerationJobByAssistantClientId(
+              input.chatId,
+              input.userId,
+              clientId,
+            )
+        : null;
+      if (accepted) return normalizeJob(accepted);
+      throw new AppError(
+        "The previous reply is still finishing. Please retry shortly.",
+        409,
+        "generation_in_progress",
+      );
     }
     return normalizeJob(row);
   } catch (error) {
     if (error instanceof AppError && error.code === "conflict") {
+      // The browser may retry after losing the acknowledgement. Return the
+      // already accepted turn even when its first execution has finished.
+      const assistantClientId = input.jobInput.turn?.assistantClientId;
+      if (assistantClientId) {
+        const accepted = await getGenerationJobByAssistantClientId(
+          input.chatId,
+          input.userId,
+          assistantClientId,
+        );
+        if (accepted) return accepted;
+      }
       throw new AppError(
         "The previous reply is still finishing. Your message is saved and queued.",
         409,
@@ -207,6 +271,21 @@ export async function createGenerationJob(input: {
     }
     throw error;
   }
+}
+
+export async function getGenerationJobByAssistantClientId(
+  chatId: string,
+  userId: string,
+  assistantClientId: string,
+): Promise<GenerationJobRow | null> {
+  const row = await queryOne<GenerationJobRow>(
+    `select ${JOB_COLUMNS} from public.chat_generation_jobs
+     where chat_id = $1 and user_id = $2
+       and input->'turn'->>'assistantClientId' = $3
+     order by created_at desc limit 1`,
+    [chatId, userId, assistantClientId],
+  );
+  return row ? normalizeJob(row) : null;
 }
 
 export async function getGenerationJob(
@@ -226,7 +305,7 @@ export async function getActiveGenerationJobForChat(
     `select ${JOB_COLUMNS}
      from public.chat_generation_jobs
      where chat_id = $1 and status = any($2)
-     order by created_at desc
+     order by case when status = 'queued' then 1 else 0 end, created_at asc
      limit 1`,
     [chatId, ACTIVE_JOB_STATUSES],
   );
@@ -245,24 +324,53 @@ export async function claimGenerationJob(
     `select * from public.claim_chat_generation_job($1, $2)`,
     [jobId, worker],
   );
-  const row = rows[0] ?? null;
+  // A NULL composite returned by PL/pgSQL is expanded into a row containing
+  // only NULLs by `select * from function()`, not an empty result set.
+  const row = rows.find((candidate) => candidate.id) ?? null;
   return row ? normalizeJob(row) : null;
 }
 
-export async function heartbeatGenerationJob(jobId: string): Promise<void> {
-  await query(
+export async function heartbeatGenerationJob(
+  jobId: string,
+  lockedBy: string,
+): Promise<boolean> {
+  const rows = await query<{ id: string }>(
     `update public.chat_generation_jobs
      set heartbeat_at = now(), updated_at = now()
-     where id = $1 and status = any($2)`,
-    [jobId, ACTIVE_JOB_STATUSES],
+     where id = $1 and locked_by = $2 and status = 'running'
+     returning id`,
+    [jobId, lockedBy],
   );
+  return rows.length > 0;
+}
+
+function leaseLost(): AppError {
+  return new AppError(
+    "This background task is now owned by another worker or has stopped.",
+    409,
+    "generation_lease_lost",
+  );
+}
+
+/** Check before tools/finalization; database writes also fence atomically. */
+export async function assertGenerationJobOwnership(
+  jobId: string,
+  lockedBy: string,
+): Promise<void> {
+  const row = await queryOne<{ id: string }>(
+    `select id from public.chat_generation_jobs
+     where id = $1 and locked_by = $2 and status = 'running'`,
+    [jobId, lockedBy],
+  );
+  if (!row) throw leaseLost();
 }
 
 export async function attachTurnMessageIds(
   jobId: string,
   ids: { userMessageId: string | null; assistantMessageId: string | null },
+  lockedBy: string,
 ): Promise<void> {
-  await query(
+  const rows = await query<{ id: string }>(
     `update public.chat_generation_jobs
      set user_message_id = coalesce($2::uuid, user_message_id),
          assistant_message_id = coalesce($3::uuid, assistant_message_id),
@@ -271,35 +379,41 @@ export async function attachTurnMessageIds(
            'assistantMessageId', coalesce($3::text, checkpoint->>'assistantMessageId')
          ),
          updated_at = now()
-     where id = $1`,
-    [jobId, ids.userMessageId, ids.assistantMessageId],
+     where id = $1 and locked_by = $4 and status = 'running'
+     returning id`,
+    [jobId, ids.userMessageId, ids.assistantMessageId, lockedBy],
   );
+  if (rows.length === 0) throw leaseLost();
 }
 
 export async function saveGenerationCheckpoint(
   jobId: string,
   checkpoint: GenerationCheckpoint,
+  lockedBy: string,
 ): Promise<void> {
-  await query(
+  const rows = await query<{ id: string }>(
     `update public.chat_generation_jobs
      set checkpoint = $2::jsonb,
          heartbeat_at = now(),
          updated_at = now()
-     where id = $1 and status = any($3)`,
+     where id = $1 and locked_by = $3 and status = 'running'
+     returning id`,
     [
       jobId,
       JSON.stringify({ ...checkpoint, version: GENERATION_CHECKPOINT_VERSION }),
-      ACTIVE_JOB_STATUSES,
+      lockedBy,
     ],
   );
+  if (rows.length === 0) throw leaseLost();
 }
 
 /** Slice yielded: park the checkpoint and wait for the chained slice. */
 export async function markJobContinuing(
   jobId: string,
   checkpoint: GenerationCheckpoint,
+  lockedBy: string,
 ): Promise<void> {
-  await query(
+  const rows = await query<{ id: string }>(
     `update public.chat_generation_jobs
      set status = 'continuing',
          checkpoint = $2::jsonb,
@@ -308,23 +422,26 @@ export async function markJobContinuing(
          locked_at = null,
          heartbeat_at = now(),
          updated_at = now()
-     where id = $1 and status = any($3)`,
+     where id = $1 and locked_by = $3 and status = 'running'
+     returning id`,
     [
       jobId,
       JSON.stringify({ ...checkpoint, version: GENERATION_CHECKPOINT_VERSION }),
-      ACTIVE_JOB_STATUSES,
+      lockedBy,
     ],
   );
+  if (rows.length === 0) throw leaseLost();
 }
 
 export async function finishGenerationJob(input: {
   jobId: string;
+  lockedBy: string;
   status: "complete" | "failed" | "cancelled" | "paused_for_user";
   result?: Record<string, unknown>;
   error?: string | null;
   checkpoint?: GenerationCheckpoint;
-}): Promise<void> {
-  await query(
+}): Promise<boolean> {
+  const rows = await query<{ id: string }>(
     `update public.chat_generation_jobs
      set status = $2,
          result = coalesce($3::jsonb, result),
@@ -337,7 +454,8 @@ export async function finishGenerationJob(input: {
      where id = $1
        -- Never overwrite a terminal job (a user 'cancelled', or a takeover
        -- slice that already completed it while a stale slice was finishing).
-       and status = any($6)`,
+       and status = 'running' and locked_by = $6
+     returning id`,
     [
       input.jobId,
       input.status,
@@ -349,9 +467,10 @@ export async function finishGenerationJob(input: {
             version: GENERATION_CHECKPOINT_VERSION,
           })
         : null,
-      ACTIVE_JOB_STATUSES,
+      input.lockedBy,
     ],
   );
+  return rows.length > 0;
 }
 
 /** Explicit user stop. Running slices poll this and abort within seconds. */
@@ -360,14 +479,17 @@ export async function cancelActiveJobsForChat(
   userId: string,
 ): Promise<number> {
   const rows = await query<{ id: string }>(
-    `update public.chat_generation_jobs
-     set status = 'cancelled',
-         locked_by = null,
-         locked_at = null,
-         completed_at = now(),
-         updated_at = now()
-     where chat_id = $1 and user_id = $2 and status = any($3)
-     returning id`,
+    `with cancelled as (
+      update public.chat_generation_jobs set status = 'cancelled', locked_by = null,
+        locked_at = null, completed_at = now(), updated_at = now()
+      where chat_id = $1 and user_id = $2 and status = any($3)
+      returning id, assistant_message_id
+    ), settle_messages as (
+      update public.chat_messages m set status = 'cancelled', updated_at = now()
+      where m.chat_id = $1 and m.user_id = $2 and m.status in ('queued', 'streaming')
+        and m.id in (select assistant_message_id from cancelled)
+      returning m.id
+    ) select id from cancelled`,
     [chatId, userId, ACTIVE_JOB_STATUSES],
   );
   return rows.length;

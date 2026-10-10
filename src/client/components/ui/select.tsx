@@ -26,9 +26,8 @@ const SelectTrigger = React.forwardRef<
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      {" "}
       <ChevronDown className="icon-md opacity-50" />
-    </SelectPrimitive.Icon>{" "}
+    </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
@@ -73,7 +72,7 @@ const SelectContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", ...props }, ref) => (
   <SelectPrimitive.Portal>
-    {" "}
+
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
@@ -94,9 +93,9 @@ const SelectContent = React.forwardRef<
         )}
       >
         {children}
-      </SelectPrimitive.Viewport>{" "}
+      </SelectPrimitive.Viewport>
       <SelectScrollDownButton />
-    </SelectPrimitive.Content>{" "}
+    </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ));
 SelectContent.displayName = SelectPrimitive.Content.displayName;

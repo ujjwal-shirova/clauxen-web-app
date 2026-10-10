@@ -1,14 +1,11 @@
-import { randomUUID } from "crypto";
 import { AppError } from "@/server/db/errors";
 import * as tasksRepo from "@/server/repositories/scheduled-tasks.repository";
 import * as chatService from "@/server/services/chat.service";
-import {
-  beginChatGeneration,
-  endChatGeneration,
-} from "@/server/chat/generation-registry";
+import { getGenerationJobByAssistantClientId } from "@/server/repositories/generation-jobs.repository";
 import {
   computeNextRunAt,
   parseTimeLocal,
+  isCalendarDate,
   type ScheduleFrequency,
   type ScheduleSpec,
 } from "@/server/services/scheduled-tasks-schedule";
@@ -41,7 +38,7 @@ function assertDate(
   label: string,
 ): string | null {
   if (value === undefined || value === null || value === "") return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (!isCalendarDate(value)) {
     throw new AppError(`${label} must be YYYY-MM-DD.`, 400);
   }
   return value;
@@ -94,7 +91,11 @@ export function validateCreateInput(raw: CreateScheduledTaskInput) {
     );
   }
 
-  parseTimeLocal(raw.timeLocal);
+  try {
+    parseTimeLocal(raw.timeLocal);
+  } catch {
+    throw new AppError("Invalid time. Use HH:MM (24-hour).", 400);
+  }
   const timezone = assertTimezone(raw.timezone ?? "UTC");
   const runDate = assertDate(raw.runDate, "runDate");
   const expiresAt = assertDate(raw.expiresAt, "expiresAt");
@@ -119,7 +120,7 @@ export function validateCreateInput(raw: CreateScheduledTaskInput) {
     if (dayOfWeek === null || dayOfWeek === undefined) {
       throw new AppError("Day of week is required for weekly tasks.", 400);
     }
-    if (dayOfWeek < 0 || dayOfWeek > 6) {
+    if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
       throw new AppError("Day of week must be 0–6 (Sunday–Saturday).", 400);
     }
   } else {
@@ -129,7 +130,7 @@ export function validateCreateInput(raw: CreateScheduledTaskInput) {
     if (dayOfMonth === null || dayOfMonth === undefined) {
       throw new AppError("Day of month is required for monthly tasks.", 400);
     }
-    if (dayOfMonth < 1 || dayOfMonth > 31) {
+    if (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31) {
       throw new AppError("Day of month must be 1–31.", 400);
     }
   } else {
@@ -183,6 +184,12 @@ export async function listTasks(userId: string) {
 }
 
 export async function getTask(taskId: string, userId: string) {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      taskId,
+    )
+  )
+    throw new AppError("Invalid scheduled task ID.", 400);
   const task = await tasksRepo.getScheduledTask(taskId, userId);
   if (!task) throw new AppError("Scheduled task not found.", 404);
   return task;
@@ -232,6 +239,12 @@ export async function updateTask(
               },
               new Date(),
             );
+      if (patch.status === "active" && !nextRunAt) {
+        throw new AppError(
+          "This schedule has ended. Edit its date before enabling it.",
+          400,
+        );
+      }
       const updated = await tasksRepo.updateScheduledTask(taskId, userId, {
         status: patch.status,
         nextRunAt:
@@ -272,7 +285,10 @@ export async function updateTask(
     dayOfWeek: validated.dayOfWeek,
     dayOfMonth: validated.dayOfMonth,
     expiresAt: validated.expiresAt,
-    nextRunAt: validated.nextRunAt,
+    nextRunAt:
+      (patch.status ?? existing.status) === "paused"
+        ? null
+        : validated.nextRunAt,
     status: patch.status ?? existing.status,
     notificationMode: validated.notificationMode,
     modelMode: validated.modelMode,
@@ -284,6 +300,7 @@ export async function updateTask(
 }
 
 export async function deleteTask(taskId: string, userId: string) {
+  await getTask(taskId, userId);
   const deleted = await tasksRepo.softDeleteScheduledTask(taskId, userId);
   if (!deleted) throw new AppError("Scheduled task not found.", 404);
   return deleted;
@@ -316,181 +333,160 @@ async function deliverRunNotification(
       const chatUrl = run.chat_id
         ? `${env.appUrl.replace(/\/+$/, "")}/c/${encodeURIComponent(run.chat_id)}`
         : null;
-      await sendAutomationRunEmail({
+      const sent = await sendAutomationRunEmail({
         to: recipient.email,
         taskName: task.name,
         status: run.status as "success" | "failed" | "skipped",
         summary: body,
         chatUrl,
       });
+      if (!sent) throw new Error("Automation email delivery failed.");
     }
   }
 }
 
-/**
- * Execute one claimed task: create a chat, stream generation, record the run.
- * Consumes the SSE stream to completion (no client).
- */
+/** Admit one stable turn. The generation watchdog owns execution and recovery. */
 export async function executeScheduledRun(
   runId: string,
-): Promise<{ runId: string; chatId: string | null; status: string }> {
+  executionOrigin: string,
+) {
   const acquired = await tasksRepo.acquireScheduledTaskRun(runId);
   if (!acquired) {
     const existing = await tasksRepo.getScheduledTaskRun(runId);
     if (!existing) throw new AppError("Scheduled run not found.", 404);
-    if (["success", "failed", "skipped"].includes(existing.status)) {
-      return { runId, chatId: existing.chat_id, status: existing.status };
+    if (["success", "failed", "skipped"].includes(existing.status))
+      return {
+        runId,
+        chatId: existing.chat_id,
+        status: existing.status,
+        jobId: null,
+      };
+    if (existing.chat_id) {
+      const job = await getGenerationJobByAssistantClientId(
+        existing.chat_id,
+        existing.user_id,
+        `sched-a-${runId}`,
+      );
+      if (job)
+        return {
+          runId,
+          chatId: existing.chat_id,
+          status: existing.status,
+          jobId: job.id,
+        };
     }
-    throw new AppError("Scheduled run is already being executed.", 409);
+    throw new AppError("Scheduled run is already being admitted.", 409);
   }
   const { task, run } = acquired;
-
+  // A previously accepted turn must be recovered even if the schedule was paused.
+  if (run.chat_id) {
+    const accepted = await getGenerationJobByAssistantClientId(
+      run.chat_id,
+      task.user_id,
+      `sched-a-${run.id}`,
+    );
+    if (accepted)
+      return {
+        runId,
+        chatId: run.chat_id,
+        status: "running",
+        jobId: accepted.id,
+      };
+  }
   if (task.status !== "active") {
-    const skipped = await tasksRepo.finishScheduledTaskRun({
+    await tasksRepo.completeScheduledRun({
       runId,
       status: "skipped",
+      attempt: run.attempt_count,
       summary: "Automation was not active when the queued run started.",
     });
-    await tasksRepo.markScheduledTaskAfterRun({
-      taskId: task.id,
-      runId,
-      nextRunAt: null,
-      status: task.status,
-      lastRunStatus: "skipped",
-    });
-    if (skipped) {
-      await deliverRunNotification(
-        task,
-        skipped,
-        skipped.summary ?? "Automation skipped.",
-      );
-    }
-    return { runId, chatId: null, status: "skipped" };
+    return { runId, chatId: run.chat_id, status: "skipped", jobId: null };
   }
-
-  const prompt = buildRunPrompt(task);
-  let chatId: string | null = null;
-  let ok = false;
-  let errorMessage: string | null = null;
-  let summary: string | null = null;
-
   try {
-    const chat = await chatService.createChatForUser(task.user_id, {
-      title: task.name.slice(0, 80),
-    });
-    if (!chat?.id) throw new Error("Failed to create chat for scheduled run");
-    chatId = chat.id;
-
-    const userClientId = `sched-u-${randomUUID()}`;
-    const assistantClientId = `sched-a-${randomUUID()}`;
-
-    const generation = beginChatGeneration(chatId);
-    if (!generation) {
-      throw new Error("Generation lease unavailable");
-    }
-    const generationController = generation.controller;
-
-    try {
-      const { stream, onComplete } = await chatService.streamChatGeneration({
-        chatId,
-        userId: task.user_id,
+    const chatId = await tasksRepo.ensureScheduledRunChat(run, task);
+    const prompt = buildRunPrompt(task);
+    const job = await chatService.acceptBackgroundChatTurn({
+      chatId,
+      userId: task.user_id,
+      jobInput: {
+        executionOrigin,
         messages: [{ role: "user", content: prompt }],
         turn: {
           content: prompt,
-          userClientId,
-          assistantClientId,
+          userClientId: `sched-u-${run.id}`,
+          assistantClientId: `sched-a-${run.id}`,
         },
-        signal: generationController.signal,
-        ensureLease: () => generation.lease,
-        generateChatTitle: true,
         chatModel:
           task.model_mode === "thinking" ? env.thinkingModel : env.fastModel,
         extendedThinking: task.model_mode === "thinking",
+        clientTimezone: task.timezone,
+        generateChatTitle: false,
+        requestId: run.id,
+        turnStartedAtMs: Date.now(),
+      },
+    });
+    return { runId, chatId, status: "running", jobId: job.id };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (run.attempt_count >= 5) {
+      await tasksRepo.completeScheduledRun({
+        runId,
+        status: "failed",
+        attempt: run.attempt_count,
+        summary: message,
+        errorMessage: message,
       });
-
-      // Drain SSE so the agent finishes and persists.
-      const reader = stream.getReader();
-      const decoder = new TextDecoder();
-      let text = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        text += decoder.decode(value, { stream: true });
-      }
-      await onComplete();
-
-      // Best-effort summary from last answer chunk in the SSE dump.
-      const answerMatch = text.match(/"answer"\s*:\s*"((?:\\.|[^"\\])*)"/);
-      if (answerMatch?.[1]) {
-        try {
-          summary = JSON.parse(`"${answerMatch[1]}"`).slice(0, 500);
-        } catch {
-          summary = answerMatch[1].slice(0, 500);
-        }
-      }
-      ok = true;
-    } finally {
-      await endChatGeneration(chatId, generationController);
+      return { runId, chatId: run.chat_id, status: "failed", jobId: null };
     }
-  } catch (err) {
-    errorMessage = err instanceof Error ? err.message : String(err);
-    ok = false;
+    await tasksRepo.requeueScheduledTaskRun(runId, message, run.attempt_count);
+    throw new AppError(message, 503);
   }
+}
 
-  if (!ok && run.attempt_count < 5) {
-    await tasksRepo.requeueScheduledTaskRun(
-      run.id,
-      errorMessage ?? "Run failed",
-    );
-    throw new AppError(errorMessage ?? "Scheduled run failed.", 503);
+/** Reconcile durable results before claiming the next occurrence. */
+export async function reconcileScheduledRuns(limit = 20) {
+  const completions = await tasksRepo.listScheduledRunCompletions(limit);
+  for (const { run, job_status, job_error, answer } of completions) {
+    const success = job_status === "complete";
+    const skipped = job_status === "cancelled";
+    const summary =
+      answer?.slice(0, 500) ||
+      job_error ||
+      (success
+        ? "Your automation completed successfully."
+        : job_status === "paused_for_user"
+          ? "This task needs your input. Open the result chat to continue."
+          : skipped
+            ? "The run was stopped."
+            : "Your automation failed.");
+    await tasksRepo.completeScheduledRun({
+      runId: run.id,
+      status: success ? "success" : skipped ? "skipped" : "failed",
+      summary,
+      errorMessage: success || skipped ? null : (job_error ?? summary),
+    });
   }
-
-  const runStatus: "success" | "failed" = ok ? "success" : "failed";
-  const finishedRun = await tasksRepo.finishScheduledTaskRun({
-    runId: run.id,
-    status: runStatus,
-    chatId,
-    errorMessage,
-    summary,
-  });
-
-  const next = computeNextRunAt(
-    {
-      frequency: task.frequency,
-      timeLocal: task.time_local,
-      timezone: task.timezone,
-      runDate: task.run_date,
-      dayOfWeek: task.day_of_week,
-      dayOfMonth: task.day_of_month,
-      expiresAt: task.expires_at,
-    },
-    new Date(),
+  const notifications = await tasksRepo.claimScheduledNotifications(
+    Math.min(limit, 3),
   );
-
-  const nextStatus =
-    task.frequency === "once" || !next ? "completed" : "active";
-
-  await tasksRepo.markScheduledTaskAfterRun({
-    taskId: task.id,
-    runId,
-    nextRunAt: nextStatus === "active" && next ? next.toISOString() : null,
-    status: nextStatus,
-    lastRunStatus: runStatus,
-    lastChatId: chatId,
-  });
-
-  if (finishedRun) {
-    await deliverRunNotification(
-      task,
-      finishedRun,
-      summary ??
-        (ok
-          ? "Your automation completed successfully."
-          : (errorMessage ?? "Your automation failed.")),
-    );
-  }
-
-  return { runId: run.id, chatId, status: runStatus };
+  await Promise.all(
+    notifications.map(async ({ task, run }) => {
+      try {
+        await deliverRunNotification(
+          task,
+          run,
+          run.summary ?? "Your automation finished.",
+        );
+        await tasksRepo.markScheduledNotificationDelivered(run.id);
+      } catch (error) {
+        console.error("[scheduled-tasks] notification delivery failed", {
+          runId: run.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }),
+  );
+  return completions.length;
 }
 
 /** Claim due schedules into durable queue jobs. No inference runs here. */
@@ -498,6 +494,23 @@ export async function dispatchDueScheduledTasks(limit = 8): Promise<{
   claimed: number;
   jobs: tasksRepo.QueuedScheduledRun[];
 }> {
-  const jobs = await tasksRepo.claimDueScheduledTasks(limit);
+  await reconcileScheduledRuns(limit);
+  const manual = await tasksRepo.claimQueuedScheduledRuns(limit);
+  const due =
+    manual.length < limit
+      ? await tasksRepo.claimDueScheduledTasks(limit - manual.length)
+      : [];
+  const jobs = [...manual, ...due];
   return { claimed: jobs.length, jobs };
+}
+
+export async function runTaskNow(taskId: string, userId: string) {
+  await getTask(taskId, userId);
+  const run = await tasksRepo.queueManualScheduledRun(taskId, userId);
+  if (!run)
+    throw new AppError(
+      "Enable the task and wait for any current run to finish before running it again.",
+      409,
+    );
+  return { runId: run.id, status: "queued" };
 }

@@ -18,7 +18,7 @@ export const GET = withApiRouteParams<{ chatId: string }>(
     const [status, markedIds, job] = await Promise.all([
       getChatCoordStatus(params.chatId),
       chatsRepo.listGeneratingChatIds(user.id),
-      getActiveGenerationJobForChat(params.chatId).catch(() => null),
+      getActiveGenerationJobForChat(params.chatId),
     ]);
     const marked = markedIds.includes(params.chatId);
     // The coordinator lease is per-slice; the job row is the durable truth
@@ -36,7 +36,9 @@ export const GET = withApiRouteParams<{ chatId: string }>(
           active,
           stopRequested: status?.stopRequested ?? false,
           // Lets the client tell "live stream" from "background chain".
-          backgrounded: jobActive && job?.slice_index != null && job.slice_index > 0,
+          backgrounded: jobActive,
+          jobId: job?.id ?? null,
+          assistantMessageId: job?.assistant_message_id ?? null,
           jobStatus: job?.status ?? null,
         },
       },

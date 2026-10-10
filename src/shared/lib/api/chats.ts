@@ -37,11 +37,36 @@ export async function searchChatTitles(query: string, limit = 40) {
   );
 }
 
-export async function listGeneratingChatIds() {
-  return apiFetch<{ ids: string[] }>("/api/v1/chats/generating");
+export async function listGeneratingChatIds(signal?: AbortSignal) {
+  return apiFetch<{ ids: string[] }>("/api/v1/chats/generating", {
+    signal,
+    cache: "no-store",
+    timeoutMs: 15_000,
+  });
+}
+
+export type GenerationStatus = {
+  active: boolean;
+  assistantMessageId?: string | null;
+  jobId?: string | null;
+  jobStatus?: string | null;
+  stopRequested?: boolean;
+};
+
+export async function getGenerationStatus(
+  chatId: string,
+  signal?: AbortSignal,
+) {
+  return apiFetch<GenerationStatus>(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/generate/status`,
+    { signal, cache: "no-store", timeoutMs: 15_000 },
+  );
 }
 
 export type LiveTurn = {
+  assistantClientId?: string;
+  userMessageId?: string | null;
+  userClientId?: string;
   chatId: string;
   userId: string;
   assistantId: string;
@@ -52,9 +77,10 @@ export type LiveTurn = {
   archiveAt?: number | null;
 };
 
-export async function getLiveTurn(chatId: string) {
+export async function getLiveTurn(chatId: string, signal?: AbortSignal) {
   return apiFetch<{ turn: LiveTurn | null }>(
     `/api/v1/chats/${encodeURIComponent(chatId)}/live`,
+    { signal, cache: "no-store", timeoutMs: 15_000 },
   );
 }
 

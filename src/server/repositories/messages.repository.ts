@@ -86,7 +86,10 @@ export async function listThreadPage(input: {
     MAX_PAGE_LIMIT,
     Math.max(1, input.limit ?? DEFAULT_PAGE_LIMIT),
   );
-  let rows: (ThreadMessageRow & { has_more: boolean; next_depth: number | null })[];
+  let rows: (ThreadMessageRow & {
+    has_more: boolean;
+    next_depth: number | null;
+  })[];
   try {
     rows = await query<
       ThreadMessageRow & { has_more: boolean; next_depth: number | null }
@@ -120,7 +123,11 @@ export async function listThreadPage(input: {
         ? (meta.sibling_ids as string[])
         : undefined;
       const sibling_variants = Array.isArray(meta.sibling_variants)
-        ? (meta.sibling_variants as Array<{ id: string; index: number; content: string }>)
+        ? (meta.sibling_variants as Array<{
+            id: string;
+            index: number;
+            content: string;
+          }>)
         : undefined;
       return {
         ...message,
@@ -134,8 +141,7 @@ export async function listThreadPage(input: {
     (max, row) => (row.depth > max ? row.depth : max),
     -1,
   );
-  const nextCursor =
-    hasMore && deepest >= 0 ? { depth: deepest } : null;
+  const nextCursor = hasMore && deepest >= 0 ? { depth: deepest } : null;
 
   return {
     messages,
@@ -606,6 +612,11 @@ export async function beginChatTurn(input: {
    * parent so the fork becomes a sibling, never a mutation.
    */
   parentMessageId?: string | null;
+  /** Commit job admission in the same transaction as its prompt/reply rows. */
+  onReserved?: (
+    ids: { userMessageId: string; assistantMessageId: string },
+    client: PoolClient,
+  ) => Promise<void>;
 }): Promise<{
   user: InsertedMessageRow;
   assistant: InsertedMessageRow;
@@ -615,7 +626,7 @@ export async function beginChatTurn(input: {
       `select id
        from public.chats
        where id = $1 and user_id = $2 and status != 'deleted'
-       for key share`,
+       for update`,
       [input.chatId, input.userId],
     );
     if (!ownedChat.rows[0]) throw notFound("Chat not found.");
@@ -722,6 +733,10 @@ export async function beginChatTurn(input: {
       );
     }
 
+    await input.onReserved?.(
+      { userMessageId: user.id, assistantMessageId: assistant.id },
+      client,
+    );
     return { user, assistant };
   });
 }
@@ -813,6 +828,7 @@ export async function createUserMessageWithTranscript(input: {
 
 /** Final assistant payload + complete agent timeline + JSONL lines, atomically. */
 export async function finalizeAssistantTurn(input: {
+  generationLease?: { jobId: string; lockedBy: string };
   messageId: string;
   chatId: string;
   userId: string;
@@ -823,6 +839,19 @@ export async function finalizeAssistantTurn(input: {
   tools?: DurableToolCall[];
 }) {
   return withTransaction(async (client) => {
+    if (input.generationLease) {
+      const lease = await client.query(
+        `select id from public.chat_generation_jobs
+         where id = $1 and locked_by = $2 and status = 'running' for update`,
+        [input.generationLease.jobId, input.generationLease.lockedBy],
+      );
+      if (!lease.rows.length)
+        throw new AppError(
+          "Generation ownership lost.",
+          409,
+          "generation_lease_lost",
+        );
+    }
     const ownedChat = await client.query<{ id: string }>(
       `select id from public.chats
        where id = $1 and user_id = $2 and status != 'deleted'
@@ -926,9 +955,15 @@ export async function finalizeAssistantTurn(input: {
     await client.query(
       `update public.chats
        set updated_at = now(),
-           active_leaf_message_id = coalesce($3::uuid, active_leaf_message_id)
+           active_leaf_message_id = case when $4::boolean then active_leaf_message_id
+             else coalesce($3::uuid, active_leaf_message_id) end
        where id = $1 and user_id = $2`,
-      [input.chatId, input.userId, input.messageId],
+      [
+        input.chatId,
+        input.userId,
+        input.messageId,
+        Boolean(input.generationLease),
+      ],
     );
     return message;
   });
@@ -986,6 +1021,7 @@ export async function checkpointStreamingMessage(
   chatId: string,
   content: string,
   contentJson: Record<string, unknown>,
+  generationLease?: { jobId: string; lockedBy: string },
 ): Promise<boolean> {
   const rows = await query<{ id: string }>(
     `update public.chat_messages
@@ -993,8 +1029,17 @@ export async function checkpointStreamingMessage(
          content_json = $4::jsonb,
          updated_at = now()
      where id = $1 and chat_id = $2 and status = 'streaming'
+       and ($5::uuid is null or exists (select 1 from public.chat_generation_jobs
+         where id = $5 and locked_by = $6 and status = 'running' for share))
      returning id`,
-    [messageId, chatId, content, JSON.stringify(contentJson)],
+    [
+      messageId,
+      chatId,
+      content,
+      JSON.stringify(contentJson),
+      generationLease?.jobId ?? null,
+      generationLease?.lockedBy ?? null,
+    ],
   );
   return rows.length > 0;
 }

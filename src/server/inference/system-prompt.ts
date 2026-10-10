@@ -58,13 +58,18 @@ function stripSystemPrefix(raw: string): string {
 
 /** Load the agent system prompt. Memoized for the process lifetime. */
 export function getModelSystemPrompt(
-   
   _model: ConfiguredModelId | string = "clauxen",
 ): string {
   if (cachedAgentPrompt) return cachedAgentPrompt;
   const fullPath = path.join(MODEL_SYSTEM_PROMPTS_DIR, AGENT_PROMPT_FILENAME);
   const raw = fs.readFileSync(fullPath, "utf8");
-  cachedAgentPrompt = stripSystemPrefix(raw);
+  // The directory is resolved internally; the filename is a fixed application prompt.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const scheduling = fs.readFileSync(
+    path.join(MODEL_SYSTEM_PROMPTS_DIR, "scheduled-tasks.md"),
+    "utf8",
+  );
+  cachedAgentPrompt = [stripSystemPrefix(raw), scheduling.trim()].join("\n\n");
   return cachedAgentPrompt;
 }
 
@@ -73,10 +78,12 @@ export function getModelSystemPrompt(
  * Order: agent .md base → optional dynamic suffix (title instruction, etc.).
  * Keeps the large static prefix stable for prompt caching.
  */
-export function buildModelSystemPrompt(opts: {
-  model?: ConfiguredModelId | string;
-  append?: string;
-} = {}): string {
+export function buildModelSystemPrompt(
+  opts: {
+    model?: ConfiguredModelId | string;
+    append?: string;
+  } = {},
+): string {
   const parts: string[] = [getModelSystemPrompt(opts.model ?? "clauxen")];
 
   if (opts.append?.trim()) {
@@ -145,7 +152,7 @@ export function buildTemporalContextAppend(opts?: {
     `Today is ${weekday}, ${month} ${day}, ${year} (calendar date ${isoLocal}).`,
     `Timezone: ${timeZone}.`,
     `UTC ISO timestamp: ${now.toISOString()}.`,
-    "Treat this block as ground truth for \"today\", \"yesterday\", \"this week\", \"this year\", and any time-sensitive web search. Prefer year-qualified queries when searching the web. Do not invent or assume a different date.",
+    'Treat this block as ground truth for "today", "yesterday", "this week", "this year", and any time-sensitive web search. Prefer year-qualified queries when searching the web. Do not invent or assume a different date.',
     "</current_datetime>",
   ].join("\n");
 }

@@ -28,6 +28,9 @@ export const PATCH = withApiRouteParams<{ taskId: string }>(
     } catch {
       throw new AppError("Invalid JSON body.", 400);
     }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      throw new AppError("JSON body must be an object.", 400);
+    }
 
     const patch: Parameters<typeof scheduledTasks.updateTask>[2] = {};
     if (typeof body.name === "string") patch.name = body.name;

@@ -163,8 +163,7 @@ function clearIdleStreamingFlags(message: Message): Message {
     });
     const latestStepEnd = steps.reduce(
       (latest, step) =>
-        typeof step.completedAtMs === "number" &&
-        step.completedAtMs > latest
+        typeof step.completedAtMs === "number" && step.completedAtMs > latest
           ? step.completedAtMs
           : latest,
       0,
@@ -181,10 +180,7 @@ function clearIdleStreamingFlags(message: Message): Message {
     message.isThinkingStreaming &&
     !(message.thinkingDurationSeconds && message.thinkingDurationSeconds > 0) &&
     typeof message.thinkingStartedAtMs === "number"
-      ? Math.max(
-          1,
-          Math.round((now - message.thinkingStartedAtMs) / 1000),
-        )
+      ? Math.max(1, Math.round((now - message.thinkingStartedAtMs) / 1000))
       : message.thinkingDurationSeconds;
   return {
     ...message,
@@ -345,7 +341,9 @@ function isGenerationLocallySettled(chatId: string) {
 }
 
 /** Paint the Cloudflare live trace when this tab is not the one streaming. */
-async function paintLiveTurn(chatId: string): Promise<"painted" | "empty" | "missing"> {
+async function paintLiveTurn(
+  chatId: string,
+): Promise<"painted" | "empty" | "missing"> {
   if (getGeneration(chatId)) return "empty";
   let turn: chatsApi.LiveTurn | null = null;
   try {
@@ -360,7 +358,8 @@ async function paintLiveTurn(chatId: string): Promise<"painted" | "empty" | "mis
   const target = messages.find(
     (message) =>
       message.id === turn!.assistantId ||
-      message.clientId === turn!.assistantId,
+      message.clientId === turn!.assistantId ||
+      (turn!.assistantClientId && message.clientId === turn!.assistantClientId),
   );
   const running = turn.status === "running";
   const base: Message = target ?? {
@@ -395,8 +394,8 @@ async function paintLiveTurn(chatId: string): Promise<"painted" | "empty" | "mis
   store.upsertMessage(chatId, {
     ...base,
     ...hydrated,
-    id: base.id,
-    clientId: base.clientId ?? base.id,
+    id: turn.assistantId,
+    clientId: turn.assistantClientId ?? base.clientId ?? base.id,
     content: turn.answer || hydrated.content || base.content,
     agentMode: true,
     isStreaming: running,
@@ -412,7 +411,8 @@ async function paintLiveTurn(chatId: string): Promise<"painted" | "empty" | "mis
       : base.agentTrace,
   });
   if (running) store.setChatGenerating(chatId, true);
-  else if (store.generatingChatIds[chatId]) store.setChatGenerating(chatId, false);
+  else if (store.generatingChatIds[chatId])
+    store.setChatGenerating(chatId, false);
   return "painted";
 }
 
@@ -453,6 +453,7 @@ async function pollBackgroundTurn(
   chatId: string,
   options: {
     onSettled?: () => void;
+    hydrate?: () => Promise<unknown>;
   } = {},
 ): Promise<void> {
   stopBackgroundPoll(chatId);
@@ -467,24 +468,20 @@ async function pollBackgroundTurn(
       if (typeof document !== "undefined" && document.hidden) continue;
       let active = true;
       try {
-        const response = await fetch(
-          `/api/v1/chats/${chatId}/generate/status`,
-          {
-            method: "GET",
-            headers: { Accept: "application/json" },
-            credentials: "include",
-            cache: "no-store",
-            signal: poller.signal,
-          },
+        const status = await chatsApi.getGenerationStatus(
+          chatId,
+          poller.signal,
         );
-        if (response.ok) {
-          const payload = (await response.json()) as {
-            data?: { active?: boolean };
-          };
-          active = Boolean(payload.data?.active);
-        }
+        active = status.active;
+        if (!active && options.hydrate) await options.hydrate();
       } catch (error) {
         if (poller.signal.aborted) return;
+        active = true;
+        if (
+          error instanceof ApiError &&
+          (error.status === 401 || error.status === 403)
+        )
+          return;
         // Status blips must not end the turn; the live paint below still
         // advances the transcript.
       }
@@ -839,8 +836,15 @@ export function useChatApi(
             if (deletedId) {
               const currentActive = useChatStore.getState().activeChatId;
               useChatStore.getState().removeChat(deletedId);
-              useChatStore.getState().setRecentChats((prev) => prev.filter((c) => c.id !== deletedId));
-              if (deletedId === currentActive && typeof window !== "undefined") {
+              useChatStore
+                .getState()
+                .setRecentChats((prev) =>
+                  prev.filter((c) => c.id !== deletedId),
+                );
+              if (
+                deletedId === currentActive &&
+                typeof window !== "undefined"
+              ) {
                 window.location.replace("/new");
               }
             }
@@ -1048,8 +1052,8 @@ export function useChatApi(
             const tail = existing[existing.length - 1];
             const tailIds = tail
               ? new Set(
-                  [tail.id, tail.clientId].filter(
-                    (value): value is string => Boolean(value),
+                  [tail.id, tail.clientId].filter((value): value is string =>
+                    Boolean(value),
                   ),
                 )
               : null;
@@ -1308,8 +1312,7 @@ export function useChatApi(
               signal: controller.signal,
             });
           } catch (error) {
-            const status =
-              error instanceof ApiError ? error.status : undefined;
+            const status = error instanceof ApiError ? error.status : undefined;
             const permanent =
               controller.signal.aborted ||
               status === 401 ||
@@ -1400,7 +1403,10 @@ export function useChatApi(
     let ticking = false;
     const tick = async () => {
       if (cancelled || ticking) return;
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState !== "visible"
+      ) {
         // Paused while tab is in background — resumes automatically on visibilitychange
         return;
       }
@@ -1417,12 +1423,13 @@ export function useChatApi(
             store.setChatGenerating(id, true);
           }
         }
-        for (const id of Object.keys(useChatStore.getState().generatingChatIds)) {
+        for (const id of Object.keys(
+          useChatStore.getState().generatingChatIds,
+        )) {
           if (live.has(id) || getGeneration(id)) continue;
-          void paintLiveTurn(id).then((painted) => {
-            if (painted === "painted") return;
-            sealIdleChat(id);
-          });
+          // Even a terminal live mirror only contains one row. Reload the
+          // authoritative thread to recover prompts, attachments and branches.
+          void paintLiveTurn(id).then(() => sealIdleChat(id));
         }
         const active = useChatStore.getState().activeChatId;
         for (const id of live) {
@@ -1466,12 +1473,14 @@ export function useChatApi(
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
     window.addEventListener("pageshow", onVisible);
+    window.addEventListener("online", onVisible);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
       window.removeEventListener("pageshow", onVisible);
+      window.removeEventListener("online", onVisible);
     };
   }, [loadChatMessages, userId]);
 
@@ -2418,11 +2427,13 @@ export function useChatApi(
         };
 
         try {
-          await streamFromResponse(
+          const streamOutcome = await streamFromResponse(
             response,
             { onEvent: handleStreamEvent },
             controller.signal,
           );
+          if (streamOutcome === "interrupted" && !ephemeral)
+            sawBackgrounded = true;
         } finally {
           if (controller.signal.aborted) {
             streamBatcher.cancel();
@@ -2445,6 +2456,7 @@ export function useChatApi(
           useChatStore.getState().setChatGenerating(chatId, true);
           void paintLiveTurn(chatId).catch(() => undefined);
           void pollBackgroundTurn(chatId, {
+            hydrate: () => loadChatMessages(chatId, { silent: true }),
             onSettled: () => {
               const nextQueued = useChatStore
                 .getState()
@@ -2566,6 +2578,25 @@ export function useChatApi(
         // Aborts come from stopGeneration, which already finalized the
         // assistant message and cleared generation state.
         const isAbort = error instanceof Error && error.name === "AbortError";
+        const transportFailure =
+          error instanceof TypeError ||
+          (error instanceof Error &&
+            /network|fetch failed|terminated|connection|timeout/i.test(
+              error.message,
+            ));
+        if (
+          !ephemeral &&
+          !controller.signal.aborted &&
+          transportFailure &&
+          getGeneration(chatId)?.request === controller
+        ) {
+          setGeneration(chatId, null);
+          useChatStore.getState().setChatGenerating(chatId, true);
+          void pollBackgroundTurn(chatId, {
+            hydrate: () => loadChatMessages(chatId, { silent: true }),
+          });
+          return;
+        }
         if (getGeneration(chatId)?.request === controller && !isAbort) {
           const failedAssistantId = resolveAssistantId();
           const rawMessage =
@@ -2640,6 +2671,7 @@ export function useChatApi(
       }
     },
     [
+      loadChatMessages,
       maybeGenerateChatTitle,
       streamChatTitle,
       streamFromResponse,
@@ -3047,11 +3079,7 @@ export function useChatApi(
         if (isNewChat && !ephemeral) setCreatingChatPending(false);
       }
     },
-    [
-      activeChatId,
-      creatingChatPending,
-      streamAssistantResponse,
-    ],
+    [activeChatId, creatingChatPending, streamAssistantResponse],
   );
 
   handleSendMessageRef.current = handleSendMessage;
@@ -3279,11 +3307,7 @@ export function useChatApi(
         return;
       }
 
-      const {
-        nextChat,
-        userClientId,
-        assistantClientId,
-      } = helperResult;
+      const { nextChat, userClientId, assistantClientId } = helperResult;
 
       useChatStore.getState().setChatGenerating(chatId, true);
       setAllChats((prev) => ({
@@ -3318,7 +3342,9 @@ export function useChatApi(
       }
 
       const modelUserContent =
-        `${trimmed}${attachmentContext}`.trim() || trimmed || "(attached files)";
+        `${trimmed}${attachmentContext}`.trim() ||
+        trimmed ||
+        "(attached files)";
       // Durable file parts ride on the forked user row, same as a normal send.
       const forkedFileIds = Array.from(
         new Set([
@@ -3329,11 +3355,13 @@ export function useChatApi(
         ]),
       );
       const conversationForApi = buildConversation(
-        nextChat.slice(0, -1).map((msg) =>
-          msg.clientId === userClientId
-            ? { ...msg, content: modelUserContent }
-            : msg,
-        ),
+        nextChat
+          .slice(0, -1)
+          .map((msg) =>
+            msg.clientId === userClientId
+              ? { ...msg, content: modelUserContent }
+              : msg,
+          ),
       );
 
       try {

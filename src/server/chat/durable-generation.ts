@@ -1,32 +1,16 @@
 /**
- * Durable background generations — time-sliced chat turns with no effective
- * duration cap.
- *
- * A turn runs as a JOB made of chained SLICES. Each slice executes inside one
- * Vercel invocation under a soft budget (~240s): the agent loop checkpoints
- * every completed tool round to Postgres, and when the budget ends the slice
- * yields, parks its checkpoint, and chains the next slice through the
- * internal /continue endpoint (fresh 300s budget). Slices chain until the
- * model finishes — a turn can run for minutes or hours without ever hitting
- * the serverless wall.
- *
- * Recovery layers (each one alone keeps turns alive):
- *   1. Chained continuation — the yielding slice triggers the next slice.
- *   2. Watchdog (Cloudflare cron, every minute) — reclaims jobs whose heartbeat
- *      went stale (crashed isolate, killed invocation, lost trigger).
- *   3. Postgres checkpoints — every resume starts from the last completed
- *      tool round; interrupted model rounds re-run side-effect free.
- *
- * Browser state is irrelevant: the first (live) slice streams SSE while the
- * tab is open and keeps running headless after disconnect; later slices are
- * always headless. Completion writes the transcript to Postgres immediately,
- * so spinners and "still working" states clear the moment the turn ends.
+ * Browser-independent chat jobs. Admission saves a queued job and its turn
+ * before acknowledging the browser. Internal Vercel invocations execute
+ * bounded slices; Cloudflare cron recovers missed dispatches and stale owners.
+ * Postgres checkpoints preserve model history, tool plans and completed tool
+ * results. Interrupted external actions with an unknown result stop safely.
  */
 
+import { env } from "@/server/config/env";
+import { queryOne } from "@/server/db/pool";
 import { randomUUID } from "node:crypto";
 import { logged } from "@/server/observability/log";
 import * as chatService from "@/server/services/chat.service";
-import type { ChatSliceOutcome } from "@/server/services/chat.service";
 import {
   attachTurnMessageIds,
   cancelActiveJobsForChat,
@@ -55,7 +39,6 @@ import * as chatsRepo from "@/server/repositories/chats.repository";
 import * as messagesRepo from "@/server/repositories/messages.repository";
 import { buildAssistantTranscriptRecord } from "@/server/training/transcript-format";
 import { generationsTriggerToken } from "@/server/http/internal-generations-auth";
-import { CLAUXEN_STREAM_HEADERS } from "@/server/inference/clauxen-sse-stream";
 import { toUserFacingChatError } from "@/lib/assistant-generation-error";
 import {
   parseHomerReasoningEffort,
@@ -66,13 +49,24 @@ import {
 export const SLICE_SOFT_MS = 240_000;
 /** Abort the in-flight model stream after this long (Vercel cap is 300s). */
 export const SLICE_HARD_MS = 270_000;
-/** Safety cap on chained slices (~19h). Real turns never reach it. */
+/** Safety cap: 48 slices of up to 270s each (~3.6h). */
 export const SLICE_MAX = 48;
 /** Crash-retries of the same slice before the job is failed as poison. */
 export const SLICE_MAX_ATTEMPTS = 5;
 const SLICE_HEARTBEAT_MS = 15_000;
 const SLICE_CANCEL_POLL_MS = 2_000;
 const CONTINUATION_TIMEOUT_MS = 10_000;
+
+/** Resolve an internal dispatch origin from platform config, never user JSON. */
+export function generationExecutionOrigin(requestUrl: string): string {
+  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
+    return new URL(`https://${process.env.VERCEL_URL}`).origin;
+  }
+  const requested = new URL(requestUrl);
+  if (["localhost", "127.0.0.1", "[::1]"].includes(requested.hostname))
+    return requested.origin;
+  return new URL(env.appUrl).origin;
+}
 
 export function workerId(): string {
   const region = process.env.VERCEL_REGION ?? "local";
@@ -96,6 +90,7 @@ export function startSliceRuntime(input: {
   jobId: string;
   chatId: string;
   userId: string;
+  lockedBy: string;
   /** Coordinator lease held by this slice (headless slices only). */
   leaseId?: string | null;
   softMs?: number;
@@ -115,9 +110,11 @@ export function startSliceRuntime(input: {
 
   const heartbeat = setInterval(() => {
     if (disposed) return;
-    void heartbeatGenerationJob(input.jobId).catch(
-      logged("generation.heartbeat", { jobId: input.jobId }),
-    );
+    void heartbeatGenerationJob(input.jobId, input.lockedBy)
+      .then((owned) => {
+        if (!owned) cancelController.abort();
+      })
+      .catch(logged("generation.heartbeat", { jobId: input.jobId }));
     void chatsRepo
       .setChatGenerating(input.chatId, input.userId, true)
       .catch(() => undefined);
@@ -175,7 +172,10 @@ export async function triggerContinuation(
 ): Promise<boolean> {
   const token = generationsTriggerToken();
   if (!token) {
-    console.warn("[durable-generation] no internal token; watchdog will pick up", jobId);
+    console.warn(
+      "[durable-generation] no internal token; watchdog will pick up",
+      jobId,
+    );
     return false;
   }
   try {
@@ -186,6 +186,12 @@ export async function triggerContinuation(
         headers: {
           "content-type": "application/json",
           "x-clauxen-internal": token,
+          ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+            ? {
+                "x-vercel-protection-bypass":
+                  process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+              }
+            : {}),
         },
         body: JSON.stringify({ jobId }),
         signal: AbortSignal.timeout(CONTINUATION_TIMEOUT_MS),
@@ -197,246 +203,6 @@ export async function triggerContinuation(
     console.warn("[durable-generation] continuation trigger failed:", error);
     return false;
   }
-}
-
-export type LiveSliceInput = {
-  job: GenerationJobRow;
-  messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
-  fork?: GenerationJobInput["fork"];
-  turn?: GenerationJobInput["turn"];
-  vision?: GenerationJobInput["vision"];
-  chatModel?: string;
-  homerReasoningEffort?: string;
-  extendedThinking?: boolean;
-  clientTimezone?: string;
-  userCountryCode?: string;
-  generateChatTitle?: boolean;
-  requestId?: string;
-  requestStartedAtMs?: number;
-  origin: string;
-  /** Registry-owned controller: explicit stops abort this in-process. */
-  registrySignal: AbortSignal;
-  /**
-   * Coordinator lease gate (started in parallel with SSE). Awaited inside
-   * resolveContext before turn insert / model for cross-isolate single-writer.
-   */
-  ensureLease?: () => Promise<"acquired" | "conflict" | "skipped">;
-  onPauseForUser?: () => void | Promise<void>;
-  onSettled?: (outcome: ChatSliceOutcome) => void;
-};
-
-/**
- * Runs the live (user-facing) slice and returns its SSE response. The stream
- * stays open while the tab reads; on disconnect the slice continues headless
- * until it completes or yields. On yield the client gets a single
- * `backgrounded` event (never `done`) and switches to live polling.
- */
-export async function runLiveSlice(input: LiveSliceInput): Promise<{
-  response: Response;
-  userMessageId: string | null;
-  assistantMessageId: string | null;
-}> {
-  const { job } = input;
-  const runtime = startSliceRuntime({
-    jobId: job.id,
-    chatId: job.chat_id,
-    userId: job.user_id,
-  });
-  const combinedSignal = combineSignals([
-    input.registrySignal,
-    runtime.cancelSignal,
-  ]);
-
-  const { stream, onComplete, userMessageId, assistantMessageId } =
-    await chatService.streamChatGeneration({
-      chatId: job.chat_id,
-      userId: job.user_id,
-      messages: input.messages,
-      fork: input.fork ?? job.input?.fork ?? null,
-      turn: input.turn
-        ? {
-            content: input.turn.content,
-            modelContent: input.turn.modelContent,
-            fileIds: input.turn.fileIds,
-            images: (input.turn.images ?? []) as never,
-            userClientId: input.turn.userClientId,
-            assistantClientId: input.turn.assistantClientId,
-          }
-        : undefined,
-      vision: input.vision
-        ? {
-            fileIds: input.vision.fileIds,
-            images: (input.vision.images ?? []) as never,
-          }
-        : undefined,
-      signal: combinedSignal,
-      ensureLease: input.ensureLease,
-      userCountryCode: input.userCountryCode,
-      clientTimezone: input.clientTimezone,
-      generateChatTitle: input.generateChatTitle,
-      chatModel: input.chatModel,
-      homerReasoningEffort: parseEffort(input.homerReasoningEffort),
-      extendedThinking: input.extendedThinking,
-      onPauseForUser: input.onPauseForUser,
-      requestId: input.requestId,
-      requestStartedAtMs: input.requestStartedAtMs,
-      slice: {
-        jobId: job.id,
-        resume: job.checkpoint,
-        shouldYield: runtime.shouldYield,
-        yieldSignal: runtime.yieldSignal,
-        onTurnInserted: (ids) => {
-          void attachTurnMessageIds(job.id, ids).catch(
-            logged("generation.attach_turn_ids", { jobId: job.id }),
-          );
-        },
-      },
-    });
-
-  let finished = false;
-  let closed = false;
-  const encoder = new TextEncoder();
-  let clientController: ReadableStreamDefaultController<Uint8Array> | null =
-    null;
-  let clientClosed = false;
-  const pendingChunks: Uint8Array[] = [];
-  let pendingBytes = 0;
-
-  const flushPending = () => {
-    if (!clientController || clientClosed) return;
-    while (pendingChunks.length > 0) {
-      const chunk = pendingChunks.shift();
-      if (!chunk) break;
-      try {
-        clientController.enqueue(chunk);
-      } catch {
-        clientClosed = true;
-        clientController = null;
-        pendingChunks.length = 0;
-        return;
-      }
-    }
-    pendingBytes = 0;
-  };
-
-  const pushToClient = (bytes: Uint8Array) => {
-    if (clientClosed) return;
-    if (!clientController) {
-      if (pendingBytes > 1_000_000) return;
-      pendingChunks.push(bytes);
-      pendingBytes += bytes.byteLength;
-      return;
-    }
-    flushPending();
-    try {
-      clientController.enqueue(bytes);
-    } catch {
-      clientClosed = true;
-      clientController = null;
-    }
-  };
-
-  const closeClient = () => {
-    if (clientClosed || !clientController) return;
-    clientClosed = true;
-    try {
-      clientController.close();
-    } catch {
-      // already closed
-    }
-    clientController = null;
-  };
-
-  const finishOnce = async (): Promise<ChatSliceOutcome> => {
-    if (finished) return { status: "complete" };
-    finished = true;
-    closed = true;
-    try {
-      return await onComplete();
-    } finally {
-      runtime.dispose();
-    }
-  };
-
-  const heartbeat = setInterval(() => {
-    if (closed) return;
-    pushToClient(encoder.encode(": keepalive\n\n"));
-  }, 5_000);
-  heartbeat.unref?.();
-
-  void (async () => {
-    const reader = stream.getReader();
-    try {
-      while (true) {
-        if (combinedSignal.aborted) {
-          try {
-            await reader.cancel();
-          } catch {
-            // ignore
-          }
-          break;
-        }
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) pushToClient(value);
-      }
-    } catch {
-      // Model stream failed. finishOnce still persists whatever was saved.
-    } finally {
-      clearInterval(heartbeat);
-      let outcome: ChatSliceOutcome = { status: "complete" };
-      try {
-        outcome = await finishOnce();
-      } catch {
-        outcome = { status: "failed" };
-      }
-      if (outcome.status === "yielded") {
-        // Hand the turn to the background: chain the next slice, tell the
-        // tab to switch to polling, then close. No `done` — the turn is
-        // still running and the UI must keep its generating state.
-        void triggerContinuation(input.origin, job.id);
-        pushToClient(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "backgrounded", jobId: job.id, chatId: job.chat_id })}\n\n`,
-          ),
-        );
-      }
-      closeClient();
-      try {
-        input.onSettled?.(outcome);
-      } catch {
-        // ignore
-      }
-    }
-  })();
-
-  const clientStream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      clientController = controller;
-      flushPending();
-    },
-    cancel() {
-      // Tab close or navigation. The slice keeps running headless; only an
-      // explicit stop aborts it.
-      clientClosed = true;
-      clientController = null;
-      pendingChunks.length = 0;
-    },
-  });
-
-  return {
-    response: new Response(clientStream, {
-      headers: {
-        ...CLAUXEN_STREAM_HEADERS,
-        ...(userMessageId ? { "X-User-Message-Id": userMessageId } : {}),
-        ...(assistantMessageId
-          ? { "X-Assistant-Message-Id": assistantMessageId }
-          : {}),
-      },
-    }),
-    userMessageId,
-    assistantMessageId,
-  };
 }
 
 export type HeadlessSliceResult =
@@ -453,18 +219,40 @@ export async function runHeadlessSlice(input: {
   origin: string;
 }): Promise<HeadlessSliceResult> {
   const { job, origin } = input;
+  if (job.assistant_message_id) {
+    const saved = await queryOne<{ status: string }>(
+      `select status from public.chat_messages where id = $1 and chat_id = $2`,
+      [job.assistant_message_id, job.chat_id],
+    );
+    if (saved && ["complete", "failed", "cancelled"].includes(saved.status)) {
+      const status = saved.status as "complete" | "failed" | "cancelled";
+      await finishGenerationJob({
+        jobId: job.id,
+        lockedBy: job.locked_by!,
+        status:
+          job.checkpoint.terminalOutcome === "paused"
+            ? "paused_for_user"
+            : status,
+      });
+      if (!(await getActiveGenerationJobForChat(job.chat_id))) {
+        await chatsRepo.setChatGenerating(job.chat_id, job.user_id, false);
+      }
+      return { status };
+    }
+  }
   if (job.slice_index >= SLICE_MAX || job.attempt >= SLICE_MAX_ATTEMPTS) {
     const poisoned = job.attempt >= SLICE_MAX_ATTEMPTS;
+    await finalizeMessageAs(job, "failed").catch(
+      logged("generation.finalize_failed", { jobId: job.id }),
+    );
     await finishGenerationJob({
       jobId: job.id,
+      lockedBy: job.locked_by!,
       status: "failed",
       error: poisoned
         ? "This task kept failing to resume. Please try sending it again."
         : "This task ran longer than the background budget. Please break it into smaller steps.",
-    }).catch(() => undefined);
-    await finalizeMessageAs(job, "failed").catch(
-      logged("generation.finalize_failed", { jobId: job.id }),
-    );
+    }).catch(() => false);
     await chatsRepo
       .setChatGenerating(job.chat_id, job.user_id, false)
       .catch(() => undefined);
@@ -478,7 +266,7 @@ export async function runHeadlessSlice(input: {
   if (lease === "conflict") {
     // Another slice (or a racing live request) owns this chat right now.
     // Park the job; the watchdog re-triggers once the lease frees up.
-    await heartbeatGenerationJob(job.id).catch(() => undefined);
+    await heartbeatGenerationJob(job.id, job.locked_by!).catch(() => undefined);
     return { status: "skipped", reason: "lease_conflict" };
   }
 
@@ -486,6 +274,7 @@ export async function runHeadlessSlice(input: {
     jobId: job.id,
     chatId: job.chat_id,
     userId: job.user_id,
+    lockedBy: job.locked_by!,
     leaseId: lease === "acquired" ? leaseId : null,
   });
 
@@ -502,27 +291,23 @@ export async function runHeadlessSlice(input: {
         content: message.content,
       })),
       fork: jobInput.fork ?? null,
-      // Resume slices reuse the turn rows the first slice inserted; the
-      // stored turn payload is only needed when the first slice died before
-      // inserting (crash between job create and turn insert).
-      turn: job.assistant_message_id
-        ? undefined
-        : jobInput.turn
-          ? {
-              content: jobInput.turn.content,
-              modelContent: jobInput.turn.modelContent,
-              fileIds: jobInput.turn.fileIds,
-              images: (jobInput.turn.images ?? []) as never,
-              userClientId: jobInput.turn.userClientId,
-              assistantClientId: jobInput.turn.assistantClientId,
-            }
-          : undefined,
-      vision: jobInput.vision
+      // Admission reserved turn rows; keep prompt/vision context on resumes.
+      turn: jobInput.turn
         ? {
-            fileIds: jobInput.vision.fileIds,
-            images: (jobInput.vision.images ?? []) as never,
+            content: jobInput.turn.content,
+            modelContent: jobInput.turn.modelContent,
+            fileIds: jobInput.turn.fileIds,
+            images: (jobInput.turn.images ?? []) as never,
+            userClientId: jobInput.turn.userClientId,
+            assistantClientId: jobInput.turn.assistantClientId,
           }
         : undefined,
+      vision: {
+        fileIds: jobInput.vision?.fileIds ?? jobInput.turn?.fileIds,
+        images: (jobInput.vision?.images ??
+          jobInput.turn?.images ??
+          []) as never,
+      },
       signal: runtime.cancelSignal,
       userCountryCode: jobInput.userCountryCode,
       clientTimezone: jobInput.clientTimezone,
@@ -534,13 +319,13 @@ export async function runHeadlessSlice(input: {
       requestStartedAtMs: jobInput.turnStartedAtMs,
       slice: {
         jobId: job.id,
+        lockedBy: job.locked_by!,
+        coordLeaseId: lease === "acquired" ? leaseId : undefined,
         resume: job.checkpoint,
         shouldYield: runtime.shouldYield,
         yieldSignal: runtime.yieldSignal,
         onTurnInserted: (ids) => {
-          void attachTurnMessageIds(job.id, ids).catch(
-            logged("generation.attach_turn_ids", { jobId: job.id }),
-          );
+          return attachTurnMessageIds(job.id, ids, job.locked_by!);
         },
       },
     });
@@ -566,25 +351,35 @@ export async function runHeadlessSlice(input: {
 
     const outcome = await onComplete();
     if (outcome.status === "yielded") {
+      runtime.dispose();
+      if (lease === "acquired")
+        await releaseChatCoordLease(job.chat_id, leaseId);
       const chained = await triggerContinuation(origin, job.id);
       return { status: "yielded", chained };
     }
     return { status: outcome.status };
   } catch (error) {
+    if (
+      !(await heartbeatGenerationJob(job.id, job.locked_by!).catch(() => false))
+    ) {
+      return { status: "skipped", reason: "ownership_lost" };
+    }
     const message = error instanceof Error ? error.message : String(error);
-    await finishGenerationJob({
-      jobId: job.id,
-      status: "failed",
-      error: toUserFacingChatError(message),
-    }).catch(() => undefined);
     await finalizeMessageAs(job, "failed", message).catch(
       logged("generation.finalize_failed", { jobId: job.id }),
     );
+    await finishGenerationJob({
+      jobId: job.id,
+      lockedBy: job.locked_by!,
+      status: "failed",
+      error: toUserFacingChatError(message),
+    }).catch(() => undefined);
     await publishLiveTurn({
       chatId: job.chat_id,
       userId: job.user_id,
       assistantId: job.assistant_message_id ?? job.id,
       status: "failed",
+      leaseId,
       answer: toUserFacingChatError(message),
       contentJson: buildAssistantTranscriptRecord({
         answer: toUserFacingChatError(message),
@@ -598,10 +393,18 @@ export async function runHeadlessSlice(input: {
     }
     // Terminal jobs clear the flag here; yielded jobs keep it until they end.
     const current = await getGenerationJob(job.id).catch(() => null);
-    if (!current || current.status !== "continuing") {
-      await chatsRepo
-        .setChatGenerating(job.chat_id, job.user_id, false)
-        .catch(() => undefined);
+    if (
+      current &&
+      !["queued", "running", "continuing"].includes(current.status)
+    ) {
+      const next = await getActiveGenerationJobForChat(job.chat_id);
+      if (next?.status === "queued")
+        await triggerContinuation(
+          next.input.executionOrigin ?? origin,
+          next.id,
+        );
+      else if (!next)
+        await chatsRepo.setChatGenerating(job.chat_id, job.user_id, false);
     }
   }
 }
@@ -613,11 +416,16 @@ export async function recoverStalledJobs(
 ): Promise<{ stalled: number; triggered: number; cleaned: number }> {
   const stalled = await listStalledGenerationJobs(limit).catch(() => []);
   let triggered = 0;
-  for (const job of stalled) {
-    // Claiming happens inside /continue (single-winner); the watchdog only
-    // knocks. A trigger that lands on an already-recovered job 409s safely.
-    const ok = await triggerContinuation(origin, job.id);
-    if (ok) triggered += 1;
+  // Bound recovery wall time even when every internal request times out.
+  for (let offset = 0; offset < stalled.length; offset += 5) {
+    const results = await Promise.all(
+      stalled
+        .slice(offset, offset + 5)
+        .map((job) =>
+          triggerContinuation(job.input.executionOrigin ?? origin, job.id),
+        ),
+    );
+    triggered += results.filter(Boolean).length;
   }
   // Retention: terminal job rows (with their checkpoints) older than 7 days.
   const cleaned = await deleteTerminalJobsOlderThan("7 days", 500).catch(
@@ -635,9 +443,7 @@ export async function stopChatJob(
   chatId: string,
   userId: string,
 ): Promise<{ cancelledJobs: number }> {
-  const cancelledJobs = await cancelActiveJobsForChat(chatId, userId).catch(
-    () => 0,
-  );
+  const cancelledJobs = await cancelActiveJobsForChat(chatId, userId);
   try {
     const recent = await messagesRepo.listRecentMessagesForChat(chatId, 8);
     for (const row of recent) {
@@ -668,30 +474,19 @@ async function finalizeMessageAs(
   message?: string,
 ): Promise<void> {
   if (!job.assistant_message_id) return;
-  const content = status === "cancelled" ? "" : toUserFacingChatError(message ?? "");
-  await messagesRepo
-    .finalizeAssistantTurn({
-      messageId: job.assistant_message_id,
-      chatId: job.chat_id,
-      userId: job.user_id,
-      content,
-      status,
-      contentJson: buildAssistantTranscriptRecord({ answer: content }),
-      tools: [],
-      transcriptLines: [],
-    })
-    .catch(() => undefined);
-}
-
-function combineSignals(signals: AbortSignal[]): AbortSignal {
-  const active = signals.filter((signal) => !signal.aborted);
-  if (active.length === 0) return AbortSignal.abort();
-  if (active.length === 1) return active[0]!;
-  const anySignal =
-    typeof AbortSignal.any === "function"
-      ? AbortSignal.any(active)
-      : active[0]!;
-  return anySignal;
+  const content =
+    status === "cancelled" ? "" : toUserFacingChatError(message ?? "");
+  await messagesRepo.finalizeAssistantTurn({
+    generationLease: { jobId: job.id, lockedBy: job.locked_by! },
+    messageId: job.assistant_message_id,
+    chatId: job.chat_id,
+    userId: job.user_id,
+    content,
+    status,
+    contentJson: buildAssistantTranscriptRecord({ answer: content }),
+    tools: [],
+    transcriptLines: [],
+  });
 }
 
 function parseEffort(value: string | undefined): HomerReasoningEffort {

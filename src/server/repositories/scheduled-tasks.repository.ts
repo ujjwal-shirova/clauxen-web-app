@@ -1,5 +1,9 @@
-import { query, queryOne } from "@/server/db/pool";
-import type { ScheduleFrequency } from "@/server/services/scheduled-tasks-schedule";
+import { query, queryOne, withTransaction } from "@/server/db/pool";
+import { AppError } from "@/server/db/errors";
+import {
+  computeNextRunAt,
+  type ScheduleFrequency,
+} from "@/server/services/scheduled-tasks-schedule";
 
 export type ScheduledTaskRow = {
   id: string;
@@ -120,8 +124,22 @@ export async function createScheduledTask(input: {
   skillIds?: string[];
   attachmentRefs?: Array<Record<string, unknown>>;
 }) {
-  return queryOne<ScheduledTaskRow>(
-    `insert into public.scheduled_tasks (
+  return withTransaction(async (client) => {
+    await client.query(
+      "select id from public.profiles where id=$1 for update",
+      [input.userId],
+    );
+    const active = await client.query<{ count: string }>(
+      "select count(*)::text as count from public.scheduled_tasks where user_id=$1 and status in ('active','paused')",
+      [input.userId],
+    );
+    if (Number(active.rows[0]?.count) >= 15)
+      throw new AppError(
+        "You can have at most 15 active scheduled tasks.",
+        400,
+      );
+    const result = await client.query<ScheduledTaskRow>(
+      `insert into public.scheduled_tasks (
        user_id, name, requirement, frequency, time_local, timezone,
        run_date, day_of_week, day_of_month, expires_at, next_run_at, source, metadata,
        notification_mode, model_mode, skill_ids, attachment_refs
@@ -131,26 +149,28 @@ export async function createScheduledTask(input: {
        $14, $15, $16::text[], $17::jsonb
      )
      returning ${TASK_COLUMNS}`,
-    [
-      input.userId,
-      input.name,
-      input.requirement,
-      input.frequency,
-      input.timeLocal,
-      input.timezone,
-      input.runDate ?? null,
-      input.dayOfWeek ?? null,
-      input.dayOfMonth ?? null,
-      input.expiresAt ?? null,
-      input.nextRunAt,
-      input.source ?? "manual",
-      JSON.stringify(input.metadata ?? {}),
-      input.notificationMode ?? "email_app",
-      input.modelMode ?? "fast",
-      input.skillIds ?? [],
-      JSON.stringify(input.attachmentRefs ?? []),
-    ],
-  );
+      [
+        input.userId,
+        input.name,
+        input.requirement,
+        input.frequency,
+        input.timeLocal,
+        input.timezone,
+        input.runDate ?? null,
+        input.dayOfWeek ?? null,
+        input.dayOfMonth ?? null,
+        input.expiresAt ?? null,
+        input.nextRunAt,
+        input.source ?? "manual",
+        JSON.stringify(input.metadata ?? {}),
+        input.notificationMode ?? "email_app",
+        input.modelMode ?? "fast",
+        input.skillIds ?? [],
+        JSON.stringify(input.attachmentRefs ?? []),
+      ],
+    );
+    return result.rows[0] ?? null;
+  });
 }
 
 export async function updateScheduledTask(
@@ -303,76 +323,18 @@ export async function getScheduledTaskRun(runId: string) {
   );
 }
 
-export async function finishScheduledTaskRun(input: {
-  runId: string;
-  status: "success" | "failed" | "skipped";
-  chatId?: string | null;
-  errorMessage?: string | null;
-  summary?: string | null;
-}) {
-  return queryOne<ScheduledTaskRunRow>(
-    `update public.scheduled_task_runs set
-       status = $2,
-       chat_id = coalesce($3, chat_id),
-       error_message = $4,
-       summary = $5,
-       finished_at = now(),
-       lease_expires_at = null
-     where id = $1
-     returning ${RUN_COLUMNS}`,
-    [
-      input.runId,
-      input.status,
-      input.chatId ?? null,
-      input.errorMessage ?? null,
-      input.summary ?? null,
-    ],
-  );
-}
-
 export async function requeueScheduledTaskRun(
   runId: string,
   errorMessage: string,
+  attempt: number,
 ) {
   return queryOne<ScheduledTaskRunRow>(
     `update public.scheduled_task_runs set
        status = 'queued', queued_at = now(), lease_expires_at = null,
        error_message = left($2, 2000)
-     where id = $1 and status = 'running'
+     where id = $1 and status = 'running' and attempt_count=$3
      returning ${RUN_COLUMNS}`,
-    [runId, errorMessage],
-  );
-}
-
-export async function markScheduledTaskAfterRun(input: {
-  taskId: string;
-  nextRunAt: string | null;
-  status: string;
-  lastRunStatus: "success" | "failed" | "skipped";
-  lastChatId?: string | null;
-  runId: string;
-}) {
-  return queryOne<ScheduledTaskRow>(
-    `update public.scheduled_tasks set
-       last_run_at = now(),
-       last_run_status = $2,
-       last_chat_id = coalesce($3, last_chat_id),
-       run_count = run_count + 1,
-       next_run_at = $4::timestamptz,
-       status = $5,
-       lease_until = null,
-       lease_run_id = null,
-       updated_at = now()
-     where id = $1 and lease_run_id = $6
-     returning ${TASK_COLUMNS}`,
-    [
-      input.taskId,
-      input.lastRunStatus,
-      input.lastChatId ?? null,
-      input.nextRunAt,
-      input.status,
-      input.runId,
-    ],
+    [runId, errorMessage, attempt],
   );
 }
 
@@ -440,5 +402,212 @@ export async function getAutomationUserEmail(userId: string) {
   return queryOne<{ email: string }>(
     `select email from auth.users where id = $1 and email is not null`,
     [userId],
+  );
+}
+
+/** Queue a manual run under a task lock so repeated clicks cannot overlap. */
+export async function queueManualScheduledRun(taskId: string, userId: string) {
+  return withTransaction(async (client) => {
+    const task = await client.query<{ id: string; lease_until: string | null }>(
+      `select id, lease_until from public.scheduled_tasks
+       where id = $1 and user_id = $2 and status = 'active'
+       for update`,
+      [taskId, userId],
+    );
+    if (!task.rows[0]) return null;
+    const pending = await client.query<{ id: string }>(
+      `select id from public.scheduled_task_runs where task_id = $1
+       and status in ('queued','running') limit 1`,
+      [taskId],
+    );
+    if (pending.rows[0]) return { id: pending.rows[0].id };
+    if (
+      task.rows[0].lease_until &&
+      new Date(task.rows[0].lease_until).getTime() > Date.now()
+    )
+      return null;
+    const result = await client.query<{ id: string }>(
+      `insert into public.scheduled_task_runs
+       (task_id,user_id,status,scheduled_for,execution_key,queued_at,metadata)
+       values ($1,$2,'queued',now(),'manual:' || gen_random_uuid()::text,now(),'{"manual":true}'::jsonb)
+       returning id`,
+      [taskId, userId],
+    );
+    return result.rows[0];
+  });
+}
+
+export async function claimQueuedScheduledRuns(limit: number) {
+  return query<QueuedScheduledRun>(
+    `with pending as (
+       select t.id as task_id, r.id, r.execution_key, r.scheduled_for
+       from public.scheduled_tasks t join public.scheduled_task_runs r on r.task_id=t.id
+       where (r.status='queued' or (r.status='running' and r.lease_expires_at <= now()))
+         and (t.lease_until is null or t.lease_until <= now())
+       order by r.queued_at for update of t skip locked limit $1
+     ), reset_runs as (
+       update public.scheduled_task_runs r set status='queued',queued_at=now(),lease_expires_at=null
+       from pending p where r.id=p.id returning r.id
+     ), leased as (
+       update public.scheduled_tasks t set lease_until=now()+interval '15 minutes',lease_run_id=p.id
+       from pending p join reset_runs r on r.id=p.id where t.id=p.task_id
+       returning p.id,p.task_id,p.execution_key,p.scheduled_for
+     ) select id as "runId",task_id as "taskId",execution_key as "executionKey",scheduled_for as "scheduledFor" from leased`,
+    [limit],
+  );
+}
+
+/** Create and attach the result chat in one transaction before admission. */
+export async function ensureScheduledRunChat(
+  run: ScheduledTaskRunRow,
+  task: ScheduledTaskRow,
+) {
+  return withTransaction(async (client) => {
+    await client.query(
+      "select id from public.scheduled_tasks where id=$1 for update",
+      [task.id],
+    );
+    const locked = await client.query<ScheduledTaskRunRow>(
+      `select ${RUN_COLUMNS} from public.scheduled_task_runs where id=$1 for update`,
+      [run.id],
+    );
+    const current = locked.rows[0];
+    if (
+      !current ||
+      current.status !== "running" ||
+      current.attempt_count !== run.attempt_count
+    )
+      throw new AppError("Scheduled run ownership changed.", 409);
+    if (current.chat_id) return current.chat_id;
+    // Run UUID is a stable, valid chat ID even if admission is retried.
+    await client.query(
+      `insert into public.chats(id,user_id,workspace_id,title)
+      select $1,$2,default_workspace_id,$3 from public.profiles where id=$2`,
+      [run.id, task.user_id, task.name],
+    );
+    await client.query(
+      "update public.scheduled_task_runs set chat_id=$1 where id=$1",
+      [run.id],
+    );
+    return run.id;
+  });
+}
+
+/** Refresh active durable-job leases and return terminal runs for reconciliation. */
+export async function listScheduledRunCompletions(limit: number) {
+  return query<{
+    run: ScheduledTaskRunRow;
+    job_status: string;
+    job_error: string | null;
+    answer: string | null;
+  }>(
+    `
+    with active as (
+      update public.scheduled_task_runs r set lease_expires_at=now()+interval '10 minutes'
+      from public.chat_generation_jobs j where r.status='running' and r.chat_id=j.chat_id
+        and j.input->'turn'->>'assistantClientId'='sched-a-'||r.id::text
+        and j.status in ('queued','running','continuing') returning r.id,r.task_id
+    ), renewed as (
+      update public.scheduled_tasks t set lease_until=now()+interval '15 minutes'
+      from active a where t.id=a.task_id and t.lease_run_id=a.id returning t.id
+    )
+    select row_to_json(r)::jsonb as run,j.status as job_status,j.error as job_error,m.content as answer
+    from public.scheduled_task_runs r join public.chat_generation_jobs j on j.chat_id=r.chat_id
+      and j.input->'turn'->>'assistantClientId'='sched-a-'||r.id::text
+    left join public.chat_messages m on m.id=j.assistant_message_id
+    where r.status='running' and j.status in ('complete','failed','cancelled','paused_for_user')
+    order by r.started_at limit $1`,
+    [limit],
+  );
+}
+
+/** Run completion and next schedule commit together; a repeated call is a no-op. */
+export async function completeScheduledRun(input: {
+  runId: string;
+  status: "success" | "failed" | "skipped";
+  summary: string;
+  errorMessage?: string | null;
+  attempt?: number;
+}) {
+  return withTransaction(async (client) => {
+    const selected = await client.query<ScheduledTaskRow>(
+      `select ${TASK_COLUMNS}
+      from public.scheduled_tasks where id=(select task_id from public.scheduled_task_runs where id=$1) for update`,
+      [input.runId],
+    );
+    const task = selected.rows[0];
+    if (!task) return null;
+    const updated = await client.query<ScheduledTaskRunRow>(
+      `update public.scheduled_task_runs set
+      status=$2,summary=left($3,500),error_message=$4,finished_at=now(),lease_expires_at=null,
+      metadata=metadata||'{"notification_pending":true}'::jsonb
+      where id=$1 and status='running' and ($5::integer is null or attempt_count=$5)
+      returning ${RUN_COLUMNS}`,
+      [
+        input.runId,
+        input.status,
+        input.summary,
+        input.errorMessage ?? null,
+        input.attempt ?? null,
+      ],
+    );
+    const run = updated.rows[0];
+    if (!run) return null;
+    const manual = run.metadata?.manual === true;
+    const next =
+      task.status === "active"
+        ? computeNextRunAt(
+            {
+              frequency: task.frequency,
+              timeLocal: task.time_local,
+              timezone: task.timezone,
+              runDate: task.run_date,
+              dayOfWeek: task.day_of_week,
+              dayOfMonth: task.day_of_month,
+              expiresAt: task.expires_at,
+            },
+            new Date(),
+          )
+        : null;
+    await client.query(
+      `update public.scheduled_tasks set last_run_at=now(),last_run_status=$3,
+      last_chat_id=coalesce($4,last_chat_id),run_count=run_count+1,updated_at=now(),
+      next_run_at=case when $5 then next_run_at when status='active' then $6::timestamptz else null end,
+      status=case when $5 or status<>'active' then status when $6::timestamptz is null then 'completed' else 'active' end,
+      lease_until=null,lease_run_id=null where id=$1 and lease_run_id=$2`,
+      [
+        task.id,
+        run.id,
+        input.status,
+        run.chat_id,
+        manual,
+        next?.toISOString() ?? null,
+      ],
+    );
+    return { task, run };
+  });
+}
+
+export async function claimScheduledNotifications(limit: number) {
+  return query<{ task: ScheduledTaskRow; run: ScheduledTaskRunRow }>(
+    `
+    with pending as (
+      select id from public.scheduled_task_runs where status in ('success','failed','skipped')
+        and metadata->>'notification_pending'='true'
+        and coalesce((metadata->>'notification_lease_until')::timestamptz,'epoch'::timestamptz)<now()
+      order by finished_at limit $1 for update skip locked
+    ), claimed as (
+      update public.scheduled_task_runs r set metadata=metadata||jsonb_build_object('notification_lease_until',now()+interval '5 minutes')
+      from pending p where r.id=p.id returning r.*
+    ) select row_to_json(t)::jsonb as task,row_to_json(r)::jsonb as run
+      from claimed r join public.scheduled_tasks t on t.id=r.task_id`,
+    [limit],
+  );
+}
+
+export async function markScheduledNotificationDelivered(runId: string) {
+  await query(
+    `update public.scheduled_task_runs set metadata=metadata||'{"notification_pending":false}'::jsonb where id=$1`,
+    [runId],
   );
 }

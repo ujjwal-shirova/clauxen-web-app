@@ -127,12 +127,7 @@ export async function createChat(input: {
     `insert into public.chats (id, user_id, workspace_id, title)
      values ($1, $2, $3, $4)
      returning id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at`,
-    [
-      id,
-      input.userId,
-      input.workspaceId ?? null,
-      input.title ?? "New chat",
-    ],
+    [id, input.userId, input.workspaceId ?? null, input.title ?? "New chat"],
   );
 }
 
@@ -258,12 +253,13 @@ export async function listGeneratingChatIds(userId: string) {
     console.warn("[chats] could not settle finished generations", error);
   }
   const rows = await query<{ id: string }>(
-    `select id
-     from public.chats
-     where user_id = $1
-       and status != 'deleted'
-       and coalesce(metadata->>'generating', '') = 'true'
-       and nullif(metadata->>'generating_at', '')::timestamptz > now() - interval '45 minutes'`,
+    `select c.id from public.chats c
+     where c.user_id = $1 and c.status != 'deleted'
+       and (exists (select 1 from public.chat_generation_jobs j
+         where j.chat_id = c.id and j.user_id = $1
+           and j.status in ('queued', 'running', 'continuing'))
+       or (coalesce(c.metadata->>'generating', '') = 'true'
+         and nullif(c.metadata->>'generating_at', '')::timestamptz > now() - interval '45 minutes'))`,
     [userId],
   );
   return rows.map((row) => row.id);

@@ -460,7 +460,9 @@ export function AgentWebSearchBlock({
           </span>
         }
         isActive={isRunning}
-        defaultExpanded={isRunning}
+        // Search results are supporting detail. Keep them tucked away while
+        // the search runs and after it completes; users can open them on demand.
+        defaultExpanded={false}
         chevronMode="always"
         className="agent-web-search__block"
         titleClassName="text-inherit"
