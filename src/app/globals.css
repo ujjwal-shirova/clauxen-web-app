@@ -10377,3 +10377,41 @@ button.agent-ledger__row-head:hover {
   color: #dc2626;
   background: color-mix(in srgb, #dc2626 10%, transparent);
 }
+
+/* The add-tools panel follows the composer's edges, including on small screens. */
+[data-prompt-add-menu-root] [data-prompt-add-menu] {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: calc(100vw - 24px) !important;
+  border-radius: 20px !important;
+  padding: 12px !important;
+  background: var(--ui-field-bg) !important;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 5%) !important;
+}
+[data-prompt-add-menu-root] [data-prompt-add-menu-list] {
+  max-height: min(360px, calc(100dvh - 180px));
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+[data-prompt-add-menu-root] [data-prompt-add-menu-row] {
+  min-height: 42px !important;
+  padding: 10px 12px !important;
+  gap: 14px;
+  font-size: 14px !important;
+  color: var(--ui-fg);
+}
+[data-prompt-add-menu-root] [data-prompt-add-menu-icon] {
+  width: 20px;
+  height: 20px;
+}
+[data-prompt-add-menu-root] [data-prompt-add-menu-icon] svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+[data-prompt-add-menu-root] [data-prompt-add-menu-row]:nth-last-child(2) [data-prompt-add-menu-icon] {
+  color: #3a83f7;
+}
+@media (max-width: 480px) {
+  [data-prompt-add-menu-root] [data-prompt-add-menu-row] { gap: 9px; }
+  [data-prompt-add-menu-root] [data-prompt-add-menu-row] > span:nth-child(3) { font-size: 12px; }
+}

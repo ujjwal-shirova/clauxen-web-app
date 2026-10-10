@@ -13,6 +13,7 @@ import {
   Sparkles,
   SquarePen,
 } from "lucide-react";
+import { displayResearchMessage } from "@/lib/deep-research";
 import { AgentMessageContent } from "./agent/agent-message-content";
 import { HintTooltip } from "./ui/hint-tooltip";
 import type { Message } from "@/lib/types";
@@ -245,7 +246,7 @@ function UserMessageText({ content }: { content: string }) {
             } as React.CSSProperties
           }
         >
-          {content}
+          {displayResearchMessage(content)}
         </p>
         {collapsible && !expanded ? (
           <span className="user-text__fade" aria-hidden />

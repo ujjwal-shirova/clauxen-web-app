@@ -1,14 +1,19 @@
 "use client";
 
-import { Globe, ImageIcon, type LucideIcon } from "lucide-react";
+import { Globe, ImageIcon, Telescope, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type PromptInlineMode = "web-search" | "create-image";
+export type PromptInlineMode = "web-search" | "create-image" | "deep-research";
 
 const INLINE_MODE_META: Record<
   PromptInlineMode,
   { label: string; icon: LucideIcon; colorClass: string }
 > = {
+  "deep-research": {
+    label: "Deep research",
+    icon: Telescope,
+    colorClass: "text-[#2864c8]",
+  },
   "web-search": {
     label: "Web search",
     icon: Globe,
@@ -28,6 +33,8 @@ export function PromptInlineModeChip({ mode }: { mode: PromptInlineMode }) {
   return (
     <span
       contentEditable={false}
+      role="status"
+      aria-label={`${meta.label} mode active. Press Backspace at the start of the prompt to remove it.`}
       className={cn(
         "inline-flex shrink-0 select-none items-center gap-1 px-1",
         meta.colorClass,

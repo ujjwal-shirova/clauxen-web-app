@@ -16,7 +16,6 @@ import {
   Languages,
   Code2,
   CalendarClock,
-  Telescope,
   Hammer,
   Hand,
   Sparkles,
@@ -817,7 +816,6 @@ export function Sidebar({
             {(
               [
                 { label: "Scheduled", icon: CalendarClock, href: "/scheduled" },
-                { label: "Research", icon: Telescope, href: "/new?app=research" },
                 { label: "Build", icon: Hammer, href: "/new?app=build" },
               ] as const
             ).map((item) => (

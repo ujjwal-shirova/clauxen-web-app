@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { parseDeepResearchPlan } from "@/lib/deep-research";
+import { DeepResearchPlanCard } from "./deep-research-plan-card";
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
 import type { ChatSource } from "@/lib/chat-sources";
 import type { ChatArtifact } from "@/lib/chat-artifacts";
@@ -151,6 +153,24 @@ export function AssistantContentRenderer({
   const hasCreateFileTags = segments.some(
     (segment) => segment.type === "create_file",
   );
+
+  const researchPlan = parseDeepResearchPlan(content);
+  if (researchPlan && messageId) {
+    return (
+      <DeepResearchPlanCard
+        plan={researchPlan}
+        planId={messageId}
+        isStreaming={isStreaming}
+      />
+    );
+  }
+  if (content.includes("```research-plan") && isStreaming && !researchPlan) {
+    return (
+      <p className="py-3 text-sm text-[var(--ui-fg-muted)]" role="status">
+        Preparing your research plan…
+      </p>
+    );
+  }
 
   if (!hasCreateFileTags) {
     return (

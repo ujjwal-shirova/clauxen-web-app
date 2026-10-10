@@ -681,7 +681,10 @@ export function PromptInput({
     // Allow send while generating — active chat queues; other chats start a stream.
     if (value || attachments.length > 0) {
       const payload = attachments.map((item) => ({ ...item }));
-      onSendMessage(value, { attachments: payload });
+      onSendMessage(
+        activeInlineMode === "deep-research" ? `[Deep research]\n${value}` : value,
+        { attachments: payload },
+      );
       syncDraftImmediate("");
       setAttachments([]);
       setAttachmentError(null);
@@ -934,13 +937,14 @@ export function PromptInput({
   }, [scheduleDraftNotify, scheduleResizeTextarea]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Backspace" && activeInlineMode) {
       const textarea = textareaRef.current;
       if (textarea) {
         const atStart =
           textarea.selectionStart === 0 && textarea.selectionEnd === 0;
         const empty = !readDraft().trim();
-        if (atStart && empty) {
+        if (atStart && (empty || activeInlineMode === "deep-research")) {
           e.preventDefault();
           setActiveInlineMode(null);
           return;
@@ -1279,11 +1283,23 @@ export function PromptInput({
       ) : null}
       <PromptAddMenuPanel
         open={isAddMenuOpen}
-        placement="above"
-        anchorRef={addMenuTriggerRef}
+        placement={isConversationStarted ? "above" : "below"}
+        anchorRef={promptShellRef}
         panelRef={addMenuPanelRef}
-        onClose={() => setAddMenuOpen(false)}
+        onClose={() => {
+          setAddMenuOpen(false);
+          textareaRef.current?.focus({ preventScroll: true });
+        }}
         onAddFiles={allowAttachments ? openFilePicker : undefined}
+        onDeepResearch={() => {
+          if (!requireAuthGate()) return;
+          setActiveInlineMode("deep-research");
+          setAddMenuOpen(false);
+          requestAnimationFrame(() => {
+            textareaRef.current?.focus({ preventScroll: true });
+            scheduleResizeTextarea();
+          });
+        }}
         webSearchMode={webSearchMode}
         onWebSearchModeChange={handleWebSearchModeChange}
         thinkingMode={thinkingMode}
@@ -1369,12 +1385,12 @@ export function PromptInput({
       dictation.status === "listening" && !hasDraft && !readDraft().trim();
     const editorPlaceholder = listeningEmpty
       ? "Listening…"
-      : !isConversationStarted && !hasDraft
+      : !isConversationStarted && !hasDraft && !activeInlineMode
         ? ""
         : placeholder;
     return (
       <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-0">
-        {!isConversationStarted && !hasDraft && !listeningEmpty ? (
+        {!isConversationStarted && !hasDraft && !listeningEmpty && !activeInlineMode ? (
           <span
             aria-hidden
             className={cn(

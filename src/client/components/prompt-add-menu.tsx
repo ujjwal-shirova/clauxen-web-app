@@ -18,6 +18,7 @@ import {
   Globe,
   Paperclip,
   ScrollText,
+  Telescope,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,13 +28,19 @@ export type PromptComposeAction = "deep-research";
 export type WebSearchMode = "auto" | "off";
 export type ThinkingMode = "on" | "off";
 
-type PromptAddMenuItemId = "files" | "skills" | "web-search" | "thinking";
+type PromptAddMenuItemId =
+  | "files"
+  | "skills"
+  | "web-search"
+  | "thinking"
+  | "deep-research";
 
 type SubmenuId = "skills" | "web-search" | "thinking";
 
 type PromptAddMenuItem = {
   id: PromptAddMenuItemId;
   label: string;
+  description?: string;
   icon: LucideIcon;
   hasSubmenu?: boolean;
   onSelect?: () => void;
@@ -46,6 +53,7 @@ export type PromptAddMenuPanelProps = {
   onClose: () => void;
   panelRef?: RefObject<HTMLDivElement | null>;
   onAddFiles?: () => void;
+  onDeepResearch?: () => void;
   webSearchMode?: WebSearchMode;
   onWebSearchModeChange?: (mode: WebSearchMode) => void;
   thinkingMode?: ThinkingMode;
@@ -88,9 +96,20 @@ function PromptAddMenuRow({
       <span data-prompt-add-menu-icon="" aria-hidden>
         <Icon strokeWidth={1.75} />
       </span>
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      <span className="shrink-0">{item.label}</span>
+      {item.description ? (
+        <span className="min-w-0 flex-1 truncate text-[var(--ui-fg-muted)]">
+          {item.description}
+        </span>
+      ) : (
+        <span className="flex-1" />
+      )}
       {item.hasSubmenu ? (
-        <ChevronRight data-prompt-add-menu-chevron="" strokeWidth={1.75} aria-hidden />
+        <ChevronRight
+          data-prompt-add-menu-chevron=""
+          strokeWidth={1.75}
+          aria-hidden
+        />
       ) : null}
     </button>
   );
@@ -164,7 +183,9 @@ function PlaceholderSubmenu({
         <p className="text-[13px] font-medium leading-[18px] tracking-[-0.08px] text-[var(--ui-fg)]">
           {title}
         </p>
-        <p className="mt-0.5 text-[12px] leading-4 text-[var(--ui-fg-muted)]">{body}</p>
+        <p className="mt-0.5 text-[12px] leading-4 text-[var(--ui-fg-muted)]">
+          {body}
+        </p>
       </div>
       {actionLabel && onAction ? (
         <button
@@ -219,15 +240,16 @@ function useAnchoredMenuPosition(
       const preferredTop = anchorRect.top - panelRect.height - MENU_GAP_PX;
       if (preferredTop >= viewportPadding) {
         top = preferredTop;
-      } else if (preferredTop + panelRect.height + MENU_GAP_PX <= anchorRect.top) {
+      } else if (
+        preferredTop + panelRect.height + MENU_GAP_PX <=
+        anchorRect.top
+      ) {
         top = preferredTop;
       } else {
         top = Math.max(4, preferredTop);
       }
     } else {
       top = anchorRect.bottom + MENU_GAP_PX;
-      const maxTop = window.innerHeight - panelRect.height - viewportPadding;
-      top = Math.max(viewportPadding, Math.min(top, maxTop));
     }
 
     setPosition((prev) => {
@@ -236,7 +258,9 @@ function useAnchoredMenuPosition(
         prev.position === "fixed" &&
         prev.top === top &&
         prev.left === left &&
-        prev.zIndex === 3000
+        prev.zIndex === 3000 &&
+        prev.width === anchorRect.width &&
+        prev.maxHeight === window.innerHeight - top - viewportPadding
       ) {
         return prev;
       }
@@ -245,6 +269,8 @@ function useAnchoredMenuPosition(
         top,
         left,
         zIndex: 3000,
+        width: anchorRect.width,
+        maxHeight: window.innerHeight - top - viewportPadding,
         visibility: "visible",
       };
     });
@@ -261,18 +287,21 @@ function useAnchoredMenuPosition(
     const onScrollOrResize = () => updatePosition();
     window.addEventListener("scroll", onScrollOrResize, true);
     window.addEventListener("resize", onScrollOrResize);
+    const observer = new ResizeObserver(updatePosition);
+    if (anchorRef.current) observer.observe(anchorRef.current);
     return () => {
       window.removeEventListener("scroll", onScrollOrResize, true);
       window.removeEventListener("resize", onScrollOrResize);
+      observer.disconnect();
     };
-  }, [open, updatePosition]);
+  }, [open, updatePosition, anchorRef]);
 
   // One extra measure after paint so the portal has real dimensions.
   useLayoutEffect(() => {
     if (!open) return;
     const frame = requestAnimationFrame(() => updatePosition());
     return () => cancelAnimationFrame(frame);
-  }, [open, updatePosition]);
+  }, [open, updatePosition, anchorRef]);
 
   return position;
 }
@@ -284,6 +313,7 @@ export function PromptAddMenuPanel({
   onClose,
   panelRef,
   onAddFiles,
+  onDeepResearch,
   webSearchMode = "auto",
   onWebSearchModeChange,
   thinkingMode = "off",
@@ -313,7 +343,8 @@ export function PromptAddMenuPanel({
       ? [
           {
             id: "files" as const,
-            label: "Add files & photos",
+            label: "Add photos & files",
+            description: "Upload from computer",
             icon: Paperclip,
             onSelect: () => {
               onClose();
@@ -325,6 +356,7 @@ export function PromptAddMenuPanel({
     {
       id: "skills",
       label: "Skills",
+      description: "Manage reusable instructions",
       icon: ScrollText,
       hasSubmenu: true,
       onSelect: () => setActiveSubmenu("skills"),
@@ -332,13 +364,26 @@ export function PromptAddMenuPanel({
     {
       id: "web-search",
       label: "Web search",
+      description: "Find real-time news and info",
       icon: Globe,
       hasSubmenu: true,
       onSelect: () => setActiveSubmenu("web-search"),
     },
+    ...(onDeepResearch
+      ? [
+          {
+            id: "deep-research" as const,
+            label: "Deep research",
+            description: "Get a detailed report",
+            icon: Telescope,
+            onSelect: onDeepResearch,
+          },
+        ]
+      : []),
     {
       id: "thinking",
       label: "Thinking",
+      description: "Reason through complex questions",
       icon: Brain,
       hasSubmenu: true,
       onSelect: () => setActiveSubmenu("thinking"),
@@ -384,6 +429,16 @@ export function PromptAddMenuPanel({
     };
   }, [open, onClose, activeSubmenu]);
 
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      resolvedRef.current
+        ?.querySelector<HTMLButtonElement>("[data-prompt-add-menu-row]")
+        ?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open, resolvedRef]);
+
   useLayoutEffect(() => {
     syncSubmenuPlacement(activeSubmenu);
   }, [activeSubmenu, syncSubmenuPlacement, open]);
@@ -395,9 +450,29 @@ export function PromptAddMenuPanel({
       ref={resolvedRef}
       style={menuPosition}
       role="menu"
-      aria-label="Add files, skills, and MCP servers"
-      className={cn("relative w-max max-w-[min(100vw-24px,320px)]", className)}
+      aria-label="Composer tools"
+      className={cn("relative", className)}
       data-prompt-add-menu-root
+      onKeyDown={(event) => {
+        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))
+          return;
+        const rows = Array.from(
+          event.currentTarget.querySelectorAll<HTMLButtonElement>(
+            "[data-prompt-add-menu] [role=menuitem]",
+          ),
+        );
+        if (!rows.length) return;
+        event.preventDefault();
+        const index = rows.indexOf(document.activeElement as HTMLButtonElement);
+        const next =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? rows.length - 1
+              : (index + (event.key === "ArrowDown" ? 1 : -1) + rows.length) %
+                rows.length;
+        rows[next].focus();
+      }}
     >
       <motion.div
         key={`prompt-add-menu-${placement}`}
@@ -409,7 +484,13 @@ export function PromptAddMenuPanel({
         transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
         className="overflow-hidden font-sans"
       >
-        <div data-prompt-add-menu-list="" role="presentation">
+        <div
+          data-prompt-add-menu-list=""
+          role="presentation"
+          style={{
+            maxHeight: Math.max(0, Number(menuPosition.maxHeight ?? 360) - 26),
+          }}
+        >
           {items.map((item) => (
             <PromptAddMenuRow
               key={item.id}
