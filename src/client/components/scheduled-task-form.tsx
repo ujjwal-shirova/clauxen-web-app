@@ -5,6 +5,7 @@ import { format, addDays, startOfDay } from "date-fns";
 import { ChevronDown, Check } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import { apiFetch } from "@/lib/api/client";
+import { appBtn } from "@/lib/app-buttons";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +31,7 @@ import {
 } from "@/server/services/scheduled-tasks-schedule";
 
 const fieldClass =
-  "flex h-12 w-full items-center justify-between rounded-2xl border-0 bg-[hsl(var(--muted)/0.65)] px-4 text-left text-base shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]";
+  "flex h-10 w-full items-center justify-between rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--ui-field-bg)] px-3 text-left text-[13px] text-[var(--ui-fg)] shadow-none outline-none placeholder:text-[var(--ui-fg-placeholder)] focus-visible:border-[var(--ui-field-focus-border)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]";
 const dateValue = (value: string) =>
   value ? new Date(`${value}T12:00:00`) : undefined;
 
@@ -75,7 +76,7 @@ function DateField({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-auto rounded-3xl p-4"
+        className="w-auto rounded-xl p-3"
         style={{ zIndex: 60 }}
       >
         <DayPicker
@@ -98,7 +99,7 @@ function DateField({
             months: "relative",
             month: "space-y-4",
             month_caption:
-              "flex h-10 items-center justify-center gap-2 px-10 font-medium",
+              "flex h-9 items-center justify-center gap-2 px-9 text-[13px] font-medium",
             dropdowns: "flex gap-2",
             dropdown_root: "relative",
             dropdown: "rounded-lg bg-[hsl(var(--background))] p-1",
@@ -108,10 +109,10 @@ function DateField({
             button_next: "rounded-lg p-2 hover:bg-[hsl(var(--muted))]",
             month_grid: "border-collapse",
             weekday:
-              "size-10 text-sm font-normal text-[hsl(var(--muted-foreground))]",
-            day: "size-10 p-0 text-center",
+              "size-8 text-[11px] font-normal text-[hsl(var(--muted-foreground))]",
+            day: "size-8 p-0 text-center",
             day_button:
-              "size-10 rounded-xl hover:bg-[hsl(var(--muted))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+              "size-8 rounded-lg text-[12px] hover:bg-[hsl(var(--muted))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
             selected:
               "rounded-xl no-hover-overlay bg-[hsl(var(--foreground))] text-[hsl(var(--background))]",
             today: "font-bold text-blue-500",
@@ -149,7 +150,7 @@ function TimeField({
         {value}
         <ChevronDown className="size-4" />
       </PopoverTrigger>
-      <PopoverContent className="w-64 rounded-3xl p-3" style={{ zIndex: 60 }}>
+      <PopoverContent className="w-56 rounded-xl p-2.5" style={{ zIndex: 60 }}>
         <div className="grid grid-cols-2 gap-3">
           {[
             { label: "Hour", count: 24, selected: hour },
@@ -160,12 +161,12 @@ function TimeField({
                 {column.label}
               </p>
               <div
-                className="h-48 overflow-y-auto"
+                className="h-40 overflow-y-auto"
                 ref={(node) => {
                   if (node)
                     node.scrollTop = Math.max(
                       0,
-                      Number(column.selected) * 36 - 72,
+                      Number(column.selected) * 32 - 64,
                     );
                 }}
                 role="listbox"
@@ -182,7 +183,7 @@ function TimeField({
                     onClick={() =>
                       onChange(index === 0 ? `${n}:${minute}` : `${hour}:${n}`)
                     }
-                    className={`flex w-full items-center justify-center gap-2 rounded-xl py-2 ${column.selected === n ? "bg-[hsl(var(--muted))] font-semibold" : "hover:bg-[hsl(var(--muted)/0.5)]"}`}
+                    className={`flex w-full items-center justify-center gap-2 rounded-lg py-1.5 text-[13px] ${column.selected === n ? "bg-[hsl(var(--muted))] font-semibold" : "hover:bg-[hsl(var(--muted)/0.5)]"}`}
                   >
                     {n}
                     {column.selected === n ? (
@@ -291,7 +292,7 @@ export function ScheduledTaskForm({
       }}
     >
       <DialogContent
-        className="max-h-[92dvh] !max-w-[640px] overflow-y-auto !rounded-3xl !p-7 sm:!p-8"
+        className="max-h-[min(90dvh,800px)] !max-w-[520px] overflow-y-auto !rounded-2xl !p-5 sm:!p-6"
         onEscapeKeyDown={(event) => {
           if (saving) event.preventDefault();
         }}
@@ -299,17 +300,17 @@ export function ScheduledTaskForm({
           if (saving) event.preventDefault();
         }}
       >
-        <DialogTitle className="!text-xl">
+        <DialogTitle className="!text-[18px] !leading-6">
           {task ? "Edit scheduled task" : "New scheduled task"}
         </DialogTitle>
         <DialogDescription className="sr-only">
           Choose what Clauxen should do and when it should run.
         </DialogDescription>
-        <form onSubmit={save} className="mt-3 space-y-5">
+        <form onSubmit={save} className="mt-1 space-y-4">
           <div>
             <label
               htmlFor="scheduled-name"
-              className="mb-2 block text-sm text-[hsl(var(--muted-foreground))]"
+              className="mb-1.5 block text-[12px] font-medium text-[var(--ui-fg-muted)]"
             >
               Name
             </label>
@@ -324,7 +325,7 @@ export function ScheduledTaskForm({
                 className={`${fieldClass} pr-20`}
               />
               <span
-                className="absolute right-4 top-4 text-xs text-[hsl(var(--muted-foreground))]"
+                className="absolute right-3 top-3 text-[11px] text-[var(--ui-fg-muted)]"
                 aria-live="polite"
               >
                 {name.length}/50
@@ -334,7 +335,7 @@ export function ScheduledTaskForm({
           <div>
             <label
               htmlFor="scheduled-prompt"
-              className="mb-2 block text-sm text-[hsl(var(--muted-foreground))]"
+              className="mb-1.5 block text-[12px] font-medium text-[var(--ui-fg-muted)]"
             >
               Prompt
             </label>
@@ -345,11 +346,11 @@ export function ScheduledTaskForm({
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               placeholder="Describe what you’d like Clauxen to do"
-              className="min-h-32 w-full resize-y rounded-2xl border-0 bg-[hsl(var(--muted)/0.65)] p-4 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+              className="min-h-24 w-full resize-y rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--ui-field-bg)] p-3 text-[13px] leading-5 text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)] focus-visible:border-[var(--ui-field-focus-border)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm text-[hsl(var(--muted-foreground))]">
+            <label className="mb-1.5 block text-[12px] font-medium text-[var(--ui-fg-muted)]">
               Execution model
             </label>
             <Select
@@ -362,14 +363,14 @@ export function ScheduledTaskForm({
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-2 text-[hsl(var(--popover-foreground))]">
+              <SelectContent className="rounded-xl border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-1 text-[13px] text-[hsl(var(--popover-foreground))]">
                 <SelectItem value="fast">Instant</SelectItem>
                 <SelectItem value="thinking">Thinking</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="mb-2 block text-sm text-[hsl(var(--muted-foreground))]">
+            <label className="mb-1.5 block text-[12px] font-medium text-[var(--ui-fg-muted)]">
               Schedule
             </label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -382,7 +383,7 @@ export function ScheduledTaskForm({
                 <SelectTrigger aria-label="Frequency" className={fieldClass}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-2 text-[hsl(var(--popover-foreground))]">
+                <SelectContent className="rounded-xl border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-1 text-[13px] text-[hsl(var(--popover-foreground))]">
                   {["daily", "weekly", "monthly", "once"].map((value) => (
                     <SelectItem key={value} value={value}>
                       <span className="capitalize">{value}</span>
@@ -404,7 +405,7 @@ export function ScheduledTaskForm({
                   <SelectTrigger aria-label="Weekday" className={fieldClass}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-2 text-[hsl(var(--popover-foreground))]">
+                  <SelectContent className="rounded-xl border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-1 text-[13px] text-[hsl(var(--popover-foreground))]">
                     {[
                       "Sunday",
                       "Monday",
@@ -429,7 +430,7 @@ export function ScheduledTaskForm({
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-2 text-[hsl(var(--popover-foreground))]">
+                  <SelectContent className="rounded-xl border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-1 text-[13px] text-[hsl(var(--popover-foreground))]">
                     {Array.from({ length: 31 }, (_, i) => (
                       <SelectItem key={i} value={String(i + 1)}>
                         Day {i + 1}
@@ -440,7 +441,7 @@ export function ScheduledTaskForm({
               ) : null}
             </div>
             {frequency === "monthly" && Number(monthDay) > 28 ? (
-              <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">
+              <p className="mt-1.5 text-[11px] text-[hsl(var(--muted-foreground))]">
                 In shorter months, this task runs on the last day.
               </p>
             ) : null}
@@ -448,7 +449,7 @@ export function ScheduledTaskForm({
           <div>
             <label
               htmlFor="scheduled-timezone"
-              className="mb-2 block text-sm text-[hsl(var(--muted-foreground))]"
+              className="mb-1.5 block text-[12px] font-medium text-[var(--ui-fg-muted)]"
             >
               Timezone
             </label>
@@ -472,13 +473,13 @@ export function ScheduledTaskForm({
                 value={expiration}
                 onChange={setExpiration}
               />
-              <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">
+              <p className="mt-1.5 text-[11px] text-[hsl(var(--muted-foreground))]">
                 Runs through the selected date in your timezone.
               </p>
             </div>
           ) : null}
           <div>
-            <label className="mb-2 block text-sm text-[hsl(var(--muted-foreground))]">
+            <label className="mb-1.5 block text-[12px] font-medium text-[var(--ui-fg-muted)]">
               Results notification
             </label>
             <Select
@@ -493,7 +494,7 @@ export function ScheduledTaskForm({
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-2 text-[hsl(var(--popover-foreground))]">
+              <SelectContent className="rounded-xl border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-1 text-[13px] text-[hsl(var(--popover-foreground))]">
                 <SelectItem value="app_only">In app</SelectItem>
                 <SelectItem value="email_app">Email and in app</SelectItem>
                 <SelectItem value="email_only">Email</SelectItem>
@@ -502,7 +503,7 @@ export function ScheduledTaskForm({
             </Select>
           </div>
           {next ? (
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            <p className="rounded-lg bg-[var(--ui-hover-wash)] px-3 py-2 text-[11px] text-[var(--ui-fg-muted)]">
               Next run:{" "}
               {next.toLocaleString(undefined, {
                 timeZone: timezone,
@@ -516,18 +517,18 @@ export function ScheduledTaskForm({
               {error || scheduleError}
             </p>
           ) : null}
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-2 pt-1">
             <button
               type="button"
               disabled={saving}
               onClick={onClose}
-              className="rounded-xl bg-[hsl(var(--muted))] px-5 py-3 text-base"
+              className={appBtn.secondary}
             >
               Cancel
             </button>
             <button
               disabled={saving || !name.trim() || !prompt.trim() || !next}
-              className="rounded-xl no-hover-overlay bg-[hsl(var(--foreground))] px-5 py-3 text-base text-[hsl(var(--background))] disabled:opacity-35"
+              className={`${appBtn.primary} disabled:opacity-40`}
             >
               {saving ? "Saving…" : "Save"}
             </button>

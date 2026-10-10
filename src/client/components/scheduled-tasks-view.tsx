@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { ScheduledTaskForm } from "@/components/scheduled-task-form";
+import { appBtn } from "@/lib/app-buttons";
 
 export function ScheduledTasksView() {
   const router = useRouter();
@@ -104,41 +105,39 @@ export function ScheduledTasksView() {
     }
   };
   return (
-    <section className="h-full overflow-y-auto px-5 py-10 sm:px-12 sm:py-14">
-      <div className="mx-auto max-w-6xl">
-        <header className="flex flex-wrap items-start justify-between gap-6">
+    <section className="app-page-surface h-full overflow-y-auto px-4 pb-12 pt-6 sm:px-8 sm:pt-8">
+      <div className="mx-auto w-full max-w-[1080px]">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--ui-border-subtle)] pb-5">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">
-              Scheduled tasks
-            </h1>
-            <p className="mt-3 text-base text-[hsl(var(--muted-foreground))]">
+            <h1 className="app-page-title">Scheduled tasks</h1>
+            <p className="app-page-subtitle mt-1">
               Set a routine for Clauxen and keep your recurring work on track.
             </p>
           </div>
-          <div className="flex overflow-hidden rounded-2xl no-hover-overlay bg-[hsl(var(--foreground))] text-[hsl(var(--background))]">
-            <button
-              onClick={createChat}
-              className="no-hover-overlay px-5 py-3 text-base font-medium"
-            >
+          <div className="flex items-center gap-1">
+            <button onClick={createChat} className={appBtn.primary}>
               Create
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Choose how to create a task"
-                className="no-hover-overlay border-l border-[hsl(var(--background)/0.2)] px-3"
+                className="ui-icon-button size-9"
               >
-                <ChevronDown className="size-5" />
+                <ChevronDown className="size-4" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
-                <DropdownMenuItem onSelect={createChat} className="gap-3 p-3">
-                  <MessageCirclePlus className="size-5" />
+              <DropdownMenuContent align="end" className="w-48 rounded-xl p-1">
+                <DropdownMenuItem
+                  onSelect={createChat}
+                  className="gap-2 px-2.5 py-2 text-[13px]"
+                >
+                  <MessageCirclePlus className="size-4" />
                   Create via chat
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => setEditing(null)}
-                  className="gap-3 p-3"
+                  className="gap-2 px-2.5 py-2 text-[13px]"
                 >
-                  <Pencil className="size-5" />
+                  <Pencil className="size-4" />
                   Create manually
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -146,32 +145,29 @@ export function ScheduledTasksView() {
           </div>
         </header>
         {loading ? (
-          <p
-            role="status"
-            className="py-20 text-[hsl(var(--muted-foreground))]"
-          >
+          <p role="status" className="py-12 text-sm text-[var(--ui-fg-muted)]">
             Loading scheduled tasks…
           </p>
         ) : error ? (
-          <div role="alert" className="py-16">
+          <div role="alert" className="py-12 text-sm">
             <p>{error}</p>
             <button onClick={() => void load()} className="mt-4 underline">
               Try again
             </button>
           </div>
         ) : tasks.length === 0 ? (
-          <div className="flex min-h-[55vh] flex-col items-center justify-center text-center">
+          <div className="flex min-h-[40vh] flex-col items-center justify-center px-4 text-center">
             <CalendarClock
-              className="mb-7 size-24 text-[hsl(var(--muted-foreground)/0.35)]"
+              className="mb-4 size-10 text-[var(--ui-fg-muted)] opacity-60"
               strokeWidth={1}
             />
-            <p className="text-lg text-[hsl(var(--muted-foreground))]">
+            <p className="text-[15px] font-medium text-[var(--ui-fg)]">
               Create your first scheduled task
             </p>
-            <p className="mt-3 text-base">
+            <p className="mt-2 text-[13px] text-[var(--ui-fg-muted)]">
               <button
                 onClick={() => setEditing(null)}
-                className="text-blue-500 hover:underline"
+                className="font-medium text-[var(--ui-fg)] underline-offset-4 hover:underline"
               >
                 Add manually
               </button>
@@ -180,21 +176,21 @@ export function ScheduledTasksView() {
               </span>
               <button
                 onClick={createChat}
-                className="text-blue-500 hover:underline"
+                className="font-medium text-[var(--ui-fg)] underline-offset-4 hover:underline"
               >
                 Create via chat
               </button>
             </p>
           </div>
         ) : (
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
+          <div className="mt-6 grid gap-3 md:grid-cols-2">
             {tasks.map((task) => (
               <article
                 key={task.id}
-                className="rounded-3xl border border-[hsl(var(--border))] p-6"
+                className="rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-4 sm:p-5"
               >
                 <div className="flex items-center gap-3">
-                  <h2 className="min-w-0 flex-1 truncate text-xl font-semibold">
+                  <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold">
                     {task.name}
                   </h2>
                   <Switch
@@ -207,13 +203,13 @@ export function ScheduledTasksView() {
                     <DropdownMenuTrigger
                       aria-label={`Actions for ${task.name}`}
                       disabled={busy === task.id}
-                      className="rounded-lg p-2 hover:bg-[hsl(var(--muted))]"
+                      className="ui-icon-button size-8"
                     >
                       <MoreHorizontal className="size-5" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
-                      className="w-44 rounded-2xl p-2"
+                      className="w-40 rounded-xl p-1"
                     >
                       <DropdownMenuItem
                         disabled={task.status !== "active"}
@@ -236,11 +232,11 @@ export function ScheduledTasksView() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <p className="mt-5 min-h-16 whitespace-pre-wrap break-words text-[hsl(var(--muted-foreground))] line-clamp-3">
+                <p className="mt-3 min-h-12 whitespace-pre-wrap break-words text-[13px] leading-5 text-[var(--ui-fg-muted)] line-clamp-3">
                   {task.requirement}
                 </p>
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-sm text-[hsl(var(--muted-foreground))]">
-                  <span className="flex items-center gap-2">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--ui-border-subtle)] pt-3 text-[12px] text-[var(--ui-fg-muted)]">
+                  <span className="flex items-center gap-1.5">
                     <Clock className="size-4" />
                     {task.next_run_at
                       ? new Date(task.next_run_at).toLocaleString(undefined, {
@@ -254,7 +250,7 @@ export function ScheduledTasksView() {
                   </span>
                   <span className="capitalize">{task.frequency}</span>
                 </div>
-                <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">
+                <p className="mt-2 text-[11px] text-[var(--ui-fg-muted)]">
                   {task.timezone} ·{" "}
                   {task.model_mode === "thinking" ? "Thinking" : "Instant"}
                   {task.last_run_status
@@ -263,7 +259,7 @@ export function ScheduledTasksView() {
                 </p>
                 {task.last_chat_id ? (
                   <button
-                    className="mt-3 text-sm text-blue-500 hover:underline"
+                    className="mt-3 text-[12px] font-medium text-[var(--ui-fg)] underline-offset-4 hover:underline"
                     onClick={() => router.push(`/c/${task.last_chat_id}`)}
                   >
                     View latest result
@@ -290,24 +286,24 @@ export function ScheduledTasksView() {
           if (!open && !busy) setDeleting(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-w-[400px] gap-4 rounded-2xl p-5">
           <DialogTitle>Delete scheduled task?</DialogTitle>
           <DialogDescription>
             “{deleting?.name}” will stop running. Existing results will remain
             in your chats.
           </DialogDescription>
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-2 pt-1">
             <button
               disabled={!!busy}
               onClick={() => setDeleting(null)}
-              className="rounded-xl bg-[hsl(var(--muted))] px-4 py-2"
+              className={appBtn.secondary}
             >
               Cancel
             </button>
             <button
               disabled={!!busy}
               onClick={() => deleting && void act(deleting, "delete")}
-              className="rounded-xl bg-red-500 px-4 py-2 text-white"
+              className={`${appBtn.primary} !bg-[var(--settings-danger)] hover:!opacity-90 disabled:opacity-50`}
             >
               {busy ? "Deleting…" : "Delete"}
             </button>
