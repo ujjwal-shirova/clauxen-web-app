@@ -443,6 +443,7 @@ export function SettingsModal({
               <SettingsNavSidebar
                 activeTab={visibleTab}
                 onTabChange={handleTabChange}
+                onBackToApp={onClose}
                 accountName={
                   personalization.fullName || user?.displayName || user?.email
                 }

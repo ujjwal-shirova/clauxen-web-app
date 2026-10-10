@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   settingsItemLabel,
@@ -19,6 +19,7 @@ interface SettingsNavSidebarProps {
   variant?: "sidebar" | "mobile-toolbar";
   accountName?: string | null;
   accountAvatarUrl?: string | null;
+  onBackToApp?: () => void;
 }
 
 function NavButton({
@@ -91,6 +92,7 @@ export function SettingsNavSidebar({
   variant = "sidebar",
   accountName,
   accountAvatarUrl,
+  onBackToApp,
 }: SettingsNavSidebarProps) {
   const [query, setQuery] = useState("");
 
@@ -163,6 +165,16 @@ export function SettingsNavSidebar({
       className="flex h-full min-h-0 flex-1 flex-col gap-2.5 overflow-hidden"
       aria-label="Settings"
     >
+      {onBackToApp ? (
+        <button
+          type="button"
+          onClick={onBackToApp}
+          className="flex h-9 shrink-0 items-center gap-2 rounded-lg px-2 text-[13px] font-medium text-[var(--settings-fg-muted)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-focus-ring)]"
+        >
+          <ArrowLeft className="size-4" strokeWidth={1.8} aria-hidden />
+          <span>Back to app</span>
+        </button>
+      ) : null}
       <SettingsSearchInput value={query} onChange={setQuery} />
 
       <div className="relative min-h-0 flex-1">
