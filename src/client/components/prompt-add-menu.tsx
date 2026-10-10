@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type RefObject,
-} from "react";
-import { createPortal } from "react-dom";
+import { Fragment, useEffect, useRef, useState, type RefObject } from "react";
 import { motion } from "framer-motion";
 import {
   Check,
@@ -20,15 +11,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useIsClient } from "@/hooks/use-is-client";
 
 export type PromptComposeAction = "deep-research";
 export type WebSearchMode = "auto" | "off";
 
-type PromptAddMenuItemId =
-  | "files"
-  | "web-search"
-  | "deep-research";
+type PromptAddMenuItemId = "files" | "web-search" | "deep-research";
 
 type SubmenuId = "web-search";
 
@@ -42,9 +29,6 @@ type PromptAddMenuItem = {
 };
 
 export type PromptAddMenuPanelProps = {
-  open: boolean;
-  placement: "above" | "below";
-  anchorRef: RefObject<HTMLElement | null>;
   onClose: () => void;
   panelRef?: RefObject<HTMLDivElement | null>;
   onAddFiles?: () => void;
@@ -54,28 +38,21 @@ export type PromptAddMenuPanelProps = {
   className?: string;
 };
 
-const MENU_GAP_PX = 8;
-/** Flyout sits just outside the main menu border. */
-const SUBMENU_GAP_PX = 4;
-
 function PromptAddMenuRow({
   item,
   active,
   onSelect,
   onHover,
-  rowRef,
 }: {
   item: PromptAddMenuItem;
   active?: boolean;
   onSelect: () => void;
   onHover?: () => void;
-  rowRef?: (node: HTMLButtonElement | null) => void;
 }) {
   const Icon = item.icon;
 
   return (
     <button
-      ref={rowRef}
       type="button"
       role="menuitem"
       data-prompt-add-menu-row=""
@@ -158,117 +135,7 @@ function ToggleSubmenu<T extends string>({
   );
 }
 
-const HIDDEN_MENU_STYLE: CSSProperties = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  visibility: "hidden",
-  pointerEvents: "none",
-};
-
-function useAnchoredMenuPosition(
-  open: boolean,
-  anchorRef: RefObject<HTMLElement | null>,
-  menuRef: RefObject<HTMLDivElement | null>,
-  placement: "above" | "below",
-) {
-  const [position, setPosition] = useState<CSSProperties>(HIDDEN_MENU_STYLE);
-
-  const updatePosition = useCallback(() => {
-    const anchor = anchorRef.current;
-    const menu = menuRef.current;
-    if (!anchor || !menu) return;
-
-    // Measure the primary panel only — ignore the flyout so opening a submenu
-    // does not re-anchor or jump the main menu.
-    const panel =
-      menu.querySelector<HTMLElement>("[data-prompt-add-menu]") ?? menu;
-    const anchorRect = anchor.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
-    const viewportPadding = 12;
-    const panelWidth = Math.min(420, window.innerWidth - viewportPadding * 2);
-
-    let left = anchorRect.left;
-    const maxLeft = window.innerWidth - panelWidth - viewportPadding;
-    left = Math.max(viewportPadding, Math.min(left, maxLeft));
-
-    let top: number;
-    if (placement === "above") {
-      // Always stay above the + trigger so welcome chips under the composer
-      // remain visible. Prefer clipping at the viewport top over covering chips.
-      const preferredTop = anchorRect.top - panelRect.height - MENU_GAP_PX;
-      if (preferredTop >= viewportPadding) {
-        top = preferredTop;
-      } else if (
-        preferredTop + panelRect.height + MENU_GAP_PX <=
-        anchorRect.top
-      ) {
-        top = preferredTop;
-      } else {
-        top = Math.max(4, preferredTop);
-      }
-    } else {
-      top = anchorRect.bottom + MENU_GAP_PX;
-    }
-
-    setPosition((prev) => {
-      if (
-        prev.visibility === "visible" &&
-        prev.position === "fixed" &&
-        prev.top === top &&
-        prev.left === left &&
-        prev.zIndex === 3000 &&
-        prev.width === panelWidth &&
-        prev.maxHeight === window.innerHeight - top - viewportPadding
-      ) {
-        return prev;
-      }
-      return {
-        position: "fixed",
-        top,
-        left,
-        zIndex: 3000,
-        width: panelWidth,
-        maxHeight: window.innerHeight - top - viewportPadding,
-        visibility: "visible",
-      };
-    });
-  }, [anchorRef, menuRef, placement]);
-
-  useLayoutEffect(() => {
-    if (!open) {
-      setPosition(HIDDEN_MENU_STYLE);
-      return;
-    }
-
-    updatePosition();
-
-    const onScrollOrResize = () => updatePosition();
-    window.addEventListener("scroll", onScrollOrResize, true);
-    window.addEventListener("resize", onScrollOrResize);
-    const observer = new ResizeObserver(updatePosition);
-    if (anchorRef.current) observer.observe(anchorRef.current);
-    return () => {
-      window.removeEventListener("scroll", onScrollOrResize, true);
-      window.removeEventListener("resize", onScrollOrResize);
-      observer.disconnect();
-    };
-  }, [open, updatePosition, anchorRef]);
-
-  // One extra measure after paint so the portal has real dimensions.
-  useLayoutEffect(() => {
-    if (!open) return;
-    const frame = requestAnimationFrame(() => updatePosition());
-    return () => cancelAnimationFrame(frame);
-  }, [open, updatePosition, anchorRef]);
-
-  return position;
-}
-
 export function PromptAddMenuPanel({
-  open,
-  placement,
-  anchorRef,
   onClose,
   panelRef,
   onAddFiles,
@@ -277,22 +144,9 @@ export function PromptAddMenuPanel({
   onWebSearchModeChange,
   className,
 }: PromptAddMenuPanelProps) {
-  const isClient = useIsClient();
   const internalRef = useRef<HTMLDivElement>(null);
   const resolvedRef = panelRef ?? internalRef;
-  const rowRefs = useRef<Partial<Record<SubmenuId, HTMLButtonElement | null>>>(
-    {},
-  );
   const [activeSubmenu, setActiveSubmenu] = useState<SubmenuId | null>(null);
-  const [submenuTopPx, setSubmenuTopPx] = useState(0);
-  const [submenuSide, setSubmenuSide] = useState<"right" | "left">("right");
-
-  const menuPosition = useAnchoredMenuPosition(
-    open,
-    anchorRef,
-    resolvedRef,
-    placement,
-  );
 
   const items: PromptAddMenuItem[] = [
     ...(onAddFiles
@@ -315,7 +169,10 @@ export function PromptAddMenuPanel({
       description: "Find real-time news and info",
       icon: Globe,
       hasSubmenu: true,
-      onSelect: () => setActiveSubmenu("web-search"),
+      onSelect: () =>
+        setActiveSubmenu((active) =>
+          active === "web-search" ? null : "web-search",
+        ),
     },
     ...(onDeepResearch
       ? [
@@ -330,29 +187,7 @@ export function PromptAddMenuPanel({
       : []),
   ];
 
-  const syncSubmenuPlacement = useCallback(
-    (submenu: SubmenuId | null) => {
-      if (!submenu) return;
-      const menu = resolvedRef.current;
-      const row = rowRefs.current[submenu];
-      if (!menu || !row) return;
-      setSubmenuTopPx(row.offsetTop);
-
-      const menuRect = menu.getBoundingClientRect();
-      const estimatedSubmenuWidth = 200;
-      const spaceRight =
-        window.innerWidth - menuRect.right - SUBMENU_GAP_PX - 12;
-      setSubmenuSide(spaceRight >= estimatedSubmenuWidth ? "right" : "left");
-    },
-    [resolvedRef],
-  );
-
   useEffect(() => {
-    if (!open) {
-      setActiveSubmenu(null);
-      return;
-    }
-
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         if (activeSubmenu) {
@@ -367,38 +202,30 @@ export function PromptAddMenuPanel({
     return () => {
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose, activeSubmenu]);
+  }, [onClose, activeSubmenu]);
 
   useEffect(() => {
-    if (!open) return;
     const frame = requestAnimationFrame(() => {
       resolvedRef.current
         ?.querySelector<HTMLButtonElement>("[data-prompt-add-menu-row]")
         ?.focus();
     });
     return () => cancelAnimationFrame(frame);
-  }, [open, resolvedRef]);
-
-  useLayoutEffect(() => {
-    syncSubmenuPlacement(activeSubmenu);
-  }, [activeSubmenu, syncSubmenuPlacement, open]);
-
-  if (!open || !isClient) return null;
+  }, [resolvedRef]);
 
   const menu = (
     <div
       ref={resolvedRef}
-      style={menuPosition}
       role="menu"
       aria-label="Composer tools"
-      className={cn("relative", className)}
+      className={cn("relative mt-2 w-full", className)}
       data-prompt-add-menu-root
       onKeyDown={(event) => {
         if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))
           return;
         const rows = Array.from(
           event.currentTarget.querySelectorAll<HTMLButtonElement>(
-            "[data-prompt-add-menu] [role=menuitem]",
+            "[role=menuitem]",
           ),
         );
         if (!rows.length) return;
@@ -415,97 +242,62 @@ export function PromptAddMenuPanel({
       }}
     >
       <motion.div
-        key={`prompt-add-menu-${placement}`}
-        data-prompt-add-menu
-        data-prompt-add-menu-placement={placement}
-        initial={{ opacity: 0, y: placement === "below" ? -4 : 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: placement === "below" ? -3 : 3 }}
-        transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        className="overflow-hidden font-sans"
+        initial={{ opacity: 0, height: 0, y: -5 }}
+        animate={{ opacity: 1, height: "auto", y: 0 }}
+        exit={{ opacity: 0, height: 0, y: -3 }}
+        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full overflow-hidden"
       >
-        <div
-          data-prompt-add-menu-list=""
-          role="presentation"
-          style={{
-            maxHeight: Math.max(0, Number(menuPosition.maxHeight ?? 360) - 26),
-          }}
-        >
-          {items.map((item) => (
-            <PromptAddMenuRow
-              key={item.id}
-              item={item}
-              active={activeSubmenu === item.id}
-              rowRef={(node) => {
-                if (item.hasSubmenu) {
-                  rowRefs.current[item.id as SubmenuId] = node;
-                }
-              }}
-              onHover={() => {
-                if (item.hasSubmenu) {
-                  setActiveSubmenu(item.id as SubmenuId);
-                  syncSubmenuPlacement(item.id as SubmenuId);
-                } else {
-                  setActiveSubmenu(null);
-                }
-              }}
-              onSelect={() => item.onSelect?.()}
-            />
-          ))}
+        <div data-prompt-add-menu className="w-full overflow-hidden font-sans">
+          <div
+            data-prompt-add-menu-list=""
+            role="presentation"
+            style={{
+              maxHeight: "min(360px, 50vh)",
+            }}
+          >
+            {items.map((item) => (
+              <Fragment key={item.id}>
+                <PromptAddMenuRow
+                  item={item}
+                  active={activeSubmenu === item.id}
+                  onHover={() => {
+                    if (!item.hasSubmenu) {
+                      setActiveSubmenu(null);
+                    }
+                  }}
+                  onSelect={() => item.onSelect?.()}
+                />
+                {activeSubmenu === item.id && item.id === "web-search" ? (
+                  <div className="px-2 pb-2">
+                    <ToggleSubmenu
+                      mode={webSearchMode}
+                      options={[
+                        {
+                          id: "auto" as const,
+                          label: "Auto",
+                          description: "Browses the web when needed",
+                        },
+                        {
+                          id: "off" as const,
+                          label: "Off",
+                          description: "No web access",
+                        },
+                      ]}
+                      onSelect={(mode) => {
+                        onWebSearchModeChange?.(mode);
+                        onClose();
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </Fragment>
+            ))}
+          </div>
         </div>
       </motion.div>
-
-      {activeSubmenu ? (
-        <motion.div
-          key={`prompt-add-submenu-${activeSubmenu}`}
-          data-prompt-add-submenu={activeSubmenu}
-          role="menu"
-          initial={{
-            opacity: 0,
-            x: submenuSide === "right" ? -4 : 4,
-          }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{
-            opacity: 0,
-            x: submenuSide === "right" ? -2 : 2,
-          }}
-          transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
-          style={{ top: submenuTopPx }}
-          className={cn(
-            "absolute z-10 overflow-hidden font-sans",
-            submenuSide === "right"
-              ? "left-[calc(100%+4px)]"
-              : "right-[calc(100%+4px)]",
-            // Narrow viewports: stack the flyout under the main menu instead.
-            "max-sm:left-0 max-sm:right-0 max-sm:top-[calc(100%+6px)] max-sm:bottom-auto",
-          )}
-          onMouseEnter={() => setActiveSubmenu(activeSubmenu)}
-        >
-          {activeSubmenu === "web-search" ? (
-            <ToggleSubmenu
-              mode={webSearchMode}
-              options={[
-                {
-                  id: "auto" as const,
-                  label: "Auto",
-                  description: "Browses the web when needed",
-                },
-                {
-                  id: "off" as const,
-                  label: "Off",
-                  description: "No web access",
-                },
-              ]}
-              onSelect={(mode) => {
-                onWebSearchModeChange?.(mode);
-                onClose();
-              }}
-            />
-          ) : null}
-        </motion.div>
-      ) : null}
     </div>
   );
 
-  return createPortal(menu, document.body);
+  return menu;
 }

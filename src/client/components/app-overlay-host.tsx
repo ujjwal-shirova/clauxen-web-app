@@ -16,18 +16,17 @@ import { cn } from "@/lib/utils";
 function SettingsLoadingShell() {
   return (
     <FullscreenPortal>
-      <div className="settings-theme fixed inset-0 z-[200]" role="presentation">
-        <div aria-hidden className={chrome.overlay.scrim} />
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-busy="true"
-          aria-label="Loading settings"
-          data-app-overlay-surface=""
-          className={chrome.overlay.modalShell}
-        >
-          <AppContentLoader label="Loading settings" />
-        </div>
+      <div
+        role="main"
+        aria-busy="true"
+        aria-label="Loading settings"
+        data-app-overlay-surface=""
+        className={cn(
+          chrome.overlay.surface,
+          "settings-theme bg-[var(--settings-sidebar-bg)]",
+        )}
+      >
+        <AppContentLoader label="Loading settings" />
       </div>
     </FullscreenPortal>
   );

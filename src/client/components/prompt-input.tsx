@@ -1282,28 +1282,6 @@ export function PromptInput({
           ))}
         </div>
       ) : null}
-      <PromptAddMenuPanel
-        open={isAddMenuOpen}
-        placement={isConversationStarted ? "above" : "below"}
-        anchorRef={promptShellRef}
-        panelRef={addMenuPanelRef}
-        onClose={() => {
-          setAddMenuOpen(false);
-          textareaRef.current?.focus({ preventScroll: true });
-        }}
-        onAddFiles={allowAttachments ? openFilePicker : undefined}
-        onDeepResearch={() => {
-          if (!requireAuthGate()) return;
-          setActiveInlineMode("deep-research");
-          setAddMenuOpen(false);
-          requestAnimationFrame(() => {
-            textareaRef.current?.focus({ preventScroll: true });
-            scheduleResizeTextarea();
-          });
-        }}
-        webSearchMode={webSearchMode}
-        onWebSearchModeChange={handleWebSearchModeChange}
-      />
     </div>
   );
 
@@ -1618,6 +1596,29 @@ export function PromptInput({
                   )
                 : renderPromptBody(placeholder)}
             </div>
+            <AnimatePresence initial={false}>
+              {isAddMenuOpen ? (
+                <PromptAddMenuPanel
+                  panelRef={addMenuPanelRef}
+                  onClose={() => {
+                    setAddMenuOpen(false);
+                    textareaRef.current?.focus({ preventScroll: true });
+                  }}
+                  onAddFiles={allowAttachments ? openFilePicker : undefined}
+                  onDeepResearch={() => {
+                    if (!requireAuthGate()) return;
+                    setActiveInlineMode("deep-research");
+                    setAddMenuOpen(false);
+                    requestAnimationFrame(() => {
+                      textareaRef.current?.focus({ preventScroll: true });
+                      scheduleResizeTextarea();
+                    });
+                  }}
+                  webSearchMode={webSearchMode}
+                  onWebSearchModeChange={handleWebSearchModeChange}
+                />
+              ) : null}
+            </AnimatePresence>
           </div>
         </div>
       </div>

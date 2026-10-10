@@ -141,28 +141,6 @@ export function SettingsModal({
         onClose();
         return;
       }
-      if (event.key !== "Tab" || !dialogRef.current) return;
-
-      const focusable = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter(
-        (element) =>
-          element.getClientRects().length > 0 &&
-          element.getAttribute("aria-hidden") !== "true",
-      );
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (!first || !last) return;
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -422,43 +400,25 @@ export function SettingsModal({
 
   return (
     <FullscreenPortal>
-      <div className="settings-theme fixed inset-0 z-[200]" role="presentation">
-        {/*
-        Div (not button): global button:hover forces background-color to near-transparent
-        and washed out the settings backdrop on hover outside the dialog.
-      */}
-        <div
-          aria-hidden
-          data-settings-washout
-          className={cn(
-            chrome.overlay.scrim,
-            "cursor-default max-md:opacity-95",
-          )}
-          onClick={onClose}
-        />
-
+      <div className="settings-theme fixed inset-0 z-[200] bg-[var(--settings-sidebar-bg)]">
         <div
           ref={dialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="settings-modal-title"
           data-app-overlay-surface=""
           tabIndex={-1}
           className={cn(
-            chrome.overlay.modalShell,
-            "max-w-none font-sans text-zinc-900 dark:text-zinc-100",
-            "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:pt-0 md:pb-0",
+            chrome.overlay.surface,
+            "font-sans text-zinc-900 dark:text-zinc-100",
           )}
         >
-          <h1 id="settings-modal-title" className="sr-only">
+          <h1 id="settings-page-title" className="sr-only">
             Settings
           </h1>
           <p className="sr-only">
             Manage your Clauxen account and application preferences.
           </p>
 
-          <div className="cx-settings flex min-h-0 flex-1 flex-col bg-[var(--cx-paper)] md:flex-row md:items-stretch">
-            <div className="shrink-0 border-b border-[var(--settings-hairline)] bg-[var(--settings-sidebar-bg)] px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] md:hidden">
+          <div aria-labelledby="settings-page-title" className="cx-settings flex min-h-0 flex-1 flex-col bg-[var(--cx-paper)] pt-[env(safe-area-inset-top)] md:flex-row md:items-stretch md:pt-0">
+            <div className="shrink-0 border-b border-[var(--settings-hairline)] bg-[var(--settings-sidebar-bg)] px-3 pb-2.5 pt-2.5 md:hidden">
               <div className="mb-2.5 flex h-7 items-center justify-between gap-3 px-1">
                 <h2 className="truncate text-[15px] font-semibold tracking-[-0.015em] text-[var(--settings-fg)]">
                   Settings
