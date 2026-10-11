@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { parse } from "dotenv";
 
-const values = { ...process.env };
+const values = {};
 for (const file of [
   ".env.vercel",
   ".env.local",
@@ -18,6 +18,7 @@ for (const file of [
       ),
     );
 }
+Object.assign(values, process.env);
 const token = values.CLOUDFLARE_API_TOKEN?.trim();
 if (!token)
   throw new Error(

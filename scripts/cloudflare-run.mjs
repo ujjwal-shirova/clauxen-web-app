@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+/* eslint-disable security/detect-non-literal-fs-filename -- Paths come from fixed local configuration lists. */
 import { readFileSync, existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { parse } from "dotenv";
 
-const runtimeEnv = { ...process.env };
+const runtimeEnv = {};
 for (const file of [
   ".env.vercel",
   ".env.local",
@@ -18,6 +19,8 @@ for (const file of [
       ),
     );
 }
+// CI-provided values take precedence over local defaults.
+Object.assign(runtimeEnv, process.env);
 runtimeEnv.CLOUDFLARE_API_TOKEN = runtimeEnv.CLOUDFLARE_API_TOKEN?.trim();
 runtimeEnv.CLOUDFLARE_ACCOUNT_ID = "8fc7a67e9057989309921f362784ecf4";
 runtimeEnv.HOSTING_PLATFORM = "cloudflare";

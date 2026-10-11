@@ -61,6 +61,17 @@ The production zone has an existing managed challenge on `/login` and some other
 
 ## Deploying again
 
+Production Workers Builds is connected to `ujjwal-shirova/clauxen-web-app`, branch
+`master`, on the `clauxen-app` Worker. The repository root is `/`, the build command
+is `npm run cf:build`, and the deploy command is `npm run cf:deploy`. Build caching
+is enabled. The old build connection on `clauxen-web-app` was removed so it
+cannot compete with production deployments. The old Worker itself is retained.
+
+`npm run build` builds Next.js into `.next`; it does not generate the OpenNext
+Worker bundle. Using it as the Workers Builds build command causes deployment to
+fail with “Could not find compiled Open Next config”. Keep the standard Next.js
+build script: OpenNext invokes it as part of `cf:build`.
+
 Use Node.js 24 and install from the lockfile:
 
 ```sh
@@ -68,16 +79,25 @@ npm ci
 npm run test:cloudflare
 npm run test:background
 npm run test:scheduled
-npm run cf:build
-npm run cf:deploy
+npm run cf:release
 node scripts/verify-cloudflare-http.mjs
 ```
 
-`cloudflare-run.mjs` loads ignored local environment files and runs the local CLI without changing Vercel. The generated `cloudflare-env.d.ts` contains binding types and secret names, never secret values. Refresh it after changing bindings with `npm run cf:typegen`.
+For separate build/deploy steps, use `npm run cf:build` then `npm run cf:deploy`.
+Both commands validate the Worker bundle, compiled OpenNext config, server handler,
+and static assets. Deployment also verifies required production chat credentials
+and bindings before and after upload. It preserves existing remote secrets.
+
+`cloudflare-run.mjs` loads ignored local environment files. CI-provided environment
+variables take precedence over local defaults. Runtime credentials remain in
+Worker secrets; only public `NEXT_PUBLIC_*` configuration needs to be available
+when building the frontend. The generated `cloudflare-env.d.ts` contains binding
+types and secret names, never secret values. Refresh it after changing bindings
+with `npm run cf:typegen`.
 
 `verify-cloudflare-data.mjs` requires the existing Supabase values in ignored `.dev.vars`. It creates a temporary confirmed account without sending email, tests data/storage paths, then deletes that account. It invokes no AI or payment provider.
 
-The manual GitHub Actions workflow `.github/workflows/deploy-cloudflare-app.yml` is prepared but has not been pushed or run. Automatic push triggers on the legacy Workers workflow were removed locally to prevent its Vercel-wiring step from running on a future push. Later configure its Cloudflare token and public frontend build settings. It preserves remote Worker secrets and never deploys to Vercel. Do not use the older `deploy-cloudflare-workers.yml` workflow for this staging deployment: that existing workflow includes Vercel wiring and redeploys shared legacy Workers.
+The manual GitHub Actions workflow `.github/workflows/deploy-cloudflare-app.yml` provides an alternative deployment path; Workers Builds handles automatic production builds on pushes to `master`. Automatic push triggers on the legacy Workers workflow were removed locally to prevent its Vercel-wiring step from running on a future push. Later configure its Cloudflare token and public frontend build settings. It preserves remote Worker secrets and never deploys to Vercel. Do not use the older `deploy-cloudflare-workers.yml` workflow for this staging deployment: that existing workflow includes Vercel wiring and redeploys shared legacy Workers.
 
 ## Deferred credentials and cutover
 

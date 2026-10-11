@@ -33,15 +33,17 @@
     "audit:public-env": "node scripts/audit-public-env.mjs",
     "vercel:env:sync": "node scripts/sync-vercel-env-api.mjs",
     "test:background:integration": "tsx tests/background-generation.integration.ts",
-    "cf:build": "node scripts/cloudflare-run.mjs opennextjs-cloudflare build",
+    "cf:build": "node scripts/cloudflare-run.mjs opennextjs-cloudflare build && node scripts/verify-cloudflare-build.mjs",
     "cf:deploy": "node scripts/cloudflare-run.mjs opennextjs-cloudflare deploy",
-    "precf:deploy": "node scripts/verify-cloudflare-chat-config.mjs",
+    "precf:deploy": "node scripts/verify-cloudflare-build.mjs && node scripts/verify-cloudflare-chat-config.mjs",
     "postcf:deploy": "node scripts/verify-cloudflare-chat-config.mjs",
     "cf:preview": "node scripts/cloudflare-run.mjs opennextjs-cloudflare preview",
     "cf:typegen": "wrangler types --include-runtime false --env-interface CloudflareEnv cloudflare-env.d.ts",
     "test:cloudflare": "tsx --test tests/cloudflare-runtime.test.ts",
     "predev": "node scripts/bundle-research-exports.mjs",
-    "pretypecheck": "node scripts/bundle-research-exports.mjs"
+    "pretypecheck": "node scripts/bundle-research-exports.mjs",
+    "cf:release": "npm run cf:build && npm run cf:deploy",
+    "test:cloudflare:build": "node --test tests/cloudflare-build.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",

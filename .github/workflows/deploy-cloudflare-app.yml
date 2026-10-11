@@ -36,7 +36,7 @@ jobs:
           test -n "$NEXT_PUBLIC_SUPABASE_URL"
           test -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
       - run: npm ci
-      - run: npm run test:cloudflare && npm run test:background && npm run test:scheduled
+      - run: npm run test:cloudflare:build && npm run test:cloudflare && npm run test:background && npm run test:scheduled
       - run: npm run cf:build
       - run: npm run cf:deploy
       - run: node scripts/verify-cloudflare-http.mjs

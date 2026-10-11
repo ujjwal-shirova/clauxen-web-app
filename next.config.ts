@@ -27,7 +27,14 @@ function getAllowedDevOrigins(): string[] {
       .map((origin) => origin.trim())
       .filter(Boolean) ?? [];
 
-  return [...new Set(["localhost", "127.0.0.1", ...fromEnv, ...getLocalNetworkHosts()])];
+  return [
+    ...new Set([
+      "localhost",
+      "127.0.0.1",
+      ...fromEnv,
+      ...getLocalNetworkHosts(),
+    ]),
+  ];
 }
 
 function r2ImagePatterns(): NonNullable<
@@ -212,23 +219,6 @@ const nextConfig: NextConfig = {
           },
           { key: "Cache-Control", value: "private, no-store" },
           { key: "Referrer-Policy", value: "no-referrer" },
-        ],
-      },
-      {
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-          {
-            key: "CDN-Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-          {
-            key: "Vercel-CDN-Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
         ],
       },
       {
