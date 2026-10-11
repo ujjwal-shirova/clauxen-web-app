@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { AuthGateDialog } from "@/components/auth/auth-gate-dialog";
 import { useAuth } from "@/hooks/use-auth";
+import { useAppInteraction } from "@/hooks/use-app-interaction";
 
 type OpenAuthGateOptions = {
   /** Keep the deep-link destination so sign-in can resume the journey. */
@@ -49,7 +50,11 @@ function readGateQuery(): {
 function stripGateQuery() {
   if (typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
-  if (!params.has("auth") && !params.has("redirectTo") && !params.has("error")) {
+  if (
+    !params.has("auth") &&
+    !params.has("redirectTo") &&
+    !params.has("error")
+  ) {
     return;
   }
   params.delete("auth");
@@ -66,6 +71,7 @@ function stripGateQuery() {
  */
 export function AuthGateProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
+  const hasInteracted = useAppInteraction();
   const [isOpen, setIsOpen] = useState(false);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
   const [initialError, setInitialError] = useState<string | null>(null);
@@ -98,16 +104,19 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
     if (isAuthenticated && isOpen) closeAuthGate();
   }, [isAuthenticated, isOpen, closeAuthGate]);
 
-  // Deep-link bounce from middleware (?auth=1)
+  // Preserve deep links, but let new guests explore before prompting them.
   useEffect(() => {
+    if (loading) return;
     const gateQuery = readGateQuery();
-    if (gateQuery.auth) {
+    if (gateQuery.auth && isAuthenticated) {
+      stripGateQuery();
+    } else if (gateQuery.auth && hasInteracted) {
       setRedirectTo(gateQuery.redirectTo);
       setInitialError(gateQuery.error);
       setIsOpen(true);
       stripGateQuery();
     }
-  }, []);
+  }, [loading, isAuthenticated, hasInteracted]);
 
   const value = useMemo<AuthGateContextValue>(
     () => ({ isOpen, openAuthGate, closeAuthGate, requireAuth }),

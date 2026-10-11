@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, sessionFetch } from "@/lib/api/client";
 import { FULL_CHAT_HYDRATE_LIMIT } from "@/lib/chat-history-page-size";
 
 export type ApiChat = {
@@ -301,7 +301,7 @@ export async function getChatTranscript(
   format: "jsonl" | "json" = "json",
 ) {
   if (format === "jsonl") {
-    const response = await fetch(
+    const response = await sessionFetch(
       `/api/v1/chats/${encodeURIComponent(chatId)}/transcript?format=jsonl`,
       { credentials: "include" },
     );

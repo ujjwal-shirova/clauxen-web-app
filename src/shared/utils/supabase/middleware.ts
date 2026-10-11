@@ -1,5 +1,5 @@
 import type { Database } from "@/types/database.types";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, DEFAULT_COOKIE_OPTIONS } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { getSupabasePublicConfig, requireSupabasePublicConfig } from "./env";
 import {
@@ -58,8 +58,12 @@ function withSessionCookies(
   to: NextResponse,
 ): NextResponse {
   from.cookies.getAll().forEach((cookie) => {
-    to.cookies.set(cookie.name, cookie.value);
+    to.cookies.set(cookie);
   });
+  for (const name of ["cache-control", "expires", "pragma"]) {
+    const value = from.headers.get(name);
+    if (value) to.headers.set(name, value);
+  }
   return to;
 }
 
@@ -92,7 +96,8 @@ export async function updateSession(request: NextRequest) {
         cookiesToSet.forEach(({ name, value, options }) => {
           supabaseResponse.cookies.set(name, value, {
             ...options,
-            httpOnly: options?.httpOnly ?? true,
+            // The browser SDK owns token renewal and must read session cookies.
+            httpOnly: false,
             sameSite: options?.sameSite ?? "lax",
             secure: isProduction ? true : options?.secure,
             path: options?.path ?? "/",
@@ -114,7 +119,18 @@ export async function updateSession(request: NextRequest) {
     email?: string | null;
     user_metadata?: Record<string, unknown> | null;
   };
-  const claims = await getClaimsFromCookies(request.cookies);
+  let claims;
+  try {
+    claims = await getClaimsFromCookies(request.cookies);
+  } catch {
+    return new NextResponse(
+      "Session verification is temporarily unavailable. Please retry.",
+      {
+        status: 503,
+        headers: { "Cache-Control": "private, no-store", "Retry-After": "5" },
+      },
+    );
+  }
   let user: ProxyUser | null = claims
     ? {
         id: claims.sub,
@@ -135,7 +151,26 @@ export async function updateSession(request: NextRequest) {
   if (!user && hasAuthCookie) {
     const {
       data: { user: remoteUser },
+      error,
     } = await supabase.auth.getUser();
+    if (
+      error &&
+      (!error.status || error.status >= 500 || error.status === 429)
+    ) {
+      return withSessionCookies(
+        supabaseResponse,
+        new NextResponse(
+          "Session renewal is temporarily unavailable. Please retry.",
+          {
+            status: 503,
+            headers: {
+              "Cache-Control": "private, no-store",
+              "Retry-After": "5",
+            },
+          },
+        ),
+      );
+    }
     user = remoteUser
       ? {
           id: remoteUser.id,
@@ -145,8 +180,29 @@ export async function updateSession(request: NextRequest) {
       : null;
   }
 
+  if (hasAuthCookie)
+    supabaseResponse.headers.set("Cache-Control", "private, no-store");
+
   // Fast UI identity hint (non-HttpOnly) for early paint.
   if (user?.id) {
+    // Repair cookies previously issued as HttpOnly even if this JWT has not
+    // expired yet. Never rewrite the separate OAuth PKCE verifier cookie.
+    const storageKey = `sb-${new URL(url).hostname.split(".")[0]}-auth-token`;
+    for (const cookie of request.cookies.getAll()) {
+      if (
+        (cookie.name === storageKey ||
+          (cookie.name.startsWith(`${storageKey}.`) &&
+            /^[0-9]+$/.test(cookie.name.slice(storageKey.length + 1)))) &&
+        !supabaseResponse.cookies.has(cookie.name)
+      ) {
+        supabaseResponse.cookies.set(cookie.name, cookie.value, {
+          ...DEFAULT_COOKIE_OPTIONS,
+          secure: process.env.NODE_ENV === "production",
+          httpOnly: false,
+        });
+      }
+    }
+    supabaseResponse.headers.set("Cache-Control", "private, no-store");
     const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
     const preferred =
       typeof meta.preferred_name === "string"
@@ -229,5 +285,7 @@ export async function updateSession(request: NextRequest) {
     return withSessionCookies(supabaseResponse, NextResponse.redirect(dest));
   }
 
+  if (hasAuthCookie || user)
+    supabaseResponse.headers.set("Cache-Control", "private, no-store");
   return supabaseResponse;
 }

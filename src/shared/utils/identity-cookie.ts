@@ -1,6 +1,6 @@
 /**
- * Client-readable identity hint cookie (split session).
- * HttpOnly JWT stays in Supabase auth cookies; this only speeds UI paint
+ * Client-readable identity hint cookie.
+ * Verified credentials stay in Supabase auth cookies; this only speeds UI paint
  * (sidebar name / avatar) before /api/v1/auth/session returns.
  */
 export const IDENTITY_HINT_COOKIE = "clx_identity";
@@ -29,7 +29,10 @@ function encodeHint(hint: IdentityHint): string {
   bytes.forEach((b) => {
     binary += String.fromCharCode(b);
   });
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function decodeHint(raw: string): IdentityHint | null {
@@ -39,7 +42,8 @@ function decodeHint(raw: string): IdentityHint | null {
       json = Buffer.from(raw, "base64url").toString("utf8");
     } else {
       const padded = raw.replace(/-/g, "+").replace(/_/g, "/");
-      const pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+      const pad =
+        padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
       json = atob(padded + pad);
     }
     const parsed = JSON.parse(json) as {

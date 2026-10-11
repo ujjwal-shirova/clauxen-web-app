@@ -1,5 +1,7 @@
 "use client";
 
+import { sessionFetch } from "@/lib/api/client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AssemblyAiStreamingConnection } from "@/features/dictation/assemblyai-stream";
 import {
@@ -226,7 +228,7 @@ export function useStreamingDictation({
         },
       });
 
-      const response = await fetch("/api/v1/audio/dictation/session", {
+      const response = await sessionFetch("/api/v1/audio/dictation/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mimeType: getPreferredRecordingMimeType() }),

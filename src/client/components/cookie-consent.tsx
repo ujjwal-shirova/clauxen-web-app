@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { appBtn } from "@/lib/app-buttons";
 import { Switch } from "@/components/ui/switch";
 import * as cookiesApi from "@/lib/api/cookies";
 import {
@@ -20,8 +21,7 @@ import {
 
 const secondaryButton =
   "inline-flex min-h-8 items-center justify-center rounded-full border border-[var(--ui-border)] bg-transparent px-3 text-[13px] font-medium text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-hover-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]";
-const primaryButton =
-  "inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--ui-fg)] px-3.5 text-[13px] font-medium text-[var(--app-panel-bg)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] focus-visible:ring-offset-2";
+const primaryButton = `${appBtn.primarySm} rounded-full px-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] focus-visible:ring-offset-2`;
 
 function PreferenceRow({
   title,
@@ -204,7 +204,8 @@ export function CookieConsent() {
           role="dialog"
           aria-label="Cookie notice"
           aria-describedby="cookie-banner-desc"
-          className="cookie-notice fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 z-[2147483646] w-[min(400px,calc(100vw-1.5rem))] rounded-2xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-3.5 font-sans text-[var(--ui-fg)] shadow-[0_16px_40px_-18px_rgba(20,21,26,0.28),0_0_0_1px_rgba(20,21,26,0.04)] sm:bottom-4 sm:left-4"
+          data-cookie-consent
+          className="cookie-notice fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-[2147483646] w-[min(400px,calc(100vw-1.5rem))] rounded-2xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-3.5 font-sans text-[var(--ui-fg)] shadow-[0_16px_40px_-18px_rgba(20,21,26,0.28),0_0_0_1px_rgba(20,21,26,0.04)] sm:bottom-4 sm:right-[max(1rem,env(safe-area-inset-right))]"
         >
           <button
             type="button"
@@ -262,7 +263,10 @@ export function CookieConsent() {
       <Dialog.Root open={settingsOpen} onOpenChange={setSettingsOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-[2147483646] bg-black/35 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 z-[2147483647] w-[calc(100vw-1.5rem)] max-w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] border border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-5 font-sans text-[var(--ui-fg)] shadow-[var(--settings-modal-shadow)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:p-6">
+          <Dialog.Content
+            data-cookie-consent
+            className="fixed top-1/2 left-1/2 z-[2147483647] w-[calc(100vw-1.5rem)] max-w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] border border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-5 font-sans text-[var(--ui-fg)] shadow-[var(--settings-modal-shadow)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:p-6"
+          >
             <div className="pr-8">
               <Dialog.Title className="text-[18px] font-semibold leading-6 tracking-[-0.015em]">
                 Cookie settings

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
+import { useAppInteraction } from "@/hooks/use-app-interaction";
 
 /**
  * Google Identity Services (GIS) One Tap — surfaces the browser's NATIVE
@@ -40,9 +41,7 @@ interface GoogleAccountsId {
     use_fedcm_for_prompt?: boolean;
     prompt_parent_id?: string;
   }) => void;
-  prompt: (
-    callback?: (notification: GooglePromptNotification) => void,
-  ) => void;
+  prompt: (callback?: (notification: GooglePromptNotification) => void) => void;
   cancel: () => void;
 }
 
@@ -61,9 +60,8 @@ function loadGsiScript(onReady: () => void): () => void {
     onReady();
     return () => {};
   }
-  const existing = document.querySelector<HTMLScriptElement>(
-    GSI_SCRIPT_SELECTOR,
-  );
+  const existing =
+    document.querySelector<HTMLScriptElement>(GSI_SCRIPT_SELECTOR);
   if (existing) {
     existing.addEventListener("load", onReady, { once: true });
     return () => existing.removeEventListener("load", onReady);
@@ -79,6 +77,7 @@ function loadGsiScript(onReady: () => void): () => void {
 }
 
 export function GoogleOneTap() {
+  const hasInteracted = useAppInteraction();
   const { user, loading, refresh } = useAuth();
   const authGate = useOptionalAuthGate();
   const gateOpen = authGate?.isOpen ?? false;
@@ -86,7 +85,7 @@ export function GoogleOneTap() {
   refreshRef.current = refresh;
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !hasInteracted) return;
     if (user?.id) return;
     // Never compete with the in-app sign-in dialog.
     if (gateOpen) return;
@@ -146,8 +145,13 @@ export function GoogleOneTap() {
       });
     };
 
-    return loadGsiScript(startPrompt);
-  }, [loading, user?.id, gateOpen, authGate]);
+    const unload = loadGsiScript(startPrompt);
+    return () => {
+      cancelled = true;
+      unload();
+      window.google?.accounts?.id?.cancel();
+    };
+  }, [loading, user?.id, gateOpen, authGate, hasInteracted]);
 
   return null;
 }

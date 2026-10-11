@@ -28,7 +28,7 @@ export function ClauxenWordmark({
         style={{ width: height, height }}
       />
       <span
-        className="font-semibold tracking-tight"
+        className="font-serif font-semibold leading-none tracking-[-0.035em]"
         style={{ fontSize: Math.round(height * 0.82) }}
       >
         Clauxen

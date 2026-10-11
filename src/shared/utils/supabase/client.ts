@@ -12,6 +12,8 @@ export function createClient(): SupabaseClient<Database> {
   const { url, publishableKey } = requireSupabasePublicConfig();
   browserClient = createBrowserClient<Database>(url, publishableKey, {
     auth: {
+      persistSession: true,
+      autoRefreshToken: true,
       // All code / token_hash exchanges run in /auth/callback on the server
       // (PKCE verifier is HttpOnly). Never let the browser client race it.
       detectSessionInUrl: false,

@@ -6,6 +6,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { createClient } from "@/utils/supabase/client";
@@ -117,6 +118,7 @@ export function resetOAuthNavigation() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const authGeneration = useRef(0);
   const [user, setUser] = useState<SessionUser | null>(() => hintToSession());
   // Identity hint means we already know who you are — do not
   // block the shell on the quiet session round-trip.
@@ -138,38 +140,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refresh = useCallback(async (opts?: { quiet?: boolean }) => {
+    const generation = authGeneration.current;
     if (!opts?.quiet) setLoading(true);
     try {
       const session = await authApi.getSession(
         opts?.quiet ? { quiet: true } : undefined,
       );
+      if (generation !== authGeneration.current) return;
       if (session) {
         setUser(session);
         return;
       }
-      // Authoritative API returned null session (e.g. account removed or signed out)
-      setUser(null);
-      clearIdentityHintFromDocument();
-      clearSupabaseAccessTokenSingleflight();
-      clearSyncDeviceChatList();
-      await clearLocalSupabaseSession();
+      // A guest response must not destroy a saved refresh token.
+      const {
+        data: { session: local },
+      } = await createClient().auth.getSession();
+      if (generation !== authGeneration.current) return;
+      if (local?.user) {
+        setUser(sessionFromSupabaseUser(local.user));
+      } else {
+        setUser(null);
+        clearIdentityHintFromDocument();
+        clearSupabaseAccessTokenSingleflight();
+        clearSyncDeviceChatList();
+      }
     } catch (err) {
+      if (generation !== authGeneration.current) return;
       const code =
         err && typeof err === "object" && "code" in err
           ? String((err as { code?: string }).code)
           : "";
-      const status =
-        err && typeof err === "object" && "status" in err
-          ? Number((err as { status?: number }).status)
-          : 0;
-
-      // Definite unauthenticated or account deleted signal from server
-      if (
-        code === "account_deleted" ||
-        code === "unauthorized" ||
-        status === 401 ||
-        status === 403
-      ) {
+      // Only confirmed account deletion removes the local session. A 401 can
+      // follow a temporary renewal failure; 403 can be a security checkpoint.
+      if (code === "account_deleted") {
         setUser(null);
         clearIdentityHintFromDocument();
         clearSupabaseAccessTokenSingleflight();
@@ -185,20 +188,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const {
             data: { session },
           } = await supabase.auth.getSession();
+          if (generation !== authGeneration.current) return;
           if (session?.user) {
             setUser(sessionFromSupabaseUser(session.user));
-          } else if (!opts?.quiet) {
-            setUser(null);
           }
         } catch {
-          if (!opts?.quiet) setUser(null);
+          // Preserve identity during temporary service failures.
         }
       }
     } finally {
       if (!opts?.quiet) setLoading(false);
     }
   }, []);
-
 
   useEffect(() => {
     let cancelled = false;
@@ -223,10 +224,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!cancelled) setLoading(false);
       // Background profile sync — keep ensureUserRecord off the FCP path.
       if (!cancelled) {
+        const generation = authGeneration.current;
         void authApi
           .getSession()
           .then((session) => {
-            if (!cancelled && session) setUser(session);
+            if (!cancelled && generation === authGeneration.current && session)
+              setUser(session);
           })
           .catch(() => {});
       }
@@ -236,6 +239,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      authGeneration.current += 1;
+      clearSupabaseAccessTokenSingleflight();
       if (session?.user) {
         setUser((prev) => {
           const next = sessionFromSupabaseUser(session.user);
@@ -254,8 +259,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // needs no BFF round-trip; SIGNED_OUT is already terminal. Refreshing
       // on those caused a SIGNED_OUT → refresh → signOut loop for guests.
       if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        void refresh({ quiet: true });
+        // Leave the Supabase auth lock before calling SDK methods again.
+        setTimeout(() => {
+          if (!cancelled) void refresh({ quiet: true });
+        }, 0);
       } else if (event === "SIGNED_OUT") {
+        clearIdentityHintFromDocument();
+        clearSyncDeviceChatList();
         setUser(null);
       }
     });
@@ -282,13 +292,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
         (payload) => {
           if (payload.eventType === "DELETE") {
-            // Admin removed user from Supabase — log out immediately
-            clearIdentityHintFromDocument();
-            clearSupabaseAccessTokenSingleflight();
-            clearSyncDeviceChatList();
-            setUser(null);
-            void clearLocalSupabaseSession();
-            return;
+            setTimeout(() => {
+              void refresh({ quiet: true });
+            }, 0);
           }
           const row = payload.new as {
             display_name?: string | null;
@@ -336,7 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, refresh]);
 
   const login = useCallback(async (email: string, password: string) => {
     await authApi.validateEmail(email);
@@ -415,7 +421,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Server mints the PKCE verifier as an HttpOnly cookie on this origin
       // and 303-redirects to the provider. Nothing in client storage to lose.
       const qs = new URLSearchParams({ provider, next: redirectTo });
-      window.location.assign(`${window.location.origin}/auth/oauth?${qs.toString()}`);
+      // OAuth requires a document request to the server redirect endpoint.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign(
+        `${window.location.origin}/auth/oauth?${qs.toString()}`,
+      );
     },
     [],
   );
@@ -532,9 +542,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  return (
-    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

@@ -53,7 +53,7 @@ export function AuthGateDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="cx-auth-gate-dialog max-h-[min(680px,calc(100dvh-2rem))] w-[min(440px,calc(100%-1.5rem))] max-w-[440px] overflow-y-auto rounded-2xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-6 sm:p-7 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+        className="cx-auth-gate-dialog max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-[680px] overflow-y-auto rounded-2xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] px-5 py-8 sm:px-12 sm:py-10 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.35)]"
         data-auth-gate-dialog
       >
         <DialogTitle className="sr-only">Sign in to Clauxen</DialogTitle>

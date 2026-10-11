@@ -70,8 +70,7 @@ export async function loadUserPersonalization(
   const nickname =
     trimProfileName(profile?.preferred_name) ??
     asTrimmedString(personalization?.nickname, 120);
-  const occupation =
-    asTrimmedString(personalization?.occupation, 120);
+  const occupation = asTrimmedString(personalization?.occupation, 120);
 
   return {
     fullName,
@@ -215,10 +214,13 @@ export function formatPersonalizationAppend(p: UserPersonalization): string {
  */
 export async function buildUserPersonalizationAppend(
   userId: string | null | undefined,
+  preloaded?: Promise<UserPersonalization | null>,
 ): Promise<string> {
   if (!userId) return "";
   try {
-    const personalization = await loadUserPersonalization(userId);
+    const personalization = await (preloaded ??
+      loadUserPersonalization(userId));
+    if (!personalization) return "";
     const base = formatPersonalizationAppend(personalization);
     let selfGrowthBlock = "";
     try {

@@ -32,6 +32,7 @@ import { listRecentMessagesPreferCloudflare } from "@/server/chat/recent-message
 import { publishLiveTurn } from "@/server/chat/chat-coord-client";
 import {
   assertGenerationJobOwnership,
+  startGenerationMessage,
   createGenerationJob,
   finishGenerationJob,
   markJobContinuing,
@@ -379,6 +380,7 @@ export async function reserveQueuedChatTurn(input: {
     assistantClientId: string;
   };
   fork?: TurnFork | null;
+  markGenerating?: boolean;
   onReserved?: Parameters<typeof messagesRepo.beginChatTurn>[0]["onReserved"];
 }) {
   const attachments = input.turn.fileIds?.length
@@ -407,6 +409,7 @@ export async function reserveQueuedChatTurn(input: {
       )?.parentMessageId ?? null,
     assistantContentJson: buildAssistantTranscriptRecord({ answer: "" }),
     assistantStatus: "queued",
+    markGenerating: input.markGenerating,
     onReserved: input.onReserved,
   });
 }
@@ -450,14 +453,9 @@ export async function acceptBackgroundChatTurn(input: {
     userId: input.userId,
     turn,
     fork: input.jobInput.fork,
+    markGenerating: true,
     onReserved: async (messageIds, client) => {
       job = await createGenerationJob({ ...input, messageIds, client });
-      await client.query(
-        `update public.chats set metadata = coalesce(metadata, '{}'::jsonb)
-          || jsonb_build_object('generating', true, 'generating_at', now())
-         where id = $1 and user_id = $2`,
-        [input.chatId, input.userId],
-      );
     },
   });
   if (!job) throw new AppError("Could not save the background task.", 500);
@@ -572,6 +570,7 @@ export async function streamChatGeneration(input: {
   // overlap SSE flush and the DO lease — never block Response headers on them.
   // History prefers Cloudflare cache (not direct Supabase) on every continue.
   const chatPromise = chatsRepo.getChatForUser(input.chatId, input.userId);
+  const enrichmentStartedAtMs = Date.now();
   const personalizationPromise = loadChatStreamPersonalization(input.userId);
   const historyPromise = input.slice?.resume?.userMessageId
     ? messagesRepo
@@ -646,15 +645,12 @@ export async function streamChatGeneration(input: {
       await leaseGate;
       const chat = await chatPromise;
       if (!chat) throw notFound("Chat not found.");
-      await assertGenerationJobOwnership(
-        input.slice!.jobId,
-        input.slice!.lockedBy,
-      );
-      await query(
-        `update public.chat_messages set status = 'streaming', updated_at = now()
-        where id = $1 and chat_id = $2 and status = 'queued'`,
-        [resume!.assistantMessageId!, input.chatId],
-      );
+      await startGenerationMessage({
+        jobId: input.slice!.jobId,
+        lockedBy: input.slice!.lockedBy,
+        chatId: input.chatId,
+        assistantMessageId: resume!.assistantMessageId!,
+      });
       turnState.assistant = {
         id: resume!.assistantMessageId!,
         status: "streaming",
@@ -781,6 +777,7 @@ export async function streamChatGeneration(input: {
   ];
   const started = Date.now();
   let contextReadyAtMs: number | undefined;
+  let providerStartedAtMs: number | undefined;
   let firstContentAtMs: number | undefined;
   let firstAnswerAtMs: number | undefined;
   const turnStartedAtMs =
@@ -975,6 +972,9 @@ export async function streamChatGeneration(input: {
       homerReasoningEffort: input.homerReasoningEffort,
       extendedThinking: input.extendedThinking,
       researchPlanId: input.researchPlanId,
+      onProviderDispatch: () => {
+        providerStartedAtMs ??= Date.now();
+      },
       onProviderError: (message) => {
         streamError = message;
       },
@@ -1035,14 +1035,22 @@ export async function streamChatGeneration(input: {
           );
         }
 
+        // Keep already-loaded preferences/history, but grant pending reads
+        // only the budget remaining since startup, not another full delay.
+        const enrichmentElapsedMs = Date.now() - enrichmentStartedAtMs;
         const [dbRecent, personalization] = await Promise.all([
-          // Worker cache is usually <50ms; allow a bit more than personalization
-          // so continued chats keep prior turns without timing out to [].
-          withBudget(historyPromise, [], Math.max(CHAT_CONTEXT_BUDGET_MS, 450)),
+          withBudget(
+            historyPromise,
+            [],
+            Math.max(
+              0,
+              Math.max(CHAT_CONTEXT_BUDGET_MS, 450) - enrichmentElapsedMs,
+            ),
+          ),
           withBudget(
             personalizationPromise,
             EMPTY_CHAT_PERSONALIZATION,
-            CHAT_CONTEXT_BUDGET_MS,
+            Math.max(0, CHAT_CONTEXT_BUDGET_MS - enrichmentElapsedMs),
           ),
         ]);
         const promptFromDb = buildPromptMessagesFromDbRows(dbRecent);
@@ -1587,6 +1595,18 @@ export async function streamChatGeneration(input: {
         requestId: input.requestId,
         timings: {
           admissionAndDispatchMs: started - turnStartedAtMs,
+          providerDispatchMs:
+            providerStartedAtMs === undefined
+              ? undefined
+              : providerStartedAtMs - turnStartedAtMs,
+          contextToProviderMs:
+            providerStartedAtMs === undefined || contextReadyAtMs === undefined
+              ? undefined
+              : providerStartedAtMs - contextReadyAtMs,
+          providerToFirstContentMs:
+            firstContentAtMs === undefined || providerStartedAtMs === undefined
+              ? undefined
+              : firstContentAtMs - providerStartedAtMs,
           contextMs:
             contextReadyAtMs === undefined
               ? undefined

@@ -29,6 +29,8 @@ import {
   parseHomerReasoningEffort,
   type HomerReasoningEffort,
 } from "@/lib/model-effort";
+import { buildAgentMcpTools } from "@/server/plugins/plugin-runtime";
+import { loadProjectPromptAppend } from "@/server/services/project-context";
 import { toUserFacingChatError } from "@/lib/assistant-generation-error";
 
 export type ChatStreamPersonalizationBundle = {
@@ -47,6 +49,8 @@ export type ResolvedChatStreamContext = {
 
 export type ChatStreamOptions = {
   researchPlanId?: string;
+  /** Private timing hook for the actual model dispatch, never exposed in SSE. */
+  onProviderDispatch?: () => void;
   chatModel?: string;
   userId?: string;
   conversationId?: string;
@@ -106,12 +110,19 @@ export function withBudget<T>(
   fallback: T,
   ms: number = CHAT_CONTEXT_BUDGET_MS,
 ): Promise<T> {
-  return Promise.race([
-    promise.catch(() => fallback),
-    new Promise<T>((resolve) => {
-      setTimeout(() => resolve(fallback), ms);
-    }),
-  ]);
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
 }
 
 export const EMPTY_CHAT_PERSONALIZATION: ChatStreamPersonalizationBundle = {
@@ -124,11 +135,14 @@ export const EMPTY_CHAT_PERSONALIZATION: ChatStreamPersonalizationBundle = {
 export async function loadChatStreamPersonalization(
   userId: string | undefined,
 ): Promise<ChatStreamPersonalizationBundle> {
+  const userPersonalizationPromise = userId
+    ? loadUserPersonalization(userId)
+    : Promise.resolve(null);
   const [personalizationAppend, followUpsEnabled, userPersonalization] =
     await Promise.all([
-      buildUserPersonalizationAppend(userId),
+      buildUserPersonalizationAppend(userId, userPersonalizationPromise),
       loadFollowUpSuggestionsEnabled(userId),
-      userId ? loadUserPersonalization(userId) : Promise.resolve(null),
+      userPersonalizationPromise,
     ]);
   return {
     personalizationAppend,
@@ -146,6 +160,15 @@ export async function createChatStream(
   const chatModelId = parseChatModelId(options.chatModel);
   const runtime = resolveModelRuntime(chatModelId, catalogEnv);
   const sse = new ClauxenSseStream();
+  // Begin independent reads together. Project memory restrictions and connected
+  // tools still resolve before inference; none depend on prompt preparation.
+  const projectPromise =
+    options.userId && options.conversationId && !options.incognito
+      ? loadProjectPromptAppend(options.userId, options.conversationId)
+      : Promise.resolve({ text: "", projectOnly: false });
+  const pluginToolsPromise = options.userId
+    ? buildAgentMcpTools(options.userId).catch(() => [])
+    : Promise.resolve([]);
 
   // Return the ReadableStream immediately so the HTTP response can flush
   // headers while personalization / Novita warm up. Events written before
@@ -216,22 +239,12 @@ export async function createChatStream(
           ].join("\n")
         : "";
 
-      let projectAppend = "";
-      let projectOnly = false;
-      if (options.userId && options.conversationId && !options.incognito) {
-        try {
-          const { loadProjectPromptAppend } =
-            await import("@/server/services/project-context");
-          const project = await loadProjectPromptAppend(
-            options.userId,
-            options.conversationId,
-          );
-          projectAppend = project.text;
-          projectOnly = project.projectOnly;
-        } catch (error) {
-          console.error("[chat] project context skipped:", error);
-        }
-      }
+      const [project, mcpAgentTools] = await Promise.all([
+        projectPromise,
+        pluginToolsPromise,
+      ]);
+      const projectAppend = project.text;
+      const projectOnly = project.projectOnly;
 
       const personalizationForPrompt =
         options.incognito || projectOnly
@@ -267,6 +280,8 @@ export async function createChatStream(
 
       const agentOptions: AgentStreamOptions = {
         messages: resolved.modelMessages,
+        mcpAgentTools,
+        onProviderDispatch: options.onProviderDispatch,
         model: runtime.modelSlug,
         chatModelId,
         homerReasoningEffort: parseHomerReasoningEffort(

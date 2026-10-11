@@ -20,6 +20,8 @@
     "start": "NODE_OPTIONS='--disable-warning=DEP0205' next start",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
+    "test:chat-startup": "node --test tests/chat-startup.test.mjs",
+    "test:auth": "node --test tests/auth-session.test.mjs",
     "test:scheduled": "tsx --test tests/scheduled-tasks.test.ts",
     "test:background": "tsx --test tests/background-generation.test.ts",
     "typecheck": "next typegen && tsc --noEmit",

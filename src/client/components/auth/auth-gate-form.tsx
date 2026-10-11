@@ -17,7 +17,13 @@ import { redirectTargetWithHash } from "@/lib/auth-redirect";
 import { looksLikeEmail } from "@/lib/phone-countries";
 import { cn } from "@/lib/utils";
 
-type EmailStep = "chooser" | "email" | "login" | "create" | "magic" | "magic-sent";
+type EmailStep =
+  | "chooser"
+  | "email"
+  | "login"
+  | "create"
+  | "magic"
+  | "magic-sent";
 
 export interface AuthGateFormProps {
   /** Where a successful sign-in should land (already sanitized). */
@@ -56,7 +62,9 @@ export function AuthGateForm({
     null,
   );
   const [error, setError] = useState<string | null>(
-    initialError ? mapSupabaseAuthError(decodeURIComponent(initialError)) : null,
+    initialError
+      ? mapSupabaseAuthError(decodeURIComponent(initialError))
+      : null,
   );
 
   // Sync incoming initialError (e.g. from OAuth redirect failure)
@@ -89,7 +97,8 @@ export function AuthGateForm({
   );
 
   const canContinueEmail = useMemo(() => {
-    if (step === "email" || step === "magic") return looksLikeEmail(email.trim());
+    if (step === "chooser" || step === "email" || step === "magic")
+      return looksLikeEmail(email.trim());
     if (step === "login") {
       return looksLikeEmail(email.trim()) && password.length > 0;
     }
@@ -122,15 +131,6 @@ export function AuthGateForm({
     },
     [pendingProvider, redirectTo, signInWithOAuth],
   );
-
-  const openEmailFlow = () => {
-    setError(null);
-    setInfo(null);
-    setMagicDebugUrl(null);
-    setPassword("");
-    setConfirmPassword("");
-    setStep("email");
-  };
 
   const openMagicFlow = () => {
     setError(null);
@@ -191,7 +191,7 @@ export function AuthGateForm({
       return;
     }
 
-    if (step === "email") {
+    if (step === "chooser" || step === "email") {
       if (!looksLikeEmail(email.trim())) {
         setError("Enter a valid email address.");
         return;
@@ -327,19 +327,33 @@ export function AuthGateForm({
     <div
       className={cn(
         "flex w-full flex-1 flex-col",
-        variant === "dialog" && "flex-none",
+        variant === "dialog" && "mx-auto max-w-[480px] flex-none",
       )}
     >
       <div
         className={cn(
           "flex w-full flex-1 flex-col justify-center",
-          variant === "dialog" ? "py-1 sm:py-2" : "py-6",
+          variant === "dialog" ? "py-1" : "py-6",
         )}
       >
-        <div className="flex items-center">
-          <ClauxenWordmark height={24} className="text-[var(--ui-fg)]" />
+        <div
+          className={cn(
+            "flex items-center",
+            variant === "dialog" && "justify-center",
+          )}
+        >
+          <ClauxenWordmark
+            height={variant === "dialog" ? 32 : 24}
+            className="text-[var(--ui-fg)]"
+          />
         </div>
-        <h1 className="mt-5 text-[22px] sm:text-[24px] font-semibold leading-tight tracking-[-0.02em] text-[var(--ui-fg)]">
+        <h1
+          className={cn(
+            "mt-5 text-[22px] font-semibold leading-tight tracking-[-0.02em] text-[var(--ui-fg)] sm:text-[24px]",
+            variant === "dialog" &&
+              "font-serif text-center text-[28px] font-medium leading-[1.2] tracking-[-0.025em] sm:text-[34px] text-balance",
+          )}
+        >
           {step === "create"
             ? "Create account"
             : step === "login"
@@ -348,11 +362,16 @@ export function AuthGateForm({
                 ? "Magic link"
                 : step === "email"
                   ? "Email"
-                  : "Sign in to Clauxen"}
+                  : "Unlock more with Clauxen"}
         </h1>
-        <p className="mt-1.5 text-[13.5px] leading-relaxed text-[var(--ui-fg-muted)]">
+        <p
+          className={cn(
+            "mt-2 text-[13.5px] leading-relaxed text-[var(--ui-fg-muted)]",
+            variant === "dialog" && "text-center",
+          )}
+        >
           {step === "chooser"
-            ? "Choose your preferred sign-in method to continue."
+            ? "Sign in or create an account to continue."
             : step === "create"
               ? "Set a password for this email."
               : step === "login"
@@ -387,27 +406,43 @@ export function AuthGateForm({
               <div className="h-px flex-1 bg-[var(--ui-border)]" />
             </div>
 
-            <button
-              type="button"
-              disabled={busy}
-              onClick={openEmailFlow}
-              className={authPageStyles.outlinedBtn}
+            <form
+              onSubmit={(e) => void handleEmailContinue(e)}
+              className="space-y-2.5"
             >
-              <svg
-                className="h-[18px] w-[18px] shrink-0 text-[var(--ui-fg)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
+              <label
+                htmlFor="chooser-email"
+                className="block text-[13px] font-medium text-[var(--ui-fg)]"
               >
-                <rect width="20" height="16" x="2" y="4" rx="2" />
-                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-              </svg>
-              <span>Continue with Email</span>
-            </button>
+                Email
+              </label>
+              <input
+                id="chooser-email"
+                type="email"
+                autoComplete="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={busy}
+                required
+                className={authPageStyles.input}
+              />
+              <button
+                type="submit"
+                disabled={busy || !canContinueEmail}
+                aria-busy={formSubmitting || undefined}
+                className={authPageStyles.primaryBtn}
+              >
+                {formSubmitting ? (
+                  <>
+                    <AuthSpinner />
+                    <span>Please wait…</span>
+                  </>
+                ) : (
+                  "Continue with email"
+                )}
+              </button>
+            </form>
 
             <div className="mt-3 flex justify-center">
               <button
@@ -426,7 +461,9 @@ export function AuthGateForm({
               </p>
             ) : null}
             {info ? (
-              <p className="mt-4 text-[13px] text-[var(--ui-fg-muted)]">{info}</p>
+              <p className="mt-4 text-[13px] text-[var(--ui-fg-muted)]">
+                {info}
+              </p>
             ) : null}
           </>
         ) : step === "magic-sent" ? (
@@ -440,8 +477,10 @@ export function AuthGateForm({
               </p>
               <p className="mt-2 text-[13px] leading-relaxed text-[var(--ui-fg-muted)]">
                 We sent a one-tap link to{" "}
-                <span className="font-medium text-[var(--ui-fg)]">{email.trim()}</span>.
-                It expires in 5 minutes.
+                <span className="font-medium text-[var(--ui-fg)]">
+                  {email.trim()}
+                </span>
+                . It expires in 5 minutes.
               </p>
               {magicDebugUrl ? (
                 <a
@@ -453,10 +492,15 @@ export function AuthGateForm({
               ) : null}
             </div>
             {info ? (
-              <p className="mt-4 text-center text-[13px] text-[var(--ui-fg-muted)]">{info}</p>
+              <p className="mt-4 text-center text-[13px] text-[var(--ui-fg-muted)]">
+                {info}
+              </p>
             ) : null}
             {error ? (
-              <p className="mt-3 text-center text-[13px] text-red-600" role="alert">
+              <p
+                className="mt-3 text-center text-[13px] text-red-600"
+                role="alert"
+              >
                 {error}
               </p>
             ) : null}
@@ -469,7 +513,10 @@ export function AuthGateForm({
                 setMagicDebugUrl(null);
                 setStep("magic");
               }}
-              className={cn(authPageStyles.textLink, "mt-5 block w-full text-center")}
+              className={cn(
+                authPageStyles.textLink,
+                "mt-5 block w-full text-center",
+              )}
             >
               Use a different email
             </button>
@@ -482,7 +529,10 @@ export function AuthGateForm({
                 setMagicDebugUrl(null);
                 setStep("chooser");
               }}
-              className={cn(authPageStyles.textLink, "mt-3 block w-full text-center")}
+              className={cn(
+                authPageStyles.textLink,
+                "mt-3 block w-full text-center",
+              )}
             >
               Back to sign-in options
             </button>
@@ -581,7 +631,9 @@ export function AuthGateForm({
               </p>
             ) : null}
             {info ? (
-              <p className="mt-3 text-[13px] text-[var(--ui-fg-muted)]">{info}</p>
+              <p className="mt-3 text-[13px] text-[var(--ui-fg-muted)]">
+                {info}
+              </p>
             ) : null}
 
             <button
@@ -629,7 +681,12 @@ export function AuthGateForm({
           </form>
         )}
 
-        <p className="mt-6 text-[12px] leading-relaxed text-[var(--ui-fg-subtle)]">
+        <p
+          className={cn(
+            "mt-5 text-[12px] leading-relaxed text-[var(--ui-fg-subtle)]",
+            variant === "dialog" && "text-center",
+          )}
+        >
           By continuing, you agree to the{" "}
           <a
             href="/legal/terms"

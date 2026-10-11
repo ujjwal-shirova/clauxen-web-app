@@ -12,7 +12,10 @@ export class ApiError extends Error {
   }
 }
 
-async function parseApiPayload<T>(response: Response, bodyText: string): Promise<T> {
+async function parseApiPayload<T>(
+  response: Response,
+  bodyText: string,
+): Promise<T> {
   if (looksLikeSecurityChallenge(response, bodyText)) {
     throw new ApiError(
       "Security check in progress. Please retry in a moment.",
@@ -68,9 +71,8 @@ export function refreshBrowserSessionSingleflight(): Promise<boolean> {
         const { createClient } = await import("@/utils/supabase/client");
         const { data, error } = await createClient().auth.refreshSession();
         if (error || !data.session) return false;
-        const { clearSupabaseAccessTokenSingleflight } = await import(
-          "@/lib/supabase-session-singleflight"
-        );
+        const { clearSupabaseAccessTokenSingleflight } =
+          await import("@/lib/supabase-session-singleflight");
         clearSupabaseAccessTokenSingleflight();
         return true;
       } catch {
@@ -93,42 +95,59 @@ function withTimeout(init: RequestInit, timeoutMs: number): RequestInit {
   };
 }
 
-/**
- * Browser API fetch. Retries once on Vercel challenge HTML so a transient
- * checkpoint does not tear down in-app settings/chat, and once on 401 after a
- * session refresh.
- */
+/** Share renewal across JSON APIs, chat streams and background requests. */
+export async function sessionFetch(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const sameOrigin =
+    typeof window !== "undefined" &&
+    new URL(path, window.location.origin).origin === window.location.origin;
+  const prepare = async () => {
+    const headers = new Headers(init.headers);
+    if (sameOrigin && !headers.has("Authorization")) {
+      const { getSupabaseAccessTokenSingleflight } =
+        await import("@/lib/supabase-session-singleflight");
+      const token = await getSupabaseAccessTokenSingleflight();
+      if (token) headers.set("Authorization", `Bearer ${token}`);
+    }
+    return {
+      ...init,
+      credentials: init.credentials ?? "include",
+      headers,
+    } satisfies RequestInit;
+  };
+  const response = await fetch(path, await prepare());
+  // Never replay an externally supplied credential or a consumed request stream.
+  if (
+    sameOrigin &&
+    response.status === 401 &&
+    !new Headers(init.headers).has("Authorization") &&
+    !(init.body instanceof ReadableStream) &&
+    (await refreshBrowserSessionSingleflight())
+  ) {
+    return fetch(path, await prepare());
+  }
+  return response;
+}
+
 export async function apiFetch<T>(
   path: string,
   init?: RequestInit & { timeoutMs?: number },
 ): Promise<T> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, ...rest } = init ?? {};
-  const requestInit: RequestInit = {
-    ...rest,
-    credentials: "include",
-    headers: {
-      // Let the browser set the multipart boundary for FormData bodies.
-      ...(rest.body instanceof FormData
-        ? {}
-        : { "Content-Type": "application/json" }),
-      Accept: "application/json",
-      ...(rest.headers ?? {}),
-    },
-  };
-
-  let response = await fetch(path, withTimeout(requestInit, timeoutMs));
+  const headers = new Headers(rest.headers);
+  if (!(rest.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (!headers.has("Accept")) headers.set("Accept", "application/json");
+  const requestInit: RequestInit = { ...rest, credentials: "include", headers };
+  let response = await sessionFetch(path, withTimeout(requestInit, timeoutMs));
   let bodyText = await response.text();
-
   if (looksLikeSecurityChallenge(response, bodyText)) {
     await new Promise((resolve) => setTimeout(resolve, 400));
-    response = await fetch(path, withTimeout(requestInit, timeoutMs));
+    response = await sessionFetch(path, withTimeout(requestInit, timeoutMs));
     bodyText = await response.text();
   }
-
-  if (response.status === 401 && (await refreshBrowserSessionSingleflight())) {
-    response = await fetch(path, withTimeout(requestInit, timeoutMs));
-    bodyText = await response.text();
-  }
-
   return parseApiPayload<T>(response, bodyText);
 }

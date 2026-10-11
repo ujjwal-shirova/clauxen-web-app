@@ -1,5 +1,7 @@
 "use client";
 
+import { sessionFetch } from "@/lib/api/client";
+
 import { useCallback, useEffect, useState } from "react";
 
 /** A plugin the user has connected to their account. */
@@ -22,7 +24,7 @@ export type ConnectionsState = {
 };
 
 async function fetchConnections(): Promise<PluginConnection[]> {
-  const response = await fetch("/api/v1/plugins/connections", {
+  const response = await sessionFetch("/api/v1/plugins/connections", {
     method: "GET",
     credentials: "same-origin",
     headers: { accept: "application/json" },
@@ -82,7 +84,7 @@ export function usePluginConnections(): ConnectionsState & {
 
   const revoke = useCallback(
     async (connectionId: string) => {
-      const response = await fetch(
+      const response = await sessionFetch(
         `/api/v1/plugins/connections/${encodeURIComponent(connectionId)}`,
         { method: "DELETE", credentials: "same-origin" },
       );
@@ -106,7 +108,7 @@ export async function startPluginAuthorization(
   pluginId: string,
   options?: { returnUrl?: string },
 ): Promise<StartAuthResult> {
-  const response = await fetch("/api/v1/plugins/connections", {
+  const response = await sessionFetch("/api/v1/plugins/connections", {
     method: "POST",
     credentials: "same-origin",
     headers: { "content-type": "application/json", accept: "application/json" },

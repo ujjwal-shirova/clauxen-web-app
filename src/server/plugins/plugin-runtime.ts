@@ -41,7 +41,10 @@ const toolCache = new Map<string, ToolCacheEntry>();
 const TOOL_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function normalizeSlug(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 /** `mcp__<slug>__<tool>` — the shape the trace UI already renders. */
@@ -61,7 +64,10 @@ function isExpired(expiresAt: string | null | undefined): boolean {
 
 type AccessTokenResult =
   | { ok: true; accessToken: string }
-  | { ok: false; reason: "not_configured" | "reauthorization_required" | "unavailable" };
+  | {
+      ok: false;
+      reason: "not_configured" | "reauthorization_required" | "unavailable";
+    };
 
 async function requestWorkerRefresh(connectionId: string): Promise<boolean> {
   const base = env.pluginOAuthWorkerUrl;
@@ -133,6 +139,23 @@ async function toolsForConnection(
   const cached = toolCache.get(connection.id);
   if (cached && cached.expiresAt > Date.now()) return cached.tools;
 
+  // The persisted catalog was discovered when connecting the plugin. Loading
+  // definitions does not need OAuth renewal or a remote MCP handshake; renew
+  // credentials only when an actual tool is invoked.
+  const saved = await repo.listConnectionTools(connection.id);
+  if (saved.length > 0) {
+    const tools = saved.map((tool) => ({
+      name: tool.tool_name,
+      description: tool.description ?? "",
+      inputSchema: tool.input_schema,
+    }));
+    toolCache.set(connection.id, {
+      expiresAt: Date.now() + TOOL_CACHE_TTL_MS,
+      tools,
+    });
+    return tools;
+  }
+
   const token = await getAccessToken(connection);
   if (!token.ok) return [];
 
@@ -172,9 +195,14 @@ export async function buildAgentMcpTools(
   if (connections.length === 0) return [];
 
   const tools: AgentMcpTool[] = [];
-  for (const connection of connections) {
+  const catalogs = await Promise.all(
+    connections.map((connection) =>
+      toolsForConnection(connection).catch(() => []),
+    ),
+  );
+  for (const [index, connection] of connections.entries()) {
     const slug = normalizeSlug(connection.plugin_id) || "plugin";
-    for (const tool of await toolsForConnection(connection)) {
+    for (const tool of catalogs[index]) {
       // Tool names must match the model's naming constraints.
       const safeTool = tool.name.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 60);
       tools.push({
@@ -245,7 +273,12 @@ export async function executeMcpToolCall(
     };
   }
 
-  const result = await callMcpTool(connection.mcp_url, token.accessToken, toolName, args);
+  const result = await callMcpTool(
+    connection.mcp_url,
+    token.accessToken,
+    toolName,
+    args,
+  );
   if (!result.ok) {
     if (result.code === "unauthorized" || result.code === "forbidden") {
       // One retry after an out-of-band refresh.
@@ -281,7 +314,10 @@ export async function executeMcpToolCall(
   return toOutcome(pluginName, result.value);
 }
 
-function toOutcome(pluginName: string, result: McpCallResult): McpExecutionOutcome {
+function toOutcome(
+  pluginName: string,
+  result: McpCallResult,
+): McpExecutionOutcome {
   return {
     output: mcpResultToText(result),
     isError: result.isError,

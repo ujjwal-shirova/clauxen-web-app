@@ -285,6 +285,9 @@ export type AgentStreamOptions = {
   researchPlanId?: string;
   /** Private diagnostic callback; never included in browser SSE. */
   onProviderError?: (message: string) => void;
+  /** Prepared per-user plugin catalog; avoids repeating discovery after context. */
+  mcpAgentTools?: Awaited<ReturnType<typeof buildAgentMcpTools>>;
+  onProviderDispatch?: () => void;
   messages: Array<{
     role: string;
     content: OpenAIMessageContent;
@@ -430,9 +433,9 @@ export async function runAutonomousAgent(
   // Connected-plugin MCP tools (mcp__<slug>__<tool>) are appended to the
   // built-in catalog so the assistant can use every plugin the user has
   // authorized from the marketplace.
-  const mcpAgentTools = userId
-    ? await buildAgentMcpTools(userId).catch(() => [])
-    : [];
+  const mcpAgentTools =
+    options.mcpAgentTools ??
+    (userId ? await buildAgentMcpTools(userId).catch(() => []) : []);
 
   const openAITools = toOpenAITools([
     ...autonomousAgentTools
@@ -600,6 +603,7 @@ export async function runAutonomousAgent(
       if (!recoveringRound) {
         if (options.researchPlanId) budgetResearchEvidence(conversation);
         let retryRound = false;
+        options.onProviderDispatch?.();
         const stream = deps.callModel({
           model: options.model,
           instructions: systemPrompt,

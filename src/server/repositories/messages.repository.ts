@@ -640,6 +640,8 @@ export async function beginChatTurn(input: {
   assistantClientId: string;
   assistantContentJson?: Record<string, unknown>;
   assistantStatus?: "queued" | "streaming";
+  /** Set the generating marker with the existing active-branch write. */
+  markGenerating?: boolean;
   /**
    * Tree parent for the user row. Omitted on a normal send (server resolves
    * the active leaf); set on an edit-resend fork to the edited message's
@@ -754,7 +756,9 @@ export async function beginChatTurn(input: {
                  coalesce($4::text, 'root'), $5::text,
                  $5::text, $3::text
                )
-             )
+             ) || case when $6::boolean then jsonb_build_object(
+               'generating', true, 'generating_at', now()
+             ) else '{}'::jsonb end
          where id = $1 and user_id = $2
            and ($3::uuid is not null)`,
         [
@@ -763,7 +767,18 @@ export async function beginChatTurn(input: {
           assistant.id,
           input.parentMessageId ?? null,
           user.id,
+          input.markGenerating === true,
         ],
+      );
+    }
+
+    // An idempotent retry can reuse both rows; preserve its current branch.
+    if (input.markGenerating && !user.inserted && !assistant.inserted) {
+      await client.query(
+        `update public.chats set metadata = coalesce(metadata, '{}'::jsonb)
+           || jsonb_build_object('generating', true, 'generating_at', now())
+         where id = $1 and user_id = $2`,
+        [input.chatId, input.userId],
       );
     }
 

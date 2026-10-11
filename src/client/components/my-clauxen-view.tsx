@@ -1,5 +1,7 @@
 "use client";
 
+import { sessionFetch } from "@/lib/api/client";
+
 import React, { useCallback, useEffect, useState } from "react";
 import { BookLock, Loader2 } from "lucide-react";
 import { appPage } from "@/lib/app-page-chrome";
@@ -67,7 +69,7 @@ export function MyClauxenView() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const res = await fetch("/api/v1/my-clauxen", {
+      const res = await sessionFetch("/api/v1/my-clauxen", {
         credentials: "include",
         cache: "no-store",
       });
@@ -104,7 +106,7 @@ export function MyClauxenView() {
     if (saving) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/v1/my-clauxen", {
+      const res = await sessionFetch("/api/v1/my-clauxen", {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

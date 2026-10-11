@@ -1,5 +1,7 @@
 "use client";
 
+import { sessionFetch } from "@/lib/api/client";
+
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { authPageStyles } from "@/components/auth/auth-shared";
@@ -26,7 +28,7 @@ export function CliAuthorizeClient() {
     setBusy(action);
     setError(null);
     try {
-      const res = await fetch("/api/oauth/authorize", {
+      const res = await sessionFetch("/api/oauth/authorize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

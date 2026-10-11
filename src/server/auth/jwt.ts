@@ -1,5 +1,13 @@
 import { combineChunks, stringFromBase64URL } from "@supabase/ssr";
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import {
+  createRemoteJWKSet,
+  decodeProtectedHeader,
+  jwksCache,
+  jwtVerify,
+  type JWKSCacheInput,
+  type JWTPayload,
+} from "jose";
+import { AppError } from "@/server/db/errors";
 import { getSupabaseUrl } from "@/utils/supabase/env";
 
 /**
@@ -8,7 +16,7 @@ import { getSupabaseUrl } from "@/utils/supabase/env";
  * The project signs access tokens with an asymmetric ES256 key, so identity can
  * be established by verifying the JWT against the project's JWKS — no network
  * round-trip to GoTrue per request. The JWKS is fetched once per isolate and
- * cached by `jose` (with automatic refetch on unknown `kid` for key rotation).
+ * cached as public JSON keys (with refetch on unknown `kid` for key rotation).
  *
  * This module never refreshes tokens. An expired token yields `null`; the
  * browser client owns refresh (it holds the refresh token and persists the new
@@ -30,12 +38,16 @@ export type SupabaseJwtClaims = JWTPayload & {
 
 type CookieReader = { getAll(): { name: string; value: string }[] };
 
-let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+// Cache public JSON keys only: pending network I/O must belong to one Worker request.
+let publicKeys: JWKSCacheInput = {};
 let issuer: string | null = null;
 let secretKeyBytes: Uint8Array | null = null;
 
 // Lightweight in-memory cache of verified tokens to avoid re-verifying on rapid sequential requests
-const tokenCache = new Map<string, { claims: SupabaseJwtClaims; expiresAt: number }>();
+const tokenCache = new Map<
+  string,
+  { claims: SupabaseJwtClaims; expiresAt: number }
+>();
 
 function getSecretBytes(): Uint8Array | null {
   if (secretKeyBytes) return secretKeyBytes;
@@ -47,18 +59,25 @@ function getSecretBytes(): Uint8Array | null {
   return null;
 }
 
-function verifierConfig(): { jwks: ReturnType<typeof createRemoteJWKSet>; issuer: string } | null {
+function verifierConfig(): {
+  jwks: ReturnType<typeof createRemoteJWKSet>;
+  issuer: string;
+} | null {
   const url = getSupabaseUrl();
   if (!url) return null;
-  if (!jwks || !issuer) {
-    const base = url.replace(/\/+$/, "");
-    issuer = `${base}/auth/v1`;
-    jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`), {
-      cacheMaxAge: 15 * 60 * 1000,
-      cooldownDuration: 30 * 1000,
-      timeoutDuration: 5_000,
-    });
+  const base = url.replace(/\/+$/, "");
+  const nextIssuer = `${base}/auth/v1`;
+  if (issuer !== nextIssuer) {
+    publicKeys = {};
+    tokenCache.clear();
+    issuer = nextIssuer;
   }
+  const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`), {
+    [jwksCache]: publicKeys,
+    cacheMaxAge: 15 * 60 * 1000,
+    cooldownDuration: 30 * 1000,
+    timeoutDuration: 5_000,
+  });
   return { jwks, issuer };
 }
 
@@ -90,7 +109,9 @@ export async function readAccessTokenFromCookies(
       ? stringFromBase64URL(raw.slice("base64-".length))
       : raw;
     const session = JSON.parse(json) as { access_token?: unknown };
-    return typeof session.access_token === "string" ? session.access_token : null;
+    return typeof session.access_token === "string"
+      ? session.access_token
+      : null;
   } catch {
     return null;
   }
@@ -115,6 +136,7 @@ export async function verifyAccessToken(
 ): Promise<SupabaseJwtClaims | null> {
   if (!token || typeof token !== "string") return null;
 
+  const config = verifierConfig();
   // Check in-memory fast cache first
   const now = Date.now();
   const cached = tokenCache.get(token);
@@ -122,31 +144,52 @@ export async function verifyAccessToken(
     return cached.claims;
   }
 
-  const config = verifierConfig();
   const secretBytes = getSecretBytes();
 
   let payload: JWTPayload | null = null;
 
-  // Try HS256 secret verification first if configured (zero network, fastest)
-  if (secretBytes) {
-    try {
-      const res = await jwtVerify(token, secretBytes, {
-        clockTolerance: 10,
-      });
-      payload = res.payload;
-    } catch {
-      // Token might be asymmetric (ES256) or signed differently, fallback to JWKS
-    }
+  let algorithm: string | undefined;
+  try {
+    algorithm = decodeProtectedHeader(token).alg;
+  } catch {
+    return null;
   }
+  const options = {
+    clockTolerance: 10,
+    audience: "authenticated",
+    issuer: config ? [config.issuer, "supabase"] : "supabase",
+    requiredClaims: ["sub", "exp", "iss", "aud"],
+  };
 
-  // Fallback to JWKS asymmetric verification (ES256 / RS256)
-  if (!payload && config) {
+  if (algorithm === "HS256") {
+    if (!secretBytes) return null;
     try {
-      const res = await jwtVerify(token, config.jwks, {
-        clockTolerance: 10,
-      });
-      payload = res.payload;
+      payload = (
+        await jwtVerify(token, secretBytes, {
+          ...options,
+          algorithms: ["HS256"],
+        })
+      ).payload;
     } catch {
+      return null;
+    }
+  } else if (config && (algorithm === "ES256" || algorithm === "RS256")) {
+    try {
+      payload = (
+        await jwtVerify(token, config.jwks, {
+          ...options,
+          algorithms: ["ES256", "RS256"],
+        })
+      ).payload;
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "ERR_JWKS_TIMEOUT" || code === "ERR_JOSE_GENERIC" || !code) {
+        throw new AppError(
+          "Session verification is temporarily unavailable. Please retry.",
+          503,
+          "auth_unavailable",
+        );
+      }
       return null;
     }
   }
@@ -160,12 +203,13 @@ export async function verifyAccessToken(
   }
 
   if (typeof payload.sub !== "string" || !payload.sub) return null;
-  if (payload.role && payload.role !== "authenticated") return null;
+  if (payload.role !== "authenticated") return null;
 
   const claims = payload as SupabaseJwtClaims;
 
   // Cache valid token for up to 60s or until token expiry
-  const tokenExpMs = typeof claims.exp === "number" ? claims.exp * 1000 : now + 60_000;
+  const tokenExpMs =
+    typeof claims.exp === "number" ? claims.exp * 1000 : now + 60_000;
   const ttl = Math.min(now + 60_000, tokenExpMs);
   if (ttl > now) {
     tokenCache.set(token, { claims, expiresAt: ttl });

@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { AppError } from "@/server/db/errors";
 import { env } from "@/server/config/env";
 import { queryOne } from "@/server/db/pool";
 import { resolveUserIdFromApiKey } from "@/server/repositories/api-keys.repository";
@@ -135,7 +136,10 @@ async function getCookieSession(
   };
 }
 
-const userActiveCache = new Map<string, { active: boolean; checkedAt: number }>();
+const userActiveCache = new Map<
+  string,
+  { active: boolean; checkedAt: number }
+>();
 
 export async function isUserActiveInDb(userId: string): Promise<boolean> {
   const now = Date.now();
@@ -143,17 +147,14 @@ export async function isUserActiveInDb(userId: string): Promise<boolean> {
   if (cached && now - cached.checkedAt < 15_000) {
     return cached.active;
   }
-  try {
-    const row = await queryOne<{ id: string }>(
-      `select id from public.profiles where id = $1`,
-      [userId],
-    );
-    const active = Boolean(row?.id);
-    userActiveCache.set(userId, { active, checkedAt: now });
-    return active;
-  } catch {
-    return true; // Fail open on transient pool blips
-  }
+  const row = await queryOne<{ id: string }>(
+    `select id from auth.users where id = $1`,
+    [userId],
+  );
+  const active = Boolean(row?.id);
+  if (userActiveCache.size >= 1000) userActiveCache.clear();
+  userActiveCache.set(userId, { active, checkedAt: now });
+  return active;
 }
 
 export function invalidateUserActiveCache(userId?: string) {
@@ -176,7 +177,12 @@ async function getSupabaseSession(
 
   // Validate that user exists in database (prevents deleted users from persisting sessions)
   const active = await isUserActiveInDb(claims.sub);
-  if (!active) return null;
+  if (!active)
+    throw new AppError(
+      "This account has been deleted.",
+      401,
+      "account_deleted",
+    );
 
   return sessionFromAuthUser({
     id: claims.sub,

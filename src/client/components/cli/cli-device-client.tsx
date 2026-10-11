@@ -1,5 +1,7 @@
 "use client";
 
+import { sessionFetch } from "@/lib/api/client";
+
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { authPageStyles } from "@/components/auth/auth-shared";
@@ -17,7 +19,7 @@ export function CliDeviceClient() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/oauth/device/approve", {
+      const res = await sessionFetch("/api/oauth/device/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

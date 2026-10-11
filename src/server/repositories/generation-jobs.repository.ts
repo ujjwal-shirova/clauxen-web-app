@@ -366,6 +366,26 @@ export async function assertGenerationJobOwnership(
   if (!row) throw leaseLost();
 }
 
+/** Fence and mark a reserved reply in one round-trip before inference. */
+export async function startGenerationMessage(input: {
+  jobId: string;
+  lockedBy: string;
+  chatId: string;
+  assistantMessageId: string;
+}): Promise<void> {
+  const row = await queryOne<{ id: string }>(
+    `update public.chat_messages m set status = 'streaming', updated_at = now()
+     from public.chat_generation_jobs j
+     where j.id = $1 and j.locked_by = $2 and j.status = 'running'
+       and j.chat_id = $3 and j.assistant_message_id = $4
+       and m.id = j.assistant_message_id and m.chat_id = j.chat_id
+       and m.status in ('queued', 'streaming')
+     returning m.id`,
+    [input.jobId, input.lockedBy, input.chatId, input.assistantMessageId],
+  );
+  if (!row) throw leaseLost();
+}
+
 export async function attachTurnMessageIds(
   jobId: string,
   ids: { userMessageId: string | null; assistantMessageId: string | null },

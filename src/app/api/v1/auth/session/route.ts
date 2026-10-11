@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { withApiHandler } from "@/server/http/api-handler";
-import { jsonData, jsonError } from "@/server/http/api-response";
+import { jsonData } from "@/server/http/api-response";
+import { readAccessTokenFromCookies } from "@/server/auth/jwt";
 import { AppError } from "@/server/db/errors";
 import { ensureUserRecord } from "@/server/services/identity.service";
 import * as profileService from "@/server/services/profile.service";
@@ -18,7 +19,6 @@ import {
   IDENTITY_HINT_COOKIE,
   identityHintCookieOptions,
   identityHintCookieValue,
-  parseIdentityHintCookie,
 } from "@/utils/identity-cookie";
 
 export const runtime = "nodejs";
@@ -41,40 +41,6 @@ function sessionFromAuthUser(user: {
     preferredName: preferred,
     avatarUrl: resolveAuthAvatarUrl(meta),
   };
-}
-
-/** Quiet boot: local JWT / hint only — verifies user is active in DB without round-trips. */
-async function resolveQuietSession(
-  request: NextRequest,
-): Promise<SessionUser | null> {
-  const claims = await getSupabaseClaimsFromRequest(request);
-  if (claims) {
-    const active = await isUserActiveInDb(claims.sub);
-    if (!active) return null;
-    return sessionFromAuthUser({
-      id: claims.sub,
-      email: claims.email ?? null,
-      user_metadata: claims.user_metadata ?? null,
-    });
-  }
-
-  const hintRaw = request.cookies.get(IDENTITY_HINT_COOKIE)?.value;
-  if (hintRaw) {
-    const hint = parseIdentityHintCookie(hintRaw);
-    if (hint?.id) {
-      const active = await isUserActiveInDb(hint.id);
-      if (!active) return null;
-      return {
-        id: hint.id,
-        email: hint.email,
-        displayName: hint.displayName,
-        preferredName: hint.preferredName,
-        avatarUrl: hint.avatarUrl,
-      };
-    }
-  }
-
-  return null;
 }
 
 function attachSessionCookies(
@@ -114,9 +80,11 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
     // If the user was removed/deleted by admin in Supabase, invalidate immediately
     const active = await isUserActiveInDb(claims.sub);
     if (!active) {
-      const response = jsonData({ session: null, accountDeleted: true });
-      attachSessionCookies(response, null);
-      return response;
+      throw new AppError(
+        "This account has been deleted.",
+        401,
+        "account_deleted",
+      );
     }
 
     const user = {
@@ -133,26 +101,28 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
         displayName: authFullName,
       });
     }
-    const resolved = await profileService.syncProfileFromAuth({
-      userId: user.id,
-      email: user.email ?? null,
-      authMetadata: user.user_metadata,
-    }).then((row) => {
-      if (!row) return sessionFromAuthUser(user);
-      return {
-        id: row.id,
-        email: row.email ?? user.email ?? null,
-        displayName:
-          row.display_name ??
-          resolveAuthFullName(user.user_metadata) ??
-          user.email?.split("@")[0] ??
-          null,
-        preferredName: row.preferred_name ?? null,
-        avatarUrl:
-          profileService.toClientAvatarUrl(row) ??
-          resolveAuthAvatarUrl(user.user_metadata),
-      } satisfies SessionUser;
-    });
+    const resolved = await profileService
+      .syncProfileFromAuth({
+        userId: user.id,
+        email: user.email ?? null,
+        authMetadata: user.user_metadata,
+      })
+      .then((row) => {
+        if (!row) return sessionFromAuthUser(user);
+        return {
+          id: row.id,
+          email: row.email ?? user.email ?? null,
+          displayName:
+            row.display_name ??
+            resolveAuthFullName(user.user_metadata) ??
+            user.email?.split("@")[0] ??
+            null,
+          preferredName: row.preferred_name ?? null,
+          avatarUrl:
+            profileService.toClientAvatarUrl(row) ??
+            resolveAuthAvatarUrl(user.user_metadata),
+        } satisfies SessionUser;
+      });
 
     const response = jsonData({ session: resolved });
     attachSessionCookies(response, resolved);
@@ -160,9 +130,11 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
   } else if (session?.id && session.email) {
     const active = await isUserActiveInDb(session.id);
     if (!active) {
-      const response = jsonData({ session: null, accountDeleted: true });
-      attachSessionCookies(response, null);
-      return response;
+      throw new AppError(
+        "This account has been deleted.",
+        401,
+        "account_deleted",
+      );
     }
 
     assertEmailNotDisposable(session.email);
@@ -176,25 +148,35 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
     return response;
   }
 
+  if (
+    request.headers.has("authorization") ||
+    (await readAccessTokenFromCookies(request.cookies))
+  ) {
+    throw new AppError("Your session needs renewal.", 401, "unauthorized");
+  }
   const response = jsonData({ session: null });
   attachSessionCookies(response, null);
   return response;
 });
 
-export async function GET(request: NextRequest) {
-  // Boot path: skip withApiHandler's getUser() + profile sync for FCP.
-  if (new URL(request.url).searchParams.get("quiet") === "1") {
-    try {
-      const resolved = await resolveQuietSession(request);
-      const response = jsonData({ session: resolved });
-      attachSessionCookies(response, resolved);
-      return response;
-    } catch (error) {
-      return jsonError(
-        error instanceof AppError ? error : new AppError(String(error), 500),
-      );
-    }
+const quietSessionHandler = withApiHandler(async ({ request, session }) => {
+  const resolved = session;
+  if (
+    !resolved &&
+    (request.headers.has("authorization") ||
+      (await readAccessTokenFromCookies(request.cookies)))
+  ) {
+    throw new AppError("Your session needs renewal.", 401, "unauthorized");
   }
+  const response = jsonData({ session: resolved });
+  attachSessionCookies(response, resolved);
+  return response;
+});
 
-  return fullSessionHandler(request);
+export async function GET(request: NextRequest) {
+  const response = await (request.nextUrl.searchParams.get("quiet") === "1"
+    ? quietSessionHandler(request)
+    : fullSessionHandler(request));
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }

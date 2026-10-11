@@ -39,7 +39,7 @@ import {
   useChatStore,
 } from "@/stores/chat-store";
 import * as chatsApi from "@/lib/api/chats";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, sessionFetch } from "@/lib/api/client";
 import { generateChatId } from "@/lib/chat-id";
 import {
   mergeMessageAttachments,
@@ -293,7 +293,7 @@ function abortInFlightGenerationForBranch(chatId: string) {
     setGeneration(chatId, null);
   }
   if (!chatId.startsWith("incognito-")) {
-    void fetch(`/api/v1/chats/${chatId}/generate/stop`, {
+    void sessionFetch(`/api/v1/chats/${chatId}/generate/stop`, {
       method: "POST",
       credentials: "include",
       keepalive: true,
@@ -1611,7 +1611,7 @@ export function useChatApi(
     stopBackgroundPoll(chatId);
 
     if (!chatId.startsWith("incognito-")) {
-      void fetch(`/api/v1/chats/${chatId}/generate/stop`, {
+      void sessionFetch(`/api/v1/chats/${chatId}/generate/stop`, {
         method: "POST",
         credentials: "include",
         keepalive: true,
@@ -1999,7 +1999,7 @@ export function useChatApi(
             await new Promise((resolve) => setTimeout(resolve, pollDelayMs));
             pollDelayMs = Math.min(1000, Math.round(pollDelayMs * 1.5));
             try {
-              const statusResponse = await fetch(`${generateUrl}/status`, {
+              const statusResponse = await sessionFetch(`${generateUrl}/status`, {
                 method: "GET",
                 headers: { Accept: "application/json" },
                 credentials: "include",
@@ -2026,7 +2026,7 @@ export function useChatApi(
         };
 
         for (let attempt = 0; attempt < 4; attempt += 1) {
-          const attemptResponse = await fetch(generateUrl, {
+          const attemptResponse = await sessionFetch(generateUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -2758,7 +2758,7 @@ export function useChatApi(
           let serverFailures = 0;
           while (Date.now() < serverDeadline) {
             try {
-              const statusResponse = await fetch(generateStatusUrl, {
+              const statusResponse = await sessionFetch(generateStatusUrl, {
                 method: "GET",
                 headers: { Accept: "application/json" },
                 credentials: "include",
@@ -3102,7 +3102,7 @@ export function useChatApi(
       // Stop any in-flight generation for this chat first.
       const gen = getGeneration(chatId);
       if (gen) {
-        void fetch(`/api/v1/chats/${chatId}/generate/stop`, {
+        void sessionFetch(`/api/v1/chats/${chatId}/generate/stop`, {
           method: "POST",
           credentials: "include",
         }).catch(() => {});

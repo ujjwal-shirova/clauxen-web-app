@@ -1,4 +1,4 @@
-import { query } from "@/server/db/pool";
+import { queryOne } from "@/server/db/pool";
 import * as projectsRepo from "@/server/repositories/projects.repository";
 
 export async function loadProjectPromptAppend(userId: string, chatId: string) {
@@ -11,27 +11,33 @@ export async function loadProjectPromptAppend(userId: string, chatId: string) {
 }
 
 async function loadProjectPromptAppendInner(userId: string, chatId: string) {
-  const link = await projectsRepo.getProjectForChat(chatId, userId);
-  if (!link) return { text: "", projectOnly: false };
-
-  const project = await projectsRepo.getProject(link.id, userId);
+  // Owner-scoped project and file metadata in one query, including a fast
+  // empty result for ordinary chats that do not belong to a project.
+  const project = await queryOne<
+    projectsRepo.ProjectRow & {
+      files: Array<{
+        id: string;
+        original_name: string;
+        mime_type: string | null;
+      }>;
+    }
+  >(
+    `select p.id, p.name, p.icon, p.color, p.system_prompt, p.metadata,
+            p.updated_at, p.created_at,
+            coalesce((select jsonb_agg(f) from (
+              select id, original_name, mime_type from public.user_files
+              where user_id = $2 and project_id = p.id and status = 'uploaded'
+                and coalesce(metadata->>'purpose', '') = 'project-source'
+              order by created_at desc limit 20
+            ) f), '[]'::jsonb) as files
+     from public.chats c join public.projects p on p.id = c.project_id
+     where c.id = $1 and c.user_id = $2 and c.status != 'deleted'
+       and p.user_id = $2 and p.status = 'active'`,
+    [chatId, userId],
+  );
   if (!project) return { text: "", projectOnly: false };
   const mapped = projectsRepo.mapProject(project);
-
-  const files = await query<{
-    id: string;
-    original_name: string;
-    mime_type: string | null;
-  }>(
-    `select id, original_name, mime_type
-     from public.user_files
-     where user_id = $1 and project_id = $2
-       and status = 'uploaded'
-       and coalesce(metadata->>'purpose', '') = 'project-source'
-     order by created_at desc
-     limit 20`,
-    [userId, project.id],
-  );
+  const files = project.files;
 
   const lines = [
     "Project context:",
