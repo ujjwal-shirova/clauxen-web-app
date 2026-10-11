@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { query, queryOne } from "@/server/db/pool";
 import { env } from "@/server/config/env";

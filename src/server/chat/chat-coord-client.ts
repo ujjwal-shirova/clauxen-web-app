@@ -1,3 +1,4 @@
+import { serviceFetch } from "@/server/cloudflare/service-fetch";
 import { env } from "@/server/config/env";
 
 type CoordResponse = {
@@ -34,7 +35,7 @@ async function coordFetch(
     return { status: 503, data: { error: "chat_coord_unconfigured" } };
   }
   try {
-    const response = await fetch(`${base}${path}`, {
+    const response = await serviceFetch("CHAT_COORD", `${base}${path}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -135,7 +136,7 @@ async function coordPost(path: string, body: unknown) {
   const token = coordToken();
   if (!base || !token) return null;
   try {
-    const response = await fetch(`${base}${path}`, {
+    const response = await serviceFetch("CHAT_COORD", `${base}${path}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",

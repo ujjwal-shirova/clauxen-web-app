@@ -27,6 +27,43 @@ export type AutonomousAgentTool = {
 export const autonomousAgentTools: AutonomousAgentTool[] = [
   {
     type: "function",
+    name: "present_research_plan",
+    description:
+      "Present an editable deep research plan card when the user selects Deep research. This only presents a plan; it does not execute research. Supply a concise title and 3–8 concrete tasks. Never print these arguments as JSON or code. After the tool, write your overview in normal prose, then wait for approval before researching.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", maxLength: 200 },
+        tasks: {
+          type: "array",
+          minItems: 3,
+          maxItems: 8,
+          items: { type: "string", maxLength: 1000 },
+        },
+      },
+      required: ["title", "tasks"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
+    name: "research_task_update",
+    description:
+      "During an approved deep research job, report the current zero-based task index and its running or complete status. Mark tasks complete only after collecting and checking their evidence. This persists task progress for the research card.",
+    parameters: {
+      type: "object",
+      properties: {
+        task_index: { type: "integer", minimum: 0, maximum: 7 },
+        status: { type: "string", enum: ["running", "complete"] },
+      },
+      required: ["task_index", "status"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
     name: "web_search",
     description: [
       "Search the live web (Exa, type=auto) for current, factual, or recent information. Results include titles, urls and highlights.",
@@ -39,6 +76,13 @@ export const autonomousAgentTools: AutonomousAgentTool[] = [
     parameters: {
       type: "object",
       properties: {
+        num_results: {
+          type: "integer",
+          minimum: 1,
+          maximum: 30,
+          description:
+            "For deep research, optionally choose up to 30 results. Ordinary chat uses 10.",
+        },
         query: {
           type: "string",
           description:

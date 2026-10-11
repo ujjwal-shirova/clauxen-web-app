@@ -65,6 +65,8 @@ async function main() {
         Provider_BASE_URL: `http://127.0.0.1:${modelPort}/v1`,
         Provider_API_Key: "fixture-model-key",
         GENERATIONS_INTERNAL_TOKEN: randomUUID(),
+        GENERATIONS_EXECUTION_ORIGIN: origin,
+        GENERATIONS_CONTINUATION_WORKER_URL: "",
         SCHEDULED_TASKS_INTERNAL_TOKEN: scheduledToken,
         CHAT_COORD_WORKER_URL: "",
         CHAT_HISTORY_WORKER_URL: "",
@@ -126,10 +128,13 @@ async function main() {
       headers,
       body: JSON.stringify(body),
     });
-    assert.equal(accepted.status, 202, await accepted.clone().text());
+    assert.equal(accepted.status, 200);
     const jobId = accepted.headers.get("X-Generation-Job-Id");
     assert(jobId);
-    await accepted.body!.cancel(); // browser connection ends here; no polling remains
+    const liveReader = accepted.body!.getReader();
+    const firstFrame = await liveReader.read();
+    assert(new TextDecoder().decode(firstFrame.value).includes("turn_ready"));
+    await liveReader.cancel(); // subscriber ends here; durable execution continues
     await pause(3000);
     const running = await queryOne<{ status: string }>(
       `select status from public.chat_generation_jobs where id=$1`,
@@ -196,7 +201,7 @@ async function main() {
         headers,
         body: JSON.stringify(queuedBody),
       });
-      assert.equal(queued.status, 202);
+      assert.equal(queued.status, i === 0 ? 200 : 202);
       queuedJobIds.push(queued.headers.get("X-Generation-Job-Id")!);
       queuedAssistantId = queued.headers.get("X-Assistant-Message-Id")!;
       await queued.body?.cancel();
@@ -252,7 +257,7 @@ async function main() {
       headers,
       body: JSON.stringify(body2),
     });
-    assert.equal(next.status, 202);
+    assert.equal(next.status, 200);
     await next.body?.cancel();
     const stopped = await fetch(
       `${origin}/api/v1/chats/${chatId}/generate/stop`,

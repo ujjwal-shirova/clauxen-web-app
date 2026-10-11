@@ -1,4 +1,7 @@
 .next/
+.open-next/
+.wrangler/
+.dev.vars*
 dist/
 node_modules/
 
@@ -57,3 +60,8 @@ output/
 .playwright-cli/
 output/playwright/
 **/__pycache__/
+
+/public/research-export.worker.js
+
+/public/research-export-*.worker.js
+/src/client/generated/research-export-manifest.ts

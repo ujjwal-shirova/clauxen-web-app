@@ -1,6 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import bundledText from "@/server/generated/text-assets.json";
 import { AppError } from "@/server/db/errors";
 
 /** Shown in UI + returned by API when a disposable/temp domain is used. */
@@ -10,49 +8,10 @@ export const DISPOSABLE_EMAIL_MESSAGE =
 export const DISPOSABLE_EMAIL_CODE = "disposable_email";
 
 let domainSet: Set<string> | null = null;
-let loadError: Error | null = null;
-
-/**
- * Candidate paths for disposable.txt.
- *
- * - Module-adjacent: works in local/dev when the source file sits next to the list.
- * - Traced deploy path: outputFileTracingIncludes in next.config.ts copies the
- *   list under src/server/email-verifier/. The turbopackIgnore comment on
- *   process.cwd() keeps Turbopack from walking cwd as a dynamic NFT root
- *   (that produced the "unexpected file in NFT list" build spam).
- */
-function listCandidates(): string[] {
-  return [
-    path.join(path.dirname(fileURLToPath(import.meta.url)), "disposable.txt"),
-    path.join(
-      /* turbopackIgnore: true */ process.cwd(),
-      "src",
-      "server",
-      "email-verifier",
-      "disposable.txt",
-    ),
-  ];
-}
 
 function loadDomainSet(): Set<string> {
   if (domainSet) return domainSet;
-  if (loadError) throw loadError;
-
-  let raw: string | null = null;
-  let lastErr: Error | null = null;
-  for (const candidate of listCandidates()) {
-    try {
-      raw = fs.readFileSync(candidate, "utf8");
-      break;
-    } catch (err) {
-      lastErr = err instanceof Error ? err : new Error(String(err));
-    }
-  }
-
-  if (raw == null) {
-    loadError = lastErr ?? new Error("Disposable email list missing.");
-    throw loadError;
-  }
+  const raw = bundledText["src/server/email-verifier/disposable.txt"];
 
   const set = new Set<string>();
   for (const line of raw.split(/\r?\n/)) {

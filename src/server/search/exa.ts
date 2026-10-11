@@ -19,6 +19,8 @@ export type ExaSearchOptions = {
   onPartialResults?: (results: ExaSearchHit[]) => void;
   /** Number of results to request (1-100). */
   numResults?: number;
+  /** Return evidence immediately without waiting for a synthesized answer. */
+  directResults?: boolean;
   /** JSON schema for structured synthesis (output.content). */
   outputSchema?: Record<string, unknown>;
   /** Additional system instructions for quality, safety, and behavior. */
@@ -95,21 +97,6 @@ function mapExaResult(result: ExaResultRow): ExaSearchHit {
   };
 }
 
-async function emitResultsProgressively(
-  results: ExaSearchHit[],
-  onPartialResults?: (results: ExaSearchHit[]) => void,
-) {
-  if (!onPartialResults || results.length === 0) return;
-  for (let count = 1; count <= results.length; count += 1) {
-    onPartialResults(results.slice(0, count));
-    if (count < results.length) {
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, 80);
-      });
-    }
-  }
-}
-
 function mapCitation(citation: ExaCitationRow): ExaSearchHit {
   const text = typeof citation.text === "string" ? citation.text : "";
   return {
@@ -132,6 +119,34 @@ export async function searchWebWithExa(
   query: string,
   options?: ExaSearchOptions,
 ): Promise<ExaSearchHit[]> {
+  if (options?.directResults) {
+    const response = await fetch("https://api.exa.ai/search", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": requireExaApiKey(),
+      },
+      body: JSON.stringify({
+        query,
+        type: SEARCH_TYPE,
+        numResults: Math.max(1, Math.min(30, options.numResults ?? 30)),
+        ...(options.userLocation ? { userLocation: options.userLocation } : {}),
+        contents: {
+          text: { maxCharacters: 1800 },
+          highlights: { maxCharacters: 1800 },
+        },
+      }),
+      signal: AbortSignal.timeout(22_000),
+    });
+    if (!response.ok)
+      throw new Error(
+        `Source search failed (${response.status}). Retry the search.`,
+      );
+    const data = (await response.json()) as { results?: ExaResultRow[] };
+    const results = (data.results ?? []).map(mapExaResult);
+    options.onPartialResults?.(results);
+    return results;
+  }
   const exa = requireExaClient();
   const SEARCH_TIMEOUT_MS = 22_000;
 
@@ -185,7 +200,7 @@ export async function searchWebWithExa(
     const results = (response.results ?? []).map((result) =>
       mapExaResult(result as ExaResultRow),
     );
-    await emitResultsProgressively(results, options?.onPartialResults);
+    options?.onPartialResults?.(results);
     return results;
   } catch {
     return [];
@@ -206,6 +221,11 @@ export async function fetchUrlContentsWithExa(
 
   return (response.results ?? []).map((result) => {
     const mapped = mapExaResult(result as ExaResultRow);
+    if (typeof (result as ExaResultRow).text === "string")
+      mapped.snippet = (result as ExaResultRow).text!.slice(
+        0,
+        textMaxCharacters,
+      );
     if (!mapped.snippet && mapped.highlights?.length) {
       mapped.snippet = mapped.highlights.join(" ").slice(0, 8000);
     }

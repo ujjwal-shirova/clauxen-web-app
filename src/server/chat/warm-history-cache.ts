@@ -1,3 +1,4 @@
+import { serviceFetch } from "@/server/cloudflare/service-fetch";
 import { env } from "@/server/config/env";
 import { warmLimitsForPlanId } from "@/lib/chat-hydrate-limits";
 
@@ -17,9 +18,7 @@ function resolveLimits(input: WarmInput): number[] {
     return warmLimitsForPlanId(input.planId);
   }
   const primary = input.limit ?? 80;
-  return [2, 20, primary, 500].filter(
-    (v, i, a) => a.indexOf(v) === i,
-  );
+  return [2, 20, primary, 500].filter((v, i, a) => a.indexOf(v) === i);
 }
 
 /**
@@ -29,9 +28,7 @@ function resolveLimits(input: WarmInput): number[] {
  * Prefers `/internal/enqueue` (CF Queues) for non-blocking archive+warm;
  * falls back to synchronous `/internal/warm`.
  */
-export async function warmChatHistoryCache(
-  input: WarmInput,
-): Promise<boolean> {
+export async function warmChatHistoryCache(input: WarmInput): Promise<boolean> {
   const base = env.chatHistoryWorkerUrl;
   const token = env.chatHistoryInternalToken;
   if (!base || !token) return false;
@@ -58,16 +55,21 @@ export async function warmChatHistoryCache(
   if (input.async !== false) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const enqueued = await fetch(`${base}/internal/enqueue`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            type: "warm_and_archive",
-            ...payload,
-          }),
-          cache: "no-store",
-          signal: AbortSignal.timeout(3_000),
-        });
+        const enqueued = await serviceFetch(
+          "CHAT_HISTORY",
+          `${base}/internal/enqueue`,
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              type: "warm_and_archive",
+              ...payload,
+            }),
+            cache: "no-store",
+            signal: AbortSignal.timeout(3_000),
+          },
+        );
+        await enqueued.body?.cancel();
         if (enqueued.ok) return true;
       } catch {
         // Retry once, then fall through to sync warm.
@@ -78,13 +80,18 @@ export async function warmChatHistoryCache(
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const response = await fetch(`${base}/internal/warm`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-        cache: "no-store",
-        signal: AbortSignal.timeout(12_000),
-      });
+      const response = await serviceFetch(
+        "CHAT_HISTORY",
+        `${base}/internal/warm`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+          cache: "no-store",
+          signal: AbortSignal.timeout(12_000),
+        },
+      );
+      await response.body?.cancel();
       if (response.ok) return true;
     } catch {
       // Retry sync warm once.
@@ -105,20 +112,25 @@ export async function invalidateChatHistoryCache(input: {
   if (!base || !token) return false;
 
   try {
-    const response = await fetch(`${base}/internal/invalidate`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-clauxen-internal": token,
+    const response = await serviceFetch(
+      "CHAT_HISTORY",
+      `${base}/internal/invalidate`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-clauxen-internal": token,
+        },
+        body: JSON.stringify({
+          userId: input.userId,
+          chatId: input.chatId,
+          listsOnly: input.listsOnly,
+        }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(3_000),
       },
-      body: JSON.stringify({
-        userId: input.userId,
-        chatId: input.chatId,
-        listsOnly: input.listsOnly,
-      }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(3_000),
-    });
+    );
+    await response.body?.cancel();
     return response.ok;
   } catch {
     return false;

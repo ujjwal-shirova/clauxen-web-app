@@ -1,13 +1,14 @@
 /**
  * Browser-independent chat jobs. Admission saves a queued job and its turn
- * before acknowledging the browser. Internal Vercel invocations execute
+ * before acknowledging the browser. Send and internal invocations execute
  * bounded slices; Cloudflare cron recovers missed dispatches and stale owners.
  * Postgres checkpoints preserve model history, tool plans and completed tool
  * results. Interrupted external actions with an unknown result stop safely.
  */
 
 import { env } from "@/server/config/env";
-import { queryOne } from "@/server/db/pool";
+import { cloudflareContext } from "@/server/cloudflare/context";
+import { query, queryOne } from "@/server/db/pool";
 import { randomUUID } from "node:crypto";
 import { logged } from "@/server/observability/log";
 import * as chatService from "@/server/services/chat.service";
@@ -59,6 +60,9 @@ const CONTINUATION_TIMEOUT_MS = 10_000;
 
 /** Resolve an internal dispatch origin from platform config, never user JSON. */
 export function generationExecutionOrigin(requestUrl: string): string {
+  if (process.env.GENERATIONS_EXECUTION_ORIGIN) {
+    return new URL(process.env.GENERATIONS_EXECUTION_ORIGIN).origin;
+  }
   if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
     return new URL(`https://${process.env.VERCEL_URL}`).origin;
   }
@@ -95,6 +99,7 @@ export function startSliceRuntime(input: {
   leaseId?: string | null;
   softMs?: number;
   hardMs?: number;
+  researchPlanId?: string;
 }): SliceRuntime {
   const sliceStart = Date.now();
   const softMs = input.softMs ?? SLICE_SOFT_MS;
@@ -102,6 +107,7 @@ export function startSliceRuntime(input: {
   const yieldController = new AbortController();
   const cancelController = new AbortController();
   let disposed = false;
+  let researchPaused = false;
 
   const hardTimer = setTimeout(() => {
     if (!disposed) yieldController.abort();
@@ -141,9 +147,24 @@ export function startSliceRuntime(input: {
           ),
           getChatCoordStatus(input.chatId).catch(() => null),
         ]);
+        if (input.researchPlanId) {
+          const { getResearchById } =
+            await import("@/server/repositories/deep-research.repository");
+          const plan = await getResearchById(input.researchPlanId);
+          if (plan?.status === "paused") {
+            researchPaused = true;
+            yieldController.abort();
+          }
+          if (plan?.status === "cancelled") cancelController.abort();
+        }
         if (status === "cancelled" || coord?.stopRequested) {
           cancelController.abort();
         }
+      } catch (error) {
+        console.error("[research] stop-state refresh failed", {
+          jobId: input.jobId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       } finally {
         cancelCheckInFlight = false;
       }
@@ -153,7 +174,7 @@ export function startSliceRuntime(input: {
 
   return {
     jobId: input.jobId,
-    shouldYield: () => Date.now() - sliceStart >= softMs,
+    shouldYield: () => researchPaused || Date.now() - sliceStart >= softMs,
     yieldSignal: yieldController.signal,
     cancelSignal: cancelController.signal,
     dispose: () => {
@@ -170,6 +191,16 @@ export async function triggerContinuation(
   origin: string,
   jobId: string,
 ): Promise<boolean> {
+  const queue = cloudflareContext()?.env.GENERATION_QUEUE;
+  if (queue) {
+    try {
+      await queue.send({ jobId });
+      return true;
+    } catch (error) {
+      console.warn("[durable-generation] queue dispatch failed:", error);
+      return false;
+    }
+  }
   const token = generationsTriggerToken();
   if (!token) {
     console.warn(
@@ -227,14 +258,33 @@ export type HeadlessSliceResult =
   | { status: "skipped"; reason: string };
 
 /**
- * Runs one headless slice for an already-claimed job: drains the agent
- * stream without a client, then chains the next slice when it yields.
+ * Runs one server-owned slice for an already-claimed job: drains the agent
+ * stream with an optional subscriber, then chains the next slice on yield.
  */
 export async function runHeadlessSlice(input: {
   job: GenerationJobRow;
   origin: string;
+  /** Optional browser subscriber; inference keeps running if it disconnects. */
+  onChunk?: (chunk: Uint8Array) => void;
 }): Promise<HeadlessSliceResult> {
   const { job, origin } = input;
+  if (job.input.researchPlanId) {
+    const plan = await queryOne<{ status: string }>(
+      `select status from public.deep_research_plans where id=$1`,
+      [job.input.researchPlanId],
+    );
+    if (plan?.status === "paused" || plan?.status === "cancelled") {
+      await finishGenerationJob({
+        jobId: job.id,
+        lockedBy: job.locked_by!,
+        status: plan.status === "paused" ? "paused_for_user" : "cancelled",
+      });
+      const { settleResearchActivity } = await import("./research");
+      await settleResearchActivity(job.input.researchPlanId);
+      return { status: "skipped", reason: "research_stopped" };
+    }
+  }
+
   if (job.assistant_message_id) {
     const saved = await queryOne<{ status: string }>(
       `select status from public.chat_messages where id = $1 and chat_id = $2`,
@@ -288,6 +338,7 @@ export async function runHeadlessSlice(input: {
 
   const runtime = startSliceRuntime({
     jobId: job.id,
+    researchPlanId: job.input.researchPlanId,
     chatId: job.chat_id,
     userId: job.user_id,
     lockedBy: job.locked_by!,
@@ -330,7 +381,10 @@ export async function runHeadlessSlice(input: {
       generateChatTitle: jobInput.generateChatTitle,
       chatModel: jobInput.chatModel,
       homerReasoningEffort: parseEffort(jobInput.homerReasoningEffort),
-      extendedThinking: jobInput.extendedThinking,
+      extendedThinking: jobInput.researchPlanId
+        ? true
+        : jobInput.extendedThinking,
+      researchPlanId: jobInput.researchPlanId,
       requestId: jobInput.requestId,
       requestStartedAtMs: jobInput.turnStartedAtMs,
       slice: {
@@ -358,8 +412,15 @@ export async function runHeadlessSlice(input: {
           }
           break;
         }
-        const { done } = await reader.read();
+        const { done, value } = await reader.read();
         if (done) break;
+        // Delivery is best effort. A disconnected/slow subscriber must never
+        // interrupt durable checkpoints, tools, or generation ownership.
+        try {
+          if (value) input.onChunk?.(value);
+        } catch {
+          // Keep draining and persisting the server-owned turn.
+        }
       }
     } catch {
       // onComplete still persists whatever was accumulated.
@@ -370,6 +431,13 @@ export async function runHeadlessSlice(input: {
       runtime.dispose();
       if (lease === "acquired")
         await releaseChatCoordLease(job.chat_id, leaseId);
+      if (job.input.researchPlanId) {
+        const parked = await queryOne(
+          `update public.chat_generation_jobs j set status='paused_for_user',updated_at=now() from public.deep_research_plans p where p.id=$2 and j.id=$1 and p.status='paused' and j.status='continuing' returning j.id`,
+          [job.id, job.input.researchPlanId],
+        );
+        if (parked) return { status: "yielded", chained: false };
+      }
       const chained = await triggerContinuation(origin, job.id);
       return { status: "yielded", chained };
     }
@@ -388,7 +456,7 @@ export async function runHeadlessSlice(input: {
       jobId: job.id,
       lockedBy: job.locked_by!,
       status: "failed",
-      error: toUserFacingChatError(message),
+      error: message,
     }).catch(() => undefined);
     await publishLiveTurn({
       chatId: job.chat_id,
@@ -409,6 +477,26 @@ export async function runHeadlessSlice(input: {
     }
     // Terminal jobs clear the flag here; yielded jobs keep it until they end.
     const current = await getGenerationJob(job.id).catch(() => null);
+    if (
+      job.input.researchPlanId &&
+      current &&
+      ["complete", "failed", "cancelled"].includes(current.status)
+    ) {
+      await query(
+        `update public.deep_research_plans set status=$2,error=$3,updated_at=now() where id=$1 and status not in ('cancelled')`,
+        [job.input.researchPlanId, current.status, current.error],
+      ).catch(logged("research.finish", { jobId: job.id }));
+    }
+    if (job.input.researchPlanId && current?.status === "complete") {
+      const { getResearchById } =
+        await import("@/server/repositories/deep-research.repository");
+      const { saveResearchReport } = await import("./research-report");
+      const plan = await getResearchById(job.input.researchPlanId);
+      if (plan)
+        await saveResearchReport(plan).catch(
+          logged("research.save_report", { jobId: job.id }),
+        );
+    }
     if (
       current &&
       !["queued", "running", "continuing"].includes(current.status)

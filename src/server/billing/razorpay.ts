@@ -720,7 +720,6 @@ function resolveJsQRDecoder(mod: unknown): JsQRDecoder {
 }
 
 function toNodeBuffer(bytes: Buffer | ArrayBuffer | Uint8Array): Buffer {
-  if (Buffer.isBuffer(bytes)) return bytes;
   if (bytes instanceof ArrayBuffer) return Buffer.from(new Uint8Array(bytes));
   return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
@@ -740,58 +739,7 @@ function upiIntentFromJsQR(
   return null;
 }
 
-/**
- * Fast path: center-crop the tall Razorpay marketing card, shrink for jsQR.
- * Never scan the full ~674×1644 bitmap (that was the multi-second bottleneck).
- */
-async function decodeUpiIntentWithSharp(
-  buf: Buffer,
-  decode: JsQRDecoder,
-): Promise<string | null> {
-  const sharpMod = await import("sharp");
-  const sharp = sharpMod.default;
-  const meta = await sharp(buf, { failOn: "none" }).metadata();
-  const width = meta.width ?? 0;
-  const height = meta.height ?? 0;
-  if (width < 80 || height < 80) return null;
-
-  const side = Math.min(width, height);
-  const crops = [
-    {
-      left: Math.floor((width - side) / 2),
-      top: Math.floor((height - side) / 2),
-      width: side,
-      height: side,
-    },
-    {
-      left: Math.floor((width - Math.floor(side * 0.72)) / 2),
-      top: Math.floor((height - Math.floor(side * 0.72)) / 2),
-      width: Math.floor(side * 0.72),
-      height: Math.floor(side * 0.72),
-    },
-  ];
-
-  for (const region of crops) {
-    if (region.width < 80 || region.height < 80) continue;
-    const scan = Math.min(UPI_QR_SCAN_SIZE, region.width, region.height);
-    const { data, info } = await sharp(buf, { failOn: "none" })
-      .extract(region)
-      .resize(scan, scan, { kernel: "nearest", fit: "fill" })
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-    const rgba = new Uint8ClampedArray(
-      data.buffer,
-      data.byteOffset,
-      data.byteLength,
-    );
-    const intent = upiIntentFromJsQR(decode, rgba, info.width, info.height);
-    if (intent) return intent;
-  }
-  return null;
-}
-
-/** Fallback when sharp is unavailable — crop-first with pngjs, never full-frame scan. */
+/** Crop and decode PNG using portable JavaScript in Workers. */
 async function decodeUpiIntentWithPngjs(
   buf: Buffer,
   decode: JsQRDecoder,
@@ -866,13 +814,6 @@ export async function decodeUpiIntentFromQrPng(
 
   const jsQRMod = await import("jsqr");
   const decode = resolveJsQRDecoder(jsQRMod);
-
-  try {
-    const sharpHit = await decodeUpiIntentWithSharp(buf, decode);
-    if (sharpHit) return sharpHit;
-  } catch {
-    // Fall through to pngjs when sharp is missing or fails.
-  }
 
   return decodeUpiIntentWithPngjs(buf, decode);
 }
@@ -1006,7 +947,6 @@ export async function resolveUpiQrIntent(
     fetchRazorpayQrImageBytes(imageUrl),
     import("jsqr"),
     import("qrcode"),
-    import("sharp").catch(() => null),
   ]);
   if (!contentType.startsWith("image/")) {
     if (/^upi:\/\//i.test(imageUrl)) return imageUrl;

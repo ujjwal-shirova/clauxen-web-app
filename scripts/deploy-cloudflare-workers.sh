@@ -175,7 +175,7 @@ else
   echo "    generate one with: openssl rand -hex 32 — and set the SAME value on Vercel)"
 fi
 
-WORKER_SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-ujjwal-8fc}"
+WORKER_SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-shirova}"
 AUTH_EMAIL_URL="https://clauxen-auth-email.${WORKER_SUBDOMAIN}.workers.dev"
 CHAT_HISTORY_URL="https://clauxen-chat-history.${WORKER_SUBDOMAIN}.workers.dev"
 CHAT_COORD_URL="https://clauxen-chat-coord.${WORKER_SUBDOMAIN}.workers.dev"

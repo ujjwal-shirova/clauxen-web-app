@@ -5,6 +5,7 @@ import type { Message } from "@/lib/types";
 import {
   type AgentNarrationStep,
   type AgentStep,
+  type AgentToolStep,
 } from "@/lib/agent-trace";
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
 import { AssistantContentRenderer } from "@/components/assistant-content-renderer";
@@ -16,6 +17,7 @@ import {
 } from "@/lib/assistant-generation-error";
 import { ThinkingBlock } from "@/components/thinking-block";
 import { AgentTraceView } from "./agent-trace-view";
+import { AgentToolBlock } from "./agent-tool-blocks";
 import { AgentWorkCursor } from "./agent-work-cursor";
 
 const EMPTY_AGENT_STEPS: AgentStep[] = [];
@@ -49,8 +51,18 @@ export function AgentTranscriptView({
     [answer, steps],
   );
   const traceSteps = useMemo(
-    () => steps.filter((step) => step.id !== mirroredNarrationId),
+    () =>
+      steps.filter(
+        (step) =>
+          step.id !== mirroredNarrationId &&
+          !(step.kind === "tool" && step.name === "present_research_plan"),
+      ),
     [mirroredNarrationId, steps],
+  );
+  // Interactive plans remain visible after the activity ledger collapses.
+  const researchPlans = steps.filter(
+    (step): step is AgentToolStep =>
+      step.kind === "tool" && step.name === "present_research_plan",
   );
   const narrationSteps = useMemo(
     () =>
@@ -79,11 +91,15 @@ export function AgentTranscriptView({
 
   const hasTurnClock =
     typeof (trace?.startedAtMs ?? message.createdAt) === "number";
-  if (!hasTranscript && !hasLegacyThinking && !answer && !streaming && !trace) return null;
+  if (!hasTranscript && !hasLegacyThinking && !answer && !streaming && !trace)
+    return null;
 
   const stableMessageKey = messageUiKey(message);
   const isWorking = streaming && active && !awaitingInput;
+  const isResearchResponse =
+    message.clientId?.startsWith("research-assistant-") === true;
   const showTrace =
+    !isResearchResponse &&
     hasTranscript &&
     (isWorking ||
       trace?.complete === true ||
@@ -92,7 +108,7 @@ export function AgentTranscriptView({
       hasTurnClock);
   // The work cursor stays pinned at the bottom of the turn through the whole
   // run — including while the final answer streams — like an output cursor.
-  const showWorkCursor = streaming || isWorking;
+  const showWorkCursor = !isResearchResponse && (streaming || isWorking);
 
   const renderNarration = (step: AgentNarrationStep) => (
     <div
@@ -129,7 +145,11 @@ export function AgentTranscriptView({
         />
       ) : null}
 
-      {hasLegacyThinking ? (
+      {researchPlans.map((tool) => (
+        <AgentToolBlock key={tool.toolCallId} tool={tool} />
+      ))}
+
+      {hasLegacyThinking && !isResearchResponse ? (
         <ThinkingBlock
           content={message.thinkingContent}
           isStreaming={!!message.isThinkingStreaming && chatIsGenerating}
@@ -139,7 +159,7 @@ export function AgentTranscriptView({
         />
       ) : null}
 
-      {answer ? (
+      {answer && !isResearchResponse ? (
         <div
           data-agent-block="answer"
           className="agent-answer-body"

@@ -6,7 +6,7 @@ const ROOT =
   path.join(process.cwd(), "storage", "r2-fallback");
 
 async function objectPath(bucket: string, key: string) {
-  const full = path.join(ROOT, bucket, key);
+  const full = path.join(/* turbopackIgnore: true */ ROOT, bucket, key);
   await mkdir(path.dirname(full), { recursive: true });
   return full;
 }
@@ -17,18 +17,18 @@ export async function writeLocalObject(
   body: Buffer,
 ) {
   const full = await objectPath(bucket, key);
-  await writeFile(full, body);
+  await writeFile(/* turbopackIgnore: true */ full, body);
 }
 
 export async function readLocalObject(bucket: string, key: string) {
-  const full = path.join(ROOT, bucket, key);
-  return readFile(full);
+  const full = path.join(/* turbopackIgnore: true */ ROOT, bucket, key);
+  return readFile(/* turbopackIgnore: true */ full);
 }
 
 export async function deleteLocalObject(bucket: string, key: string) {
-  const full = path.join(ROOT, bucket, key);
+  const full = path.join(/* turbopackIgnore: true */ ROOT, bucket, key);
   try {
-    await unlink(full);
+    await unlink(/* turbopackIgnore: true */ full);
   } catch {
     /* ignore */
   }

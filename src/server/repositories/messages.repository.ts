@@ -590,6 +590,40 @@ async function attachFilePartsInTransaction(
   );
 }
 
+/** Reserve an assistant-only research continuation under the saved plan. */
+export async function reserveResearchTurn(input: {
+  chatId: string;
+  userId: string;
+  researchPlanId: string;
+  contentJson: Record<string, unknown>;
+  onReserved: (assistantMessageId: string, client: PoolClient) => Promise<void>;
+}) {
+  return withTransaction(async (client) => {
+    const owned = await client.query(
+      `select id from public.chats where id=$1 and user_id=$2 and status!='deleted' for update`,
+      [input.chatId, input.userId],
+    );
+    if (!owned.rows[0]) throw notFound("Chat not found.");
+    const assistant = await insertIdempotentMessage(client, {
+      chatId: input.chatId,
+      userId: input.userId,
+      role: "assistant",
+      content: "",
+      status: "queued",
+      contentJson: input.contentJson,
+      metadata: { researchPlanId: input.researchPlanId },
+      clientId: `research-assistant-${input.researchPlanId}`,
+    });
+    await input.onReserved(assistant.id, client);
+    if (assistant.inserted)
+      await client.query(
+        `update public.chats set active_leaf_message_id=$3,metadata=coalesce(metadata,'{}'::jsonb)||jsonb_build_object('generating',true,'generating_at',now()),updated_at=now() where id=$1 and user_id=$2`,
+        [input.chatId, input.userId, assistant.id],
+      );
+    return assistant;
+  });
+}
+
 /**
  * Atomically reserve exactly one user/assistant pair for a client turn.
  * Retrying the same request returns the original rows instead of duplicating
@@ -1266,7 +1300,7 @@ export async function finalizeStaleStreamingMessages(
        and not exists (
          select 1 from public.chat_generation_jobs j
          where j.chat_id = m.chat_id
-           and j.status in ('queued', 'running', 'continuing')
+           and (j.status in ('queued', 'running', 'continuing') or (j.status='paused_for_user' and j.assistant_message_id=m.id and exists (select 1 from public.deep_research_plans p where p.job_id=j.id and p.status='paused')))
        )
      limit 25`,
     [chatId, olderThanSeconds],
@@ -1320,7 +1354,7 @@ export async function settleOrphanedStreamingMessages(
        and not exists (
          select 1 from public.chat_generation_jobs j
          where j.chat_id = m.chat_id
-           and j.status in ('queued', 'running', 'continuing')
+           and (j.status in ('queued', 'running', 'continuing') or (j.status='paused_for_user' and j.assistant_message_id=m.id and exists (select 1 from public.deep_research_plans p where p.job_id=j.id and p.status='paused')))
        )
      limit $2`,
     [olderThanSeconds, chatLimit],

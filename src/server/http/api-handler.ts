@@ -5,6 +5,7 @@ import type { SessionUser } from "@/server/auth/session";
 import { getSessionFromRequest } from "@/server/auth/session";
 import { env } from "@/server/config/env";
 import { REQUEST_ID_HEADER, requestId } from "@/server/http/request-meta";
+import { withDatabaseRequest } from "@/server/db/pool";
 
 export type ApiContext = {
   request: NextRequest;
@@ -18,33 +19,48 @@ export function withApiHandler(
   handler: ApiHandler,
   options?: { requireAuth?: boolean; requireChatAuth?: boolean },
 ): (request: NextRequest) => Promise<Response> {
-  return async (request: NextRequest) => {
-    const correlationId = requestId(request);
-    try {
-      const session = await getSessionFromRequest(request);
+  return (request: NextRequest) =>
+    withDatabaseRequest(async () => {
+      const started = performance.now();
+      const correlationId = requestId(request);
+      try {
+        const session = await getSessionFromRequest(request);
+        const authMs = Math.round(performance.now() - started);
 
-      if (options?.requireAuth && !session) {
-        throw unauthorized("Authentication required.");
+        if (options?.requireAuth && !session) {
+          throw unauthorized("Authentication required.");
+        }
+
+        if (options?.requireChatAuth && env.authRequiredForChat && !session) {
+          throw unauthorized("Authentication required for chat.");
+        }
+
+        const response = await handler({
+          request,
+          session,
+          requestId: correlationId,
+        });
+        const headers = new Headers(response.headers);
+        headers.set(REQUEST_ID_HEADER, correlationId);
+        headers.append(
+          "Server-Timing",
+          `auth;dur=${authMs}, app;dur=${Math.round(performance.now() - started)}`,
+        );
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        });
+      } catch (error) {
+        const response = jsonError(
+          error instanceof AppError ? error : new AppError(String(error), 500),
+        );
+        response.headers.set(REQUEST_ID_HEADER, correlationId);
+        response.headers.append(
+          "Server-Timing",
+          `app;dur=${Math.round(performance.now() - started)}`,
+        );
+        return response;
       }
-
-      if (options?.requireChatAuth && env.authRequiredForChat && !session) {
-        throw unauthorized("Authentication required for chat.");
-      }
-
-      const response = await handler({ request, session, requestId: correlationId });
-      const headers = new Headers(response.headers);
-      headers.set(REQUEST_ID_HEADER, correlationId);
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      });
-    } catch (error) {
-      const response = jsonError(
-        error instanceof AppError ? error : new AppError(String(error), 500),
-      );
-      response.headers.set(REQUEST_ID_HEADER, correlationId);
-      return response;
-    }
-  };
+    });
 }

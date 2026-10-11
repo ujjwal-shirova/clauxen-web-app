@@ -6,6 +6,8 @@ import {
 } from "@/server/repositories/generation-jobs.repository";
 import { runHeadlessSlice } from "@/server/chat/durable-generation";
 import { randomUUID } from "node:crypto";
+import { cloudflareContext } from "@/server/cloudflare/context";
+import { withDatabaseRequest } from "@/server/db/pool";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,11 +16,15 @@ export const maxDuration = 300;
 /**
  * Chains the next slice of a durable background generation.
  *
- * Answers 202 immediately and runs the slice in after() — the triggering
- * slice (or the watchdog) never waits on model work. Claiming is atomic:
- * concurrent triggers for the same job 409, exactly one slice runs.
+ * Cloudflare HTTP requests enqueue a slice and return 202. Queue consumers
+ * await the complete slice; local Node development uses after(). Atomic
+ * claiming returns 409 when another slice already owns the job.
  */
-export async function POST(request: NextRequest) {
+export function POST(request: NextRequest) {
+  return withDatabaseRequest(() => execute(request));
+}
+
+async function execute(request: NextRequest) {
   if (!isGenerationsInternalRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -41,7 +47,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const worker = `continue-${process.env.VERCEL_REGION ?? "local"}-${randomUUID().slice(0, 8)}`;
+  const cloudflare = cloudflareContext();
+  if (cloudflare && request.headers.get("x-clauxen-queue-execution") !== "1") {
+    await cloudflare.env.GENERATION_QUEUE.send({ jobId });
+    return NextResponse.json(
+      { ok: true, jobId, queued: true },
+      { status: 202 },
+    );
+  }
+
+  const worker = `continue-${cloudflare ? "cloudflare" : "local"}-${randomUUID().slice(0, 8)}`;
   const job = await claimGenerationJob(jobId, worker);
   if (!job) {
     const current = await getGenerationJob(jobId).catch(() => null);
@@ -53,6 +68,10 @@ export async function POST(request: NextRequest) {
   }
 
   const origin = job.input.executionOrigin ?? new URL(request.url).origin;
+  if (cloudflare) {
+    const result = await runHeadlessSlice({ job, origin });
+    return NextResponse.json({ ok: true, jobId: job.id, ...result });
+  }
   after(() =>
     runHeadlessSlice({ job, origin }).catch((error) => {
       console.error("[generations/continue] slice failed:", error);

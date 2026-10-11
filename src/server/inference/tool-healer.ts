@@ -13,6 +13,8 @@ import { z } from "zod";
 import { parse as parsePartialJson } from "partial-json";
 
 export type ToolExecutionContext = {
+  researchPlanId?: string;
+  chatModelId?: string;
   userId?: string;
   conversationId?: string;
   userCountryCode?: string;

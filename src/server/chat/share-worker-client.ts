@@ -1,3 +1,4 @@
+import { serviceFetch } from "@/server/cloudflare/service-fetch";
 import { env } from "@/server/config/env";
 import type { SharedChatSnapshot } from "@/lib/share-public";
 
@@ -13,7 +14,7 @@ async function postInternal(path: string, body: unknown): Promise<boolean> {
   const token = env.shareWorkerInternalToken;
   if (!base || !token) return false;
   try {
-    const response = await fetch(`${base}${path}`, {
+    const response = await serviceFetch("SHARE_GATE", `${base}${path}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -24,6 +25,7 @@ async function postInternal(path: string, body: unknown): Promise<boolean> {
       cache: "no-store",
       signal: AbortSignal.timeout(8_000),
     });
+    await response.body?.cancel();
     return response.ok;
   } catch {
     return false;

@@ -16,6 +16,7 @@ import {
   type WebSearchResult,
 } from "@/lib/agent-trace";
 import { cn } from "@/lib/utils";
+import { DeepResearchPlanCard } from "../deep-research-plan-card";
 import { AgentFileBlock } from "./agent-file-block";
 import { AgentTraceBlock, AgentShimmerText } from "./agent-trace-primitives";
 
@@ -585,9 +586,7 @@ export function AgentReadSkillBlock({ tool }: { tool: AgentToolStep }) {
         title={
           isRunning ? (
             <AgentShimmerText key={`rs-live-${tool.toolCallId}`} active>
-              <span className="agent-activity-label--muted">
-                Loading skill
-              </span>
+              <span className="agent-activity-label--muted">Loading skill</span>
               {name ? (
                 <span className="agent-activity-label--primary"> {name}</span>
               ) : null}
@@ -599,9 +598,7 @@ export function AgentReadSkillBlock({ tool }: { tool: AgentToolStep }) {
             </span>
           ) : (
             <>
-              <span className="agent-activity-label--muted">
-                Loaded skill
-              </span>
+              <span className="agent-activity-label--muted">Loaded skill</span>
               {name ? (
                 <span className="agent-activity-label--primary"> {name}</span>
               ) : null}
@@ -1156,6 +1153,61 @@ export function AgentToolBlock({
       return <AgentPlacesSearchBlock tool={tool} />;
     case "image_search":
       return <AgentImageSearchBlock tool={tool} />;
+    case "research_task_update":
+      return (
+        <AgentTraceBlock
+          title={`Task ${Number(tool.args?.task_index ?? 0) + 1}: ${tool.args?.status === "complete" ? "evidence collected" : "researching"}`}
+          isActive={tool.status === "running"}
+          defaultExpanded={false}
+          chevronMode="hover"
+        />
+      );
+    case "present_research_plan": {
+      const preparing =
+        tool.status !== "error" &&
+        (tool.status === "running" || tool.argsComplete === false);
+      const title =
+        typeof tool.args?.title === "string"
+          ? tool.args.title
+          : "Preparing your research plan";
+      const tasks = Array.isArray(tool.args?.tasks)
+        ? tool.args.tasks.filter(
+            (task): task is string => typeof task === "string" && !!task.trim(),
+          )
+        : [];
+      if (
+        !preparing &&
+        (tool.status === "error" ||
+          !title.trim() ||
+          tasks.length < 3 ||
+          tasks.length > 8)
+      ) {
+        return (
+          <p role="alert" className="text-sm text-[var(--settings-danger)]">
+            The research plan could not be prepared. Please try again.
+          </p>
+        );
+      }
+      return (
+        <DeepResearchPlanCard
+          plan={{
+            title,
+            tasks: tasks.length
+              ? tasks
+              : [
+                  "Defining the research scope…",
+                  "Organizing sources and questions…",
+                  "Preparing the report outline…",
+                ],
+            summary: "",
+          }}
+          durable
+          planId={tool.toolCallId}
+          isStreaming={preparing}
+          preparing={preparing}
+        />
+      );
+    }
     case "ask_user_input_v0":
       return <AgentAskUserInputBlock tool={tool} />;
     default:

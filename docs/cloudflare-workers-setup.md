@@ -64,7 +64,7 @@ changes what you explicitly `secret put`. The script refuses to touch
 
 ```sh
 npm run plugins:setup
-curl -s https://clauxen-connector-gateway.ujjwal-8fc.workers.dev/health
+curl -s https://clauxen-connector-gateway.shirova.workers.dev/health
 ```
 
 Expect `result: OK (full mode)` and `{"status":"ok",...}`.

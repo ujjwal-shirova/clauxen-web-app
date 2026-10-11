@@ -10,7 +10,7 @@ export const DEEP_RESEARCH_PREFIX = "[Deep research]\n";
 export function parseDeepResearchPlan(
   content: string,
 ): DeepResearchPlan | null {
-  const match = /```research-plan\s*\n([\s\S]*?)\n```/.exec(content);
+  const match = /```(?:research-plan|json)\s*\n([\s\S]*?)\n```/.exec(content);
   if (!match || match[1].length > 20_000) return null;
   try {
     const value = JSON.parse(match[1]);
@@ -37,6 +37,18 @@ export function parseDeepResearchPlan(
   } catch {
     return null;
   }
+}
+
+/** Compatibility for saved text plans; preserve the assistant prose around them. */
+export function researchPlanPresentation(content: string) {
+  const plan = parseDeepResearchPlan(content);
+  if (!plan) return null;
+  const match = /```(?:research-plan|json)\s*\n([\s\S]*?)\n```/.exec(content)!;
+  return {
+    plan,
+    before: content.slice(0, match.index).trim(),
+    after: content.slice(match.index + match[0].length).trim(),
+  };
 }
 
 export function researchActionPrefix(

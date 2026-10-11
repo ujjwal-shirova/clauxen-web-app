@@ -194,6 +194,7 @@ function clearIdleStreamingFlags(message: Message): Message {
 
 function mapApiMessage(row: chatsApi.ApiMessage): Message {
   const meta = (row.metadata ?? {}) as {
+    researchPlanId?: string;
     thinkingContent?: string;
     hasThinking?: boolean;
     thinkingDurationSeconds?: number;
@@ -246,6 +247,7 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     turnId: deriveTurnIdFromClientId(clientId) ?? meta.turnId,
     role: row.role as Message["role"],
     content,
+    researchPlanId: meta.researchPlanId,
     thinkingContent: meta.thinkingContent,
     hasThinking: meta.hasThinking,
     thinkingDurationSeconds: meta.thinkingDurationSeconds,
@@ -1433,7 +1435,12 @@ export function useChatApi(
         }
         const active = useChatStore.getState().activeChatId;
         for (const id of live) {
-          if (getGeneration(id) || isGenerationLocallySettled(id)) continue;
+          if (
+            getGeneration(id) ||
+            backgroundPollers.has(id) ||
+            isGenerationLocallySettled(id)
+          )
+            continue;
           void paintLiveTurn(id).then((painted) => {
             if (painted === "missing" && id === active) {
               void loadChatMessages(id, { silent: true });
@@ -1444,7 +1451,13 @@ export function useChatApi(
           useChatStore.getState().generatingChatIds,
         );
         // Fast polling only when actively generating, otherwise relaxed 30s idle heartbeat
-        if (stillGenerating.length > 0 || live.size > 0) {
+        // Local SSE and background pollers already own progress delivery.
+        // Only accelerate discovery for turns with no local subscriber.
+        if (
+          [...new Set([...stillGenerating, ...live])].some(
+            (id) => !getGeneration(id) && !backgroundPollers.has(id),
+          )
+        ) {
           delay = 1_500;
         } else {
           delay = 30_000;

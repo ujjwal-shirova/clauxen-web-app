@@ -1,5 +1,6 @@
 "use client";
 
+import { ResearchSidebarLayout } from "./research-sidebar";
 import React, { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -394,6 +395,7 @@ function ChatAreaLayout({
         incognito ? "rounded-none" : "rounded-[inherit]",
       )}
       data-incognito={incognito || undefined}
+      data-research-view-host
     >
       {incognito && onCloseIncognito ? (
         <IncognitoChatHeader
@@ -700,7 +702,7 @@ function ChatAreaLayout({
 export function ChatArea(props: ChatAreaProps) {
   return (
     <ArtifactViewerProvider>
-      <ChatAreaLayout {...props} />
+      <ResearchSidebarLayout><ChatAreaLayout {...props} /></ResearchSidebarLayout>
     </ArtifactViewerProvider>
   );
 }

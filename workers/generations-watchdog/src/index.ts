@@ -19,12 +19,18 @@ export interface Env {
   /** Direct production alias, avoiding the public domain's bot challenge. */
   CONTINUATION_ORIGIN?: string;
   VERCEL_AUTOMATION_BYPASS_SECRET?: string;
+  /** Private service binding used by the Cloudflare-hosted app deployment. */
+  APP?: Fetcher;
 }
 
 const DEFAULT_ORIGIN = "https://www.clauxen.com";
 
 function origin(env: Env): string {
   return (env.APP_ORIGIN?.trim() || DEFAULT_ORIGIN).replace(/\/+$/, "");
+}
+
+function appFetch(env: Env, url: string, init: RequestInit): Promise<Response> {
+  return env.APP ? env.APP.fetch(url, init) : fetch(url, init);
 }
 
 export async function pokeWatchdog(
@@ -37,7 +43,7 @@ export async function pokeWatchdog(
   }
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const response = await fetch(
+      const response = await appFetch(env,
         `${origin(env)}/api/v1/internal/generations/watchdog?source=cloudflare`,
         {
           method: "POST",
@@ -129,7 +135,7 @@ export default {
           { status: 400 },
         );
       // Destination is configured by the operator, never accepted from request JSON.
-      const upstream = await fetch(
+      const upstream = await appFetch(env,
         `${(env.CONTINUATION_ORIGIN?.trim() || origin(env)).replace(/\/+$/, "")}/api/v1/internal/generations/continue`,
         {
           method: "POST",

@@ -1,3 +1,8 @@
+import {
+  budgetResearchEvidence,
+  researchToolOutput,
+  retryableResearchProviderError,
+} from "@/server/inference/research-evidence";
 /**
  * Clauxen autonomous agent loop (OpenAI Responses API) — flat trace protocol.
  *
@@ -80,6 +85,7 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
   }),
   web_search: z.object({
     query: z.string(),
+    num_results: z.number().int().min(1).max(30).optional(),
   }),
   web_fetch: z.object({
     url: z.string(),
@@ -118,6 +124,14 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
     path: z.string(),
     content: z.string(),
     description: z.string().optional(),
+  }),
+  present_research_plan: z.object({
+    title: z.string().trim().min(1).max(200),
+    tasks: z.array(z.string().trim().min(1).max(1000)).min(3).max(8),
+  }),
+  research_task_update: z.object({
+    task_index: z.number().int().min(0).max(7),
+    status: z.enum(["running", "complete"]),
   }),
   ask_user_input_v0: z.object({
     questions: z
@@ -246,6 +260,8 @@ function buildHealingTools(): Map<string, ToolDefinition> {
           userId: ctx.userId,
           userCountryCode: ctx.userCountryCode,
           toolCallId: ctx.toolCallId,
+          researchPlanId: ctx.researchPlanId,
+          chatModelId: ctx.chatModelId,
           onToolProgress: ctx.onProgress,
         });
       },
@@ -266,6 +282,9 @@ export type AgentPendingToolRound = {
 };
 
 export type AgentStreamOptions = {
+  researchPlanId?: string;
+  /** Private diagnostic callback; never included in browser SSE. */
+  onProviderError?: (message: string) => void;
   messages: Array<{
     role: string;
     content: OpenAIMessageContent;
@@ -341,7 +360,8 @@ function resolveThinkingBudget(options: AgentStreamOptions): number {
   // Composer Thinking toggle is authoritative (default off).
   const thinking = resolveAutonomousThinkingParams({
     chatModel: options.chatModelId ?? DEFAULT_CHAT_MODEL_ID,
-    thinkingEnabled: options.thinkingEnabled === true,
+    thinkingEnabled:
+      Boolean(options.researchPlanId) || options.thinkingEnabled === true,
     homerReasoningEffort: options.homerReasoningEffort,
   });
   if (!thinking.enabled) return 0;
@@ -417,7 +437,11 @@ export async function runAutonomousAgent(
   const openAITools = toOpenAITools([
     ...autonomousAgentTools
       // present_files removed — create_file auto-presents to the user.
-      .filter((tool) => tool.name !== "present_files")
+      .filter(
+        (tool) =>
+          tool.name !== "present_files" &&
+          !(options.researchPlanId && tool.name === "ask_user_input_v0"),
+      )
       .map((tool) => ({
         name: tool.name,
         description: tool.description ?? tool.name,
@@ -504,10 +528,15 @@ export async function runAutonomousAgent(
     return activeThinkingId;
   };
 
+  let providerRetries = 0;
   try {
     if (options.initialTerminalOutcome)
       return finish(options.initialTerminalOutcome);
-    for (let step = startStep; step < MAX_STEPS; step++) {
+    for (
+      let step = startStep;
+      step < (options.researchPlanId ? 96 : MAX_STEPS);
+      step++
+    ) {
       if (signal?.aborted) {
         sse.writeError("Generation aborted.");
         return finish("aborted");
@@ -522,6 +551,19 @@ export async function runAutonomousAgent(
 
       const recoveringRound =
         step === startStep ? options.initialPendingToolRound : undefined;
+      if (recoveringRound?.executingCallId && options.researchPlanId) {
+        const call = recoveringRound.calls.find(
+          (call) => call.id === recoveringRound.executingCallId,
+        );
+        // Repeating a search/read/progress update is safe. External writes remain protected.
+        if (
+          call &&
+          ["web_search", "web_fetch", "research_task_update"].includes(
+            call.name,
+          )
+        )
+          delete recoveringRound.executingCallId;
+      }
       if (recoveringRound?.executingCallId) {
         throw new Error(
           "A server interrupted a tool while it was executing. Its external result is uncertain, so the task stopped to avoid repeating that action.",
@@ -556,12 +598,16 @@ export async function runAutonomousAgent(
           : (roundSignals[0] ?? undefined);
 
       if (!recoveringRound) {
+        if (options.researchPlanId) budgetResearchEvidence(conversation);
+        let retryRound = false;
         const stream = deps.callModel({
           model: options.model,
           instructions: systemPrompt,
           input: conversation,
           tools: openAITools.length > 0 ? openAITools : undefined,
           maxOutputTokens: maxTokens ?? 8192,
+          thinkingEnabled: thinkingBudget > 0,
+          idleTimeoutMs: options.researchPlanId ? 120_000 : undefined,
           reasoningEffort:
             thinkingBudget >= 10_000
               ? "high"
@@ -651,6 +697,19 @@ export async function runAutonomousAgent(
               break;
 
             case "error":
+              if (
+                options.researchPlanId &&
+                providerRetries < 2 &&
+                retryableResearchProviderError(part.error) &&
+                !roundSignal?.aborted
+              ) {
+                providerRetries++;
+                retryRound = true;
+                closeThinking();
+                closeNarration();
+                break;
+              }
+              options.onProviderError?.(part.error);
               console.error("[chat] model stream error:", part.error);
               sse.writeError(part.error);
               return finish("error");
@@ -666,7 +725,13 @@ export async function runAutonomousAgent(
               sse.writeError("Generation aborted.");
               return finish("aborted");
           }
+          if (retryRound) break;
         }
+        if (retryRound) {
+          step--;
+          continue;
+        }
+        providerRetries = 0;
       } else {
         finished = {
           reason: recoveringRound.reason ?? "tool_calls",
@@ -813,6 +878,8 @@ export async function runAutonomousAgent(
                 userCountryCode,
                 toolCallId: tc.id,
                 modelId: options.model,
+                researchPlanId: options.researchPlanId,
+                chatModelId: options.chatModelId,
                 onProgress: (data) => {
                   if (tc.name === "web_search") {
                     sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
@@ -841,6 +908,8 @@ export async function runAutonomousAgent(
                   userCountryCode,
                   toolCallId: tc.id,
                   modelId: options.model,
+                  researchPlanId: options.researchPlanId,
+                  chatModelId: options.chatModelId,
                   onToolProgress: (data) => {
                     if (tc.name === "web_search") {
                       sse.writeToolData(tc.id, {
@@ -860,6 +929,8 @@ export async function runAutonomousAgent(
             }
           }
 
+          if (options.researchPlanId)
+            outcomeOutput = researchToolOutput(tc.name, outcomeOutput);
           durableRound.results[tc.id] = {
             output: outcomeOutput ?? {},
             pause: outcomePause,
@@ -870,6 +941,14 @@ export async function runAutonomousAgent(
             snapshotConversation(),
             durableRound,
           );
+        }
+
+        if (options.researchPlanId) {
+          outcomeOutput = researchToolOutput(tc.name, outcomeOutput);
+          durableRound.results[tc.id] = {
+            output: outcomeOutput ?? {},
+            pause: outcomePause,
+          };
         }
 
         // Streamed search hits for the results card.
@@ -1029,6 +1108,7 @@ export async function runAutonomousAgent(
     }
 
     const message = error instanceof Error ? error.message : String(error);
+    options.onProviderError?.(message);
     sse.writeError(message);
     return finish("error");
   } finally {

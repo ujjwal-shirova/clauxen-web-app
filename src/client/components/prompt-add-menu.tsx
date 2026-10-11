@@ -36,6 +36,7 @@ export type PromptAddMenuPanelProps = {
   webSearchMode?: WebSearchMode;
   onWebSearchModeChange?: (mode: WebSearchMode) => void;
   className?: string;
+  placement?: "above" | "below";
 };
 
 function PromptAddMenuRow({
@@ -143,6 +144,7 @@ export function PromptAddMenuPanel({
   webSearchMode = "auto",
   onWebSearchModeChange,
   className,
+  placement = "below",
 }: PromptAddMenuPanelProps) {
   const internalRef = useRef<HTMLDivElement>(null);
   const resolvedRef = panelRef ?? internalRef;
@@ -218,7 +220,12 @@ export function PromptAddMenuPanel({
       ref={resolvedRef}
       role="menu"
       aria-label="Composer tools"
-      className={cn("relative mt-2 w-full", className)}
+      className={cn(
+        placement === "above"
+          ? "absolute bottom-full left-0 z-50 mb-2 w-full"
+          : "relative mt-2 w-full",
+        className,
+      )}
       data-prompt-add-menu-root
       onKeyDown={(event) => {
         if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))
@@ -242,9 +249,9 @@ export function PromptAddMenuPanel({
       }}
     >
       <motion.div
-        initial={{ opacity: 0, height: 0, y: -5 }}
-        animate={{ opacity: 1, height: "auto", y: 0 }}
-        exit={{ opacity: 0, height: 0, y: -3 }}
+        initial={{ opacity: 0, y: placement === "above" ? 5 : -5 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: placement === "above" ? 3 : -3 }}
         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
         className="w-full overflow-hidden"
       >

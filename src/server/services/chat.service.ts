@@ -417,6 +417,31 @@ export async function acceptBackgroundChatTurn(input: {
   userId: string;
   jobInput: GenerationJobInput;
 }): Promise<GenerationJobRow> {
+  if (input.jobInput.researchPlanId) {
+    let researchJob: GenerationJobRow | undefined;
+    await messagesRepo.reserveResearchTurn({
+      chatId: input.chatId,
+      userId: input.userId,
+      researchPlanId: input.jobInput.researchPlanId,
+      contentJson: buildAssistantTranscriptRecord({ answer: "" }),
+      onReserved: async (assistantMessageId, client) => {
+        const existing = await client.query<GenerationJobRow>(
+          `select * from public.chat_generation_jobs where chat_id=$1 and user_id=$2 and assistant_message_id=$3 order by created_at desc limit 1`,
+          [input.chatId, input.userId, assistantMessageId],
+        );
+        researchJob =
+          existing.rows[0] ??
+          (await createGenerationJob({
+            ...input,
+            client,
+            messageIds: { userMessageId: null, assistantMessageId },
+          }));
+      },
+    });
+    if (!researchJob)
+      throw new AppError("Could not save the research task.", 500);
+    return researchJob;
+  }
   const turn = input.jobInput.turn;
   if (!turn) return createGenerationJob(input);
   let job: GenerationJobRow | undefined;
@@ -529,6 +554,7 @@ export async function streamChatGeneration(input: {
   generateChatTitle?: boolean;
   chatModel?: string;
   homerReasoningEffort?: HomerReasoningEffort;
+  researchPlanId?: string;
   extendedThinking?: boolean;
   onPauseForUser?: () => void | Promise<void>;
   /** Correlates browser, Vercel, Worker, and provider-side diagnostics. */
@@ -754,6 +780,9 @@ export async function streamChatGeneration(input: {
     ...(resume?.modelTurns ?? []),
   ];
   const started = Date.now();
+  let contextReadyAtMs: number | undefined;
+  let firstContentAtMs: number | undefined;
+  let firstAnswerAtMs: number | undefined;
   const turnStartedAtMs =
     (typeof resume?.turnStartedAtMs === "number" && resume.turnStartedAtMs > 0
       ? resume.turnStartedAtMs
@@ -945,6 +974,10 @@ export async function streamChatGeneration(input: {
       signal: input.signal,
       homerReasoningEffort: input.homerReasoningEffort,
       extendedThinking: input.extendedThinking,
+      researchPlanId: input.researchPlanId,
+      onProviderError: (message) => {
+        streamError = message;
+      },
       onPauseForUser: input.onPauseForUser,
       onModelTurn: (turn) => {
         modelTurns.push(turn);
@@ -1050,6 +1083,7 @@ export async function streamChatGeneration(input: {
           }
         }
 
+        contextReadyAtMs = Date.now();
         return {
           modelMessages: conversationForAgent,
           personalization,
@@ -1187,6 +1221,10 @@ export async function streamChatGeneration(input: {
       sourceStream,
       {
         onAnswerDelta: (delta) => {
+          if (delta) {
+            firstContentAtMs ??= Date.now();
+            firstAnswerAtMs ??= Date.now();
+          }
           answer += delta;
           maybeSavePartialTurn();
         },
@@ -1212,6 +1250,7 @@ export async function streamChatGeneration(input: {
           beginThinkingPhase();
         },
         onThinkingDelta: (delta, segmentId) => {
+          if (delta) firstContentAtMs ??= Date.now();
           beginThinkingPhase();
           thinking += delta;
           ensureThinkingSegment(segmentId).content += delta;
@@ -1240,6 +1279,10 @@ export async function streamChatGeneration(input: {
           segment.completedAtMs ??= Date.now();
         },
         onNarrationDelta: (delta, segmentId) => {
+          if (delta) {
+            firstContentAtMs ??= Date.now();
+            firstAnswerAtMs ??= Date.now();
+          }
           ensureNarrationSegment(segmentId).content += delta;
           maybeSavePartialTurn();
         },
@@ -1247,9 +1290,10 @@ export async function streamChatGeneration(input: {
           generatedTitle = normalizeInlineChatTitle(title, titleUserContent);
         },
         onError: (message) => {
-          streamError = toUserFacingChatError(
-            message.trim() || "The model could not complete this response.",
-          );
+          // Keep diagnostics in the private job/telemetry. UI mapping happens
+          // when publishing the answer, never before persisting the cause.
+          streamError ??=
+            message.trim() || "The model could not complete this response.";
         },
         onToolStart: (tool) => {
           // Tool work is not thinking time.
@@ -1541,6 +1585,27 @@ export async function streamChatGeneration(input: {
         responseCharacterCount: answer.length,
         latencyMs,
         requestId: input.requestId,
+        timings: {
+          admissionAndDispatchMs: started - turnStartedAtMs,
+          contextMs:
+            contextReadyAtMs === undefined
+              ? undefined
+              : contextReadyAtMs - started,
+          firstContentMs:
+            firstContentAtMs === undefined
+              ? undefined
+              : firstContentAtMs - turnStartedAtMs,
+          firstAnswerMs:
+            firstAnswerAtMs === undefined
+              ? undefined
+              : firstAnswerAtMs - turnStartedAtMs,
+          contextToFirstContentMs:
+            firstContentAtMs === undefined || contextReadyAtMs === undefined
+              ? undefined
+              : firstContentAtMs - contextReadyAtMs,
+          modelRounds: modelTurns.length,
+          resumedAtStep: input.slice?.resume?.step ?? 0,
+        },
         ...(wasCancelled
           ? { errorMessage: "Generation cancelled." }
           : streamError

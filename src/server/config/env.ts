@@ -1,3 +1,4 @@
+import { cloudflareContext } from "@/server/cloudflare/context";
 import {
   resolveDatabaseUrl,
   resolveSupabaseServiceRoleKey,
@@ -278,6 +279,7 @@ export const env = {
   /** When true (default on Vercel), object storage must use R2 — no local disk fallback. */
   storageRequireR2:
     optional("STORAGE_REQUIRE_R2", "") === "true" ||
+    optional("HOSTING_PLATFORM") === "cloudflare" ||
     optional("VERCEL", "") === "1",
 };
 
@@ -367,6 +369,7 @@ export function isDatabaseConfigured(): boolean {
 }
 
 export function isR2Configured(): boolean {
+  if (cloudflareContext()?.env.R2_DOCUMENTS) return true;
   return Boolean(
     env.r2AccessKeyId &&
     env.r2SecretAccessKey &&

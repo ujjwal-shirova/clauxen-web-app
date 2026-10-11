@@ -121,7 +121,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https: https://*.razorpay.com https://*.rzp.io",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss://streaming.assemblyai.com wss://streaming.us.assemblyai.com wss://streaming.eu.assemblyai.com https://api.razorpay.com https://*.razorpay.com https://checkout.razorpay.com https://*.r2.dev https://*.cloudflarestorage.com https://*.workers.dev https://challenges.cloudflare.com https://va.vercel-scripts.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss://streaming.assemblyai.com wss://streaming.us.assemblyai.com wss://streaming.eu.assemblyai.com https://api.razorpay.com https://*.razorpay.com https://checkout.razorpay.com https://*.r2.dev https://*.cloudflarestorage.com https://*.workers.dev https://challenges.cloudflare.com",
       "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://*.rzp.io https://challenges.cloudflare.com",
       "child-src 'self' https://checkout.razorpay.com https://*.razorpay.com https://*.rzp.io https://challenges.cloudflare.com",
       "object-src 'none'",
@@ -161,18 +161,7 @@ const nextConfig: NextConfig = {
         : false,
   },
   outputFileTracingIncludes: {
-    "/api/**/*": [
-      "./src/prompts/**/*",
-      "./src/server/email-verifier/disposable.txt",
-    ],
-    "/auth/**/*": [
-      "./src/prompts/**/*",
-      "./src/server/email-verifier/disposable.txt",
-    ],
-    "/*": [
-      "./src/prompts/**/*",
-      "./src/server/email-verifier/disposable.txt",
-    ],
+    "/*": ["./node_modules/pg-cloudflare/dist/**/*"],
   },
   // Keep heavy server-only libs out of the client graph / slim function traces.
   serverExternalPackages: [
@@ -180,9 +169,6 @@ const nextConfig: NextConfig = {
     "pg",
     "razorpay",
     "undici",
-    "@node-rs/argon2",
-    "bcrypt",
-    "pdf-parse",
     "mammoth",
     "openai",
     "ws",
@@ -191,7 +177,6 @@ const nextConfig: NextConfig = {
     "jsqr",
     "pngjs",
     "qrcode",
-    "sharp",
   ],
   turbopack: {
     root: projectRoot,

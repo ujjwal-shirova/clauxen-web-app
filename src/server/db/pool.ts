@@ -1,5 +1,11 @@
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
-import { attachDatabasePool } from "@vercel/functions";
+import { cloudflareContext } from "@/server/cloudflare/context";
+import {
+  withRequestResources,
+  requestResource,
+  ownsRequestResource,
+  forgetRequestResource,
+} from "@/server/cloudflare/request-resources";
 import "@/lib/vercel-env";
 import { env, requireDatabaseUrl } from "@/server/config/env";
 import { AppError, mapPgError } from "@/server/db/errors";
@@ -20,6 +26,7 @@ function isConnectionAcquisitionError(error: unknown): boolean {
 }
 
 function retirePool(failedPool: Pool): void {
+  forgetRequestResource("postgres", failedPool);
   if (pool === failedPool) pool = null;
   // Do not await a pool that is already failing to acquire a connection.
   void failedPool.end().catch(() => undefined);
@@ -80,6 +87,24 @@ function resolvePoolMax(): number {
 }
 
 export function getPool(): Pool {
+  const hyperdrive = cloudflareContext()?.env.HYPERDRIVE;
+  if (hyperdrive) {
+    // Hyperdrive owns the persistent origin pool. TCP sockets belong to this
+    // request only: a Worker cannot reuse another request's pg connection.
+    const create = () =>
+      new Pool({
+        connectionString: hyperdrive.connectionString,
+        max: 2,
+        connectionTimeoutMillis: 5_000,
+        query_timeout: 30_000,
+        ssl: false,
+      });
+    return (
+      requestResource("postgres", create, async (resource) => {
+        if (!resource.ended) await resource.end();
+      }) ?? create()
+    );
+  }
   if (!env.databaseUrl) {
     throw new AppError(
       "Database URL is not configured. Set POSTGRES_URL_NON_POOLING or DATABASE_URL.",
@@ -109,10 +134,23 @@ export function getPool(): Pool {
       // it is visible instead of crashing the isolate.
       console.error("[db] idle client error:", error.message);
     });
-    if (env.isVercel) attachDatabasePool(pool);
   }
 
   return pool;
+}
+
+/** Reuse a small Hyperdrive pool across one API/queue invocation. */
+export function withDatabaseRequest<T>(
+  run: () => Promise<T>,
+  isolated = false,
+): Promise<T> {
+  const context = cloudflareContext();
+  if (!context?.env.HYPERDRIVE) return run();
+  return withRequestResources(
+    run,
+    (cleanup) => context.ctx.waitUntil(cleanup),
+    isolated,
+  );
 }
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
@@ -131,6 +169,13 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
       }
       retirePool(activePool);
       await wait(delay);
+    } finally {
+      if (
+        cloudflareContext()?.env.HYPERDRIVE &&
+        !ownsRequestResource("postgres", activePool) &&
+        !activePool.ended
+      )
+        await activePool.end();
     }
   }
 }
@@ -147,9 +192,11 @@ export async function withTransaction<T>(
   fn: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
   let client: PoolClient | null = null;
+  let transactionPool: Pool | null = null;
   try {
     for (let attempt = 0; ; attempt += 1) {
       const activePool = getPool();
+      transactionPool = activePool;
       try {
         client = await activePool.connect();
         break;
@@ -181,5 +228,12 @@ export async function withTransaction<T>(
     throw error instanceof AppError ? error : mapPgError(error, "pool.tx");
   } finally {
     client?.release();
+    if (
+      cloudflareContext()?.env.HYPERDRIVE &&
+      transactionPool &&
+      !ownsRequestResource("postgres", transactionPool) &&
+      !transactionPool.ended
+    )
+      await transactionPool.end();
   }
 }

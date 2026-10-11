@@ -1,4 +1,4 @@
-import { get } from "@vercel/edge-config";
+import { cloudflareContext } from "@/server/cloudflare/context";
 
 export type ClauxenEdgeFlags = {
   /** Kill switch for all chat generation. */
@@ -17,25 +17,18 @@ const DEFAULT_FLAGS: ClauxenEdgeFlags = {
 };
 
 /**
- * Sub-15ms feature flags / model kill-switch from Vercel Edge Config.
- * Returns defaults when EDGE_CONFIG is unset (local/dev).
+ * Feature flags from the Cloudflare application configuration namespace.
+ * Returns defaults when bindings are absent (local Next development).
  */
 export async function readEdgeFlags(): Promise<ClauxenEdgeFlags> {
-  if (!process.env.EDGE_CONFIG?.trim()) {
-    return { ...DEFAULT_FLAGS };
-  }
   try {
-    const [
-      maintenanceMode,
-      modelOverride,
-      disableTools,
-      providerFailover,
-    ] = await Promise.all([
-      get<boolean>("maintenanceMode"),
-      get<string>("modelOverride"),
-      get<boolean>("disableTools"),
-      get<string>("providerFailover"),
-    ]);
+    const flags =
+      await cloudflareContext()?.env.APP_CONFIG_KV.get<ClauxenEdgeFlags>(
+        "feature-flags",
+        "json",
+      );
+    const { maintenanceMode, modelOverride, disableTools, providerFailover } =
+      flags ?? DEFAULT_FLAGS;
     return {
       maintenanceMode: Boolean(maintenanceMode),
       modelOverride:

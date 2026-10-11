@@ -2,12 +2,6 @@ name: Deploy Cloudflare Workers
 
 on:
   workflow_dispatch:
-  push:
-    branches: [master]
-    paths:
-      - "workers/**"
-      - "scripts/deploy-cloudflare-workers.sh"
-      - ".github/workflows/deploy-cloudflare-workers.yml"
 
 jobs:
   deploy:

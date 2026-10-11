@@ -1,7 +1,6 @@
-import { existsSync } from "node:fs";
+import bundledText from "@/server/generated/text-assets.json";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 export type SkillRecord = {
   id: string;
@@ -16,39 +15,23 @@ export type SkillRecord = {
  * be layered in via CLAUXEN_SKILLS_DIRS (colon-separated absolute paths).
  */
 
-function bundledSkillsDir(): string {
-  const fromModule = path.join(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "skills-pack",
-  );
-  const fromCwd = path.join(
-    process.cwd(),
-    "src",
-    "server",
-    "inference",
-    "autonomous-tools",
-    "skills-pack",
-  );
-  for (const candidate of [fromModule, fromCwd]) {
-    if (existsSync(candidate)) return candidate;
-  }
-  return fromCwd;
-}
-
 function skillRoots(): string[] {
-  const roots = [bundledSkillsDir()];
-  const extra = process.env.CLAUXEN_SKILLS_DIRS?.trim();
-  if (extra) {
-    roots.push(...extra.split(":").map((p) => p.trim()).filter(Boolean));
-  }
-  return roots;
+  // Built-in packs come from the generated bundle. Extra filesystem packs
+  // are an operator-controlled local Node development option.
+  return (process.env.CLAUXEN_SKILLS_DIRS ?? "")
+    .split(":")
+    .map((root) => root.trim())
+    .filter(Boolean);
 }
 
 async function collectSkillFiles(dir: string): Promise<string[]> {
   const found: string[] = [];
   let entries;
   try {
-    entries = await readdir(dir, { withFileTypes: true });
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- operator-configured skill root
+    entries = await readdir(/* turbopackIgnore: true */ dir, {
+      withFileTypes: true,
+    });
   } catch {
     return found;
   }
@@ -77,11 +60,27 @@ function skillIdFromPath(filePath: string): string {
 function parseSkillDescription(content: string): string {
   const match = content.match(/^#\s+(.+)$/m);
   if (match?.[1]) return match[1].trim();
-  return content.split("\n").find((l) => l.trim())?.trim() ?? "Skill";
+  return (
+    content
+      .split("\n")
+      .find((l) => l.trim())
+      ?.trim() ?? "Skill"
+  );
 }
 
 export async function listAvailableSkills(): Promise<SkillRecord[]> {
   const byId = new Map<string, SkillRecord>();
+  for (const [filePath, content] of Object.entries(bundledText)) {
+    if (!filePath.includes("/skills-pack/") || !filePath.endsWith("SKILL.md"))
+      continue;
+    const id = skillIdFromPath(filePath);
+    byId.set(id, {
+      id,
+      name: id,
+      path: filePath,
+      description: parseSkillDescription(content),
+    });
+  }
 
   for (const root of skillRoots()) {
     const files = await collectSkillFiles(root);
@@ -90,7 +89,8 @@ export async function listAvailableSkills(): Promise<SkillRecord[]> {
       if (byId.has(id)) continue;
       let content = "";
       try {
-        content = await readFile(filePath, "utf8");
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- collected from the configured root
+        content = await readFile(/* turbopackIgnore: true */ filePath, "utf8");
       } catch {
         continue;
       }
@@ -117,6 +117,9 @@ export async function readSkill(
 
   if (!match) return null;
 
-  const content = await readFile(match.path, "utf8");
+  const content =
+    (bundledText as Record<string, string>)[match.path] ??
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- matched against the server-side catalog
+    (await readFile(/* turbopackIgnore: true */ match.path, "utf8"));
   return { id: match.id, content, path: match.path };
 }

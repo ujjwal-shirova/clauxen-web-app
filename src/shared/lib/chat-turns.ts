@@ -19,7 +19,30 @@ export function groupMessagesIntoTurns(
 ): ConversationTurnGroup[] {
   const groups: ConversationTurnGroup[] = [];
 
+  const researchTurnIds = new Set(
+    messages
+      .filter(
+        (message) =>
+          message.role === "user" &&
+          /^\[Deep research (?:start|cancel): [^\]\n]+\]\n/.test(
+            message.content,
+          ),
+      )
+      .flatMap((message) => (message.turnId ? [message.turnId] : [])),
+  );
+  let legacyResearchTurn = false;
   for (const message of messages) {
+    if (message.role === "user")
+      legacyResearchTurn =
+        /^\[Deep research (?:start|cancel): [^\]\n]+\]\n/.test(message.content);
+    if (
+      legacyResearchTurn ||
+      message.researchPlanId ||
+      message.clientId?.startsWith("research-assistant-") ||
+      message.clientId?.startsWith("research-user-") ||
+      (message.turnId && researchTurnIds.has(message.turnId))
+    )
+      continue;
     if (message.role === "user") {
       groups.push({ userMessage: message, assistantMessages: [] });
       continue;

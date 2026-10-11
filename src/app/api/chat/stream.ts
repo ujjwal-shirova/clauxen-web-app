@@ -46,6 +46,7 @@ export type ResolvedChatStreamContext = {
 };
 
 export type ChatStreamOptions = {
+  researchPlanId?: string;
   chatModel?: string;
   userId?: string;
   conversationId?: string;
@@ -61,6 +62,7 @@ export type ChatStreamOptions = {
   signal?: AbortSignal;
   onPauseForUser?: () => void | Promise<void>;
   onModelTurn?: AgentStreamOptions["onModelTurn"];
+  onProviderError?: AgentStreamOptions["onProviderError"];
   /** Structured replay history, including prior signed thinking/tool rounds. */
   modelMessages?: AgentStreamOptions["messages"];
   /**
@@ -259,8 +261,9 @@ export async function createChatStream(
         append: append || undefined,
       });
 
-      const thinkingEnabled =
-        options.extendedThinking ?? personalization.extendedThinkingDefault;
+      const thinkingEnabled = options.researchPlanId
+        ? true
+        : (options.extendedThinking ?? personalization.extendedThinkingDefault);
 
       const agentOptions: AgentStreamOptions = {
         messages: resolved.modelMessages,
@@ -270,6 +273,7 @@ export async function createChatStream(
           options.homerReasoningEffort,
         ),
         thinkingEnabled,
+        researchPlanId: options.researchPlanId,
         userId: options.userId,
         conversationId: options.conversationId,
         userCountryCode: options.userCountryCode,
@@ -279,6 +283,7 @@ export async function createChatStream(
         maxTokens: 8192,
         onPauseForUser: options.onPauseForUser,
         onModelTurn: options.onModelTurn,
+        onProviderError: options.onProviderError,
         skipWriteStart: true,
         initialConversation: options.initialConversation,
         startStep: options.startStep,

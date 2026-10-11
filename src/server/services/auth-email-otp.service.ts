@@ -1,3 +1,4 @@
+import { serviceFetch } from "@/server/cloudflare/service-fetch";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { env } from "@/server/config/env";
 import { AppError } from "@/server/db/errors";
@@ -52,7 +53,7 @@ async function callAuthEmailWorker<T>(
     );
   }
 
-  const res = await fetch(`${base}${path}`, {
+  const res = await serviceFetch("AUTH_EMAIL", `${base}${path}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -74,7 +75,11 @@ async function callAuthEmailWorker<T>(
         : typeof payload.error === "string"
           ? payload.error
           : "Verification request failed.";
-    throw new AppError(message, res.status, String(payload.error ?? "otp_error"));
+    throw new AppError(
+      message,
+      res.status,
+      String(payload.error ?? "otp_error"),
+    );
   }
 
   return payload as T;
@@ -85,14 +90,8 @@ const localOtpStore = new Map<
   string,
   { hash: string; salt: string; expiresAt: number; attempts: number }
 >();
-const localTickets = new Map<
-  string,
-  { email: string; expiresAt: number }
->();
-const localMagicLinks = new Map<
-  string,
-  { email: string; expiresAt: number }
->();
+const localTickets = new Map<string, { email: string; expiresAt: number }>();
+const localMagicLinks = new Map<string, { email: string; expiresAt: number }>();
 
 function hashLocal(code: string, salt: string) {
   return createHash("sha256").update(`${salt}:${code}`).digest("hex");
@@ -172,7 +171,9 @@ export async function verifySignupOtp(input: {
 }): Promise<{ signupTicket: string; email: string }> {
   const normalized = normalizeEmail(input.email);
   assertEmailShape(normalized);
-  const code = String(input.code ?? "").replace(/\D/g, "").slice(0, 6);
+  const code = String(input.code ?? "")
+    .replace(/\D/g, "")
+    .slice(0, 6);
   if (code.length !== 6) {
     throw new AppError("Enter the 6-digit code.", 400, "invalid_code");
   }
@@ -244,7 +245,11 @@ async function consumeSignupTicket(email: string, ticket: string) {
 
   const record = localTickets.get(ticket);
   if (!record || record.email !== normalized || record.expiresAt < Date.now()) {
-    throw new AppError("Verification expired. Start again.", 400, "invalid_ticket");
+    throw new AppError(
+      "Verification expired. Start again.",
+      400,
+      "invalid_ticket",
+    );
   }
   localTickets.delete(ticket);
 }
@@ -296,7 +301,7 @@ export async function createAccountAfterOtp(input: {
     email: normalized,
   });
 
-  return { email: normalized, userId: data.user.id   };
+  return { email: normalized, userId: data.user.id };
 }
 
 /** Request a magic signup link (new users only for now). */
@@ -318,7 +323,10 @@ export async function requestMagicSignupLink(email: string): Promise<{
     );
   }
 
-  const appOrigin = (env.appUrl || "https://www.clauxen.com").replace(/\/$/, "");
+  const appOrigin = (env.appUrl || "https://www.clauxen.com").replace(
+    /\/$/,
+    "",
+  );
 
   if (env.authEmailWorkerUrl && env.authEmailInternalToken) {
     const result = await callAuthEmailWorker<{

@@ -5,28 +5,14 @@
  * buildModelSystemPrompt(). Keep the static content first for prompt caching.
  */
 
-import fs from "fs";
+import bundledText from "@/server/generated/text-assets.json";
 import path from "path";
-import { fileURLToPath } from "node:url";
+
 import type { ConfiguredModelId } from "@/lib/model-config";
 
 // ─── Paths ───────────────────────────────────────────────────────────────────
 
-function resolveModelPromptsDir(): string {
-  const fromModule = path.join(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "..",
-    "..",
-    "prompts",
-  );
-  const fromCwd = path.join(process.cwd(), "src", "prompts");
-  for (const candidate of [fromModule, fromCwd]) {
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  return fromCwd;
-}
-
-export const MODEL_SYSTEM_PROMPTS_DIR = resolveModelPromptsDir();
+export const MODEL_SYSTEM_PROMPTS_DIR = "src/prompts";
 
 const AGENT_PROMPT_FILENAME = "clauxen.md";
 
@@ -62,13 +48,8 @@ export function getModelSystemPrompt(
 ): string {
   if (cachedAgentPrompt) return cachedAgentPrompt;
   const fullPath = path.join(MODEL_SYSTEM_PROMPTS_DIR, AGENT_PROMPT_FILENAME);
-  const raw = fs.readFileSync(fullPath, "utf8");
-  // The directory is resolved internally; the filename is a fixed application prompt.
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const scheduling = fs.readFileSync(
-    path.join(MODEL_SYSTEM_PROMPTS_DIR, "scheduled-tasks.md"),
-    "utf8",
-  );
+  const raw = (bundledText as Record<string, string>)[fullPath];
+  const scheduling = bundledText["src/prompts/scheduled-tasks.md"];
   cachedAgentPrompt = [stripSystemPrefix(raw), scheduling.trim()].join("\n\n");
   return cachedAgentPrompt;
 }

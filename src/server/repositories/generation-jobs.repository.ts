@@ -48,6 +48,7 @@ export type GenerationJobRow = {
 
 /** Everything a fresh slice needs to resume a turn without the HTTP request. */
 export type GenerationJobInput = {
+  researchPlanId?: string;
   /** Trusted server-derived origin: preview jobs recover on their own deployment. */
   executionOrigin?: string;
   messages: Array<{ role: string; content: string }>;
@@ -194,7 +195,7 @@ export async function createGenerationJob(input: {
    * durably queued before any execution starts or response is acknowledged.
    */
   lockedBy?: string;
-  messageIds?: { userMessageId: string; assistantMessageId: string };
+  messageIds?: { userMessageId: string | null; assistantMessageId: string };
   client?: PoolClient;
 }): Promise<GenerationJobRow> {
   try {
@@ -525,11 +526,11 @@ export async function deleteTerminalJobsOlderThan(
 ): Promise<number> {
   const rows = await query<{ id: string }>(
     `delete from public.chat_generation_jobs
-     where status in ('complete', 'failed', 'cancelled', 'paused_for_user')
+     where status in ('complete', 'failed', 'cancelled')
        and completed_at < now() - $1::interval
        and id in (
          select id from public.chat_generation_jobs
-         where status in ('complete', 'failed', 'cancelled', 'paused_for_user')
+         where status in ('complete', 'failed', 'cancelled')
            and completed_at < now() - $1::interval
          order by completed_at asc
          limit $2

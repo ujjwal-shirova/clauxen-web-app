@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-ujjwal-8fc}"
+SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-shirova}"
 COORD_URL="${CHAT_COORD_WORKER_URL:-https://clauxen-chat-coord.${SUBDOMAIN}.workers.dev}"
 
 if [[ -z "${VERCEL_TOKEN:-}" ]]; then

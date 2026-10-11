@@ -1,4 +1,8 @@
 import {
+  requestBucket,
+  signedObjectUrl,
+} from "@/server/cloudflare/storage-access";
+import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
@@ -49,7 +53,7 @@ let r2Client: S3Client | null | undefined;
 
 function getR2Client(): S3Client | null {
   if (r2Client !== undefined) return r2Client;
-  if (!isR2Configured()) {
+  if (!env.r2AccessKeyId || !env.r2SecretAccessKey) {
     r2Client = null;
     return null;
   }
@@ -86,6 +90,14 @@ export async function putObject(input: {
       : Buffer.from(input.body);
   const contentHash = hashBuffer(body);
 
+  const native = requestBucket(bucket);
+  if (native) {
+    await native.put(input.key, body, {
+      httpMetadata: { contentType: input.contentType },
+      customMetadata: input.metadata,
+    });
+    return { purpose: input.purpose, bucket, key: input.key, contentHash };
+  }
   if (!client) {
     const { writeLocalObject } =
       await import("@/server/storage/local-fallback");
@@ -122,6 +134,12 @@ export async function getObject(
   bucketOverride?: string,
 ): Promise<Buffer> {
   const bucket = bucketOverride ?? bucketForPurpose(purpose);
+  const native = requestBucket(bucket);
+  if (native) {
+    const object = await native.get(key);
+    if (!object) throw new Error("Object not found");
+    return Buffer.from(await object.arrayBuffer());
+  }
   const client = getR2Client();
   if (!client) {
     const { readLocalObject } = await import("@/server/storage/local-fallback");
@@ -140,8 +158,23 @@ export async function headObject(
   purpose: StoragePurpose,
   key: string,
   bucketOverride?: string,
-): Promise<{ contentLength?: number; contentType?: string; etag?: string } | null> {
+): Promise<{
+  contentLength?: number;
+  contentType?: string;
+  etag?: string;
+} | null> {
   const bucket = bucketOverride ?? bucketForPurpose(purpose);
+  const native = requestBucket(bucket);
+  if (native) {
+    const object = await native.head(key);
+    return object
+      ? {
+          contentLength: object.size,
+          contentType: object.httpMetadata?.contentType,
+          etag: object.etag,
+        }
+      : null;
+  }
   const client = getR2Client();
   if (!client) {
     return null;
@@ -156,8 +189,14 @@ export async function headObject(
       etag: response.ETag,
     };
   } catch (error: unknown) {
-    const candidate = error as { name?: string; $metadata?: { httpStatusCode?: number } };
-    if (candidate?.name === "NotFound" || candidate?.$metadata?.httpStatusCode === 404) {
+    const candidate = error as {
+      name?: string;
+      $metadata?: { httpStatusCode?: number };
+    };
+    if (
+      candidate?.name === "NotFound" ||
+      candidate?.$metadata?.httpStatusCode === 404
+    ) {
       return null;
     }
     throw error;
@@ -170,6 +209,11 @@ export async function deleteObject(
   bucketOverride?: string,
 ) {
   const bucket = bucketOverride ?? bucketForPurpose(purpose);
+  const native = requestBucket(bucket);
+  if (native) {
+    await native.delete(key);
+    return;
+  }
   const client = getR2Client();
   if (!client) {
     const { deleteLocalObject } =
@@ -188,6 +232,20 @@ export async function moveObject(input: {
   contentType?: string | null;
 }) {
   const bucket = input.bucketOverride ?? bucketForPurpose(input.purpose);
+  const native = requestBucket(bucket);
+  if (native) {
+    const object = await native.get(input.sourceKey);
+    if (!object) throw new Error("Object not found");
+    await native.put(input.destinationKey, object.body, {
+      httpMetadata: {
+        ...object.httpMetadata,
+        contentType: input.contentType ?? object.httpMetadata?.contentType,
+      },
+      customMetadata: object.customMetadata,
+    });
+    await native.delete(input.sourceKey);
+    return;
+  }
   const client = getR2Client();
   if (!client) {
     const body = await getObject(input.purpose, input.sourceKey, bucket);
@@ -300,6 +358,23 @@ export async function createPresignedPutUrl(input: {
   key: string;
   expiresAt: string;
 } | null> {
+  const nativeBucket = input.bucketOverride ?? bucketForPurpose(input.purpose);
+  if (requestBucket(nativeBucket)) {
+    const expiresIn = input.expiresInSeconds ?? 900;
+    const uploadUrl = await signedObjectUrl({
+      bucket: nativeBucket,
+      key: input.key,
+      method: "PUT",
+      contentType: input.contentType,
+      expiresIn,
+    });
+    return {
+      uploadUrl,
+      bucket: nativeBucket,
+      key: input.key,
+      expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+    };
+  }
   const client = getR2Client();
   if (!client) return null;
   const bucket = input.bucketOverride ?? bucketForPurpose(input.purpose);
@@ -328,6 +403,20 @@ export async function createPresignedGetUrl(input: {
   expiresInSeconds?: number;
   bucketOverride?: string;
 }): Promise<{ downloadUrl: string; expiresAt: string } | null> {
+  const nativeBucket = input.bucketOverride ?? bucketForPurpose(input.purpose);
+  if (requestBucket(nativeBucket)) {
+    const expiresIn = input.expiresInSeconds ?? 900;
+    const downloadUrl = await signedObjectUrl({
+      bucket: nativeBucket,
+      key: input.key,
+      method: "GET",
+      expiresIn,
+    });
+    return {
+      downloadUrl,
+      expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+    };
+  }
   const client = getR2Client();
   if (!client) return null;
   const bucket = input.bucketOverride ?? bucketForPurpose(input.purpose);

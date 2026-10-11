@@ -1,0 +1,23 @@
+{
+  "zone_id": "34254e54423cf2fa131806c367d9c6a7",
+  "records": [
+    {
+      "name": "clauxen.com",
+      "id": "a0e7c65a4316a88ee2ef2f4a666bd7cd",
+      "type": "CNAME",
+      "content": "3efb6d460a550ae9.vercel-dns-017.com",
+      "proxied": true,
+      "ttl": 1,
+      "comment": "Vercel Clauxen Web App Project Domain Link"
+    },
+    {
+      "name": "www.clauxen.com",
+      "id": "e0e337009fe12a30328593bb752c9677",
+      "type": "CNAME",
+      "content": "3efb6d460a550ae9.vercel-dns-017.com",
+      "proxied": true,
+      "ttl": 1,
+      "comment": "Vercel Clauxen Web App Project Domain Link"
+    }
+  ]
+}

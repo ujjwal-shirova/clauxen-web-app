@@ -1,4 +1,4 @@
-import { PDFParse } from "pdf-parse";
+import { extractText, getDocumentProxy } from "unpdf";
 import mammoth from "mammoth";
 import Papa from "papaparse";
 
@@ -15,10 +15,13 @@ export async function extractTextFromBuffer(
 
   switch (ext) {
     case "pdf": {
-      const parser = new PDFParse({ data: buffer });
-      const result = await parser.getText();
-      await parser.destroy();
-      return result.text ?? "";
+      const pdf = await getDocumentProxy(new Uint8Array(buffer));
+      try {
+        const result = await extractText(pdf, { mergePages: true });
+        return result.text;
+      } finally {
+        await pdf.cleanup();
+      }
     }
     case "docx": {
       const result = await mammoth.extractRawText({ buffer });

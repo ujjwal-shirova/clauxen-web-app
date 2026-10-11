@@ -43,10 +43,7 @@ import { MessageQueuePanel } from "./message-queue-panel";
 import { DEFAULT_CHAT_MODEL_ID, type ChatModelId } from "@/lib/chat-models";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
 import { PromptModelSelector } from "./prompt-model-selector";
-import {
-  useActiveChatId,
-  type QueuedChatMessage,
-} from "@/stores/chat-store";
+import { useActiveChatId, type QueuedChatMessage } from "@/stores/chat-store";
 import {
   COMPOSER_FILE_ACCEPT,
   classifyComposerFile,
@@ -265,19 +262,22 @@ export function PromptInput({
       end: textarea.selectionEnd ?? textarea.value.length,
     };
   }, []);
-  const applyDictationDraft = useCallback((value: string, caret: CaretRange) => {
-    applyingDictationRef.current = true;
-    syncDraftImmediateRef.current(value);
-    const textarea = textareaRef.current;
-    if (textarea) {
-      const start = Math.max(0, Math.min(caret.start, textarea.value.length));
-      const end = Math.max(start, Math.min(caret.end, textarea.value.length));
-      textarea.setSelectionRange(start, end);
-    }
-    queueMicrotask(() => {
-      applyingDictationRef.current = false;
-    });
-  }, []);
+  const applyDictationDraft = useCallback(
+    (value: string, caret: CaretRange) => {
+      applyingDictationRef.current = true;
+      syncDraftImmediateRef.current(value);
+      const textarea = textareaRef.current;
+      if (textarea) {
+        const start = Math.max(0, Math.min(caret.start, textarea.value.length));
+        const end = Math.max(start, Math.min(caret.end, textarea.value.length));
+        textarea.setSelectionRange(start, end);
+      }
+      queueMicrotask(() => {
+        applyingDictationRef.current = false;
+      });
+    },
+    [],
+  );
   const dictation = useStreamingDictation({
     readDraft: readDraftForDictation,
     readCaret: readCaretForDictation,
@@ -683,7 +683,9 @@ export function PromptInput({
     if (value || attachments.length > 0) {
       const payload = attachments.map((item) => ({ ...item }));
       onSendMessage(
-        activeInlineMode === "deep-research" ? `[Deep research]\n${value}` : value,
+        activeInlineMode === "deep-research"
+          ? `[Deep research]\n${value}`
+          : value,
         { attachments: payload },
       );
       syncDraftImmediate("");
@@ -715,12 +717,11 @@ export function PromptInput({
 
   const armComposerAttachment = useCallback(
     (attachment: ComposerAttachment) => {
-      const skipUpload =
-        !allowAttachments || composerVariant === "incognito";
+      const skipUpload = !allowAttachments || composerVariant === "incognito";
       addAttachment({
         ...attachment,
         uploadStatus: skipUpload
-          ? attachment.uploadStatus ?? "local"
+          ? (attachment.uploadStatus ?? "local")
           : "uploading",
       });
       beginComposerAttachmentWork(attachment, {
@@ -1221,37 +1222,43 @@ export function PromptInput({
   }, [hasDraft, isConversationStarted]);
 
   const renderAddMenuButton = () => (
-    <div className="relative flex shrink-0 items-center gap-1" data-prompt-add-anchor>
+    <div
+      className="relative flex shrink-0 items-center gap-1"
+      data-prompt-add-anchor
+    >
       <ShortcutHint
         label="Attach files"
         keys={["meta", "U"]}
         side="top"
         align="start"
       >
-      <button
-        ref={addMenuTriggerRef}
-        type="button"
-        aria-label="Add content"
-        aria-expanded={isAddMenuOpen}
-        disabled={isCapturingScreenshot}
-        onMouseDown={(event) => {
-          event.preventDefault();
-        }}
-        onClick={() => {
-          if (!requireAuthGate()) return;
-          setAddMenuOpen(!isAddMenuOpen);
-        }}
-        className={cn(
-          addMenuTriggerClass,
-          !isConversationStarted && "prompt-add-nav-match",
-          isCapturingScreenshot && "opacity-50",
-        )}
-      >
-        <Plus
-          className={cn("shrink-0", isConversationStarted ? "icon-md" : "icon-xl")}
-          strokeWidth={1.75}
-        />
-      </button>
+        <button
+          ref={addMenuTriggerRef}
+          type="button"
+          aria-label="Add content"
+          aria-expanded={isAddMenuOpen}
+          disabled={isCapturingScreenshot}
+          onMouseDown={(event) => {
+            event.preventDefault();
+          }}
+          onClick={() => {
+            if (!requireAuthGate()) return;
+            setAddMenuOpen(!isAddMenuOpen);
+          }}
+          className={cn(
+            addMenuTriggerClass,
+            !isConversationStarted && "prompt-add-nav-match",
+            isCapturingScreenshot && "opacity-50",
+          )}
+        >
+          <Plus
+            className={cn(
+              "shrink-0",
+              isConversationStarted ? "icon-md" : "icon-xl",
+            )}
+            strokeWidth={1.75}
+          />
+        </button>
       </ShortcutHint>
       {!isConversationStarted ? (
         <div
@@ -1361,14 +1368,19 @@ export function PromptInput({
   const renderTextareaField = (placeholder: string, className?: string) => {
     const listeningEmpty =
       dictation.status === "listening" && !hasDraft && !readDraft().trim();
-    const editorPlaceholder = listeningEmpty
-      ? "Listening…"
-      : !isConversationStarted && !hasDraft && !activeInlineMode
-        ? ""
-        : placeholder;
+    const editorPlaceholder = activeInlineMode
+      ? ""
+      : listeningEmpty
+        ? "Listening…"
+        : !isConversationStarted && !hasDraft && !activeInlineMode
+          ? ""
+          : placeholder;
     return (
       <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-0">
-        {!isConversationStarted && !hasDraft && !listeningEmpty && !activeInlineMode ? (
+        {!isConversationStarted &&
+        !hasDraft &&
+        !listeningEmpty &&
+        !activeInlineMode ? (
           <span
             aria-hidden
             className={cn(
@@ -1415,7 +1427,9 @@ export function PromptInput({
             className,
           )}
           data-prompt-multiline={isMultiline || undefined}
-          data-dictation={dictation.status !== "idle" ? dictation.status : undefined}
+          data-dictation={
+            dictation.status !== "idle" ? dictation.status : undefined
+          }
           rows={1}
         />
         <span className="sr-only" aria-live="polite">
@@ -1475,7 +1489,7 @@ export function PromptInput({
           ) : null}
 
           <div
-            className="composer-stack w-full"
+            className="composer-stack relative w-full"
             data-composer-stack="solo"
             data-prompt-expanded={promptIsExpanded || undefined}
             data-add-menu-open={isAddMenuOpen || undefined}
@@ -1600,6 +1614,7 @@ export function PromptInput({
               {isAddMenuOpen ? (
                 <PromptAddMenuPanel
                   panelRef={addMenuPanelRef}
+                  placement={isConversationStarted ? "above" : "below"}
                   onClose={() => {
                     setAddMenuOpen(false);
                     textareaRef.current?.focus({ preventScroll: true });

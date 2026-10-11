@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { parseDeepResearchPlan } from "@/lib/deep-research";
-import { DeepResearchPlanCard } from "./deep-research-plan-card";
+import { researchPlanPresentation } from "@/lib/deep-research";
+import { DeepResearchPlanCard, ResearchPlanLoading } from "./deep-research-plan-card";
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
 import type { ChatSource } from "@/lib/chat-sources";
 import type { ChatArtifact } from "@/lib/chat-artifacts";
@@ -154,22 +154,39 @@ export function AssistantContentRenderer({
     (segment) => segment.type === "create_file",
   );
 
-  const researchPlan = parseDeepResearchPlan(content);
+  const researchPresentation = researchPlanPresentation(content);
+  const researchPlan = researchPresentation?.plan;
   if (researchPlan && messageId) {
     return (
-      <DeepResearchPlanCard
-        plan={researchPlan}
-        planId={messageId}
-        isStreaming={isStreaming}
-      />
+      <div className="min-w-0 w-full">
+        {researchPresentation?.before ? (
+          <MarkdownWithTitledTables
+            content={researchPresentation.before}
+            isStreaming={false}
+            streamKey={`${resolvedKey}-before-plan`}
+            detailLevel={detailLevel}
+            sources={sources}
+          />
+        ) : null}
+        <DeepResearchPlanCard
+          plan={researchPlan}
+          planId={messageId}
+          isStreaming={isStreaming}
+        />
+        {researchPresentation?.after ? (
+          <MarkdownWithTitledTables
+            content={researchPresentation.after}
+            isStreaming={isStreaming}
+            streamKey={`${resolvedKey}-after-plan`}
+            detailLevel={detailLevel}
+            sources={sources}
+          />
+        ) : null}
+      </div>
     );
   }
-  if (content.includes("```research-plan") && isStreaming && !researchPlan) {
-    return (
-      <p className="py-3 text-sm text-[var(--ui-fg-muted)]" role="status">
-        Preparing your research plan…
-      </p>
-    );
+  if (isStreaming && /```(?:research-plan|json)\s*\n/.test(content) && !researchPlan) {
+    return <ResearchPlanLoading />;
   }
 
   if (!hasCreateFileTags) {

@@ -60,7 +60,7 @@ else
 fi
 
 echo "==> Done. Verify:"
-echo "  curl -sS https://clauxen-chat-history.ujjwal-8fc.workers.dev/health"
+echo "  curl -sS https://clauxen-chat-history.shirova.workers.dev/health"
 echo "  Ensure Vercel has NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL + CHAT_HISTORY_INTERNAL_TOKEN + WORKER_URL"
 echo "  Ensure Vercel has CHAT_COORD_WORKER_URL + CHAT_COORD_INTERNAL_TOKEN"
 echo "  Cloudflare zone (if proxied): HTTP/3, Early Hints, Tiered Cache Smart ON (Argo optional/skipped);"

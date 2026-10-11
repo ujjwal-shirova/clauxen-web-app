@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Archive,
   Bell,
   Blocks,
   ChartColumn,
@@ -8,7 +9,9 @@ import {
   CreditCard,
   Database,
   HardDrive,
+  Keyboard,
   LockKeyhole,
+  Palette,
   ScrollText,
   Settings2,
   Shield,
@@ -17,19 +20,12 @@ import {
   Gauge,
 } from "lucide-react";
 
-/**
- * Settings IA — 10 sections in 3 groups.
- *
- * - General absorbs Keyboard shortcuts.
- * - Personalization absorbs Reflect activity range.
- * - Notifications absorbs Time and focus (breaks + quiet hours).
- * - Account owns profile, organization, linked accounts, and deletion.
- * - Security & login owns sign-in methods, 2-step, passkeys, sessions.
- * - Data controls owns model training, history, export, storage, safety.
- * - Billing absorbs Storage quota.
- */
+/** Settings navigation. Older sections remain accepted for existing deep links. */
 export const settingsNav = [
   { name: "General", icon: Settings2 },
+  { name: "Appearance", icon: Palette },
+  { name: "Keyboard", icon: Keyboard },
+  { name: "Archived chats", icon: Archive },
   { name: "Storage", icon: HardDrive },
   { name: "Personalization", icon: Sparkles },
   { name: "Usage", icon: Gauge },
@@ -56,7 +52,6 @@ export type LegacySettingsTab =
   | "Reflect"
   | "Time and focus"
   | "Safety"
-  | "Keyboard"
   | "Enterprise"
   | "Voice";
 
@@ -65,6 +60,9 @@ export type SettingsTab = VisibleSettingsTab | LegacySettingsTab;
 /** Map any accepted tab (visible or legacy) to the visible section. */
 export function resolveVisibleTab(tab: string): VisibleSettingsTab {
   switch (tab) {
+    case "Appearance":
+    case "Keyboard":
+    case "Archived chats":
     case "General":
     case "Personalization":
     case "Notifications":
@@ -82,7 +80,7 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
     case "Clauxen Code":
       return tab;
     case "Security":
-      return "Account";
+      return "Security & login";
     case "Privacy & safety":
     case "Privacy":
     case "Safety":
@@ -91,7 +89,6 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
       return "Personalization";
     case "Time and focus":
       return "Notifications";
-    case "Keyboard":
     case "Enterprise":
     case "Voice":
       return "General";
@@ -101,14 +98,19 @@ export function resolveVisibleTab(tab: string): VisibleSettingsTab {
 }
 
 const visibleDescriptions: Record<VisibleSettingsTab, string> = {
-  General: "Appearance, reading, and keyboard shortcuts.",
+  General: "Preferences for your conversations.",
+  Appearance: "Theme, fonts, accent color, contrast, and motion.",
+  Keyboard: "Customize keyboard shortcuts and restore defaults.",
+  "Archived chats": "Chats you have moved out of the sidebar.",
   Storage: "Plan allowance, add-on space, and files kept with your account.",
   Personalization: "How Clauxen responds and what it remembers.",
-  Usage: "Plan, storage, invoices, and payment methods.",
+  Usage: "An overview of your account usage.",
   Analytics: "How this account is using Clauxen.",
   Notifications: "What you hear about, and when to stay quiet.",
-  "Parental controls": "Limits, quiet hours, and content filters for a linked teen.",
-  "Trusted contact": "Someone 18 or older we can reach, who can also help recover this account.",
+  "Parental controls":
+    "Limits, quiet hours, and content filters for a linked teen.",
+  "Trusted contact":
+    "Someone 18 or older we can reach, who can also help recover this account.",
   Account: "Your profile, sign-in security, and devices.",
   "Security & login": "Sign-in methods, 2-step verification, and sessions.",
   "Data controls": "Training, chat history, exports, and content safety.",
@@ -127,8 +129,7 @@ export const settingsTabDescriptions: Record<SettingsTab, string> = {
   Reflect: visibleDescriptions.Personalization,
   "Time and focus": visibleDescriptions.Notifications,
   Storage: visibleDescriptions.Storage,
-  Billing: visibleDescriptions.Usage,
-  Keyboard: visibleDescriptions.General,
+  Billing: visibleDescriptions.Billing,
   Enterprise: visibleDescriptions.General,
   Voice: visibleDescriptions.General,
 };
@@ -140,10 +141,6 @@ export const settingsNavByName = Object.fromEntries(
 /** Short labels in the settings rail. Tab ids stay stable for deep links. */
 export const settingsNavLabel: Partial<Record<VisibleSettingsTab, string>> = {
   Capabilities: "Plugins",
-  "Data controls": "Data Controls",
-  Notifications: "Notification",
-  "Parental controls": "Parental Control",
-  "Trusted contact": "Trusted contact",
 };
 
 export function settingsItemLabel(tab: VisibleSettingsTab): string {
@@ -155,38 +152,50 @@ export const settingsNavGroups: ReadonlyArray<{
   items: readonly VisibleSettingsTab[];
 }> = [
   {
-    label: "",
+    label: "Personal",
     items: [
       "Account",
+      "Security & login",
+      "Notifications",
+      "Appearance",
       "General",
       "Storage",
       "Personalization",
-      "Usage",
-      "Analytics",
-      "Capabilities",
+      "Keyboard",
+      "Billing",
       "Data controls",
-      "Notifications",
+      "Usage",
+      "Archived chats",
       "Parental controls",
       "Trusted contact",
     ],
+  },
+  {
+    label: "Integrations",
+    items: ["Capabilities"],
   },
 ];
 
 /** Extra search terms so "password" finds Security & login, etc. */
 export const settingsNavKeywords: Record<VisibleSettingsTab, string> = {
-  General: "theme appearance dark light font language shortcuts keyboard motion contrast",
+  General: "chat conversations follow-up suggestions",
+  Appearance: "theme appearance dark light font accent motion contrast",
+  Keyboard: "shortcuts keys keybindings hotkeys",
+  "Archived chats": "history archive archived conversations restore",
   Storage: "files images quota disk space addon gigabyte buy extend",
   Personalization: "tone style instructions memory reflect about you",
-  Usage: "plan subscription invoices payment card upgrade",
+  Usage: "activity stats overview plan storage invoices",
   Analytics: "activity stats usage overview",
   Notifications: "email push alerts quiet hours breaks focus sounds",
   "Parental controls": "family teen limits quiet hours content filter age",
   "Trusted contact": "recovery emergency contact risk notify",
   Account: "profile name avatar email organization delete account linked",
-  "Security & login": "password passkey mfa 2fa two-step authenticator sessions devices log out",
-  "Data controls": "privacy training export history archive delete chats storage cookies safety family parental",
+  "Security & login":
+    "password passkey mfa 2fa two-step authenticator sessions devices log out",
+  "Data controls":
+    "privacy training export history archive delete chats storage cookies safety family parental",
   Billing: "plan subscription invoices payment card upgrade usage",
-  Capabilities: "tools memory artifacts canvas web search",
+  Capabilities: "plugins integrations tools memory artifacts canvas web search",
   Skills: "instructions prompts",
   "Clauxen Code": "terminal cli ide developer",
 };
@@ -198,7 +207,6 @@ const LEGACY_TAB_SET = new Set<string>([
   "Reflect",
   "Time and focus",
   "Safety",
-  "Keyboard",
   "Enterprise",
   "Voice",
 ]);
@@ -215,11 +223,11 @@ export const fontThemes = CHAT_FONT_OPTIONS.map((option) => ({
   label: option.label,
   serif: Boolean(
     option.cssVar?.includes("playfair") ||
-      option.familyName === "Lora" ||
-      option.familyName?.toLowerCase().includes("serif") ||
-      option.familyName === "Literata" ||
-      option.familyName === "Merriweather" ||
-      option.id === "Clauxen Serif",
+    option.familyName === "Lora" ||
+    option.familyName?.toLowerCase().includes("serif") ||
+    option.familyName === "Literata" ||
+    option.familyName === "Merriweather" ||
+    option.id === "Clauxen Serif",
   ),
   dyslexic: option.id === "Atkinson Hyperlegible",
 }));

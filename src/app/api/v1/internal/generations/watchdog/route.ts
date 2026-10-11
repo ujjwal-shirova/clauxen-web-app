@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isGenerationsInternalRequest } from "@/server/http/internal-generations-auth";
 import { recoverStalledJobs } from "@/server/chat/durable-generation";
-import { query } from "@/server/db/pool";
+import { query, withDatabaseRequest } from "@/server/db/pool";
 import { settleOrphanedStreamingMessages } from "@/server/repositories/messages.repository";
 
 export const runtime = "nodejs";
@@ -31,6 +31,8 @@ async function run(request: NextRequest) {
   const limit = Number.isFinite(limitRaw)
     ? Math.min(Math.max(1, Math.floor(limitRaw)), 25)
     : 10;
+  const { recoverResearch } = await import("@/server/chat/research");
+  const researchDue = await recoverResearch();
   const recovered = await recoverStalledJobs(url.origin, limit);
   // Orphaned 'streaming' rows (no live job) are settled here — never on the
   // chat read path.
@@ -40,7 +42,7 @@ async function run(request: NextRequest) {
       return 0;
     },
   );
-  const result = { ...recovered, orphansSettled };
+  const result = { ...recovered, orphansSettled, researchDue };
   // Liveness signal: one tiny upsert per poke, best-effort, never blocks.
   const source =
     (url.searchParams.get("source") ?? "manual")
@@ -59,9 +61,9 @@ async function run(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  return run(request);
+  return withDatabaseRequest(() => run(request));
 }
 
 export async function POST(request: NextRequest) {
-  return run(request);
+  return withDatabaseRequest(() => run(request));
 }

@@ -5,6 +5,8 @@ const config = [
   {
     ignores: [
       ".next/**",
+      ".open-next/**",
+      ".wrangler/**",
       "dist/**",
       "node_modules/**",
       ".playwright-cli/**",
@@ -19,6 +21,7 @@ const config = [
   ...nextVitals,
   pluginSecurity.configs.recommended,
   {
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
     rules: {
       "security/detect-object-injection": "off",
       "security/detect-unsafe-regex": "error",

@@ -3,7 +3,7 @@
  * the main model system prompt. Memoized for the process lifetime.
  */
 
-import fs from "fs";
+import bundledText from "@/server/generated/text-assets.json";
 import path from "path";
 import { MODEL_SYSTEM_PROMPTS_DIR } from "@/server/inference/system-prompt";
 
@@ -39,7 +39,7 @@ function readInstruction(relativePath: string): string {
   if (cache.has(relativePath)) return cache.get(relativePath)!;
   const fullPath = path.join(PERSONALIZATION_DIR, relativePath);
   try {
-    const content = fs.readFileSync(fullPath, "utf8").trim();
+    const content = ((bundledText as Record<string, string>)[fullPath] ?? "").trim();
     cache.set(relativePath, content);
     return content;
   } catch (error) {

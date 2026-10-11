@@ -11,6 +11,8 @@ export async function logInferenceTelemetry(input: {
   latencyMs?: number;
   errorMessage?: string;
   requestId?: string;
+  /** Millisecond phase durations; undefined values are omitted from metadata. */
+  timings?: Record<string, number | undefined>;
 }) {
   if (!isDatabaseConfigured()) return;
 
@@ -36,6 +38,7 @@ export async function logInferenceTelemetry(input: {
         JSON.stringify({
           user_id: input.userId ?? null,
           request_id: input.requestId ?? null,
+          timings: input.timings,
         }),
       ],
     );

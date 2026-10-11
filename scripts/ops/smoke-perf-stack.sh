@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-ujjwal-8fc}"
+SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-shirova}"
 HISTORY="https://clauxen-chat-history.${SUBDOMAIN}.workers.dev"
 COORD="https://clauxen-chat-coord.${SUBDOMAIN}.workers.dev"
 R2="https://clauxen-r2-gateway.${SUBDOMAIN}.workers.dev"

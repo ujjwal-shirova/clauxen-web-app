@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ChevronLeft, X } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import {
   isSettingsTab,
   resolveVisibleTab,
@@ -23,6 +23,7 @@ import type { SessionUser } from "@/lib/api/auth";
 import { useAuth } from "@/hooks/use-auth";
 import { useAppPreferences } from "@/contexts/app-preferences-context";
 import { focusSurface } from "@/lib/surface-focus";
+import { SettingsPlaceholder } from "@/components/settings/settings-placeholder";
 import { GeneralSettings } from "@/components/settings/general-settings";
 import { preloadChatFontCatalog } from "@/components/chat-font-loader";
 import { PersonalizationSettingsPanel } from "@/components/settings/personalization-settings";
@@ -122,7 +123,14 @@ export function SettingsModal({
         void refreshAuth({ quiet: true });
       }
     }
-  }, [initialTab, open, settingsEnabled, refreshSettings, refreshPreferences, refreshAuth]);
+  }, [
+    initialTab,
+    open,
+    settingsEnabled,
+    refreshSettings,
+    refreshPreferences,
+    refreshAuth,
+  ]);
 
   useEffect(() => {
     if (!open) return;
@@ -186,9 +194,12 @@ export function SettingsModal({
 
   const renderActiveTab = () => {
     switch (visibleTab) {
+      case "Appearance":
+      case "Keyboard":
       case "General":
         return (
           <GeneralSettings
+            section={visibleTab}
             appearancePreset={appearanceGeneral.appearancePreset}
             onAppearanceChange={(preset) =>
               updatePreferenceGeneral({
@@ -215,6 +226,13 @@ export function SettingsModal({
             setFollowUpSuggestions={(v) =>
               updatePreferenceGeneral({ followUpSuggestions: v })
             }
+          />
+        );
+      case "Archived chats":
+        return (
+          <SettingsPlaceholder
+            title="Archived chats"
+            description="Archived chat management will be available here in the next settings update."
           />
         );
       case "Personalization":
@@ -298,9 +316,7 @@ export function SettingsModal({
               void refreshAuth({ quiet: true });
             }}
             fullName={personalization.fullName}
-            onFullNameChange={(fullName) =>
-              updatePersonalization({ fullName })
-            }
+            onFullNameChange={(fullName) => updatePersonalization({ fullName })}
             onOpenSecurity={() => handleTabChange("Security & login")}
             onLogout={onLogout}
             onLogoutAllDevices={onLogout}
@@ -337,7 +353,6 @@ export function SettingsModal({
           />
         );
       case "Billing":
-      case "Usage":
         return (
           <BillingSettings
             onUpgradeClick={onUpgradeClick}
@@ -353,6 +368,7 @@ export function SettingsModal({
             userEmail={user?.email}
           />
         );
+      case "Usage":
       case "Analytics":
         return (
           <BillingSettings
@@ -417,20 +433,15 @@ export function SettingsModal({
             Manage your Clauxen account and application preferences.
           </p>
 
-          <div aria-labelledby="settings-page-title" className="cx-settings flex min-h-0 flex-1 flex-col bg-[var(--cx-paper)] pt-[env(safe-area-inset-top)] md:flex-row md:items-stretch md:pt-0">
+          <div
+            aria-labelledby="settings-page-title"
+            className="cx-settings flex min-h-0 flex-1 flex-col bg-[var(--cx-paper)] pt-[env(safe-area-inset-top)] md:flex-row md:items-stretch md:pt-0"
+          >
             <div className="shrink-0 border-b border-[var(--settings-hairline)] bg-[var(--settings-sidebar-bg)] px-3 pb-2.5 pt-2.5 md:hidden">
               <div className="mb-2.5 flex h-7 items-center justify-between gap-3 px-1">
                 <h2 className="truncate text-[15px] font-semibold tracking-[-0.015em] text-[var(--settings-fg)]">
                   Settings
                 </h2>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="ui-icon-button no-hover-overlay !size-7 shrink-0 text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
-                  aria-label="Close settings"
-                >
-                  <X className="size-4" strokeWidth={1.8} />
-                </button>
               </div>
               <SettingsNavSidebar
                 activeTab={visibleTab}
@@ -452,14 +463,6 @@ export function SettingsModal({
             </aside>
 
             <main className="settings-canvas relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--settings-canvas-bg)]">
-              <button
-                type="button"
-                onClick={onClose}
-                className="ui-icon-button no-hover-overlay absolute right-3 top-3 z-10 hidden !size-7 text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)] md:inline-flex"
-                aria-label="Close settings"
-              >
-                <X className="size-4" strokeWidth={1.8} />
-              </button>
               <header
                 className={cn(
                   "cx-set-header shrink-0 items-center gap-6 px-8",
@@ -523,7 +526,10 @@ export function SettingsModal({
                     </div>
                   ) : null}
                   <SettingsTabErrorBoundary tabLabel={visibleTab}>
-                    <div key={`${visibleTab}-${securityView}`} className="settings-panel-enter">
+                    <div
+                      key={`${visibleTab}-${securityView}`}
+                      className="settings-panel-enter"
+                    >
                       {renderActiveTab()}
                     </div>
                   </SettingsTabErrorBoundary>

@@ -11,7 +11,6 @@ import {
   type SettingsTab,
   type VisibleSettingsTab,
 } from "@/components/settings/constants";
-import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
 
 interface SettingsNavSidebarProps {
   activeTab: SettingsTab;
@@ -90,8 +89,6 @@ export function SettingsNavSidebar({
   activeTab,
   onTabChange,
   variant = "sidebar",
-  accountName,
-  accountAvatarUrl,
   onBackToApp,
 }: SettingsNavSidebarProps) {
   const [query, setQuery] = useState("");
@@ -145,7 +142,11 @@ export function SettingsNavSidebar({
                     : "border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] text-[var(--settings-fg-muted)]",
                 )}
               >
-                <item.icon className="size-3.5" strokeWidth={1.75} aria-hidden />
+                <item.icon
+                  className="size-3.5"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
                 {settingsItemLabel(visible)}
               </button>
             );
@@ -186,40 +187,19 @@ export function SettingsNavSidebar({
             {filteredByGroup.map((group) => (
               <div key={group.label} className="flex flex-col">
                 {group.label ? (
-                  <p className="px-2 pb-1 text-[12px] font-medium leading-4 text-[var(--settings-fg-subtle)]">
+                  <h2 className="px-2 pb-1 text-[12px] font-medium leading-4 text-[var(--settings-fg-subtle)]">
                     {group.label}
-                  </p>
+                  </h2>
                 ) : null}
                 <ul className="flex flex-col gap-px">
-                  {group.items.map((tab) =>
-                    tab === "Account" && group.label === "Account" ? (
-                      <li key={tab}>
-                        <button
-                          type="button"
-                          onClick={() => onTabChange(tab)}
-                          aria-current={activeTab === tab ? "page" : undefined}
-                          className={cn("cx-set-link", activeTab === tab && "is-active")}
-                        >
-                          <UserAvatarDisplay
-                            name={accountName || "You"}
-                            avatarUrl={accountAvatarUrl}
-                            className="!size-[22px] !text-[10px]"
-                            size="sm"
-                          />
-                          <span className="truncate">
-                            {accountName?.trim() || "Your account"}
-                          </span>
-                        </button>
-                      </li>
-                    ) : (
-                      <NavButton
-                        key={tab}
-                        tab={tab}
-                        isActive={activeTab === tab}
-                        onSelect={() => onTabChange(tab)}
-                      />
-                    ),
-                  )}
+                  {group.items.map((tab) => (
+                    <NavButton
+                      key={tab}
+                      tab={tab}
+                      isActive={activeTab === tab}
+                      onSelect={() => onTabChange(tab)}
+                    />
+                  ))}
                 </ul>
               </div>
             ))}

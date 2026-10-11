@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import * as cookiesApi from "@/lib/api/cookies";
@@ -14,19 +13,6 @@ import {
   type CookieEventCategory,
   type CookieUtmAttribution,
 } from "@/lib/cookie-consent";
-
-/**
- * Analytics loads a third-party script that Attack Challenge can briefly
- * interrupt. Keep it out of the React render path that can trip the main
- * error boundary.
- *
- * No Speed Insights / Observability Plus — verify with Playwright + CLI
- * smoke checks (see docs/perf-metrics.md).
- */
-const AnalyticsLazy = dynamic(
-  () => import("@vercel/analytics/next").then((m) => m.Analytics),
-  { ssr: false, loading: () => null },
-);
 
 function useCookieConsent() {
   const [consent, setConsent] = useState<CookieConsentValue | null>(null);
@@ -183,7 +169,6 @@ export function ClientTelemetry() {
   return (
     <>
       {consent ? <FirstPartyCollectors consent={consent} /> : null}
-      {consent?.performance ? <AnalyticsLazy /> : null}
     </>
   );
 }

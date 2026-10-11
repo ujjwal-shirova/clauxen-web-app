@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import { providerThinkingControls } from "@/server/inference/provider-thinking";
+import { createProviderActivityGuard } from "@/server/inference/provider-activity";
 import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
@@ -49,14 +51,18 @@ export type OpenAICompletionOptions = {
   maxOutputTokens?: number;
   signal?: AbortSignal;
   reasoningEffort?: "low" | "medium" | "high";
+  thinkingEnabled?: boolean;
+  idleTimeoutMs?: number;
 };
 
-function createClient(): OpenAI {
+function createClient(timeoutMs = 45_000): OpenAI {
   return new OpenAI({
     apiKey: requireOpenAIApiKey(),
-    ...(optionalOpenAIBaseUrl()
-      ? { baseURL: optionalOpenAIBaseUrl() }
-      : {}),
+    // Do not let the SDK's ten-minute timeout and automatic POST retries
+    // multiply an unresponsive generation. Durable jobs own recovery.
+    timeout: timeoutMs,
+    maxRetries: 0,
+    ...(optionalOpenAIBaseUrl() ? { baseURL: optionalOpenAIBaseUrl() } : {}),
   });
 }
 
@@ -70,8 +76,15 @@ function createClient(): OpenAI {
 export async function* streamOpenAIResponse(
   options: OpenAICompletionOptions,
 ): AsyncGenerator<OpenAIStreamPart> {
-  const client = createClient();
-  const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
+  const client = createClient(options.idleTimeoutMs);
+  const activity = createProviderActivityGuard(
+    options.signal,
+    options.idleTimeoutMs,
+  );
+  const toolCalls = new Map<
+    number,
+    { id: string; name: string; arguments: string }
+  >();
   let text = "";
 
   try {
@@ -89,8 +102,13 @@ export async function* streamOpenAIResponse(
         parallel_tool_calls: false,
         max_tokens: options.maxOutputTokens ?? 8192,
         stream: true,
+        ...providerThinkingControls({
+          baseURL: optionalOpenAIBaseUrl(),
+          thinkingEnabled: options.thinkingEnabled,
+          reasoningEffort: options.reasoningEffort,
+        }),
       },
-      { signal: options.signal },
+      { signal: activity.signal },
     );
 
     for await (const chunk of stream) {
@@ -101,7 +119,14 @@ export async function* streamOpenAIResponse(
       const choice = chunk.choices[0];
       if (!choice) continue;
       const delta = choice.delta;
-      const reasoning = (delta as { reasoning_content?: unknown }).reasoning_content;
+      if (
+        delta.content ||
+        delta.tool_calls?.length ||
+        (delta as { reasoning_content?: unknown }).reasoning_content
+      )
+        activity.touch();
+      const reasoning = (delta as { reasoning_content?: unknown })
+        .reasoning_content;
       if (typeof reasoning === "string" && reasoning) {
         yield { type: "reasoning-delta", delta: reasoning };
       }
@@ -120,22 +145,39 @@ export async function* streamOpenAIResponse(
           };
           toolCalls.set(index, entry);
           if (entry.name) {
-            yield { type: "tool-call-start", toolCallId: entry.id, toolName: entry.name };
+            yield {
+              type: "tool-call-start",
+              toolCallId: entry.id,
+              toolName: entry.name,
+            };
           }
         }
         if (toolCall.function?.name && !entry.name) {
           entry.name = toolCall.function.name;
-          yield { type: "tool-call-start", toolCallId: entry.id, toolName: entry.name };
+          yield {
+            type: "tool-call-start",
+            toolCallId: entry.id,
+            toolName: entry.name,
+          };
         }
         if (toolCall.function?.arguments) {
           entry.arguments += toolCall.function.arguments;
-          yield { type: "tool-call-delta", toolCallId: entry.id, argumentsDelta: toolCall.function.arguments };
+          yield {
+            type: "tool-call-delta",
+            toolCallId: entry.id,
+            argumentsDelta: toolCall.function.arguments,
+          };
         }
       }
     }
     for (const entry of toolCalls.values()) {
       if (entry.name) {
-        yield { type: "tool-call-end", toolCallId: entry.id, toolName: entry.name, arguments: entry.arguments || "{}" };
+        yield {
+          type: "tool-call-end",
+          toolCallId: entry.id,
+          toolName: entry.name,
+          arguments: entry.arguments || "{}",
+        };
       }
     }
     const replay: OpenAIInputItem[] = [
@@ -143,7 +185,16 @@ export async function* streamOpenAIResponse(
         role: "assistant",
         content: text || null,
         ...(toolCalls.size
-          ? { tool_calls: [...toolCalls.values()].map((call) => ({ id: call.id, type: "function" as const, function: { name: call.name, arguments: call.arguments || "{}" } })) }
+          ? {
+              tool_calls: [...toolCalls.values()].map((call) => ({
+                id: call.id,
+                type: "function" as const,
+                function: {
+                  name: call.name,
+                  arguments: call.arguments || "{}",
+                },
+              })),
+            }
           : {}),
       },
     ];
@@ -160,8 +211,14 @@ export async function* streamOpenAIResponse(
     }
     yield {
       type: "error",
-      error: error instanceof Error ? error.message : String(error),
+      error: activity.timedOut
+        ? "The model provider stopped responding. Please try again."
+        : error instanceof Error
+          ? error.message
+          : String(error),
     };
+  } finally {
+    activity.dispose();
   }
 }
 
@@ -208,7 +265,9 @@ function strictToolSchema(
           : {};
       const originallyRequired = new Set(
         Array.isArray(source.required)
-          ? source.required.filter((item): item is string => typeof item === "string")
+          ? source.required.filter(
+              (item): item is string => typeof item === "string",
+            )
           : [],
       );
       const properties: Record<string, unknown> = {};

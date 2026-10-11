@@ -9,11 +9,19 @@ import {
   parseClientVisionImages,
   parseVisionFileIds,
 } from "@/server/inference/vision-attachments";
-import type { GenerationJobInput } from "@/server/repositories/generation-jobs.repository";
+import {
+  claimGenerationJob,
+  type GenerationJobInput,
+} from "@/server/repositories/generation-jobs.repository";
 import {
   generationExecutionOrigin,
   triggerContinuation,
+  runHeadlessSlice,
 } from "@/server/chat/durable-generation";
+import { createDurableSubscription } from "@/server/chat/durable-subscription";
+import { withDatabaseRequest } from "@/server/db/pool";
+import { cloudflareContext } from "@/server/cloudflare/context";
+import { assertCloudflareChatConfiguration } from "@/server/cloudflare/chat-configuration";
 import { CLAUXEN_STREAM_HEADERS } from "@/server/inference/clauxen-sse-stream";
 import type { TurnFork } from "@/server/repositories/messages.repository";
 import { readEdgeFlags } from "@/server/config/edge-flags";
@@ -56,7 +64,9 @@ export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, request, params, requestId }) => {
     const requestStartedAtMs = Date.now();
     const user = requireSession(session);
-    await Promise.all([
+    const cloudflare = cloudflareContext();
+    if (cloudflare) assertCloudflareChatConfiguration(cloudflare.env);
+    const [, , flags] = await Promise.all([
       assertDurableRateLimit({
         key: `generate:user:${user.id}`,
         limit: 45,
@@ -69,7 +79,9 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         windowMs: 60_000,
         message: "Too many generations from this network. Try again shortly.",
       }),
+      readEdgeFlags(),
     ]);
+    const admissionStartedAtMs = Date.now();
     const body = (await request.json()) as {
       messages?: unknown;
       turn?: {
@@ -96,7 +108,6 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       throw new AppError("messages are required.", 400);
     }
 
-    const flags = await readEdgeFlags();
     if (flags.maintenanceMode) {
       throw new AppError(
         "Clauxen is temporarily under maintenance. Try again shortly.",
@@ -182,30 +193,70 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       turnStartedAtMs: requestStartedAtMs,
     };
 
-    // Admission commits before acknowledgement. The browser only subscribes;
-    // an internal server invocation owns every slice, including the first.
+    // Commit before acknowledgement, then atomically claim the first slice
+    // here. Avoid a queue/HTTP hop and snapshot polling for the active sender.
     const job = await chatService.acceptBackgroundChatTurn({
       chatId: params.chatId,
       userId: user.id,
       jobInput,
     });
-    after(async () => {
-      await triggerContinuation(origin, job.id);
-    });
-    const events = [
-      {
-        type: "turn_ready",
-        userMessageId: job.user_message_id,
-        assistantMessageId: job.assistant_message_id,
-      },
-      { type: "backgrounded", jobId: job.id, chatId: job.chat_id },
-    ];
+    const claimed = await claimGenerationJob(job.id, `send-${requestId}`);
+    const admissionMs = Date.now() - admissionStartedAtMs;
+    const backgroundEvent = {
+      type: "backgrounded" as const,
+      jobId: job.id,
+      chatId: job.chat_id,
+    };
+    const subscription = claimed
+      ? createDurableSubscription(backgroundEvent)
+      : null;
+    const readyEvent = {
+      type: "turn_ready",
+      userMessageId: job.user_message_id,
+      assistantMessageId: job.assistant_message_id,
+    };
+    // Identity must precede model events, even for an immediately ready runner.
+    subscription?.write(
+      new TextEncoder().encode(`data: ${JSON.stringify(readyEvent)}\n\n`),
+    );
+    if (claimed && subscription) {
+      // An independent resource scope outlives response headers and browser
+      // disconnects. after() keeps the same running promise alive; it must not
+      // start a second model invocation.
+      const execution = withDatabaseRequest(async () => {
+        try {
+          const result = await runHeadlessSlice({
+            job: claimed,
+            origin,
+            onChunk: (chunk) => subscription.write(chunk),
+          });
+          if (result.status === "yielded" || result.status === "skipped")
+            subscription.handoff();
+          else subscription.close();
+        } catch (error) {
+          console.error(
+            "[generate] live slice failed; durable recovery retained",
+            { jobId: job.id, requestId, error },
+          );
+          subscription.handoff();
+        }
+      }, true);
+      after(() => execution);
+    } else {
+      // Another slice owns this job, or it is queued behind an earlier turn.
+      after(async () => {
+        await triggerContinuation(origin, job.id);
+      });
+    }
+    const events = [readyEvent, backgroundEvent];
     return new Response(
-      events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+      subscription?.stream ??
+        events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
       {
-        status: 202,
+        status: subscription ? 200 : 202,
         headers: {
           ...CLAUXEN_STREAM_HEADERS,
+          "Server-Timing": `preflight;dur=${admissionStartedAtMs - requestStartedAtMs}, admission;dur=${admissionMs}`,
           "X-Generation-Job-Id": job.id,
           ...(job.user_message_id
             ? { "X-User-Message-Id": job.user_message_id }

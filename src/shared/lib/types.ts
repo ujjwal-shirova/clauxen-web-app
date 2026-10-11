@@ -28,6 +28,8 @@ export type Message = {
    * Error turns hide action buttons; editing the parent user message branches.
    */
   generationFailed?: boolean;
+  /** Server-owned research activity is displayed in its plan sidebar. */
+  researchPlanId?: string;
   agentMode?: boolean;
   /** @deprecated Kept for persisted-message compat; the trace carries state. */
   agentFrameComplete?: boolean;

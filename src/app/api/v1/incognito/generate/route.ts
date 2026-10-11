@@ -9,6 +9,8 @@ import { createChatStream } from "@/app/api/chat/stream";
 import { readEdgeFlags } from "@/server/config/edge-flags";
 import { assertDurableRateLimit } from "@/server/http/durable-rate-limit";
 import { clientIp } from "@/server/http/request-meta";
+import { cloudflareContext } from "@/server/cloudflare/context";
+import { assertCloudflareChatConfiguration } from "@/server/cloudflare/chat-configuration";
 import {
   applyVisionToLastUserMessage,
   parseClientVisionImages,
@@ -26,6 +28,8 @@ export const maxDuration = 300;
  */
 export const POST = withApiRoute(async ({ session, request }) => {
   const user = requireSession(session);
+  const cloudflare = cloudflareContext();
+  if (cloudflare) assertCloudflareChatConfiguration(cloudflare.env, false);
   await Promise.all([
     assertDurableRateLimit({
       key: `incognito-generate:user:${user.id}`,

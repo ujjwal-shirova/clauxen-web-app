@@ -20,12 +20,18 @@ export interface Env {
   /** e.g. https://clauxen.com — no trailing slash */
   APP_ORIGIN?: string;
   AUTOMATION_QUEUE: Queue<AutomationJob>;
+  /** Private service binding used by the Cloudflare-hosted app deployment. */
+  APP?: Fetcher;
 }
 
 const DEFAULT_ORIGIN = "https://www.clauxen.com";
 
 function origin(env: Env): string {
   return (env.APP_ORIGIN?.trim() || DEFAULT_ORIGIN).replace(/\/+$/, "");
+}
+
+function appFetch(env: Env, url: string, init: RequestInit): Promise<Response> {
+  return env.APP ? env.APP.fetch(url, init) : fetch(url, init);
 }
 
 function internalHeaders(token: string): HeadersInit {
@@ -67,7 +73,7 @@ async function dispatch(env: Env, limit = 20): Promise<Response> {
   }
 
   const url = `${origin(env)}/api/v1/internal/scheduled-tasks/dispatch?limit=${limit}`;
-  const res = await fetch(url, {
+  const res = await appFetch(env, url, {
     method: "POST",
     headers: internalHeaders(token),
     signal: AbortSignal.timeout(25_000),
@@ -170,7 +176,7 @@ export default {
         continue;
       }
       try {
-        const response = await fetch(
+        const response = await appFetch(env,
           `${origin(env)}/api/v1/internal/scheduled-tasks/execute`,
           {
             method: "POST",

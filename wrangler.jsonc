@@ -1,0 +1,116 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "clauxen-app",
+  "main": "cloudflare-worker.ts",
+  "account_id": "8fc7a67e9057989309921f362784ecf4",
+  "compatibility_date": "2026-10-10",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "routes": [
+    { "pattern": "clauxen.com", "custom_domain": true },
+    { "pattern": "www.clauxen.com", "custom_domain": true },
+  ],
+  "workers_dev": true,
+  "preview_urls": true,
+  "keep_vars": true,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "services": [
+    { "binding": "CHAT_COORD", "service": "clauxen-chat-coord" },
+    { "binding": "CHAT_HISTORY", "service": "clauxen-chat-history" },
+    { "binding": "BILLING", "service": "clauxen-billing" },
+    { "binding": "AUTH_EMAIL", "service": "clauxen-auth-email-app" },
+    { "binding": "SHARE_GATE", "service": "clauxen-share-gate" },
+    { "binding": "CONNECTOR_GATEWAY", "service": "clauxen-connector-gateway" },
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "clauxen-app",
+    },
+  ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "54df64d31cce4e6f8f34415c6fb4e849",
+      "localConnectionString": "postgres://postgres:postgres@127.0.0.1:5432/postgres",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "clauxen-next-cache",
+    },
+    {
+      "binding": "R2_IMAGES",
+      "bucket_name": "clauxen-images",
+    },
+    {
+      "binding": "R2_DOCUMENTS",
+      "bucket_name": "clauxen-documents",
+    },
+    {
+      "binding": "R2_ARTIFACTS",
+      "bucket_name": "clauxen-artifacts",
+    },
+    {
+      "binding": "R2_SKILLS",
+      "bucket_name": "clauxen-skills",
+    },
+    {
+      "binding": "R2_CHAT_ARCHIVES",
+      "bucket_name": "clauxen-chat-archives",
+    },
+    {
+      "binding": "R2_ATTACHMENTS",
+      "bucket_name": "clauxen-user-attachments",
+    },
+  ],
+  "images": {
+    "binding": "IMAGES",
+  },
+  "queues": {
+    "producers": [
+      {
+        "binding": "GENERATION_QUEUE",
+        "queue": "clauxen-generation-slices",
+      },
+    ],
+    "consumers": [
+      {
+        "queue": "clauxen-generation-slices",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_concurrency": 8,
+        "max_retries": 3,
+        "dead_letter_queue": "clauxen-generation-slices-dlq",
+      },
+    ],
+  },
+  "placement": {
+    "region": "aws:us-west-1",
+  },
+  "limits": {
+    "cpu_ms": 30000,
+  },
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "head_sampling_rate": 0.05,
+  },
+  "vars": {
+    "HOSTING_PLATFORM": "cloudflare",
+    "CF_WORKER_NAME": "clauxen-app",
+    "NEXT_PUBLIC_APP_URL": "https://www.clauxen.com",
+    "GENERATIONS_EXECUTION_ORIGIN": "https://clauxen-app.shirova.workers.dev",
+    "AUTH_DEV_BYPASS": "false",
+    "AUTH_REQUIRED_FOR_CHAT": "true",
+    "NEXT_PUBLIC_AUTH_REQUIRED_FOR_CHAT": "true",
+    "STORAGE_REQUIRE_R2": "true",
+  },
+  "kv_namespaces": [
+    {
+      "binding": "APP_CONFIG_KV",
+      "id": "16d5d6de984c4587940559618c8165a3",
+    },
+  ],
+}

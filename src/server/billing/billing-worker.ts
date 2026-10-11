@@ -1,3 +1,4 @@
+import { serviceFetch } from "@/server/cloudflare/service-fetch";
 import { env } from "@/server/config/env";
 import { AppError } from "@/server/db/errors";
 
@@ -62,7 +63,7 @@ async function billingWorkerFetch(
   }
 
   const url = `${env.billingWorkerUrl}${path.startsWith("/") ? path : `/${path}`}`;
-  return fetch(url, {
+  return serviceFetch("BILLING", url, {
     ...init,
     headers: {
       Authorization: `Bearer ${env.billingInternalToken}`,
@@ -231,7 +232,7 @@ export async function fetchInvoicePdfFromWorker(input: {
 
   if (input.userAccessToken) {
     const url = `${env.billingWorkerUrl}${path}`;
-    return fetch(url, {
+    return serviceFetch("BILLING", url, {
       headers: {
         Authorization: `Bearer ${input.userAccessToken}`,
       },
