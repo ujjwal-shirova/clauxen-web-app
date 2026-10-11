@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft } from "lucide-react";
 import {
   isSettingsTab,
   resolveVisibleTab,
   settingsItemLabel,
-  settingsTabDescriptions,
   type SettingsTab,
   type VisibleSettingsTab,
 } from "@/components/settings/constants";
@@ -319,7 +318,6 @@ export function SettingsModal({
             onFullNameChange={(fullName) => updatePersonalization({ fullName })}
             onOpenSecurity={() => handleTabChange("Security & login")}
             onLogout={onLogout}
-            onLogoutAllDevices={onLogout}
             workspace={workspace}
           />
         );
@@ -426,22 +424,23 @@ export function SettingsModal({
             "font-sans text-zinc-900 dark:text-zinc-100",
           )}
         >
-          <h1 id="settings-page-title" className="sr-only">
-            Settings
-          </h1>
-          <p className="sr-only">
-            Manage your Clauxen account and application preferences.
-          </p>
-
           <div
-            aria-labelledby="settings-page-title"
+            aria-label="Clauxen settings"
             className="cx-settings flex min-h-0 flex-1 flex-col bg-[var(--cx-paper)] pt-[env(safe-area-inset-top)] md:flex-row md:items-stretch md:pt-0"
           >
-            <div className="shrink-0 border-b border-[var(--settings-hairline)] bg-[var(--settings-sidebar-bg)] px-3 pb-2.5 pt-2.5 md:hidden">
-              <div className="mb-2.5 flex h-7 items-center justify-between gap-3 px-1">
-                <h2 className="truncate text-[15px] font-semibold tracking-[-0.015em] text-[var(--settings-fg)]">
+            <div className="settings-mobile-header shrink-0 border-b border-[var(--settings-hairline)] px-4 pb-3 pt-3 md:hidden">
+              <div className="mb-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="ui-icon-button !size-9"
+                  aria-label="Back to app"
+                >
+                  <ArrowLeft className="size-4" aria-hidden />
+                </button>
+                <span className="text-[16px] font-medium text-[var(--settings-fg)]">
                   Settings
-                </h2>
+                </span>
               </div>
               <SettingsNavSidebar
                 activeTab={visibleTab}
@@ -450,7 +449,7 @@ export function SettingsModal({
               />
             </div>
 
-            <aside className="cx-settings-aside hidden min-h-0 shrink-0 md:flex md:w-[248px] md:flex-col md:px-2 md:pb-3 md:pt-3">
+            <aside className="cx-settings-aside hidden min-h-0 shrink-0 md:flex md:w-[240px] md:flex-col md:px-2 md:pb-3 md:pt-5">
               <SettingsNavSidebar
                 activeTab={visibleTab}
                 onTabChange={handleTabChange}
@@ -463,72 +462,45 @@ export function SettingsModal({
             </aside>
 
             <main className="settings-canvas relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--settings-canvas-bg)]">
-              <header
-                className={cn(
-                  "cx-set-header shrink-0 items-center gap-6 px-8",
-                  showPasskeysSubpage ? "hidden md:flex" : "hidden",
-                )}
-              >
-                {showPasskeysSubpage ? (
-                  <div className="flex min-w-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSecurityView("main");
-                        contentScrollRef.current?.scrollTo({ top: 0 });
-                      }}
-                      aria-label="Back to Security & login"
-                      className="ui-icon-button no-hover-overlay -ml-1.5 !size-7 shrink-0 text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
-                    >
-                      <ChevronLeft className="size-4" strokeWidth={1.8} />
-                    </button>
-                    <div className="min-w-0">
-                      <p className="text-[11.5px] leading-4 text-[var(--settings-fg-muted)]">
-                        Security & login
-                      </p>
-                      <h2 className="truncate text-[15px] font-semibold leading-5 tracking-[-0.015em] text-[var(--settings-fg)]">
-                        Passkeys
-                      </h2>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="min-w-0">
-                    <h2 className="text-[16px] font-semibold leading-6 tracking-[-0.018em] text-[var(--settings-fg)]">
-                      {visibleTab}
-                    </h2>
-                    <p className="max-w-[560px] truncate text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]">
-                      {settingsTabDescriptions[visibleTab]}
-                    </p>
-                  </div>
-                )}
-              </header>
-
               <div
                 ref={contentScrollRef}
                 data-scroll-region=""
-                className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 sm:px-5 md:px-10 md:pb-12 md:pt-8"
+                className="settings-content-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6 sm:px-6 md:px-10 md:pb-16 md:pt-6"
                 aria-busy={contentHydrating || undefined}
               >
                 <div
                   className={cn(
-                    "mx-auto w-full max-w-[720px]",
+                    "settings-content mx-auto w-full max-w-[768px]",
                     contentHydrating && "opacity-[0.97]",
                   )}
                 >
-                  {!showPasskeysSubpage ? (
-                    <div className="mb-7">
-                      <h2 className="text-[22px] font-semibold leading-7 tracking-[-0.03em] text-[var(--settings-fg)]">
-                        {settingsItemLabel(visibleTab)}
-                      </h2>
-                      <p className="mt-1 max-w-[36rem] text-[14px] leading-5 text-[var(--settings-fg-muted)]">
-                        {settingsTabDescriptions[visibleTab]}
-                      </p>
-                    </div>
-                  ) : null}
+                  <header className="settings-content-header mb-10">
+                    {showPasskeysSubpage ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSecurityView("main");
+                          contentScrollRef.current?.scrollTo({ top: 0 });
+                        }}
+                        className="settings-subpage-back mb-4 flex items-center gap-1.5 text-[13px] text-[var(--settings-fg-muted)]"
+                      >
+                        <ChevronLeft className="size-4" aria-hidden />
+                        Back to security
+                      </button>
+                    ) : null}
+                    <h1
+                      id="settings-page-title"
+                      className="text-[24px] font-normal leading-8 tracking-[-0.025em] text-[var(--settings-fg)]"
+                    >
+                      {showPasskeysSubpage
+                        ? "Passkeys"
+                        : settingsItemLabel(visibleTab)}
+                    </h1>
+                  </header>
                   <SettingsTabErrorBoundary tabLabel={visibleTab}>
                     <div
                       key={`${visibleTab}-${securityView}`}
-                      className="settings-panel-enter"
+                      className="settings-panel"
                     >
                       {renderActiveTab()}
                     </div>

@@ -11,7 +11,15 @@ import {
   SettingsToggleRow,
 } from "@/components/settings/settings-ui";
 
-const DAYS = ["S", "M", "T", "W", "T", "F", "S"] as const;
+const DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
 const BREAK_OPTIONS = [
   "-",
   "Every 30 min",
@@ -82,35 +90,50 @@ export function NotificationsSettings({
         title="Updates"
         description="Choose push, email, both, or off per update."
       >
-        <SettingsRow label="Responses" description="Long replies finish.">
+        <SettingsRow
+          label="Responses"
+          description="When Clauxen finishes a response."
+        >
           <NotificationDeliveryPicker
             value={responseChannel}
             onValueChange={setResponseChannel}
             aria-label="Responses delivery"
           />
         </SettingsRow>
-        <SettingsRow label="Tasks" description="Created tasks change.">
+        <SettingsRow
+          label="Tasks"
+          description="Updates to your scheduled tasks."
+        >
           <NotificationDeliveryPicker
             value={tasksChannel}
             onValueChange={setTasksChannel}
             aria-label="Tasks delivery"
           />
         </SettingsRow>
-        <SettingsRow label="Group chats" description="New group messages.">
+        <SettingsRow
+          label="Group chats"
+          description="New messages in your group chats."
+        >
           <NotificationDeliveryPicker
             value={groupChatChannel}
             onValueChange={setGroupChatChannel}
             aria-label="Group chats delivery"
           />
         </SettingsRow>
-        <SettingsRow label="Codex" description="Codex task updates.">
+        <SettingsRow
+          label="Clauxen Code"
+          description="Progress and completion of coding tasks."
+        >
           <NotificationDeliveryPicker
             value={codexChannel}
             onValueChange={setCodexChannel}
-            aria-label="Codex delivery"
+            aria-label="Clauxen Code delivery"
           />
         </SettingsRow>
-        <SettingsRow label="Tips" description="New tools and features.">
+        <SettingsRow
+          label="Tips & recommendations"
+          description="New tools and features."
+        >
           <NotificationDeliveryPicker
             value={recommendationsChannel}
             onValueChange={setRecommendationsChannel}
@@ -119,7 +142,7 @@ export function NotificationsSettings({
         </SettingsRow>
         <SettingsRow
           label="Usage"
-          description="Image and feature limits reset."
+          description="When your image and feature limits reset."
           borderless
         >
           <NotificationDeliveryPicker
@@ -149,7 +172,10 @@ export function NotificationsSettings({
         />
       </SettingsSection>
 
-      <SettingsSection title="Focus" description="Breaks and quiet hours.">
+      <SettingsSection
+        title="Time & focus"
+        description="Breaks and quiet hours."
+      >
         <SettingsRow label="Break reminders">
           <div className="flex w-full flex-col gap-2 min-[520px]:w-auto min-[520px]:flex-row">
             <SettingsOptionPicker
@@ -184,7 +210,7 @@ export function NotificationsSettings({
                 type="button"
                 onClick={() => toggleDay(index)}
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-medium transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-focus-ring)] flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-medium transition-colors",
                   timeAndFocus.quietDays[index]
                     ? "bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)]"
                     : "bg-[var(--settings-icon-bg)] text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)]",
@@ -192,7 +218,7 @@ export function NotificationsSettings({
                 aria-pressed={timeAndFocus.quietDays[index]}
                 aria-label={`Quiet hours on ${day}`}
               >
-                {day}
+                {day.slice(0, 1)}
               </button>
             ))}
           </div>

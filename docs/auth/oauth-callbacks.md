@@ -38,3 +38,34 @@ Keep these application URLs in Supabase Authentication → URL Configuration:
 
 The app passes one of these URLs as `redirectTo`; Supabase exchanges the social
 provider response first and then returns the browser to the application.
+
+## Google One Tap on arrival
+
+`GoogleOneTap` is mounted inside the root authentication providers. After the
+initial session check, guests receive Google's One Tap prompt automatically,
+without clicking first. Google Identity Services uses the native FedCM account
+prompt in supported browsers; the browser controls its appearance and position.
+Signed-in visitors and visitors with the app sign-in dialog open are excluded.
+The component requests the prompt once per mount and respects Google's dismissal
+cooldown. The existing Google sign-in button remains available if it is suppressed.
+
+The component uses `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, falling back to Clauxen's
+existing web OAuth client:
+`103785677444-ctlfhurfg8864m59bclrqsvt6h9f7t8r.apps.googleusercontent.com`.
+This client must be included in Supabase Authentication → Providers → Google.
+In Google Auth Platform → Clients, register each deployment under **Authorized
+JavaScript origins**, including `https://www.clauxen.com`, `https://clauxen.com`,
+and, for local testing, `http://localhost` and `http://localhost:9002`.
+Origins have no path; they are separate from OAuth redirect URIs.
+
+`next.config.ts` permits the GIS script, styles, frames and requests in the CSP
+and permits `identity-credentials-get` on the same origin. Each prompt generates
+a random nonce: its SHA-256 digest goes to Google and its raw value goes to
+Supabase's `signInWithIdToken`. The existing browser Supabase client persists the
+session cookies, then the app refreshes its authenticated identity in place.
+
+Google Cloud origin registration and a real Google account are required for an
+end-to-end test. Browser settings, Google account state and dismissal cooldowns
+can suppress the prompt even when the integration is configured correctly.
+Run `node --test tests/google-one-tap.test.mjs` for offline lifecycle and token
+exchange regression checks, and `npm run test:auth` for session regression checks.

@@ -86,9 +86,9 @@ function parentLocationParts(): { path: string; search: string } {
 export function AppOverlaysProvider({ children }: { children: ReactNode }) {
   const pathname = useAppPathname();
   const router = useRouter();
-  const [overlay, setOverlay] = useState<AppOverlayPath | null>(() =>
-    readOverlayFromLocation(),
-  );
+  // URL fragments are unavailable to SSR. Read them in the mount effect so
+  // direct settings links hydrate with the same shell on server and client.
+  const [overlay, setOverlay] = useState<AppOverlayPath | null>(null);
 
   useEffect(() => {
     for (const path of PREFETCH_PATHS) {

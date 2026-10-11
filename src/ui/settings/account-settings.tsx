@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Laptop, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Copy } from "lucide-react";
 import {
   SettingsButton,
   SettingsConfirmDialog,
@@ -49,7 +49,6 @@ export function AccountSettings({
   onFullNameChange,
   onOpenSecurity,
   onLogout,
-  onLogoutAllDevices,
 }: AccountSettingsProps) {
   const [nameDraft, setNameDraft] = useState(fullName || "");
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -59,47 +58,7 @@ export function AccountSettings({
     text: string;
   } | null>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const [supportAccess, setSupportAccess] = useState(false);
-  const [deviceLimit, setDeviceLimit] = useState(3);
-  const [sessions, setSessions] = useState<
-    settingsApi.SecuritySettingsData["sessions"] | null
-  >(null);
   const [userIdCopied, setUserIdCopied] = useState(false);
-
-  useEffect(() => {
-    void settingsApi
-      .getSecuritySettings()
-      .then(({ security }) => setSessions(security.sessions ?? []))
-      .catch(() => setSessions([]));
-  }, []);
-
-  const devices = useMemo(() => {
-    const currentUa = typeof navigator !== "undefined" ? navigator.userAgent : "";
-    return (sessions ?? []).map((entry, index) => ({
-      id: entry.id,
-      name: /Mac/i.test(entry.userAgent ?? "")
-        ? "macOS"
-        : /Windows/i.test(entry.userAgent ?? "")
-          ? "Windows"
-          : /Android/i.test(entry.userAgent ?? "")
-            ? "Android"
-            : /iPhone|iPad/i.test(entry.userAgent ?? "")
-              ? "iOS"
-              : "Browser",
-      when:
-        index === 0 && entry.userAgent === currentUa
-          ? "Now"
-          : new Date(entry.createdAt).toLocaleString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            }),
-      location: entry.ipAddress || "Unknown",
-      current: index === 0 && entry.userAgent === currentUa,
-    }));
-  }, [sessions]);
 
   useEffect(() => setNameDraft(fullName || ""), [fullName]);
 
@@ -131,7 +90,7 @@ export function AccountSettings({
       <SettingsPanelTitle>Account</SettingsPanelTitle>
 
       <SettingsSection title="Profile">
-        <div className="flex items-center gap-4 px-1 py-3">
+        <div className="flex items-center gap-4 px-4 py-4">
           <ProfileAvatarUpload
             name={displayName}
             avatarUrl={avatarUrl}
@@ -144,6 +103,7 @@ export function AccountSettings({
             </label>
             <input
               type="text"
+              aria-label="Preferred name"
               value={nameDraft}
               onChange={(e) => setNameDraft(e.target.value)}
               onBlur={() => {
@@ -170,43 +130,32 @@ export function AccountSettings({
             Manage emails
           </SettingsButton>
         </SettingsRow>
-        <SettingsRow label="Password" description="Set a password for your account">
-          <SettingsButton size="sm" onClick={onOpenSecurity}>
-            Add password
-          </SettingsButton>
-        </SettingsRow>
         <SettingsRow
-          label="Two-step verification"
-          description="Add another layer of security to your account"
+          label="Sign-in methods"
+          description="Manage passwords, passkeys, and two-step verification."
         >
-          <SettingsButton size="sm" onClick={onOpenSecurity}>
-            Add verification method
-          </SettingsButton>
-        </SettingsRow>
-        <SettingsRow
-          label="Passkeys"
-          description="Sign in with on-device biometric authentication"
-          borderless
-        >
-          <SettingsButton size="sm" onClick={onOpenSecurity}>
-            Add passkey
-          </SettingsButton>
+          <SettingsButton onClick={onOpenSecurity}>Manage</SettingsButton>
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection title="Support">
+      <SettingsSection title="Support & account deletion">
         <SettingsToggleRow
           label="Support access"
-          description="Grant Clauxen support temporary access to help troubleshoot problems or recover content. You can revoke access anytime."
-          checked={supportAccess}
-          onCheckedChange={setSupportAccess}
+          description="Temporary support access is not available yet."
+          checked={false}
+          disabled
+          onCheckedChange={() => {}}
         />
         <SettingsRow
           label="Delete my account"
           description="Permanently delete your account. You'll no longer be able to access your chats or files."
           borderless
         >
-          <SettingsButton size="sm" variant="danger" onClick={() => setDeleteOpen(true)}>
+          <SettingsButton
+            size="sm"
+            variant="danger"
+            onClick={() => setDeleteOpen(true)}
+          >
             Delete my account
           </SettingsButton>
         </SettingsRow>
@@ -217,76 +166,27 @@ export function AccountSettings({
         ) : null}
       </SettingsSection>
 
-      <SettingsSection title="Devices">
+      <SettingsSection title="Sessions">
         <SettingsRow
-          label="Log out of all devices"
-          description="Log out of active sessions on all your devices, other than this one"
+          label="Active devices"
+          description="Review where you’re signed in and revoke individual sessions."
         >
-          <SettingsButton size="sm" variant="danger" onClick={() => setLogoutOpen(true)}>
-            Log out of all devices
+          <SettingsButton onClick={onOpenSecurity}>Manage</SettingsButton>
+        </SettingsRow>
+        <SettingsRow label="Log out of this device">
+          <SettingsButton onClick={() => setLogoutOpen(true)}>
+            Log out
           </SettingsButton>
         </SettingsRow>
-        <div className="overflow-x-auto px-4 py-3 sm:px-5">
-          <table className="w-full min-w-[520px] text-left text-[13px]">
-            <thead>
-              <tr className="text-[12px] text-[var(--settings-fg-subtle)]">
-                <th className="pb-2 font-medium">Device Name</th>
-                <th className="pb-2 font-medium">Last Active</th>
-                <th className="pb-2 font-medium">Location</th>
-                <th className="pb-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {devices.slice(0, deviceLimit).map((device) => (
-                <tr key={device.id} className="border-t border-[var(--settings-hairline)]">
-                  <td className="py-3 pr-3">
-                    <span className="inline-flex items-center gap-2">
-                      <Laptop className="size-4 text-[var(--settings-fg-muted)]" aria-hidden />
-                      <span>
-                        <span className="block font-medium">{device.name}</span>
-                        {device.current ? (
-                          <span className="text-[12px] text-[var(--link)]">This Device</span>
-                        ) : null}
-                      </span>
-                    </span>
-                  </td>
-                  <td className="py-3 pr-3 text-[var(--settings-fg-muted)]">{device.when}</td>
-                  <td className="py-3 pr-3 text-[var(--settings-fg-muted)]">{device.location}</td>
-                  <td className="py-3 text-right">
-                    {device.current ? null : (
-                      <SettingsButton
-                        size="sm"
-                        onClick={() =>
-                          setSessions((prev) =>
-                            (prev ?? []).filter((entry) => entry.id !== device.id),
-                          )
-                        }
-                      >
-                        Log out
-                      </SettingsButton>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {devices.length > deviceLimit ? (
-            <button
-              type="button"
-              className="mt-2 text-[13px] text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
-              onClick={() => setDeviceLimit((count) => count + 3)}
-            >
-              ↓ Load {Math.min(3, devices.length - deviceLimit)} more devices
-            </button>
-          ) : null}
-        </div>
       </SettingsSection>
 
       <SettingsSection title="User ID">
         <SettingsRow label="User ID" borderless>
           <button
             type="button"
-            className="inline-flex max-w-full items-center gap-2 font-mono text-[12.5px] text-[var(--settings-fg-muted)]"
+            aria-label={userIdCopied ? "User ID copied" : "Copy user ID"}
+            disabled={!userId}
+            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-focus-ring)] inline-flex max-w-full items-center gap-2 font-mono text-[12.5px] text-[var(--settings-fg-muted)]"
             onClick={() => {
               if (!userId) return;
               void navigator.clipboard.writeText(userId);
@@ -307,11 +207,11 @@ export function AccountSettings({
         open={logoutOpen}
         onOpenChange={setLogoutOpen}
         title="Log out of Clauxen?"
-        description={`You're signed in as ${userEmail ?? "this account"}.`}
+        description="This ends your session on this device."
         confirmLabel="Log out"
         onConfirm={() => {
           setLogoutOpen(false);
-          (onLogout ?? onLogoutAllDevices)?.();
+          onLogout?.();
         }}
       />
 

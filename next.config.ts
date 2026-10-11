@@ -111,7 +111,8 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(self), geolocation=()",
+    value:
+      "camera=(), microphone=(self), geolocation=(), identity-credentials-get=(self)",
   },
   { key: "X-DNS-Prefetch-Control", value: "off" },
   {
@@ -121,16 +122,17 @@ const securityHeaders = [
   {
     // ponytail: baseline CSP — API keys never appear in inline scripts; Next uses nonces in prod builds.
     // Razorpay Checkout loads scripts/frames from checkout + cdn + api hosts (risk detection, UPI).
+    // Google Identity Services needs script/style/frame access and FedCM requests.
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://*.razorpay.com https://cdn.razorpay.com https://challenges.cloudflare.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://*.razorpay.com https://cdn.razorpay.com https://challenges.cloudflare.com https://accounts.google.com/gsi/client",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
       "img-src 'self' data: blob: https: https://*.razorpay.com https://*.rzp.io",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss://streaming.assemblyai.com wss://streaming.us.assemblyai.com wss://streaming.eu.assemblyai.com https://api.razorpay.com https://*.razorpay.com https://checkout.razorpay.com https://*.r2.dev https://*.cloudflarestorage.com https://*.workers.dev https://challenges.cloudflare.com",
-      "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://*.rzp.io https://challenges.cloudflare.com",
-      "child-src 'self' https://checkout.razorpay.com https://*.razorpay.com https://*.rzp.io https://challenges.cloudflare.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss://streaming.assemblyai.com wss://streaming.us.assemblyai.com wss://streaming.eu.assemblyai.com https://api.razorpay.com https://*.razorpay.com https://checkout.razorpay.com https://*.r2.dev https://*.cloudflarestorage.com https://*.workers.dev https://challenges.cloudflare.com https://accounts.google.com/gsi/",
+      "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://*.rzp.io https://challenges.cloudflare.com https://accounts.google.com/gsi/",
+      "child-src 'self' https://checkout.razorpay.com https://*.razorpay.com https://*.rzp.io https://challenges.cloudflare.com https://accounts.google.com/gsi/",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self' https://checkout.razorpay.com https://api.razorpay.com",

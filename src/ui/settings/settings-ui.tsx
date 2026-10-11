@@ -38,7 +38,7 @@ export function SettingsPage({
   return (
     <div
       className={cn(
-        "flex flex-col gap-8 text-[var(--settings-fg)]",
+        "settings-page flex flex-col gap-8 text-[var(--settings-fg)]",
         className,
       )}
     >
@@ -64,13 +64,19 @@ export function SettingsSection({
   /** Trailing control beside the title (e.g. Manage, Add). */
   action?: React.ReactNode;
 }) {
+  const titleId = React.useId();
   return (
-    <section className={cn("flex flex-col gap-2", className)}>
+    <section
+      className={cn("settings-section flex flex-col gap-3", className)}
+      aria-labelledby={title ? titleId : undefined}
+    >
       {title || description || action ? (
-        <div className="flex items-end justify-between gap-4 px-1">
+        <div className="settings-section-heading flex items-center justify-between gap-4">
           <div className="min-w-0">
             {title ? (
-              <h3 className="settings-section-label">{title}</h3>
+              <h2 id={titleId} className="settings-section-label">
+                {title}
+              </h2>
             ) : null}
             {description ? (
               <p className="mt-0.5 max-w-[600px] text-pretty text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]">
@@ -86,12 +92,9 @@ export function SettingsSection({
   );
 }
 
-export function SettingsPanelTitle({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return <h2 className="sr-only">{children}</h2>;
+/** The settings shell owns the single page heading. */
+export function SettingsPanelTitle(_props: { children: React.ReactNode }) {
+  return null;
 }
 
 export function SettingsPanelHeaderWithHelp({
@@ -126,10 +129,9 @@ export function SettingsPanelHeaderWithHelp({
 /* ------------------------------------------------------------------ */
 
 const settingsRowBase =
-  "relative flex min-h-[52px] flex-col items-stretch gap-2.5 px-3.5 py-2.5 sm:flex-row sm:items-center sm:gap-5 sm:px-4";
+  "settings-row relative flex min-h-[60px] flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-6";
 
-const settingsRowHairline =
-  "before:pointer-events-none before:absolute before:left-3.5 before:right-3.5 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,var(--settings-hairline)_var(--edge-line-fade,14%),var(--settings-hairline)_calc(100%-var(--edge-line-fade,14%)),transparent)] before:content-[''] first:before:hidden sm:before:left-4 sm:before:right-4";
+const settingsRowHairline = "settings-row-divider";
 
 export function SettingsRow({
   label,
@@ -144,6 +146,8 @@ export function SettingsRow({
   borderless?: boolean;
   className?: string;
 }) {
+  const labelId = React.useId();
+  const descriptionId = React.useId();
   return (
     <div
       className={cn(
@@ -152,18 +156,26 @@ export function SettingsRow({
         className,
       )}
       role="group"
+      aria-labelledby={labelId}
+      aria-describedby={description ? descriptionId : undefined}
     >
       <div className="min-w-0 flex-1">
-        <div className="text-[13.5px] font-medium leading-5 text-[var(--settings-fg)]">
+        <div
+          id={labelId}
+          className="text-[14px] font-normal leading-5 text-[var(--settings-fg)]"
+        >
           {label}
         </div>
         {description ? (
-          <div className="mt-0.5 max-w-[440px] text-pretty text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]">
+          <div
+            id={descriptionId}
+            className="mt-1 text-pretty text-[12.5px] leading-[18px] text-[var(--settings-fg-muted)]"
+          >
             {description}
           </div>
         ) : null}
       </div>
-      <div className="flex w-full min-w-0 shrink-0 justify-start sm:w-auto sm:max-w-[19rem] sm:flex-1 sm:justify-end">
+      <div className="settings-row-control flex w-full min-w-0 justify-start sm:w-auto sm:max-w-[20rem] sm:shrink-0 sm:justify-end">
         {children}
       </div>
     </div>
@@ -212,9 +224,10 @@ export function SettingsToggleRow({
   borderless?: boolean;
   disabled?: boolean;
 }) {
+  const labelId = React.useId();
   return (
     <SettingsRow
-      label={label}
+      label={<span id={labelId}>{label}</span>}
       description={description}
       borderless={borderless}
       className="!flex-row !items-center !gap-4 [&>div:last-child]:!w-auto [&>div:last-child]:!flex-none [&>div:last-child]:!justify-end"
@@ -224,6 +237,7 @@ export function SettingsToggleRow({
         onCheckedChange={onCheckedChange}
         disabled={disabled}
         className="settings-switch"
+        aria-labelledby={labelId}
       />
     </SettingsRow>
   );
@@ -340,7 +354,7 @@ type SettingsButtonVariant =
   | "ghost";
 
 const settingsFocusReset =
-  "outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0";
+  "outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--settings-canvas-bg)]";
 
 export function SettingsButton({
   children,
@@ -364,7 +378,7 @@ export function SettingsButton({
       disabled={disabled}
       className={cn(
         "no-hover-overlay settings-btn shrink-0",
-        size === "sm" && "!h-7 !min-h-[1.75rem] !gap-1.5 !px-2.5 !text-[12.5px]",
+        size === "sm" && "settings-btn--compact",
         size === "lg" && "!h-9 !min-h-[2.25rem] !px-4 !text-[13.5px]",
         variant === "primary" && "settings-btn--primary",
         variant === "danger" &&
@@ -443,7 +457,7 @@ const settingsOptionMenuContentClass = cn(
 );
 
 const settingsOptionTriggerClass = cn(
-  "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] w-full shrink-0 justify-between gap-2 px-2.5 text-[13px] font-medium leading-[18px] sm:w-auto sm:min-w-[9rem] sm:justify-start",
+  "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] w-full shrink-0 justify-between gap-2 px-2.5 text-[13px] font-medium leading-[18px] sm:w-auto sm:justify-start",
   "text-[var(--settings-fg)] data-[state=open]:bg-[var(--settings-elevated-bg)] data-[state=open]:shadow-[inset_0_0_0_1px_var(--settings-input-focus),0_0_0_3px_var(--settings-focus-ring)]",
   settingsFocusReset,
 );
@@ -517,7 +531,8 @@ export function SettingsOptionPicker({
           settingsOptionMenuContentClass,
           hasDescriptions && "min-w-[16.5rem]",
         )}
-        onCloseAutoFocus={(event) => event.preventDefault()}
+        data-nested-settings-dialog=""
+        onEscapeKeyDown={(event) => event.stopPropagation()}
       >
         {items.map((item) => {
           const isSelected = item.value === value;
@@ -636,9 +651,7 @@ export function SettingsField({
 }) {
   return (
     <label className={cn("flex min-w-0 flex-1 flex-col gap-1.5", className)}>
-      <span className="cx-label px-0.5">
-        {label}
-      </span>
+      <span className="cx-label px-0.5">{label}</span>
       {children}
       {hint ? (
         <span className="px-0.5 text-[12px] leading-4 text-[var(--settings-fg-subtle)]">
@@ -1001,7 +1014,11 @@ export function SettingsConfirmDialog({
           {confirmPhrase ? (
             <label className="flex flex-col gap-1.5">
               <span className="cx-label">
-                Type <span className="font-mono text-[var(--settings-fg)]">{confirmPhrase}</span> to confirm
+                Type{" "}
+                <span className="font-mono text-[var(--settings-fg)]">
+                  {confirmPhrase}
+                </span>{" "}
+                to confirm
               </span>
               <input
                 value={typed}

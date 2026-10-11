@@ -1,12 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  segmentedOptionClass,
-  segmentedTrackClass,
-} from "@/lib/segmented-control";
 import { accentColors, contrastOptions, motionOptions } from "./constants";
 import {
   SettingsButton,
@@ -34,11 +30,82 @@ import {
 import { ShortcutRecorder } from "@/components/keyboard/shortcut-recorder";
 import { Switch } from "@/components/ui/switch";
 
-const appearanceModes = [
-  { value: "System", icon: Monitor, label: "System" },
-  { value: "Light", icon: Sun, label: "Light" },
-  { value: "Dark", icon: Moon, label: "Dark" },
-] as const;
+const appearanceModes = ["System", "Light", "Dark"] as const;
+
+function AppearanceModePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Theme"
+      className="settings-theme-options"
+    >
+      {appearanceModes.map((mode, index) => (
+        <button
+          key={mode}
+          type="button"
+          role="radio"
+          aria-checked={value === mode}
+          aria-label={mode}
+          tabIndex={value === mode ? 0 : -1}
+          className={cn(
+            "settings-theme-option",
+            value === mode && "is-selected",
+          )}
+          onClick={() => onChange(mode)}
+          onKeyDown={(event) => {
+            const direction =
+              event.key === "ArrowRight" || event.key === "ArrowDown"
+                ? 1
+                : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                  ? -1
+                  : 0;
+            if (!direction && event.key !== "Home" && event.key !== "End")
+              return;
+            event.preventDefault();
+            const next =
+              event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? appearanceModes.length - 1
+                  : (index + direction + appearanceModes.length) %
+                    appearanceModes.length;
+            onChange(appearanceModes[next]);
+            event.currentTarget.parentElement
+              ?.querySelectorAll<HTMLButtonElement>("button")
+              [next]?.focus();
+          }}
+        >
+          <span
+            className={cn(
+              "settings-theme-preview",
+              `settings-theme-preview--${mode.toLowerCase()}`,
+            )}
+            aria-hidden
+          >
+            <span className="settings-theme-preview-rail">
+              <i />
+              <i />
+              <i />
+            </span>
+            <span className="settings-theme-preview-content">
+              <i />
+              <i />
+              <i />
+              <span />
+            </span>
+          </span>
+          <span className="settings-theme-option-label">{mode}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface GeneralSettingsProps {
   section?: "General" | "Appearance" | "Keyboard";
@@ -134,100 +201,26 @@ export function GeneralSettings({
       <SettingsPanelTitle>{section}</SettingsPanelTitle>
 
       {section === "Appearance" ? (
-        <SettingsSection
-          title="Appearance"
-          description="Theme, accent, and contrast across the app."
-        >
-          <SettingsRow label="Theme">
-            <div
-              className={segmentedTrackClass}
-              role="radiogroup"
-              aria-label="Theme"
+        <>
+          <SettingsSection title="Visual style">
+            <SettingsRow label="Mode" borderless>
+              <AppearanceModePicker
+                value={
+                  appearanceModes.includes(
+                    appearancePreset as (typeof appearanceModes)[number],
+                  )
+                    ? appearancePreset
+                    : "System"
+                }
+                onChange={onAppearanceChange}
+              />
+            </SettingsRow>
+          </SettingsSection>
+          <SettingsSection title="Theme">
+            <SettingsRow
+              label="Chat font"
+              description="The typeface used in your conversations."
             >
-              {appearanceModes.map(({ value, icon: Icon, label }) => {
-                const active = appearancePreset === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    aria-label={label}
-                    onClick={() => onAppearanceChange(value)}
-                    className={segmentedOptionClass(active, "icon")}
-                  >
-                    <Icon className="h-4 w-4" strokeWidth={1.75} />
-                  </button>
-                );
-              })}
-            </div>
-          </SettingsRow>
-
-          <SettingsRow
-            label="Accent"
-            description="Focus rings, links, and selected states."
-          >
-            <SettingsOptionPicker
-              value={accentValue}
-              options={accentOptionItems}
-              onValueChange={(value) =>
-                setAccentColor(normalizeAccentId(value))
-              }
-              aria-label={`Accent color: ${accentValue}`}
-            />
-          </SettingsRow>
-
-          <SettingsRow
-            label="Contrast"
-            description="System follows your OS setting."
-          >
-            <SettingsOptionPicker
-              value={contrastValue}
-              options={contrastOptions}
-              onValueChange={(value) =>
-                setContrastMode(normalizeContrastMode(value))
-              }
-              aria-label={`Contrast: ${contrastValue}`}
-            />
-          </SettingsRow>
-
-          <SettingsRow label="Motion" description="Reduce animation.">
-            <div
-              className={cn(segmentedTrackClass, "shrink-0")}
-              role="radiogroup"
-              aria-label="Motion"
-            >
-              {motionOptions.map((option) => {
-                const active = motion === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => setMotion(option)}
-                    className={segmentedOptionClass(active)}
-                  >
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
-          </SettingsRow>
-        </SettingsSection>
-      ) : null}
-
-      {section !== "Keyboard" ? (
-        <SettingsSection
-          title="Chat"
-          description={
-            section === "Appearance"
-              ? "Choose how text looks in conversations."
-              : "Choose how conversations continue."
-          }
-        >
-          {section === "Appearance" ? (
-            <SettingsRow label="Chat font">
               <SettingsOptionPicker
                 value={chatFontValue}
                 options={chatFontOptions}
@@ -237,55 +230,87 @@ export function GeneralSettings({
                 aria-label={`Chat font: ${selectedChatFont.label}`}
               />
             </SettingsRow>
-          ) : null}
+            <SettingsRow
+              label="Accent color"
+              description="Links, focus rings, and selected controls."
+            >
+              <SettingsOptionPicker
+                value={accentValue}
+                options={accentOptionItems}
+                onValueChange={(value) =>
+                  setAccentColor(normalizeAccentId(value))
+                }
+                aria-label={`Accent color: ${accentValue}`}
+              />
+            </SettingsRow>
+          </SettingsSection>
+          <details className="settings-advanced">
+            <summary className="settings-disclosure">
+              Advanced{" "}
+              <ChevronRight
+                className="settings-disclosure-chevron size-4"
+                aria-hidden
+              />
+            </summary>
+            <div className="mt-4">
+              <SettingsSection title="Accessibility">
+                <SettingsRow
+                  label="Contrast"
+                  description="Follow your system setting or increase contrast."
+                >
+                  <SettingsOptionPicker
+                    value={contrastValue}
+                    options={contrastOptions}
+                    onValueChange={(value) =>
+                      setContrastMode(normalizeContrastMode(value))
+                    }
+                    aria-label={`Contrast: ${contrastValue}`}
+                  />
+                </SettingsRow>
+                <SettingsRow
+                  label="Motion"
+                  description="Reduce animations or follow your system setting."
+                >
+                  <SettingsOptionPicker
+                    value={motion}
+                    options={motionOptions}
+                    onValueChange={setMotion}
+                    aria-label="Motion"
+                  />
+                </SettingsRow>
+              </SettingsSection>
+            </div>
+          </details>
+        </>
+      ) : null}
 
-          {section === "General" ? (
-            <SettingsToggleRow
-              label="Follow-up suggestions"
-              description="End replies with clickable follow-ups."
-              checked={followUpSuggestions}
-              onCheckedChange={setFollowUpSuggestions}
-              borderless
-            />
-          ) : null}
+      {section === "General" ? (
+        <SettingsSection title="Conversations">
+          <SettingsToggleRow
+            label="Follow-up suggestions"
+            description="Show suggested next steps at the end of replies."
+            checked={followUpSuggestions}
+            onCheckedChange={setFollowUpSuggestions}
+          />
         </SettingsSection>
       ) : null}
 
       {section === "Keyboard" ? (
-        <SettingsSection
-          title="Shortcuts"
-          description="Turn off shortcuts you don't use, or pick new keys."
-          action={
-            <SettingsButton
-              size="sm"
-              disabled={!hasShortcutChanges}
-              onClick={resetToDefaults}
-            >
-              Restore defaults
-            </SettingsButton>
-          }
-        >
-          {groupedShortcuts.map((group, groupIndex) => (
-            <div key={group.category}>
-              <p className="mb-1 mt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ui-fg-muted)] first:mt-0">
-                {group.category}
-              </p>
-              {group.items.map((shortcut, itemIndex) => (
-                <SettingsRow
-                  key={shortcut.id}
-                  label={shortcut.label}
-                  borderless={
-                    groupIndex === groupedShortcuts.length - 1 &&
-                    itemIndex === group.items.length - 1
-                  }
-                >
-                  <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+        <>
+          <p className="text-[14px] leading-5 text-[var(--settings-fg-muted)]">
+            Select a key combination and press new keys to change a shortcut.
+          </p>
+          {groupedShortcuts.map((group) => (
+            <SettingsSection key={group.category} title={group.category}>
+              {group.items.map((shortcut) => (
+                <SettingsRow key={shortcut.id} label={shortcut.label}>
+                  <div className="flex w-full items-center justify-between gap-4 sm:w-auto sm:justify-end">
                     <Switch
                       checked={shortcut.enabled}
                       onCheckedChange={(enabled) =>
                         updateShortcut(shortcut.id, { enabled })
                       }
-                      aria-label={`${shortcut.label}, ${shortcut.enabled ? "on" : "off"}`}
+                      aria-label={`Enable ${shortcut.label}`}
                       className="settings-switch"
                     />
                     <ShortcutRecorder
@@ -296,9 +321,17 @@ export function GeneralSettings({
                   </div>
                 </SettingsRow>
               ))}
-            </div>
+            </SettingsSection>
           ))}
-        </SettingsSection>
+          <div>
+            <SettingsButton
+              disabled={!hasShortcutChanges}
+              onClick={resetToDefaults}
+            >
+              Restore defaults
+            </SettingsButton>
+          </div>
+        </>
       ) : null}
     </SettingsPage>
   );

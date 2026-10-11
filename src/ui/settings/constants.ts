@@ -140,7 +140,8 @@ export const settingsNavByName = Object.fromEntries(
 
 /** Short labels in the settings rail. Tab ids stay stable for deep links. */
 export const settingsNavLabel: Partial<Record<VisibleSettingsTab, string>> = {
-  Capabilities: "Plugins",
+  Capabilities: "Tools & capabilities",
+  "Security & login": "Security and login",
 };
 
 export function settingsItemLabel(tab: VisibleSettingsTab): string {
@@ -154,25 +155,29 @@ export const settingsNavGroups: ReadonlyArray<{
   {
     label: "Personal",
     items: [
+      "General",
+      "Appearance",
+      "Notifications",
+      "Personalization",
       "Account",
       "Security & login",
-      "Notifications",
-      "Appearance",
-      "General",
-      "Storage",
-      "Personalization",
-      "Keyboard",
-      "Billing",
-      "Data controls",
-      "Usage",
       "Archived chats",
       "Parental controls",
       "Trusted contact",
+      "Storage",
+      "Keyboard",
+      "Usage",
+      "Billing",
+      "Data controls",
     ],
   },
   {
     label: "Integrations",
-    items: ["Capabilities"],
+    items: ["Capabilities", "Skills"],
+  },
+  {
+    label: "Coding",
+    items: ["Clauxen Code"],
   },
 ];
 

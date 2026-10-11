@@ -1,5 +1,7 @@
 "use client";
 
+import { Archive } from "lucide-react";
+
 interface SettingsPlaceholderProps {
   title: string;
   description?: string;
@@ -7,12 +9,13 @@ interface SettingsPlaceholderProps {
 
 export function SettingsPlaceholder({
   title,
-  description = "This section is part of the new Clauxen settings experience. Content will be added in the next pass.",
+  description = "This setting is not available yet.",
 }: SettingsPlaceholderProps) {
   return (
-    <div className="flex animate-in fade-in flex-col gap-3 duration-300 text-[var(--settings-fg)]">
-      <h2 className="text-[16px] font-semibold">{title}</h2>
-      <p className="max-w-md text-[14px] leading-relaxed text-[var(--settings-fg-muted)]">
+    <div className="settings-card flex flex-col items-center gap-3 px-6 py-12 text-center text-[var(--settings-fg)]">
+      <Archive className="size-6 text-[var(--settings-fg-muted)]" aria-hidden />
+      <p className="text-sm font-medium">{title} management is coming soon</p>
+      <p className="max-w-md text-[13px] leading-5 text-[var(--settings-fg-muted)]">
         {description}
       </p>
     </div>

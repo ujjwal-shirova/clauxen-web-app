@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, RefreshCw } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { PersonalizationSettings } from "@/lib/api/settings";
 import {
   baseStyleToneOptionItems,
@@ -12,6 +12,7 @@ import {
 } from "@/components/settings/constants";
 import {
   SettingsButton,
+  SettingsConfirmDialog,
   SettingsOptionPicker,
   SettingsPage,
   SettingsPanelTitle,
@@ -85,6 +86,7 @@ export function PersonalizationSettingsPanel({
   onManageMemory,
 }: PersonalizationSettingsProps) {
   const p = personalization;
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [callMeDraft, setCallMeDraft] = useState(p.nickname || "");
   const [instructionsDraft, setInstructionsDraft] = useState(
@@ -110,6 +112,7 @@ export function PersonalizationSettingsPanel({
     const next = instructionsDraft.trim().slice(0, MAX_CUSTOM_INSTRUCTIONS);
     setInstructionsDraft(next);
     onChange({ customInstructions: next });
+    setInstructionsOpen(false);
   };
 
   return (
@@ -123,6 +126,7 @@ export function PersonalizationSettingsPanel({
         <SettingsRow label="What should Clauxen call you?">
           <input
             type="text"
+            aria-label="What should Clauxen call you?"
             value={callMeDraft}
             onChange={(e) => setCallMeDraft(e.target.value)}
             onBlur={() => onChange({ nickname: callMeDraft.trim() })}
@@ -143,32 +147,21 @@ export function PersonalizationSettingsPanel({
         </SettingsRow>
         <SettingsRow
           label="Custom instructions"
-          description="Kept in mind across chats."
-          className="!flex-col !items-stretch sm:!flex-col"
+          description="Tell Clauxen what to keep in mind when responding."
         >
-          <div className="w-full">
-            <textarea
-              value={instructionsDraft}
-              onChange={(e) =>
-                setInstructionsDraft(
-                  e.target.value.slice(0, MAX_CUSTOM_INSTRUCTIONS),
-                )
-              }
-              onBlur={commitInstructions}
-              rows={4}
-              maxLength={MAX_CUSTOM_INSTRUCTIONS}
-              placeholder="e.g. when learning new concepts, I find analogies particularly helpful"
-              className="settings-field mt-1 min-h-[96px] w-full resize-y py-2"
-            />
-            <p className="mt-1.5 text-right text-[11px] text-[var(--settings-fg-muted)]">
-              {instructionsDraft.length}/{MAX_CUSTOM_INSTRUCTIONS}
-            </p>
-          </div>
+          <SettingsButton
+            onClick={() => {
+              setInstructionsDraft(p.customInstructions || "");
+              setInstructionsOpen(true);
+            }}
+          >
+            Edit
+          </SettingsButton>
         </SettingsRow>
       </SettingsSection>
 
       <SettingsSection
-        title="Style"
+        title="Response style"
         description="Tone and formatting of replies."
       >
         <SettingsRow label="Response length">
@@ -199,13 +192,13 @@ export function PersonalizationSettingsPanel({
           />
         </SettingsRow>
         <CharacteristicRow
-          label="Warm"
+          label="Warmth"
           value={p.characteristicWarm}
           options={characteristicWarmOptions}
           onChange={(characteristicWarm) => onChange({ characteristicWarm })}
         />
         <CharacteristicRow
-          label="Enthusiastic"
+          label="Enthusiasm"
           value={p.characteristicEnthusiastic}
           options={characteristicEnthusiasticOptions}
           onChange={(characteristicEnthusiastic) =>
@@ -262,16 +255,7 @@ export function PersonalizationSettingsPanel({
 
       <SettingsSection
         title="Activity"
-        description="Summaries and answer depth."
-        action={
-          <button
-            type="button"
-            aria-label="Refresh activity"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--settings-fg-muted)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
-          >
-            <RefreshCw className="size-4" />
-          </button>
-        }
+        description="Choose how Clauxen reflects on your chats."
       >
         <SettingsRow label="Summary range">
           <SettingsOptionPicker
@@ -281,19 +265,6 @@ export function PersonalizationSettingsPanel({
             aria-label="Activity summary range"
           />
         </SettingsRow>
-        <SettingsToggleRow
-          label="Fast answers"
-          description="Shorter answers from general knowledge when possible."
-          checked={p.fastAnswers}
-          onCheckedChange={(fastAnswers) => onChange({ fastAnswers })}
-        />
-        <SettingsToggleRow
-          label="Extended thinking"
-          description="Think longer before answering."
-          checked={p.extendedThinking}
-          onCheckedChange={(extendedThinking) => onChange({ extendedThinking })}
-          borderless
-        />
       </SettingsSection>
 
       <SettingsSection card>
@@ -318,6 +289,22 @@ export function PersonalizationSettingsPanel({
         {advancedOpen ? (
           <div className="border-t border-[var(--settings-hairline)]">
             <SettingsToggleRow
+              label="Fast answers"
+              description="Shorter answers from general knowledge when possible."
+              checked={p.fastAnswers}
+              onCheckedChange={(fastAnswers) => onChange({ fastAnswers })}
+            />
+            <SettingsToggleRow
+              label="Extended thinking"
+              description="Think longer before answering."
+              checked={p.extendedThinking}
+              onCheckedChange={(extendedThinking) =>
+                onChange({ extendedThinking })
+              }
+              borderless
+            />
+
+            <SettingsToggleRow
               label="Web search"
               description="Search the web automatically when needed."
               checked={advanced.webSearch}
@@ -333,6 +320,32 @@ export function PersonalizationSettingsPanel({
           </div>
         ) : null}
       </SettingsSection>
+      <SettingsConfirmDialog
+        open={instructionsOpen}
+        onOpenChange={setInstructionsOpen}
+        title="Custom instructions"
+        description="These instructions apply across your conversations."
+        confirmLabel="Save"
+        onConfirm={commitInstructions}
+      >
+        <textarea
+          aria-label="Custom instructions"
+          value={instructionsDraft}
+          onChange={(event) =>
+            setInstructionsDraft(
+              event.target.value.slice(0, MAX_CUSTOM_INSTRUCTIONS),
+            )
+          }
+          rows={8}
+          maxLength={MAX_CUSTOM_INSTRUCTIONS}
+          placeholder="For example, use analogies when explaining new concepts."
+          className="settings-field min-h-[180px] w-full resize-y py-3"
+        />
+        <p className="text-right text-xs text-[var(--settings-fg-muted)]">
+          {instructionsDraft.length.toLocaleString()} /{" "}
+          {MAX_CUSTOM_INSTRUCTIONS.toLocaleString()}
+        </p>
+      </SettingsConfirmDialog>
     </SettingsPage>
   );
 }

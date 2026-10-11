@@ -76,7 +76,6 @@ function PreferencesInner({ children }: { children: ReactNode }) {
   const generalRef = useRef(general);
   const dirtyRef = useRef(false);
   const persistEpoch = useRef(0);
-  generalRef.current = general;
 
   useEffect(() => {
     if (resolvedTheme !== "dark" && resolvedTheme !== "light") return;
@@ -111,6 +110,7 @@ function PreferencesInner({ children }: { children: ReactNode }) {
   // Instant paint from localStorage before auth/settings resolve (once).
   useEffect(() => {
     const local = buildGeneralFromLocal();
+    generalRef.current = local;
     setGeneral(local);
     applyGeneralToDom(local);
   }, []);
@@ -135,6 +135,7 @@ function PreferencesInner({ children }: { children: ReactNode }) {
       const quiet = opts?.quiet ?? ready;
       if (!user?.id) {
         const next = buildGeneralFromLocal();
+        generalRef.current = next;
         setGeneral(next);
         applyGeneralToDom(next);
         setLoading(false);
@@ -157,13 +158,11 @@ function PreferencesInner({ children }: { children: ReactNode }) {
           colorMode: colorModeForAppearance(data.general.appearancePreset),
           sidebarWidth: readLocalGeneralPrefs().sidebarWidth,
         };
+        generalRef.current = next;
         setGeneral(next);
         applyGeneralToDom(next);
       } catch {
-        setGeneral((prev) => {
-          applyGeneralToDom(prev);
-          return prev;
-        });
+        applyGeneralToDom(generalRef.current);
       } finally {
         setLoading(false);
         setReady(true);
@@ -187,66 +186,63 @@ function PreferencesInner({ children }: { children: ReactNode }) {
       if (!sidebarWidthOnly) dirtyRef.current = true;
       const epoch = ++persistEpoch.current;
 
-      setGeneral((prev) => {
-        const next: GeneralSettings = {
-          ...prev,
-          ...patch,
-          ...(typeof patch.chatFont === "string"
-            ? { chatFont: normalizeChatFontId(patch.chatFont) }
-            : {}),
-          ...(typeof patch.motion === "string"
-            ? { motion: normalizeMotionPreset(patch.motion) }
-            : {}),
-          ...(typeof patch.accentColor === "string"
-            ? { accentColor: normalizeAccentId(patch.accentColor) }
-            : {}),
-          ...(typeof patch.contrastMode === "string"
-            ? { contrastMode: normalizeContrastMode(patch.contrastMode) }
-            : {}),
-          ...(typeof patch.sidebarWidth === "number"
-            ? { sidebarWidth: clampSidebarWidth(patch.sidebarWidth) }
-            : {}),
-          ...(typeof patch.appearancePreset === "string"
-            ? {
-                appearancePreset: patch.appearancePreset,
-                colorMode:
-                  patch.colorMode ??
-                  colorModeForAppearance(patch.appearancePreset),
-              }
-            : {}),
-        };
-        generalRef.current = next;
-        // UI first — theme / font / motion apply before any network work.
-        applyGeneralToDom(next);
+      const next: GeneralSettings = {
+        ...generalRef.current,
+        ...patch,
+        ...(typeof patch.chatFont === "string"
+          ? { chatFont: normalizeChatFontId(patch.chatFont) }
+          : {}),
+        ...(typeof patch.motion === "string"
+          ? { motion: normalizeMotionPreset(patch.motion) }
+          : {}),
+        ...(typeof patch.accentColor === "string"
+          ? { accentColor: normalizeAccentId(patch.accentColor) }
+          : {}),
+        ...(typeof patch.contrastMode === "string"
+          ? { contrastMode: normalizeContrastMode(patch.contrastMode) }
+          : {}),
+        ...(typeof patch.sidebarWidth === "number"
+          ? { sidebarWidth: clampSidebarWidth(patch.sidebarWidth) }
+          : {}),
+        ...(typeof patch.appearancePreset === "string"
+          ? {
+              appearancePreset: patch.appearancePreset,
+              colorMode:
+                patch.colorMode ??
+                colorModeForAppearance(patch.appearancePreset),
+            }
+          : {}),
+      };
+      generalRef.current = next;
+      setGeneral(next);
+      // UI first — theme / font / motion apply before any network work.
+      applyGeneralToDom(next);
 
-        if (sidebarWidthOnly) return next;
+      if (sidebarWidthOnly) return;
 
-        if (persistTimer.current) clearTimeout(persistTimer.current);
-        persistTimer.current = setTimeout(() => {
-          if (!user?.id) {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+      persistTimer.current = setTimeout(() => {
+        if (!user?.id) {
+          dirtyRef.current = false;
+          return;
+        }
+        const { sidebarWidth: _sidebarWidth, ...generalForServer } =
+          generalRef.current;
+        void settingsApi
+          .updateSettings({ general: generalForServer })
+          .then(() => {
+            // Ignore stale responses from rapid toggles.
+            if (epoch !== persistEpoch.current) return;
             dirtyRef.current = false;
-            return;
-          }
-          const { sidebarWidth: _sidebarWidth, ...generalForServer } =
-            generalRef.current;
-          void settingsApi
-            .updateSettings({ general: generalForServer })
-            .then(() => {
-              // Ignore stale responses from rapid toggles.
-              if (epoch !== persistEpoch.current) return;
+            showSavedNotification();
+          })
+          .catch(() => {
+            if (epoch === persistEpoch.current) {
               dirtyRef.current = false;
-              showSavedNotification();
-            })
-            .catch(() => {
-              if (epoch === persistEpoch.current) {
-                dirtyRef.current = false;
-              }
-              /* keep optimistic UI */
-            });
-        }, 280);
-
-        return next;
-      });
+            }
+            /* keep optimistic UI */
+          });
+      }, 280);
     },
     [applyGeneralToDom, user?.id],
   );
