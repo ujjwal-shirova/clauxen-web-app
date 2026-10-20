@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import {
   Settings,
@@ -13,7 +20,6 @@ import {
   MoreVertical,
   Pin,
   SquarePen,
-  Languages,
   Code2,
   CalendarClock,
   Hammer,
@@ -31,7 +37,11 @@ import { SidebarToggleIcon } from "./icons";
 import { cn } from "@/lib/utils";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
-import { APP_ROUTES, buildOverlayLocation, isNewChatPath } from "@/lib/app-routes";
+import {
+  APP_ROUTES,
+  buildOverlayLocation,
+  isNewChatPath,
+} from "@/lib/app-routes";
 import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
 import { focusAppSurface } from "@/lib/surface-focus";
 import {
@@ -58,13 +68,18 @@ import { StreamingChatTitle } from "./streaming-chat-title";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
-import { SidebarChatGroupMenu, sidebarSectionIconButtonClass } from "./sidebar-chat-group-menu";
+import {
+  SidebarChatGroupMenu,
+  sidebarSectionIconButtonClass,
+} from "./sidebar-chat-group-menu";
 import { groupChats, type ChatGroupBy } from "@/lib/chat-grouping";
 import type { RecentChat } from "@/lib/types";
 import { ShortcutBadge, ShortcutHint } from "@/components/ui/kbd";
 import { KS_EVENTS } from "@/lib/keyboard-shortcut-events";
 import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
 import { useAuth } from "@/hooks/use-auth";
+import { sessionFetch } from "@/lib/api/client";
+import { useToast } from "@/hooks/use-toast";
 
 const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
 const SECTION_STORAGE_PREFIX = "clauxen_sidebar_section_";
@@ -197,7 +212,7 @@ function SidebarSectionLabel({
   trailing?: React.ReactNode;
 }) {
   return (
-    <div className="cx-section-head">
+    <div className="cx-section-head group/section flex h-7 items-center justify-between px-2 pt-2 pb-0.5 select-none">
       <button
         type="button"
         onClick={(event) => {
@@ -205,12 +220,14 @@ function SidebarSectionLabel({
           onToggle();
         }}
         aria-expanded={expanded}
-        className="cx-section-toggle no-hover-overlay flex min-w-0 flex-1 items-center gap-1 bg-transparent p-0 text-left"
+        className="cx-section-toggle no-hover-overlay flex min-w-0 flex-1 items-center gap-1.5 bg-transparent p-0 text-left cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--brand-ring)] rounded"
       >
-        <span className="truncate">{label}</span>
+        <span className="truncate text-[11.5px] font-medium tracking-[0.01em] text-[var(--cx-sidebar-muted)]">
+          {label}
+        </span>
         <ChevronRight
           className={cn(
-            "sidebar-section-chevron h-3 w-3 shrink-0 transition-transform duration-150",
+            "sidebar-section-chevron size-3 shrink-0 text-[var(--cx-sidebar-muted)] transition-transform duration-150 opacity-0 group-hover/section:opacity-100 group-focus-within/section:opacity-100",
             expanded && "rotate-90",
           )}
           strokeWidth={2}
@@ -333,6 +350,8 @@ export function Sidebar({
   onLogoutClick,
   showAccountMenu = true,
 }: SidebarProps) {
+  const router = useRouter();
+  const { toast } = useToast();
   const pathname = useAppPathname() || APP_ROUTES.newChat;
   const newChatActive = isNewChatPath(pathname);
   const authGate = useOptionalAuthGate();
@@ -356,6 +375,7 @@ export function Sidebar({
   );
   const [planLoading, setPlanLoading] = useState(() => !cachedPlan);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [profileOpening, setProfileOpening] = useState(false);
   const [sidebarSearchOpen, setSidebarSearchOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
 
@@ -378,7 +398,8 @@ export function Sidebar({
   useEffect(() => {
     const openSearch = () => setSidebarSearchOpen(true);
     window.addEventListener(KS_EVENTS.openChatSearch, openSearch);
-    return () => window.removeEventListener(KS_EVENTS.openChatSearch, openSearch);
+    return () =>
+      window.removeEventListener(KS_EVENTS.openChatSearch, openSearch);
   }, []);
 
   useEffect(() => {
@@ -533,7 +554,10 @@ export function Sidebar({
           setPinDropHot(false);
           setUnpinDropHot(false);
         }}
-        className="group/chat cx-chat-row glass-sidebar-agent-menu-btn relative flex w-full items-center"
+        className={cn(
+          "group/chat cx-chat-row glass-sidebar-agent-menu-btn relative flex h-8 w-full items-center rounded-lg px-2 select-none transition-colors duration-150 text-[13.5px] text-[var(--cx-sidebar-fg)] hover:bg-[var(--cx-sidebar-hover)]",
+          isActive && "bg-[var(--cx-sidebar-active)] font-medium",
+        )}
       >
         <AppHref
           href={chatHref}
@@ -546,20 +570,23 @@ export function Sidebar({
             onSelectChat(chat);
             if (isMobileLayout) onNavigate?.();
           }}
-          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2.5 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] rounded-lg"
         >
           <span
-            className="cx-chat-status"
+            className="cx-chat-status flex size-5 shrink-0 items-center justify-center"
             role={showSidebarSpinner ? "status" : "img"}
             aria-label={showSidebarSpinner ? "Generating" : "Idle"}
           >
             {showSidebarSpinner ? (
-              <span className="chat-gen-spinner" />
+              <span className="chat-gen-spinner size-3.5 animate-spin rounded-full border-[1.5px] border-[var(--cx-sidebar-muted)] border-t-[var(--cx-sidebar-fg)]" />
             ) : (
-              <span className="cx-chat-idle" aria-hidden />
+              <span
+                className="cx-chat-idle size-1.5 rounded-full bg-[var(--cx-sidebar-muted)] opacity-40 transition-opacity group-hover/chat:opacity-75 group-data-[active=true]/chat:opacity-95"
+                aria-hidden
+              />
             )}
           </span>
-          <span className="cx-chat-title min-w-0 flex-1">
+          <span className="cx-chat-title min-w-0 flex-1 truncate text-[13.5px] font-normal leading-normal text-[var(--cx-sidebar-fg)]">
             {chat.isTitleStreaming ? (
               <StreamingChatTitle title={chat.name || "New Chat"} isStreaming />
             ) : (
@@ -571,15 +598,15 @@ export function Sidebar({
           ) : null}
         </AppHref>
         {!showSidebarSpinner ? (
-          <div className="cx-chat-actions">
+          <div className="cx-chat-actions absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 pointer-events-none group-hover/chat:opacity-100 group-hover/chat:pointer-events-auto group-focus-within/chat:opacity-100 group-focus-within/chat:pointer-events-auto has-[[data-state=open]]:opacity-100 has-[[data-state=open]]:pointer-events-auto transition-opacity">
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   aria-label={`Chat options for ${chat.name || "New Chat"}`}
-                  className="ui-row-icon-button"
+                  className="ui-row-icon-button flex size-6 items-center justify-center rounded-md text-[var(--cx-sidebar-muted)] hover:text-[var(--cx-sidebar-fg)] hover:bg-[var(--cx-sidebar-hover)] data-[state=open]:bg-[var(--cx-sidebar-hover)] data-[state=open]:text-[var(--cx-sidebar-fg)] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-[var(--brand-ring)]"
                 >
-                  <MoreVertical className="icon-sm" />
+                  <MoreVertical className="size-3.5" />
                 </button>
               </DropdownMenuTrigger>
               <ChatRowMenuContent
@@ -628,32 +655,36 @@ export function Sidebar({
       >
         <div
           className={cn(
-            "ui-sidebar-top-bar relative flex h-11 shrink-0 items-center px-2",
+            "ui-sidebar-top-bar relative flex h-11 shrink-0 items-center px-2.5",
             isCollapsed && !isMobileLayout && !isPeekPreview
               ? "justify-center"
-              : "justify-start",
+              : "justify-start gap-2",
           )}
         >
           {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
-            <ShortcutHint label="Toggle sidebar" shortcutId="toggleSidebar" side="bottom">
-            <button
-              type="button"
-              aria-label={isPeekPreview ? "Expand sidebar" : "Hide sidebar"}
-              className="cx-hide-sidebar"
-              onClick={(event) => {
-                event.stopPropagation();
-                // The hover preview is already the full sidebar. Pin it open
-                // instead of dismissing the overlay.
-                setIsCollapsed(isPeekPreview ? false : true);
-              }}
+            <ShortcutHint
+              label="Toggle sidebar"
+              shortcutId="toggleSidebar"
+              side="bottom"
             >
-              <SidebarToggleIcon className="size-5" aria-hidden />
-            </button>
+              <button
+                type="button"
+                aria-label={isPeekPreview ? "Expand sidebar" : "Hide sidebar"}
+                className="cx-hide-sidebar flex size-7 shrink-0 items-center justify-center rounded-md text-[var(--cx-sidebar-fg)] transition-colors hover:bg-[var(--cx-sidebar-hover)]"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  // The hover preview is already the full sidebar. Pin it open
+                  // instead of dismissing the overlay.
+                  setIsCollapsed(isPeekPreview ? false : true);
+                }}
+              >
+                <SidebarToggleIcon className="size-[18px]" aria-hidden />
+              </button>
             </ShortcutHint>
           ) : null}
           {!isCollapsed || isPeekPreview ? (
             <span
-              className="clauxen-wordmark min-w-0 truncate leading-none"
+              className="clauxen-wordmark min-w-0 truncate text-[16.5px] font-semibold tracking-[-0.015em] text-[var(--cx-sidebar-fg)] leading-none select-none pl-0.5"
               aria-label="Clauxen"
             >
               Clauxen
@@ -670,7 +701,7 @@ export function Sidebar({
                 setIsCollapsed(true);
               }}
               aria-label="Close menu"
-              className="ui-icon-button ml-auto !size-8 shrink-0 touch-manipulation text-[var(--ui-fg-muted)] transition-all duration-200 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+              className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-md text-[var(--cx-sidebar-muted)] transition-colors hover:bg-[var(--cx-sidebar-hover)] hover:text-[var(--cx-sidebar-fg)]"
             >
               <X className="size-4" />
             </button>
@@ -678,11 +709,11 @@ export function Sidebar({
         </div>
 
         <nav
-          className="cx-nav cx-nav-sticky shrink-0"
+          className="cx-nav cx-nav-sticky shrink-0 flex flex-col gap-0.5 px-2 py-1.5"
           aria-label="Primary"
           data-keynav-list="sidebar-nav"
         >
-            <ShortcutHint label="New chat" shortcutId="openNewChat" side="right">
+          <ShortcutHint label="New chat" shortcutId="openNewChat" side="right">
             <AppHref
               href={APP_ROUTES.newChat}
               replace
@@ -696,20 +727,23 @@ export function Sidebar({
               aria-label="New chat"
               aria-current={newChatActive ? "page" : undefined}
               className={cn(
-                "cx-nav-btn cx-nav-btn--primary",
-                newChatActive && "is-active",
+                "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                newChatActive && "is-active font-medium bg-[var(--cx-sidebar-active)]",
+                isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
               )}
             >
-              <span className="cx-nav-icon">
-                <SquarePen strokeWidth={1.75} />
+              <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
+                <SquarePen className="size-[17px]" strokeWidth={1.75} />
               </span>
-              {isCollapsed && !isMobileLayout ? null : <span>New chat</span>}
+              {isCollapsed && !isMobileLayout ? null : (
+                <span className="min-w-0 flex-1 truncate text-left leading-none">New chat</span>
+              )}
               {isCollapsed && !isMobileLayout ? null : (
                 <ShortcutBadge shortcutId="openNewChat" className="ml-auto" />
               )}
             </AppHref>
-            </ShortcutHint>
-            <ShortcutHint label="Library" chips={["G", "L"]} side="right">
+          </ShortcutHint>
+          <ShortcutHint label="Library" chips={["G", "L"]} side="right">
             <AppHref
               href={APP_ROUTES.library}
               data-keynav-item
@@ -722,45 +756,51 @@ export function Sidebar({
               aria-label="Library"
               aria-current={activeView === "library" ? "page" : undefined}
               className={cn(
-                "cx-nav-btn",
-                activeView === "library" && "is-active",
+                "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                activeView === "library" && "is-active font-medium bg-[var(--cx-sidebar-active)]",
+                isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
               )}
             >
-              <span className="cx-nav-icon">
-                <Library strokeWidth={1.75} />
+              <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
+                <Library className="size-[17px]" strokeWidth={1.75} />
               </span>
-              {isCollapsed && !isMobileLayout ? null : <span>Library</span>}
+              {isCollapsed && !isMobileLayout ? null : (
+                <span className="min-w-0 flex-1 truncate text-left leading-none">Library</span>
+              )}
             </AppHref>
-            </ShortcutHint>
-            <div className="cx-nav-projects relative">
+          </ShortcutHint>
+          <div className="cx-nav-projects group/proj relative w-full">
             <ShortcutHint label="Projects" chips={["G", "P"]} side="right">
-            <AppHref
-              href={APP_ROUTES.projects}
-              data-keynav-item
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!isPlainLeftClick(e)) return;
-                if (!gateSidebarAction(e)) return;
-                if (isMobileLayout) onNavigate?.();
-              }}
-              aria-label="Projects"
-              aria-current={activeView === "projects" ? "page" : undefined}
-              className={cn(
-                "cx-nav-btn w-full",
-                activeView === "projects" && "is-active",
-              )}
-            >
-              <span className="cx-nav-icon">
-                <FolderKanban strokeWidth={1.75} />
-              </span>
-              {isCollapsed && !isMobileLayout ? null : <span className="min-w-0 flex-1 text-left">Projects</span>}
-            </AppHref>
+              <AppHref
+                href={APP_ROUTES.projects}
+                data-keynav-item
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!isPlainLeftClick(e)) return;
+                  if (!gateSidebarAction(e)) return;
+                  if (isMobileLayout) onNavigate?.();
+                }}
+                aria-label="Projects"
+                aria-current={activeView === "projects" ? "page" : undefined}
+                className={cn(
+                  "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                  activeView === "projects" && "is-active font-medium bg-[var(--cx-sidebar-active)]",
+                  isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
+                )}
+              >
+                <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
+                  <FolderKanban className="size-[17px]" strokeWidth={1.75} />
+                </span>
+                {isCollapsed && !isMobileLayout ? null : (
+                  <span className="min-w-0 flex-1 truncate text-left leading-none">Projects</span>
+                )}
+              </AppHref>
             </ShortcutHint>
             {isCollapsed && !isMobileLayout ? null : (
               <button
                 type="button"
                 aria-label="New project"
-                className="cx-nav-plus"
+                className="cx-nav-plus absolute right-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-[var(--cx-sidebar-muted)] opacity-0 group-hover/proj:opacity-100 group-focus-within/proj:opacity-100 hover:text-[var(--cx-sidebar-fg)] hover:bg-[var(--cx-sidebar-active)] transition-all duration-150"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -768,36 +808,68 @@ export function Sidebar({
                   setCreateProjectOpen(true);
                 }}
               >
-                <Plus strokeWidth={1.75} />
+                <Plus className="size-3.5" strokeWidth={2} />
               </button>
             )}
-            </div>
+          </div>
+          <AppHref
+            href={APP_ROUTES.plugins}
+            data-keynav-item
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isPlainLeftClick(e)) return;
+              if (!gateSidebarAction(e)) return;
+              if (isMobileLayout) onNavigate?.();
+            }}
+            aria-label="Plugins"
+            aria-current={activeView === "plugins" ? "page" : undefined}
+            className={cn(
+              "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+              activeView === "plugins" && "is-active font-medium bg-[var(--cx-sidebar-active)]",
+              isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
+            )}
+          >
+            <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
+              <Puzzle className="size-[17px]" strokeWidth={1.75} />
+            </span>
+            {isCollapsed && !isMobileLayout ? null : (
+              <span className="min-w-0 flex-1 truncate text-left leading-none">Plugins</span>
+            )}
+          </AppHref>
+          <AppHref
+            href={overlayHref({
+              type: "settings",
+              tab: "Clauxen Code",
+            })}
+            data-keynav-item
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!isPlainLeftClick(event)) return;
+              if (!gateSidebarAction(event)) return;
+              if (isMobileLayout) onNavigate?.();
+            }}
+            aria-label="Code"
+            className={cn(
+              "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+              isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
+            )}
+          >
+            <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
+              <Code2 className="size-[17px]" strokeWidth={1.75} />
+            </span>
+            {isCollapsed && !isMobileLayout ? null : (
+              <span className="min-w-0 flex-1 truncate text-left leading-none">Code</span>
+            )}
+          </AppHref>
+          {(
+            [
+              { label: "Scheduled", icon: CalendarClock, href: "/scheduled" },
+              { label: "Build", icon: Hammer, href: "/new?app=build" },
+            ] as const
+          ).map((item) => (
             <AppHref
-              href={APP_ROUTES.plugins}
-              data-keynav-item
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!isPlainLeftClick(e)) return;
-                if (!gateSidebarAction(e)) return;
-                if (isMobileLayout) onNavigate?.();
-              }}
-              aria-label="Plugins"
-              aria-current={activeView === "plugins" ? "page" : undefined}
-              className={cn(
-                "cx-nav-btn",
-                activeView === "plugins" && "is-active",
-              )}
-            >
-              <span className="cx-nav-icon">
-                <Puzzle strokeWidth={1.75} />
-              </span>
-              {isCollapsed && !isMobileLayout ? null : <span>Plugins</span>}
-            </AppHref>
-            <AppHref
-              href={overlayHref({
-                type: "settings",
-                tab: "Clauxen Code",
-              })}
+              key={item.label}
+              href={item.href}
               data-keynav-item
               onClick={(event) => {
                 event.stopPropagation();
@@ -805,39 +877,20 @@ export function Sidebar({
                 if (!gateSidebarAction(event)) return;
                 if (isMobileLayout) onNavigate?.();
               }}
-              aria-label="Code"
-              className="cx-nav-btn"
+              aria-label={item.label}
+              className={cn(
+                "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
+              )}
             >
-              <span className="cx-nav-icon">
-                <Code2 strokeWidth={1.75} />
+              <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
+                <item.icon className="size-[17px]" strokeWidth={1.75} />
               </span>
-              {isCollapsed && !isMobileLayout ? null : <span>Code</span>}
+              {isCollapsed && !isMobileLayout ? null : (
+                <span className="min-w-0 flex-1 truncate text-left leading-none">{item.label}</span>
+              )}
             </AppHref>
-            {(
-              [
-                { label: "Scheduled", icon: CalendarClock, href: "/scheduled" },
-                { label: "Build", icon: Hammer, href: "/new?app=build" },
-              ] as const
-            ).map((item) => (
-              <AppHref
-                key={item.label}
-                href={item.href}
-                data-keynav-item
-                onClick={(event) => {
-                  event.stopPropagation();
-                  if (!isPlainLeftClick(event)) return;
-                  if (!gateSidebarAction(event)) return;
-                  if (isMobileLayout) onNavigate?.();
-                }}
-                aria-label={item.label}
-                className="cx-nav-btn"
-              >
-                <span className="cx-nav-icon">
-                  <item.icon strokeWidth={1.75} />
-                </span>
-                {isCollapsed && !isMobileLayout ? null : <span>{item.label}</span>}
-              </AppHref>
-            ))}
+          ))}
         </nav>
 
         <div
@@ -853,7 +906,8 @@ export function Sidebar({
             )}
           >
             {/* Order: Pinned → Recent */}
-            {!isCollapsed && (hasPinnedSection || (draggingChatId && !draggingPinned)) ? (
+            {!isCollapsed &&
+            (hasPinnedSection || (draggingChatId && !draggingPinned)) ? (
               <div
                 className="relative mt-2.5 mb-1 px-0"
                 onDragOver={(event) => {
@@ -913,7 +967,10 @@ export function Sidebar({
                   setUnpinDropHot(false);
                 }}
               >
-                <SidebarPinTip anchorRef={chatsSectionRef} enabled={!guestMode} />
+                <SidebarPinTip
+                  anchorRef={chatsSectionRef}
+                  enabled={!guestMode}
+                />
                 <SidebarSectionLabel
                   label="Chats and tasks"
                   expanded={recentsExpanded}
@@ -943,14 +1000,21 @@ export function Sidebar({
                         }}
                         className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-3 py-2.5 text-[12.5px] font-medium text-[var(--ui-fg-muted)] shadow-[var(--field-shadow)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                       >
-                        <LogIn className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+                        <LogIn
+                          className="size-3.5 shrink-0"
+                          strokeWidth={1.75}
+                          aria-hidden
+                        />
                         Log in to see history
                       </button>
                     </div>
                   ) : chatsLoading && recentChats.length === 0 ? (
                     <div className="space-y-px" aria-hidden>
                       {[72, 58, 84, 64, 50, 76, 60].map((width, index) => (
-                        <div key={index} className="flex h-8 items-center px-2.5">
+                        <div
+                          key={index}
+                          className="flex h-8 items-center px-2.5"
+                        >
                           <Skeleton
                             variant="text"
                             className="h-2.5 bg-[var(--ui-hover-wash)]"
@@ -986,252 +1050,295 @@ export function Sidebar({
         {showAccountMenu && (
           <div
             className={cn(
-              "sidebar-account-footer mt-auto flex shrink-0 flex-col bg-transparent",
+              "sidebar-account-footer mt-auto shrink-0 border-t border-[var(--cx-sidebar-line)] bg-transparent",
               isCollapsed
-                ? "items-center gap-1.5 px-0 pb-2 pt-1.5"
-                : "items-stretch gap-1 px-2 py-1.5",
+                ? "flex flex-col items-center gap-1.5 p-2"
+                : "flex flex-col items-stretch gap-1 p-2",
             )}
           >
             <div
               className={cn(
                 "flex items-center",
-                isCollapsed ? "justify-center" : "gap-0.5",
+                isCollapsed ? "justify-center" : "gap-1",
               )}
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >
               {guestMode ? (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      authGate?.openAuthGate();
-                    }}
-                    aria-label="Log in"
-                    className={cn(
-                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center border-0 bg-transparent outline-none transition-[background-color] duration-150 hover:bg-[var(--ui-hover-wash)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
-                      isCollapsed
-                        ? "size-9 shrink-0 items-center justify-center rounded-full !p-0"
-                        : "h-8 min-w-0 flex-1 justify-start gap-2 rounded-[8px] pl-0.5 pr-2",
-                    )}
-                  >
-                    <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--ui-hover-wash)] text-[var(--ui-fg-muted)]">
-                      <LogIn className="size-3.5" strokeWidth={1.75} aria-hidden />
-                    </span>
-                    <div
-                      className={cn(
-                        "cx-account-line min-w-0 flex-1 text-left",
-                        isCollapsed && "hidden",
-                      )}
-                    >
-                      <span className="cx-account-name">Log in</span>
-                    </div>
-                  </button>
-              ) : (
-              <DropdownMenu
-                modal={false}
-                open={accountMenuOpen}
-                onOpenChange={setAccountMenuOpen}
-              >
-                <DropdownMenuTrigger asChild>
-                  <button
-                    onClick={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    aria-label="Account menu"
-                    className={cn(
-                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center border-0 bg-transparent outline-none transition-[background-color] duration-150 hover:bg-[var(--ui-hover-wash)] data-[state=open]:bg-[var(--ui-hover-wash)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
-                      isCollapsed
-                        ? "size-9 shrink-0 items-center justify-center rounded-full !p-0"
-                        : "h-8 min-w-0 flex-1 justify-start gap-2 rounded-[8px] pl-0.5 pr-2",
-                    )}
-                  >
-                    <UserAvatarDisplay
-                      name={userDisplayName || "?"}
-                      avatarUrl={userAvatarUrl}
-                      size="sm"
-                      className="size-6 shrink-0 bg-[var(--ui-hover-wash)] text-[10px] leading-none text-[var(--ui-fg-muted)]"
-                    />
-                    <div
-                      className={cn(
-                        "cx-account-line min-w-0 flex-1 text-left",
-                        isCollapsed && "hidden",
-                      )}
-                    >
-                      {!accountLoading && userDisplayName ? (
-                        <span className="cx-account-name">{userDisplayName}</span>
-                      ) : null}
-                      {!accountLoading &&
-                      !(Boolean(userEmail) && (planLoading || !planLabel)) &&
-                      planLabel ? (
-                        <>
-                          <span className="cx-account-dot" aria-hidden>
-                            ·
-                          </span>
-                          <span className="cx-account-plan">{planLabel}</span>
-                        </>
-                      ) : null}
-                    </div>
-                    {!isCollapsed && (
-                      <ProfileMenuChevron className="size-3.5 opacity-60" />
-                    )}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  side="top"
-                  align={isCollapsed ? "center" : "start"}
-                  sideOffset={6}
-                  collisionPadding={10}
-                  onCloseAutoFocus={(e) => e.preventDefault()}
-                  className="z-[60] w-[min(232px,calc(100vw-2rem))] font-sans"
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    authGate?.openAuthGate();
+                  }}
+                  aria-label="Log in"
+                  className={cn(
+                    "menu-trigger-active group/login flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] rounded-lg",
+                    isCollapsed
+                      ? "size-8 shrink-0 justify-center !p-0"
+                      : "h-8 min-w-0 flex-1 justify-start gap-2 px-2",
+                  )}
                 >
-                  <DropdownMenuLabel className="truncate px-2 pb-1 pt-1 text-[11.5px] font-normal text-[var(--ui-fg-muted)]">
-                    {userEmail || "Not signed in"}
-                  </DropdownMenuLabel>
-                  <DropdownMenuItem asChild>
-                    <AppHref
-                      href={overlayHref({ type: "settings", tab: "General" })}
-                      onClick={(e) => {
-                        if (!isPlainLeftClick(e)) return;
-                        e.preventDefault();
-                        runAccountOverlayAction(onSettingsClick);
-                      }}
-                      className="ui-menu-row no-hover-overlay cursor-pointer justify-between"
+                  <span className="flex size-5 shrink-0 items-center justify-center text-[var(--cx-sidebar-muted)]">
+                    <LogIn
+                      className="size-4"
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                  </span>
+                  <div
+                    className={cn(
+                      "cx-account-line min-w-0 flex-1 text-left",
+                      isCollapsed && "hidden",
+                    )}
+                  >
+                    <span className="cx-account-name text-[13.5px] font-medium text-[var(--cx-sidebar-fg)]">
+                      Log in
+                    </span>
+                  </div>
+                </button>
+              ) : (
+                <DropdownMenu
+                  modal={false}
+                  open={accountMenuOpen}
+                  onOpenChange={setAccountMenuOpen}
+                >
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      aria-label="Account menu"
+                      className={cn(
+                        "menu-trigger-active group/account flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-[var(--cx-sidebar-hover)] data-[state=open]:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] rounded-lg",
+                        isCollapsed
+                          ? "size-8 shrink-0 justify-center !p-0"
+                          : "h-8 min-w-0 flex-1 justify-start gap-2 px-2",
+                      )}
                     >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Settings className="size-[15px] text-[var(--ui-fg-muted)]" />
-                        <span>Settings</span>
+                      <UserAvatarDisplay
+                        name={userDisplayName || "?"}
+                        avatarUrl={userAvatarUrl}
+                        size="sm"
+                        className="size-5 shrink-0 rounded-full bg-[var(--cx-sidebar-hover)] text-[9.5px] font-medium leading-none text-[var(--cx-sidebar-fg)]"
+                      />
+                      <div
+                        className={cn(
+                          "cx-account-line min-w-0 flex-1 flex items-baseline gap-1 truncate text-left",
+                          isCollapsed && "hidden",
+                        )}
+                      >
+                        {!accountLoading && userDisplayName ? (
+                          <span className="cx-account-name text-[13px] font-medium text-[var(--cx-sidebar-fg)] truncate">
+                            {userDisplayName}
+                          </span>
+                        ) : null}
+                        {!accountLoading &&
+                        !(Boolean(userEmail) && (planLoading || !planLabel)) &&
+                        planLabel ? (
+                          <>
+                            <span className="cx-account-dot text-[11px] text-[var(--cx-sidebar-muted)]" aria-hidden>
+                              ·
+                            </span>
+                            <span className="cx-account-plan text-[11.5px] text-[var(--cx-sidebar-muted)] truncate">
+                              {planLabel}
+                            </span>
+                          </>
+                        ) : null}
                       </div>
-                      <span className="text-[11px] tracking-wide text-[var(--ui-fg-subtle)]">⇧⌘,</span>
-                    </AppHref>
-                  </DropdownMenuItem>
-                  {onPersonalizationClick && (
+                      {!isCollapsed && (
+                        <ProfileMenuChevron className="size-3.5 shrink-0 text-[var(--cx-sidebar-muted)] opacity-60 group-hover/account:opacity-100 transition-opacity" />
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    side="top"
+                    align={isCollapsed ? "center" : "start"}
+                    sideOffset={6}
+                    collisionPadding={10}
+                    onCloseAutoFocus={(e) => e.preventDefault()}
+                    className="z-[60] w-[min(232px,calc(100vw-2rem))] font-sans"
+                  >
+                    <DropdownMenuLabel className="truncate px-2 pb-1 pt-1 text-[11.5px] font-normal text-[var(--ui-fg-muted)]">
+                      {userEmail || "Not signed in"}
+                    </DropdownMenuLabel>
                     <DropdownMenuItem asChild>
                       <AppHref
-                        href={overlayHref({
-                          type: "settings",
-                          tab: "Personalization",
-                        })}
+                        href={overlayHref({ type: "settings", tab: "General" })}
                         onClick={(e) => {
                           if (!isPlainLeftClick(e)) return;
                           e.preventDefault();
-                          runAccountOverlayAction(onPersonalizationClick);
+                          runAccountOverlayAction(onSettingsClick);
+                        }}
+                        className="ui-menu-row no-hover-overlay cursor-pointer justify-between"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Settings className="size-[15px] text-[var(--ui-fg-muted)]" />
+                          <span>Settings</span>
+                        </div>
+                        <span className="text-[11px] tracking-wide text-[var(--ui-fg-subtle)]">
+                          ⇧⌘,
+                        </span>
+                      </AppHref>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="ui-menu-row no-hover-overlay cursor-pointer"
+                      disabled={profileOpening}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        if (profileOpening) return;
+                        setProfileOpening(true);
+                        void sessionFetch("/api/v1/profile", {
+                          credentials: "include",
+                          cache: "no-store",
+                        })
+                          .then(async (response) => {
+                            if (!response.ok)
+                              throw new Error("Profile unavailable");
+                            const json = (await response.json()) as {
+                              data?: { profile?: { username?: string | null } };
+                            };
+                            const username = json.data?.profile?.username;
+                            if (!username)
+                              throw new Error("Profile username unavailable");
+                            setAccountMenuOpen(false);
+                            router.push(`/u/${encodeURIComponent(username)}`);
+                          })
+                          .catch((error: unknown) => {
+                            toast({
+                              title: "Could not open profile",
+                              description:
+                                error instanceof Error
+                                  ? error.message
+                                  : "Try again.",
+                              variant: "destructive",
+                            });
+                          })
+                          .finally(() => setProfileOpening(false));
+                      }}
+                    >
+                      <UserAvatarDisplay
+                        name={userDisplayName || "U"}
+                        avatarUrl={userAvatarUrl}
+                        size="sm"
+                        className="size-4 text-[7px]"
+                      />
+                      <span>
+                        {profileOpening ? "Opening profile…" : "Profile"}
+                      </span>
+                    </DropdownMenuItem>
+                    {onPersonalizationClick && (
+                      <DropdownMenuItem asChild>
+                        <AppHref
+                          href={overlayHref({
+                            type: "settings",
+                            tab: "Personalization",
+                          })}
+                          onClick={(e) => {
+                            if (!isPlainLeftClick(e)) return;
+                            e.preventDefault();
+                            runAccountOverlayAction(onPersonalizationClick);
+                          }}
+                          className="ui-menu-row no-hover-overlay cursor-pointer"
+                        >
+                          <Sparkles className="size-[15px] text-[var(--ui-fg-muted)]" />
+                          <span>Personalization</span>
+                        </AppHref>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
+                      <HelpCircle className="size-[15px] text-[var(--ui-fg-muted)]" />
+                      <span>Get help</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="ui-menu-row no-hover-overlay cursor-pointer"
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent(KS_EVENTS.openShortcutsHelp),
+                        )
+                      }
+                    >
+                      <Keyboard className="size-[15px] text-[var(--ui-fg-muted)]" />
+                      <span>Keyboard shortcuts</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <AppHref
+                        href={overlayHref({ type: "pricing" })}
+                        onClick={(e) => {
+                          if (!isPlainLeftClick(e)) return;
+                          e.preventDefault();
+                          runAccountOverlayAction(onUpgradeClick);
                         }}
                         className="ui-menu-row no-hover-overlay cursor-pointer"
                       >
-                        <Sparkles className="size-[15px] text-[var(--ui-fg-muted)]" />
-                        <span>Personalization</span>
+                        <ArrowUpCircle className="size-[15px] text-[var(--ui-fg-muted)]" />
+                        <span>Upgrade plan</span>
                       </AppHref>
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="ui-menu-row no-hover-overlay cursor-pointer">
-                      <Languages className="size-[15px] text-[var(--ui-fg-muted)]" />
-                      <span>Language</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent className="z-50 w-[184px] font-sans">
-                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
-                          English
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
-                          Hindi
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
-                          Tamil
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSub>
-                  <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
-                    <HelpCircle className="size-[15px] text-[var(--ui-fg-muted)]" />
-                    <span>Get help</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="ui-menu-row no-hover-overlay cursor-pointer"
-                    onClick={() =>
-                      window.dispatchEvent(
-                        new CustomEvent(KS_EVENTS.openShortcutsHelp),
-                      )
-                    }
-                  >
-                    <Keyboard className="size-[15px] text-[var(--ui-fg-muted)]" />
-                    <span>Keyboard shortcuts</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <AppHref
-                      href={overlayHref({ type: "pricing" })}
-                      onClick={(e) => {
-                        if (!isPlainLeftClick(e)) return;
-                        e.preventDefault();
-                        runAccountOverlayAction(onUpgradeClick);
-                      }}
-                      className="ui-menu-row no-hover-overlay cursor-pointer"
+                    <DropdownMenuItem asChild>
+                      <AppHref
+                        href={overlayHref({ type: "gift" })}
+                        onClick={(e) => {
+                          if (!isPlainLeftClick(e)) return;
+                          e.preventDefault();
+                          runAccountOverlayAction(onGiftClick);
+                        }}
+                        className="ui-menu-row no-hover-overlay cursor-pointer"
+                      >
+                        <Gift className="size-[15px] text-[var(--ui-fg-muted)]" />
+                        <span>Gift Clauxen</span>
+                      </AppHref>
+                    </DropdownMenuItem>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="ui-menu-row no-hover-overlay cursor-pointer">
+                        <HelpCircle className="size-[15px] text-[var(--ui-fg-muted)]" />
+                        <span>Learn more</span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="z-50 w-[184px] font-sans">
+                          <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
+                            Release notes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
+                            Documentation
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
+                            Community
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    <DropdownMenuSeparator className="my-1 bg-[var(--ui-border-subtle)]" />
+                    <DropdownMenuItem
+                      onClick={() => onLogoutClick?.()}
+                      className="ui-menu-row no-hover-overlay cursor-pointer text-destructive"
                     >
-                      <ArrowUpCircle className="size-[15px] text-[var(--ui-fg-muted)]" />
-                      <span>Upgrade plan</span>
-                    </AppHref>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <AppHref
-                      href={overlayHref({ type: "gift" })}
-                      onClick={(e) => {
-                        if (!isPlainLeftClick(e)) return;
-                        e.preventDefault();
-                        runAccountOverlayAction(onGiftClick);
-                      }}
-                      className="ui-menu-row no-hover-overlay cursor-pointer"
-                    >
-                      <Gift className="size-[15px] text-[var(--ui-fg-muted)]" />
-                      <span>Gift Clauxen</span>
-                    </AppHref>
-                  </DropdownMenuItem>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="ui-menu-row no-hover-overlay cursor-pointer">
-                      <HelpCircle className="size-[15px] text-[var(--ui-fg-muted)]" />
-                      <span>Learn more</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent className="z-50 w-[184px] font-sans">
-                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
-                          Release notes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
-                          Documentation
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
-                          Community
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSub>
-                  <DropdownMenuSeparator className="my-1 bg-[var(--ui-border-subtle)]" />
-                  <DropdownMenuItem
-                    onClick={() => onLogoutClick?.()}
-                    className="ui-menu-row no-hover-overlay cursor-pointer text-destructive"
-                  >
-                    <LogOut className="size-[15px]" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                      <LogOut className="size-[15px]" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
 
               {!isCollapsed && !isPeekPreview ? (
-                <div className="flex shrink-0 items-center gap-0.5">
-                  <ShortcutHint label="Search chats" shortcutId="searchChats" side="top">
-                  <button
-                    type="button"
-                    aria-label="Search chats"
-                    title="Search chats"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (!gateSidebarAction(event)) return;
-                      setSidebarSearchOpen(true);
-                    }}
-                    className={sidebarSectionIconButtonClass}
+                <div className="flex shrink-0 items-center">
+                  <ShortcutHint
+                    label="Search chats"
+                    shortcutId="searchChats"
+                    side="top"
                   >
-                    <Search className="size-3.5 shrink-0" strokeWidth={1.5} />
-                  </button>
+                    <button
+                      type="button"
+                      aria-label="Search chats"
+                      title="Search chats"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (!gateSidebarAction(event)) return;
+                        setSidebarSearchOpen(true);
+                      }}
+                      className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--cx-sidebar-muted)] transition-colors hover:bg-[var(--cx-sidebar-hover)] hover:text-[var(--cx-sidebar-fg)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+                    >
+                      <Search className="size-4 shrink-0" strokeWidth={1.75} />
+                    </button>
                   </ShortcutHint>
                 </div>
               ) : null}

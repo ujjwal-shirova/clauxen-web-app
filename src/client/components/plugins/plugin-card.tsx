@@ -45,7 +45,7 @@ export function PluginCard({
       }}
       onMouseEnter={onPrefetch ? () => onPrefetch(plugin) : undefined}
       onFocus={onPrefetch ? () => onPrefetch(plugin) : undefined}
-      className="no-hover-overlay group flex h-[86px] w-full cursor-pointer items-start gap-3 overflow-hidden rounded-xl border border-[var(--ui-border)] bg-white p-3 text-left outline-none transition-colors hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+      className="no-hover-overlay group flex h-[86px] w-full cursor-pointer items-start gap-3 overflow-hidden rounded-xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 text-left outline-none transition-colors hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
     >
       <PluginMark name={name} iconUrl={plugin.iconUrl} />
 
@@ -62,7 +62,7 @@ export function PluginCard({
 
       <div className="flex shrink-0 items-center self-center pl-1">
         {connected ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/70 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/70 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-400">
             <Check className="size-3" strokeWidth={2.5} />
             Added
           </span>

@@ -6,6 +6,8 @@ type StreamConfig = {
   sampleRate: number;
   speechModel: string;
   mode: string;
+  voiceFocus?: string;
+  voiceFocusThreshold?: number;
   inactivityTimeoutSeconds?: number;
 };
 
@@ -48,6 +50,15 @@ export class AssemblyAiStreamingConnection {
     url.searchParams.set("sample_rate", String(this.config.sampleRate));
     url.searchParams.set("speech_model", this.config.speechModel);
     url.searchParams.set("mode", this.config.mode);
+    if (this.config.voiceFocus) {
+      url.searchParams.set("voice_focus", this.config.voiceFocus);
+    }
+    if (this.config.voiceFocusThreshold != null) {
+      url.searchParams.set(
+        "voice_focus_threshold",
+        String(this.config.voiceFocusThreshold),
+      );
+    }
     if (this.config.inactivityTimeoutSeconds) {
       url.searchParams.set(
         "inactivity_timeout",

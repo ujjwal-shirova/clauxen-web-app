@@ -64,26 +64,20 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       {" "}
       {/* root Dialog — open prop parent-controlled */}
-      <DialogContent className="sm:max-w-md bg-white border-zinc-200">
-        {" "}
-        {/* warm off-white panel — subtle border, sm breakpoint max-width */}
+      <DialogContent className="sm:max-w-md bg-white border-zinc-200 dark:bg-[#1f1f23] dark:border-white/10">
         <DialogHeader>
-          {" "}
-          {/* title section wrapper */}
-          <DialogTitle className="font-serif text-zinc-800">
+          <DialogTitle className="font-serif text-zinc-800 dark:text-zinc-100">
             {mode === "login" ? "Sign in to Clauxen" : "Create your account"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          {" "}
-          {/* vertical form — onSubmit handleSubmit bind */}
-          {mode === "register" && ( // register mode only — display name text input conditional render
+          {mode === "register" && (
             <input
               type="text"
               placeholder="Display name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="h-10 rounded-lg border border-zinc-200 px-3 text-sm"
+              className="h-10 rounded-lg border border-zinc-200 bg-transparent px-3 text-sm text-[var(--ui-fg)] placeholder:text-[var(--ui-fg-placeholder)] outline-none focus:border-zinc-400 dark:border-white/10 dark:focus:border-white/30"
             />
           )}
           <input
@@ -91,18 +85,18 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             placeholder="Email"
             required
             value={email}
-            onChange={(e) => setEmail(e.target.value)} // email field — HTML5 required validation
-            className="h-10 rounded-lg border border-zinc-200 px-3 text-sm"
+            onChange={(e) => setEmail(e.target.value)}
+            className="h-10 rounded-lg border border-zinc-200 bg-transparent px-3 text-sm text-[var(--ui-fg)] placeholder:text-[var(--ui-fg-placeholder)] outline-none focus:border-zinc-400 dark:border-white/10 dark:focus:border-white/30"
           />
           <input
             type="password"
             placeholder="Password"
             required
             value={password}
-            onChange={(e) => setPassword(e.target.value)} // password field — HTML5 required validation
-            className="h-10 rounded-lg border border-zinc-200 px-3 text-sm"
+            onChange={(e) => setPassword(e.target.value)}
+            className="h-10 rounded-lg border border-zinc-200 bg-transparent px-3 text-sm text-[var(--ui-fg)] placeholder:text-[var(--ui-fg-placeholder)] outline-none focus:border-zinc-400 dark:border-white/10 dark:focus:border-white/30"
           />
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <Button
             type="submit"
             disabled={submitting}
@@ -112,13 +106,12 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               ? "Please wait…"
               : mode === "login"
                 ? "Sign in"
-                : "Create account"}{" "}
-            {/* loading vs mode-specific label */}
+                : "Create account"}
           </Button>
           <button
             type="button"
-            className="text-sm text-zinc-500 hover:text-zinc-800"
-            onClick={() => setMode(mode === "login" ? "register" : "login")} // mode toggle — login ↔ register switch
+            className="text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+            onClick={() => setMode(mode === "login" ? "register" : "login")}
           >
             {mode === "login"
               ? "Need an account? Register"

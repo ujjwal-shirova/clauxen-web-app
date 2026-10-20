@@ -145,7 +145,7 @@ export function MyClauxenView() {
       : `${titleName}'s Clauxen`;
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-white text-zinc-900">
+    <div className="flex h-full min-h-0 w-full flex-col bg-[var(--app-panel-bg)] text-[var(--ui-fg)]">
       <div className="flex shrink-0 items-center gap-2 px-3 pb-1 pt-3 sm:hidden">
         <MobileMenuButton onClick={openMobileNav} />
         <span className="text-[15px] font-semibold">My Clauxen</span>
@@ -162,7 +162,7 @@ export function MyClauxenView() {
             <Loader2 className="icon-2xl animate-spin" />
           </div>
         ) : error && !data ? (
-          <div className="rounded-2xl bg-red-50 px-5 py-6 text-sm text-red-600">
+          <div className="rounded-2xl bg-red-50 dark:bg-red-950/40 dark:border dark:border-red-500/20 px-5 py-6 text-sm text-red-600 dark:text-red-400">
             {error}
             <button
               type="button"
@@ -186,7 +186,7 @@ export function MyClauxenView() {
                 <h1 className={cn(appPage.title, "text-[28px] sm:text-[32px]")}>
                   {pageTitle}
                 </h1>
-                <p className="mt-2 max-w-[34rem] text-[14px] leading-relaxed text-zinc-500 sm:text-[15px]">
+                <p className="mt-2 max-w-[34rem] text-[14px] leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-[15px]">
                   Clauxen has been with you for{" "}
                   <StatStrong>{data.daysWithClauxen}</StatStrong> days, chatted{" "}
                   <StatStrong>{data.messageCount}</StatStrong> times, and we&apos;ve
@@ -202,7 +202,7 @@ export function MyClauxenView() {
                 className={cn(
                   "shrink-0 rounded-lg px-4 py-2 text-[13px] font-medium transition-colors",
                   data.selfGrowthEnabled
-                    ? "bg-zinc-100 text-zinc-500"
+                    ? "bg-zinc-100 text-zinc-500 dark:bg-white/10 dark:text-zinc-400"
                     : appPage.primaryCta,
                   saving && "opacity-70",
                 )}
@@ -226,8 +226,8 @@ export function MyClauxenView() {
                   className={cn(
                     "rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors",
                     tab === item.id
-                      ? "bg-zinc-100 text-zinc-900"
-                      : "text-zinc-500 hover:text-zinc-800",
+                      ? "bg-zinc-100 text-zinc-900 dark:bg-white/15 dark:text-zinc-100"
+                      : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200",
                   )}
                 >
                   {item.label}
@@ -237,14 +237,14 @@ export function MyClauxenView() {
 
             {tab === "closeness" ? (
               <section className="mt-5">
-                <p className="mb-4 text-[13px] text-zinc-500">
+                <p className="mb-4 text-[13px] text-zinc-500 dark:text-zinc-400">
                   The more you chat or assign tasks, the higher the intimacy
                 </p>
                 <ActivityHeatmap days={data.heatmap} />
               </section>
             ) : (
               <section className="mt-5">
-                <p className="mb-4 text-[13px] text-zinc-500">
+                <p className="mb-4 text-[13px] text-zinc-500 dark:text-zinc-400">
                   The higher your intimacy with Clauxen, the faster it grows
                 </p>
                 {data.selfGrowthEnabled ? (
@@ -262,9 +262,9 @@ export function MyClauxenView() {
                       value={String(data.growth.weeksActive)}
                     />
                     {data.growth.peakDay ? (
-                      <div className="sm:col-span-3 rounded-2xl bg-zinc-50 px-5 py-4 text-[13px] text-zinc-600">
+                      <div className="sm:col-span-3 rounded-2xl bg-zinc-50 dark:bg-white/5 dark:border dark:border-white/10 px-5 py-4 text-[13px] text-zinc-600 dark:text-zinc-300">
                         Peak day:{" "}
-                        <span className="font-medium text-zinc-900">
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
                           {new Date(
                             `${data.growth.peakDay.date}T00:00:00.000Z`,
                           ).toLocaleDateString("en-US", {
@@ -275,7 +275,7 @@ export function MyClauxenView() {
                           })}
                         </span>{" "}
                         with{" "}
-                        <span className="font-medium text-zinc-900">
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
                           {data.growth.peakDay.count}
                         </span>{" "}
                         messages
@@ -283,18 +283,18 @@ export function MyClauxenView() {
                     ) : null}
                   </div>
                 ) : (
-                  <div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl bg-zinc-50 px-6 py-12 text-center">
+                  <div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl bg-zinc-50 dark:bg-white/5 dark:border dark:border-white/10 px-6 py-12 text-center">
                     <BookLock
-                      className="mb-3 h-10 w-10 text-zinc-300"
+                      className="mb-3 h-10 w-10 text-zinc-300 dark:text-zinc-600"
                       strokeWidth={1.25}
                     />
-                    <p className="text-[14px] text-zinc-500">
+                    <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
                       Self-growth isn&apos;t enabled yet.{" "}
                       <button
                         type="button"
                         disabled={saving}
                         onClick={() => void setSelfGrowth(true)}
-                        className="clickable-label cursor-pointer font-medium text-zinc-900 underline-offset-2 hover:underline"
+                        className="clickable-label cursor-pointer font-medium text-zinc-900 dark:text-zinc-200 underline-offset-2 hover:underline"
                       >
                         Enable it
                       </button>
@@ -305,12 +305,12 @@ export function MyClauxenView() {
             )}
 
             {/* Promo */}
-            <section className="mt-14 flex flex-col items-start justify-between gap-8 border-t border-zinc-100 pt-10 sm:flex-row sm:items-center">
+            <section className="mt-14 flex flex-col items-start justify-between gap-8 border-t border-zinc-100 dark:border-white/10 pt-10 sm:flex-row sm:items-center">
               <div className="max-w-md">
                 <h2 className={cn(appPage.title, "text-[20px] sm:text-[22px]")}>
                   Clauxen can now learn and grow on its own
                 </h2>
-                <p className="mt-2 text-[14px] leading-relaxed text-zinc-500">
+                <p className="mt-2 text-[14px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                   Once enabled, Clauxen keeps learning your preferences, habits,
                   and ways of working, making every collaboration the start of
                   the next one.
@@ -322,8 +322,8 @@ export function MyClauxenView() {
                   className={cn(
                     "mt-5 rounded-lg px-4 py-2 text-[13px] font-medium transition-colors",
                     data.selfGrowthEnabled
-                      ? "bg-zinc-100 text-zinc-500"
-                      : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200/80",
+                      ? "bg-zinc-100 text-zinc-500 dark:bg-white/10 dark:text-zinc-400"
+                      : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200/80 dark:bg-white/15 dark:text-zinc-100 dark:hover:bg-white/20",
                   )}
                 >
                   {data.selfGrowthEnabled
@@ -345,11 +345,11 @@ export function MyClauxenView() {
 
 function GrowthStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-zinc-50 px-5 py-4">
-      <div className="text-[22px] font-semibold tracking-tight text-zinc-900">
+    <div className="rounded-2xl bg-zinc-50 dark:bg-white/5 dark:border dark:border-white/10 px-5 py-4">
+      <div className="text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
         {value}
       </div>
-      <div className="mt-0.5 text-[12px] text-zinc-500">{label}</div>
+      <div className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">{label}</div>
     </div>
   );
 }

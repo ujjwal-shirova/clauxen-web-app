@@ -88,7 +88,7 @@ export function PluginDetailDialog({
             {error ? (
               <p
                 role="alert"
-                className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-center text-[12px] leading-[17px] text-red-700"
+                className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-center text-[12px] leading-[17px] text-red-700 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-300"
               >
                 {error}
               </p>
@@ -121,7 +121,7 @@ export function PluginDetailDialog({
               </button>
 
               {connected ? (
-                <p className="mt-2 text-center text-[11.5px] text-emerald-700">
+                <p className="mt-2 text-center text-[11.5px] text-emerald-700 dark:text-emerald-400">
                   ✓ Plugin is connected and ready to use in chats.
                 </p>
               ) : null}

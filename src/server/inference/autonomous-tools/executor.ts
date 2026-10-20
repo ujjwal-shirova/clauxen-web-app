@@ -166,6 +166,17 @@ export async function executeAutonomousTool(
   args: Record<string, unknown>,
   ctx: ToolExecutionContext,
 ): Promise<ToolExecutionOutcome> {
+  if (name === "github_agent") {
+    if (!ctx.userId) return { output: { error: "Sign in to Clauxen before using GitHub." } };
+    const { executeGitHubAgent } = await import("@/server/github/agent");
+    const { operation, ...parameters } = args;
+    try {
+      return { output: await executeGitHubAgent(ctx.userId, String(operation), parameters) };
+    } catch (error) {
+      return { output: { error: error instanceof Error ? error.message : "GitHub operation failed." } };
+    }
+  }
+
   if (name === "read_skill") {
     const skillId = String(args.skill_id ?? args.name ?? "");
     const available = await listAvailableSkills();

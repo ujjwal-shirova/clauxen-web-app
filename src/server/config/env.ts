@@ -116,8 +116,9 @@ export const env = {
   embeddingApiKey: firstOptional("EMBEDDING_API_KEY", "OPENAI_API_KEY"),
   /** @deprecated Prefer embeddingApiKey */
   openAiApiKeyLegacy: optional("OPENAI_API_KEY"),
-  /** AssemblyAI Streaming v3 key. Exact Vercel name requested by the app owner. */
+  /** AssemblyAI Streaming v3 key. `voice_api` is the Cloudflare Worker secret. */
   assemblyAiApiKey: firstOptional(
+    "voice_api",
     "Assembly_Provider_Key",
     "ASSEMBLYAI_API_KEY",
   ),
@@ -358,10 +359,16 @@ export function requireAssemblyAiApiKey(): string {
   if (typeof window !== "undefined") {
     throw new Error("AssemblyAI credentials are server-only.");
   }
-  if (!env.assemblyAiApiKey) {
-    throw new Error("Assembly_Provider_Key is not configured on the server.");
+  // Cloudflare secrets are request-scoped bindings and are not guaranteed to
+  // appear on process.env in the OpenNext Worker runtime.
+  const workerEnv = cloudflareContext()?.env as
+    | (CloudflareEnv & { voice_api?: string })
+    | undefined;
+  const apiKey = workerEnv?.voice_api?.trim() || env.assemblyAiApiKey;
+  if (!apiKey) {
+    throw new Error("voice_api is not configured on the server.");
   }
-  return env.assemblyAiApiKey;
+  return apiKey;
 }
 
 export function isDatabaseConfigured(): boolean {

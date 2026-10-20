@@ -33,7 +33,7 @@ export async function createAssemblyStreamingToken(): Promise<{
     const message =
       error instanceof Error
         ? error.message
-        : "Assembly_Provider_Key is not configured on the server.";
+        : "voice_api is not configured on the server.";
     throw new AppError(message, 503, "dictation_unavailable");
   }
 

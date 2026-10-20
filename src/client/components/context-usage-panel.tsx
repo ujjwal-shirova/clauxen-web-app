@@ -202,18 +202,18 @@ export function ContextUsageIndicator({
         side="top"
         align="end"
         sideOffset={10}
-        className="w-[min(320px,calc(100vw-2rem))] rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-[0_8px_24px_-8px_rgba(24,24,27,0.12),0_0_0_1px_rgba(24,24,27,0.04)]"
+        className="w-[min(320px,calc(100vw-2rem))] rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-[0_8px_24px_-8px_rgba(24,24,27,0.12),0_0_0_1px_rgba(24,24,27,0.04)] dark:border-white/10 dark:bg-[#202023] dark:text-zinc-100 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.6)]"
       >
         <div className="p-4">
           <div className="mb-3 flex items-start justify-between gap-3">
-            <h3 className="text-[15px] font-medium leading-5 text-zinc-900">
+            <h3 className="text-[15px] font-medium leading-5 text-zinc-900 dark:text-zinc-100">
               Context
             </h3>
             <PopoverPrimitive.Close asChild>
               <button
                 type="button"
                 aria-label="Close context panel"
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:text-zinc-500 dark:hover:bg-white/10 dark:hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -221,15 +221,15 @@ export function ContextUsageIndicator({
           </div>
 
           <div className="mb-2.5 flex items-baseline justify-between gap-3">
-            <span className="text-[13px] font-[430] text-zinc-500">
+            <span className="text-[13px] font-[430] text-zinc-500 dark:text-zinc-400">
               {percent}% Full
             </span>
-            <span className="text-[13px] font-[430] text-zinc-500">
+            <span className="text-[13px] font-[430] text-zinc-500 dark:text-zinc-400">
               {formatTokenTotal(totalTokens)} / {formatTokenLimit(limit)} Tokens
             </span>
           </div>
 
-          <div className="mb-4 flex h-2 overflow-hidden rounded-full bg-zinc-100">
+          <div className="mb-4 flex h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-white/10">
             {activeSegments.map((segment) => (
               <div
                 key={segment.label}
@@ -254,11 +254,11 @@ export function ContextUsageIndicator({
                     style={{ backgroundColor: segment.color }}
                     aria-hidden
                   />
-                  <span className="truncate text-[13px] font-[430] text-zinc-700">
+                  <span className="truncate text-[13px] font-[430] text-zinc-700 dark:text-zinc-300">
                     {segment.label}
                   </span>
                 </div>
-                <span className="shrink-0 text-[13px] font-[430] tabular-nums text-zinc-500">
+                <span className="shrink-0 text-[13px] font-[430] tabular-nums text-zinc-500 dark:text-zinc-400">
                   {formatTokenCount(segment.tokens)}
                 </span>
               </div>

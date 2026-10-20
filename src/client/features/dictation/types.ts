@@ -23,8 +23,10 @@ export type DictationSessionResponse = {
   tokenExpiresInSeconds: number;
   streamingHost: string;
   sampleRate: number;
-  speechModel: "universal-3-5-pro";
-  mode: "balanced";
+  speechModel: "universal-3-6-pro";
+  mode: "max_accuracy";
+  voiceFocus: "near-field";
+  voiceFocusThreshold: number;
   /** Hard per-session streaming cap enforced by the server token. */
   maxSessionSeconds?: number;
   /** Auto-stop after this many seconds without detected speech. */

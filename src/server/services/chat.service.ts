@@ -66,7 +66,11 @@ import {
   buildPromptMessagesFromDbRows,
   mergePromptHistories,
 } from "@/server/inference/build-chat-prompt-messages";
-import { type ClientVisionImage } from "@/server/inference/vision-attachments";
+import {
+  type ClientVisionImage,
+  resolveVisionImageBlocks,
+  applyVisionToLastUserMessage,
+} from "@/server/inference/vision-attachments";
 import {
   toUserFacingChatError,
   EMPTY_ASSISTANT_RESPONSE_FALLBACK,
@@ -1089,6 +1093,22 @@ export async function streamChatGeneration(input: {
               { role: "user", content: preferredUserContent },
             ];
           }
+        }
+
+        // Native and browser clients share the same owned file ids and vision
+        // payload. Resolve pixels inside the stream, after turn admission, so
+        // the first inference sees the image without a read_attachment round.
+        // Resumed slices already carry these parts in initialConversation.
+        if (!resume?.conversation?.length) {
+          const clientImages = input.vision?.images ?? input.turn?.images;
+          const images = await resolveVisionImageBlocks({
+            userId: input.userId,
+            clientImages,
+            fileIds: clientImages?.length
+              ? input.vision?.fileIds
+              : input.vision?.fileIds ?? input.turn?.fileIds,
+          });
+          conversationForAgent = applyVisionToLastUserMessage(conversationForAgent, images);
         }
 
         contextReadyAtMs = Date.now();

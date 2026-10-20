@@ -10,6 +10,7 @@ import {
 } from "@/components/sidebar-directory-views";
 import { MyClauxenView } from "@/components/my-clauxen-view";
 import { AppContentLoader } from "@/components/app-content-loader";
+import { PublicProfileView } from "@/components/public-profile-view";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { isChatSurfacePath, isNewChatPath } from "@/lib/app-routes";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ type SurfaceKind =
   | "projects"
   | "plugins"
   | "my-clauxen"
+  | "profile"
   | "children";
 
 function surfaceKind(pathname: string): SurfaceKind {
@@ -36,6 +38,7 @@ function surfaceKind(pathname: string): SurfaceKind {
   if (pathname === "/my-clauxen" || pathname.startsWith("/my-clauxen/")) {
     return "my-clauxen";
   }
+  if (/^\/u\/[^/]+\/?$/.test(pathname)) return "profile";
   return "children";
 }
 
@@ -73,12 +76,16 @@ export function AppPageSurface({ children }: { children: React.ReactNode }) {
       kind === "projects" ||
       kind === "plugins" ||
       kind === "my-clauxen" ||
+      kind === "profile" ||
       kind === "children" ? (
         <div className="flex min-h-0 h-full w-full max-w-full flex-1 flex-col overflow-hidden">
           {kind === "library" ? <LibraryView /> : null}
           {kind === "projects" ? <ProjectsView /> : null}
           {kind === "plugins" ? <PluginsView /> : null}
           {kind === "my-clauxen" ? <MyClauxenView /> : null}
+          {kind === "profile" ? (
+            <PublicProfileView username={livePathname.split("/")[2] ?? ""} />
+          ) : null}
           {kind === "children" ? (
             childrenCaughtUp ? (
               children

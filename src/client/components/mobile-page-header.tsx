@@ -32,8 +32,8 @@ export function MobilePageHeader({
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 shrink-0 bg-white",
-        !borderless && "border-b border-zinc-100",
+        "sticky top-0 z-30 shrink-0 bg-white dark:bg-[var(--chat-canvas-bg)]",
+        !borderless && "border-b border-zinc-100 dark:border-white/10",
         className,
       )}
     >
@@ -53,12 +53,12 @@ export function MobilePageHeader({
 
         <div className="min-w-0 flex-1 text-center">
           {title ? (
-            <h1 className="truncate text-[15px] font-semibold leading-5 text-zinc-900">
+            <h1 className="truncate text-[15px] font-semibold leading-5 text-zinc-900 dark:text-[var(--ui-fg)]">
               {title}
             </h1>
           ) : null}
           {subtitle ? (
-            <p className="truncate text-[11px] leading-4 text-zinc-500">
+            <p className="truncate text-[11px] leading-4 text-zinc-500 dark:text-[var(--ui-fg-muted)]">
               {subtitle}
             </p>
           ) : null}

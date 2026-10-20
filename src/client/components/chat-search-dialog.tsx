@@ -109,7 +109,7 @@ export function ChatSearchDialog({
         <DialogTitle className="sr-only">Search</DialogTitle>
         <div className="flex shrink-0 items-center gap-2 px-6 pb-3.5 pr-2.5 pt-4">
           <Search
-            className="-ml-1 size-5 shrink-0 text-[#898781]"
+            className="-ml-1 size-5 shrink-0 text-[var(--ui-fg-muted)]"
             strokeWidth={1.75}
             aria-hidden
           />
@@ -140,18 +140,18 @@ export function ChatSearchDialog({
                 choose(hits[activeIndex]);
               }
             }}
-            className="min-w-0 flex-1 resize-none border-0 bg-transparent text-[14px] leading-5 text-[var(--ui-fg)] outline-none placeholder:text-[#898781]"
+            className="min-w-0 flex-1 resize-none border-0 bg-transparent text-[14px] leading-5 text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)]"
           />
           <button
             type="button"
             aria-label="Close"
             onClick={() => onOpenChange(false)}
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--ui-fg)]"
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
           >
             <X className="size-4" strokeWidth={1.75} />
           </button>
         </div>
-        <div className="h-px w-full bg-[rgba(11,11,11,0.1)]" />
+        <div className="h-px w-full bg-[var(--ui-border-subtle)]" />
         <div
           ref={listRef}
           id="command-palette-results"
@@ -189,10 +189,10 @@ export function ChatSearchDialog({
                     onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => choose(hit)}
                     className={cn(
-                      "flex w-full items-center justify-between gap-3 overflow-hidden rounded-lg px-3 py-2 text-left text-[14px] leading-5 text-[#52514e] transition-colors",
+                      "flex w-full items-center justify-between gap-3 overflow-hidden rounded-lg px-3 py-2 text-left text-[14px] leading-5 text-[var(--ui-fg-body)] transition-colors",
                       active
-                        ? "bg-[rgba(11,11,11,0.05)] text-[var(--ui-fg)]"
-                        : "hover:bg-[rgba(11,11,11,0.05)]",
+                        ? "bg-[var(--ui-hover-wash)] text-[var(--ui-fg)]"
+                        : "hover:bg-[var(--ui-hover-wash)]",
                     )}
                   >
                     <span className="flex min-w-0 flex-1 items-center gap-2">
@@ -203,7 +203,7 @@ export function ChatSearchDialog({
                       />
                       <span className="truncate">{hit.name}</span>
                     </span>
-                    <span className="shrink-0 text-[12px] leading-4 text-[#898781]">
+                    <span className="shrink-0 text-[12px] leading-4 text-[var(--ui-fg-muted)]">
                       {recencyLabel(hit.updatedAt)}
                     </span>
                   </button>
@@ -211,12 +211,12 @@ export function ChatSearchDialog({
               })}
             </div>
           ) : (
-            <p className="px-3 py-8 text-center text-[13px] text-[#898781]">
+            <p className="px-3 py-8 text-center text-[13px] text-[var(--ui-fg-muted)]">
               {emptyLabel}
             </p>
           )}
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2.5 border-t border-[rgba(11,11,11,0.1)] px-5 py-2.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5 border-t border-[var(--ui-border-subtle)] px-5 py-2.5">
           <div className="cx-shortcut-hint">
             <span className="text-[12px] font-medium leading-4 text-white/92">
               Select

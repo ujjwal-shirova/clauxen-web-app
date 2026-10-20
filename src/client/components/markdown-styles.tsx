@@ -16,13 +16,13 @@ import {
 } from "@/lib/table-export";
 
 const bodyTextClass =
-  "font-sans text-[17px] leading-7 tracking-[-0.008em] text-[#2f2f32]";
+  "font-sans text-[17px] leading-7 tracking-[-0.008em] text-[#2f2f32] dark:text-[#d4d4d8]";
 const subtleTextClass =
-  "font-sans text-[15px] leading-[23px] tracking-[-0.004em] text-zinc-500";
+  "font-sans text-[15px] leading-[23px] tracking-[-0.004em] text-zinc-500 dark:text-zinc-400";
 
 export const StyledH1 = ({ children, hasCursor, Cursor }: any) => (
   <div className="mb-2 mt-4">
-    <h1 className="font-sans text-[22px] font-semibold leading-[29px] tracking-[-0.02em] text-zinc-950">
+    <h1 className="font-sans text-[22px] font-semibold leading-[29px] tracking-[-0.02em] text-zinc-950 dark:text-zinc-100">
       {children}
 
       {hasCursor && <Cursor />}
@@ -32,7 +32,7 @@ export const StyledH1 = ({ children, hasCursor, Cursor }: any) => (
 
 export const StyledH2 = ({ children, hasCursor, Cursor }: any) => (
   <div className="mb-1.5 mt-3.5">
-    <h2 className="font-sans text-[20px] font-semibold leading-[27px] tracking-[-0.016em] text-zinc-950">
+    <h2 className="font-sans text-[20px] font-semibold leading-[27px] tracking-[-0.016em] text-zinc-950 dark:text-zinc-100">
       {children}
 
       {hasCursor && <Cursor />}
@@ -42,7 +42,7 @@ export const StyledH2 = ({ children, hasCursor, Cursor }: any) => (
 
 export const StyledH3 = ({ children, hasCursor, Cursor }: any) => (
   <div className="mb-1.5 mt-3">
-    <h3 className="font-sans text-[18px] font-semibold leading-[25px] tracking-[-0.012em] text-zinc-900">
+    <h3 className="font-sans text-[18px] font-semibold leading-[25px] tracking-[-0.012em] text-zinc-900 dark:text-zinc-100">
       {children}
 
       {hasCursor && <Cursor />}
@@ -59,11 +59,11 @@ export const StyledParagraph = ({ children, hasCursor, Cursor }: any) => (
 );
 
 export const StyledBold = ({ children }: { children: React.ReactNode }) => (
-  <strong className="font-semibold text-zinc-900">{children}</strong>
+  <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{children}</strong>
 );
 
 export const StyledItalic = ({ children }: { children: React.ReactNode }) => (
-  <em className="italic text-zinc-600">{children}</em>
+  <em className="italic text-zinc-600 dark:text-zinc-300">{children}</em>
 );
 
 export const StyledInlineCode = ({
@@ -77,23 +77,23 @@ export const StyledInlineCode = ({
 );
 
 export const StyledHorizontalRule = () => (
-  <hr className="my-3.5 border-0 border-t border-zinc-200/80" />
+  <hr className="my-3.5 border-0 border-t border-zinc-200/80 dark:border-white/10" />
 );
 
 export const StyledDetails = ({ children }: { children: React.ReactNode }) => (
-  <details className="my-3 overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50/80">
+  <details className="my-3 overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50/80 dark:border-white/10 dark:bg-white/[0.04]">
     {children}
   </details>
 );
 
 export const StyledSummary = ({ children }: { children: React.ReactNode }) => (
-  <summary className="cursor-pointer list-none select-none px-3 py-2 text-[13px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100 [&::-webkit-details-marker]:hidden">
+  <summary className="cursor-pointer list-none select-none px-3 py-2 text-[13px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/[0.06] [&::-webkit-details-marker]:hidden">
     <span className="inline-flex items-center gap-2">{children}</span>
   </summary>
 );
 
 export const StyledBlockquote = ({ children, hasCursor, Cursor }: any) => (
-  <blockquote className="my-4 rounded-r-xl border-l-[3px] border-zinc-300/90 bg-zinc-50/90 px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+  <blockquote className="my-4 rounded-r-xl border-l-[3px] border-zinc-300/90 bg-zinc-50/90 px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-zinc-600 dark:bg-white/[0.04] dark:shadow-none">
     <div className={`${subtleTextClass} italic`}>
       {children}
 
@@ -114,14 +114,14 @@ export const StyledList = ({
       <span
         className={`mr-3 mt-1.5 flex shrink-0 items-center justify-center ${
           isOrdered
-            ? "h-4 w-4 rounded-full border border-zinc-200 bg-zinc-100 text-[9.5px] font-semibold text-zinc-600"
+            ? "h-4 w-4 rounded-full border border-zinc-200 bg-zinc-100 text-[9.5px] font-semibold text-zinc-600 dark:border-white/10 dark:bg-white/10 dark:text-zinc-300"
             : "h-4 w-4"
         }`}
       >
         {isOrdered ? (
           index
         ) : (
-          <div className="h-1.5 w-1.5 rounded-full bg-[#a3a3ad]" />
+          <div className="h-1.5 w-1.5 rounded-full bg-[#a3a3ad] dark:bg-zinc-500" />
         )}
       </span>
       <span className={`${bodyTextClass} flex-1`}>
@@ -191,11 +191,11 @@ export const StyledTableContainer = ({
   // CodeBlockFrame's header/content split.
   return (
     <div
-      className="composer-message-table my-3.5 w-full min-w-0 max-w-full rounded-xl border border-zinc-200/90 bg-white shadow-[0_1px_4px_rgba(24,24,27,0.04)]"
+      className="composer-message-table my-3.5 w-full min-w-0 max-w-full rounded-xl border border-zinc-200/90 bg-white shadow-[0_1px_4px_rgba(24,24,27,0.04)] dark:border-white/10 dark:bg-[#1a1a1d] dark:shadow-[0_1px_4px_rgba(0,0,0,0.3)]"
       data-has-table-title={titleCtx ? "true" : undefined}
     >
-      <div className="ui-table-title-header table-title-header-sticky sticky z-20 flex min-h-[40px] items-center justify-between gap-3 rounded-t-[11px] border-b border-zinc-200/80 bg-white px-3.5 py-1.5">
-        <span className="min-w-0 truncate text-[14px] font-semibold text-zinc-900">
+      <div className="ui-table-title-header table-title-header-sticky sticky z-20 flex min-h-[40px] items-center justify-between gap-3 rounded-t-[11px] border-b border-zinc-200/80 bg-white px-3.5 py-1.5 dark:border-white/10 dark:bg-[#1f1f23]">
+        <span className="min-w-0 truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
           {tableTitle}
         </span>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -205,10 +205,10 @@ export const StyledTableContainer = ({
               isCopied ? "Copied table markdown" : "Copy table markdown"
             }
             onClick={handleCopyMarkdown}
-            className="ui-table-copy inline-flex size-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+            className="ui-table-copy inline-flex size-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-200"
           >
             {isCopied ? (
-              <Check size={16} className="text-emerald-600" />
+              <Check size={16} className="text-emerald-600 dark:text-emerald-400" />
             ) : (
               <Copy size={16} />
             )}
@@ -218,7 +218,7 @@ export const StyledTableContainer = ({
               <button
                 type="button"
                 aria-label="Download table"
-                className="ui-table-download inline-flex h-7 items-center gap-1 rounded-lg px-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                className="ui-table-download inline-flex h-7 items-center gap-1 rounded-lg px-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-200"
               >
                 <Download size={16} />
                 <ChevronDown size={14} />
@@ -240,7 +240,7 @@ export const StyledTableContainer = ({
       <div className="markdown-table-scroll overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-xl [-webkit-overflow-scrolling:touch]">
         <table
           ref={tableRef}
-          className="w-full min-w-[min(100%,640px)] border-collapse text-left font-sans text-[14px] text-zinc-800 sm:min-w-[640px]"
+          className="w-full min-w-[min(100%,640px)] border-collapse text-left font-sans text-[14px] text-zinc-800 dark:text-zinc-200 sm:min-w-[640px]"
         >
           {children}
         </table>
@@ -253,14 +253,14 @@ export const StyledTableHeader = ({
   children,
 }: {
   children: React.ReactNode;
-}) => <thead className="ui-table-header bg-zinc-100/80">{children}</thead>;
+}) => <thead className="ui-table-header bg-zinc-100/80 dark:bg-white/[0.05]">{children}</thead>;
 
 export const StyledTableHeadCell = ({
   children,
 }: {
   children: React.ReactNode;
 }) => (
-  <th className="whitespace-nowrap border-b border-zinc-200/90 px-3.5 py-2.5 text-[13px] font-semibold tracking-[0.005em] text-zinc-600">
+  <th className="whitespace-nowrap border-b border-zinc-200/90 px-3.5 py-2.5 text-[13px] font-semibold tracking-[0.005em] text-zinc-600 dark:border-white/10 dark:text-zinc-300">
     {children}
   </th>
 );
@@ -269,10 +269,10 @@ export const StyledTableBody = ({
   children,
 }: {
   children: React.ReactNode;
-}) => <tbody className="bg-white">{children}</tbody>;
+}) => <tbody className="bg-white dark:bg-[#1a1a1d]">{children}</tbody>;
 
 export const StyledTableRow = ({ children }: { children: React.ReactNode }) => (
-  <tr className="transition-colors last:[&>td]:border-b-0 hover:bg-zinc-50/80">
+  <tr className="transition-colors last:[&>td]:border-b-0 hover:bg-zinc-50/80 dark:hover:bg-white/[0.04]">
     {children}
   </tr>
 );
@@ -285,7 +285,7 @@ export const StyledTableCell = ({
   isLastRow,
 }: any) => (
   <td
-    className={`border-b border-zinc-200/70 px-3.5 py-2 align-top text-[14px] leading-[21px] text-zinc-700 ${
+    className={`border-b border-zinc-200/70 px-3.5 py-2 align-top text-[14px] leading-[21px] text-zinc-700 dark:border-white/10 dark:text-zinc-300 ${
       isLastRow ? "border-b-0" : ""
     }`}
   >
@@ -325,9 +325,9 @@ export const CodeBlockFrame = ({
   const safeLanguage = sanitizeCodeBlockLanguage(language);
 
   return (
-    <div className="composer-message-codeblock relative my-3.5 w-full min-w-0 max-w-full rounded-xl border border-zinc-200/90 bg-zinc-50 shadow-[0_1px_4px_rgba(24,24,27,0.04)]">
-      <div className="ui-code-block code-block-header-sticky sticky z-10 flex min-h-[38px] items-center justify-between rounded-t-[11px] border-b border-zinc-200/80 bg-white px-3.5 py-1">
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500">
+    <div className="composer-message-codeblock relative my-3.5 w-full min-w-0 max-w-full rounded-xl border border-zinc-200/90 bg-zinc-50 shadow-[0_1px_4px_rgba(24,24,27,0.04)] dark:border-white/10 dark:bg-[#1a1a1d] dark:shadow-[0_1px_4px_rgba(0,0,0,0.3)]">
+      <div className="ui-code-block code-block-header-sticky sticky z-10 flex min-h-[38px] items-center justify-between rounded-t-[11px] border-b border-zinc-200/80 bg-white px-3.5 py-1 dark:border-white/10 dark:bg-[#1f1f23]">
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
           {safeLanguage}
         </span>
         <div className="-mr-0.5 flex items-center gap-1">
@@ -335,10 +335,10 @@ export const CodeBlockFrame = ({
             type="button"
             data-code-copy-button
             onClick={onCopy}
-            className="ui-code-block-copy flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200"
+            className="ui-code-block-copy flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-200 dark:active:bg-white/15"
           >
             {isCopied ? (
-              <Check size={12} className="text-emerald-600" />
+              <Check size={12} className="text-emerald-600 dark:text-emerald-400" />
             ) : (
               <Copy size={12} />
             )}
@@ -348,7 +348,7 @@ export const CodeBlockFrame = ({
             <button
               type="button"
               onClick={onDownload}
-              className="ui-code-block-download flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200"
+              className="ui-code-block-download flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-200 dark:active:bg-white/15"
             >
               <Download size={12} />
               <span>
@@ -361,7 +361,7 @@ export const CodeBlockFrame = ({
 
       {/* overflow-y must be explicit: with only overflow-x set, CSS computes
           overflow-y to auto and paints a phantom vertical scrollbar. */}
-      <div className="markdown-code-scroll code-scrollbars ui-code-block-content w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-xl bg-zinc-50 [-webkit-overflow-scrolling:touch]">
+      <div className="markdown-code-scroll code-scrollbars ui-code-block-content w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-xl bg-zinc-50 dark:bg-[#151518] [-webkit-overflow-scrolling:touch]">
         {children}
       </div>
     </div>

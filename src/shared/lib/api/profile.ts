@@ -7,7 +7,15 @@ export type UserProfile = {
   email: string | null;
   fullName: string | null;
   preferredName: string | null;
+  username: string | null;
   avatarUrl: string | null;
+  avatarShape?: string;
+  visibility?: {
+    usageStatistics: boolean;
+    activityGraph: boolean;
+    topPlugins: boolean;
+    insights: boolean;
+  };
 };
 
 const AVATAR_MIMES = new Set([
@@ -28,6 +36,12 @@ export async function updateProfile(patch: {
   preferredName?: string;
   occupation?: string;
   avatarFileId?: string;
+  username?: string;
+  avatarShape?: string;
+  showUsageStatistics?: boolean;
+  showActivityGraph?: boolean;
+  showTopPlugins?: boolean;
+  showInsights?: boolean;
 }) {
   const data = await apiFetch<{ profile: UserProfile }>("/api/v1/profile", {
     method: "PATCH",
@@ -46,12 +60,13 @@ export async function uploadAvatar(file: File) {
     throw new Error("Avatar must be 2 MB or smaller.");
   }
 
-  const { fileId, uploadUrl, method, stub, worker } = await filesApi.presignUpload({
-    originalName: file.name,
-    mimeType: mime,
-    sizeBytes: file.size,
-    purpose: "avatar",
-  });
+  const { fileId, uploadUrl, method, stub, worker } =
+    await filesApi.presignUpload({
+      originalName: file.name,
+      mimeType: mime,
+      sizeBytes: file.size,
+      purpose: "avatar",
+    });
 
   if (!stub) {
     const headers: Record<string, string> = { "content-type": mime };

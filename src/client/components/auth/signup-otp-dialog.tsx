@@ -55,11 +55,11 @@ export function SignupOtpDialog({
         if (e.target === e.currentTarget && !submitting) onClose();
       }}
     >
-      <div className="w-full max-w-[400px] animate-in fade-in zoom-in-95 rounded-[16px] border border-zinc-200 bg-white p-6 shadow-[0_24px_64px_-24px_rgba(24,24,27,0.45)] duration-200">
+      <div className="w-full max-w-[400px] animate-in fade-in zoom-in-95 rounded-[16px] border border-zinc-200 bg-white p-6 shadow-[0_24px_64px_-24px_rgba(24,24,27,0.45)] duration-200 dark:border-white/10 dark:bg-[#1f1f23] dark:shadow-[0_24px_64px_-24px_rgba(0,0,0,0.8)]">
         <div className="mb-1 flex items-start justify-between gap-3">
           <h2
             id="signup-otp-title"
-            className="text-[18px] font-semibold tracking-tight text-zinc-900"
+            className="text-[18px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100"
           >
             Verify your email
           </h2>
@@ -67,15 +67,15 @@ export function SignupOtpDialog({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+            className="rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-200"
             aria-label="Close"
           >
             <i className="bi bi-x-lg text-[14px]" aria-hidden />
           </button>
         </div>
-        <p className="text-[13px] leading-relaxed text-zinc-500">
+        <p className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
           Enter the 6-digit code we sent to{" "}
-          <span className="font-medium text-zinc-800">{email}</span> to finish
+          <span className="font-medium text-zinc-800 dark:text-zinc-200">{email}</span> to finish
           creating your account.
         </p>
 
@@ -102,12 +102,12 @@ export function SignupOtpDialog({
         </div>
 
         {error ? (
-          <p className="mt-4 text-center text-[13px] text-red-600" role="alert">
+          <p className="mt-4 text-center text-[13px] text-red-600 dark:text-red-400" role="alert">
             {error}
           </p>
         ) : null}
         {info ? (
-          <p className="mt-4 text-center text-[13px] text-zinc-600">{info}</p>
+          <p className="mt-4 text-center text-[13px] text-zinc-600 dark:text-zinc-300">{info}</p>
         ) : null}
 
         <button
@@ -119,13 +119,13 @@ export function SignupOtpDialog({
           {submitting ? "Verifying…" : "Verify and create account"}
         </button>
 
-        <p className="mt-4 text-center text-[12px] text-zinc-500">
+        <p className="mt-4 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
           Didn&apos;t get a code?{" "}
           <button
             type="button"
             disabled={submitting}
             onClick={onResend}
-            className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-950 disabled:opacity-50"
+            className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-950 disabled:opacity-50 dark:text-zinc-200 dark:decoration-zinc-600 dark:hover:text-white"
           >
             Resend
           </button>

@@ -1,18 +1,26 @@
 import { queryOne } from "@/server/db/pool";
 
-const PROFILE_COLUMNS = `id, email, display_name, preferred_name, avatar_url,
-  avatar_file_id, avatar_storage_bucket, avatar_storage_path, avatar_updated_at`;
+const PROFILE_COLUMNS = `id, email, display_name, preferred_name, username,
+  avatar_url, avatar_file_id, avatar_storage_bucket, avatar_storage_path,
+  avatar_updated_at, avatar_shape, show_usage_statistics, show_activity_graph,
+  show_top_plugins, show_insights`;
 
 export type ProfileRow = {
   id: string;
   email: string | null;
   display_name: string | null;
   preferred_name: string | null;
+  username: string;
   avatar_url: string | null;
   avatar_file_id: string | null;
   avatar_storage_bucket: string | null;
   avatar_storage_path: string | null;
   avatar_updated_at: string | null;
+  avatar_shape: string;
+  show_usage_statistics: boolean;
+  show_activity_graph: boolean;
+  show_top_plugins: boolean;
+  show_insights: boolean;
 };
 
 export async function getProfile(userId: string) {
@@ -30,6 +38,12 @@ export async function updateProfile(
     displayName?: string | null;
     preferredName?: string | null;
     avatarUrl?: string | null;
+    username?: string;
+    avatarShape?: string;
+    showUsageStatistics?: boolean;
+    showActivityGraph?: boolean;
+    showTopPlugins?: boolean;
+    showInsights?: boolean;
   },
 ) {
   return queryOne<ProfileRow>(
@@ -37,6 +51,12 @@ export async function updateProfile(
        display_name = case when $2::text is not null then $2 else display_name end,
        preferred_name = case when $3::text is not null then $3 else preferred_name end,
        avatar_url = case when $4::text is not null then $4 else avatar_url end,
+       username = coalesce($5::text, username),
+       avatar_shape = coalesce($6::text, avatar_shape),
+       show_usage_statistics = coalesce($7::boolean, show_usage_statistics),
+       show_activity_graph = coalesce($8::boolean, show_activity_graph),
+       show_top_plugins = coalesce($9::boolean, show_top_plugins),
+       show_insights = coalesce($10::boolean, show_insights),
        updated_at = now()
      where id = $1
      returning ${PROFILE_COLUMNS}`,
@@ -45,7 +65,21 @@ export async function updateProfile(
       patch.displayName !== undefined ? patch.displayName : null,
       patch.preferredName !== undefined ? patch.preferredName : null,
       patch.avatarUrl !== undefined ? patch.avatarUrl : null,
+      patch.username ?? null,
+      patch.avatarShape ?? null,
+      patch.showUsageStatistics ?? null,
+      patch.showActivityGraph ?? null,
+      patch.showTopPlugins ?? null,
+      patch.showInsights ?? null,
     ],
+  );
+}
+
+export async function getPublicProfileByUsername(username: string) {
+  return queryOne<ProfileRow>(
+    `select ${PROFILE_COLUMNS} from public.profiles
+     where lower(username) = lower($1) limit 1`,
+    [username],
   );
 }
 

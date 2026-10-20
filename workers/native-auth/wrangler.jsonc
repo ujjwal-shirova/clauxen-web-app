@@ -1,0 +1,18 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "clauxen-native-auth",
+  "main": "src/index.ts",
+  "account_id": "8fc7a67e9057989309921f362784ecf4",
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "www.clauxen.com/api/v1/auth/native/*", "zone_name": "clauxen.com" }
+  ],
+  "ratelimits": [
+    { "name": "AUTH_RATE_LIMIT", "namespace_id": "2026101501", "simple": { "limit": 120, "period": 60 } }
+  ],
+  "observability": { "enabled": true, "redact_query_string": true, "head_sampling_rate": 0.05 },
+  "keep_vars": true
+}

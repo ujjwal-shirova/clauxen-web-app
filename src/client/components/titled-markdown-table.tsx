@@ -28,9 +28,9 @@ export function TitledMarkdownTable({
     // instead of nothing until the first table row lands.
     if (!isStreaming) return null;
     return (
-      <div className="composer-message-table my-4 flex min-h-[46px] w-full items-center rounded-2xl border border-zinc-200/90 bg-white px-4 py-2 shadow-[0_2px_8px_rgba(24,24,27,0.04)]">
+      <div className="composer-message-table my-4 flex min-h-[46px] w-full items-center rounded-2xl border border-zinc-200/90 bg-white px-4 py-2 shadow-[0_2px_8px_rgba(24,24,27,0.04)] dark:border-white/10 dark:bg-[#1a1a1d] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
         <span
-          className="shimmer-text truncate text-[13px] font-semibold text-zinc-800"
+          className="shimmer-text truncate text-[13px] font-semibold text-zinc-800 dark:text-zinc-200"
           data-shimmer-active="true"
         >
           {title}

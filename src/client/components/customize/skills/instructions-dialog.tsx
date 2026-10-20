@@ -61,13 +61,12 @@ export function InstructionsDialog({
           {" "}
           {/* padded form container */}
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 text-left">
-            <DialogTitle className="text-[20px] font-semibold text-zinc-900 leading-[28px]">
+            <DialogTitle className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100 leading-[28px]">
               Write skill instructions
-            </DialogTitle>{" "}
-            {/* dialog title */}
+            </DialogTitle>
             <button
               onClick={handleClose}
-              className="p-2 -mr-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-500"
+              className="p-2 -mr-2 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-lg transition-colors text-zinc-500 dark:text-zinc-400"
             >
               <svg
                 width="20"
@@ -78,66 +77,52 @@ export function InstructionsDialog({
                 aria-hidden="true"
               >
                 <path d="M15.147 4.146a.5.5 0 0 1 .707.707L10.707 10l5.147 5.147a.5.5 0 0 1-.63.771l-.078-.064L10 10.707l-5.146 5.147a.5.5 0 0 1-.708-.707L9.293 10 4.146 4.853a.5.5 0 0 1 .708-.707L10 9.293z" />
-              </svg>{" "}
-              {/* close X icon */}
+              </svg>
             </button>
           </DialogHeader>
           <div className="flex flex-col gap-4 mt-3">
-            {" "}
-            {/* form fields stack */}
             <div className="flex flex-col gap-2">
-              {" "}
-              {/* Skill Name field group */}
               <label className="app-page-body font-medium">
                 Skill name
-              </label>{" "}
-              {/* label — required identifier */}
+              </label>
               <Input
-                value={skillName} // controlled value
-                onChange={(e) => setSkillName(e.target.value)} // name typing handler
-                placeholder="weekly-status-report" // placeholder — slug-style example
+                value={skillName}
+                onChange={(e) => setSkillName(e.target.value)}
+                placeholder="weekly-status-report"
                 className="app-page-search !h-8 !pl-3 focus-visible:ring-2 focus-visible:ring-zinc-900/10"
               />
             </div>
             <div className="flex flex-col gap-2">
-              {" "}
-              {/* Description field group */}
               <label className="app-page-body font-medium">
                 Description
-              </label>{" "}
-              {/* label — when-to-use summary */}
+              </label>
               <Textarea
-                value={skillDescription} // controlled description
-                onChange={(e) => setSkillDescription(e.target.value)} // description typing
-                maxLength={SKILL_FIELD_MAX_LENGTH} // HTML cap — description field DoS guard
-                rows={3} // 3 rows visible height
-                placeholder="Generate weekly status reports from recent work. Use when asked for updates or progress summaries." // example trigger text
-                className="app-page-body min-h-[100px] resize-none rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-white p-3 focus-visible:ring-2 focus-visible:ring-zinc-900/10"
+                value={skillDescription}
+                onChange={(e) => setSkillDescription(e.target.value)}
+                maxLength={SKILL_FIELD_MAX_LENGTH}
+                rows={3}
+                placeholder="Generate weekly status reports from recent work. Use when asked for updates or progress summaries."
+                className="app-page-body min-h-[100px] resize-none rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-white dark:bg-[#18181b] p-3 focus-visible:ring-2 focus-visible:ring-zinc-900/10"
               />
             </div>
             <div className="flex flex-col gap-2">
-              {" "}
-              {/* Instructions field group */}
               <label className="app-page-body font-medium">
                 Instructions
-              </label>{" "}
-              {/* label — full skill prompt body */}
+              </label>
               <Textarea
-                value={skillInstructions} // controlled instructions
-                onChange={(e) => setSkillInstructions(e.target.value)} // instructions typing
-                rows={10} // tall textarea for long prompts
-                placeholder="Summarize my recent work in three sections: wins, blockers, and next steps. Keep the tone professional but not stiff..." // example instructions
-                className="app-page-body min-h-[240px] resize-none rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-white p-3 focus-visible:ring-2 focus-visible:ring-zinc-900/10"
+                value={skillInstructions}
+                onChange={(e) => setSkillInstructions(e.target.value)}
+                rows={10}
+                placeholder="Summarize my recent work in three sections: wins, blockers, and next steps. Keep the tone professional but not stiff..."
+                className="app-page-body min-h-[240px] resize-none rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-white dark:bg-[#18181b] p-3 focus-visible:ring-2 focus-visible:ring-zinc-900/10"
               />
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            {" "}
-            {/* footer actions — Cancel + Create */}
             <Button
-              variant="outline" // outline variant — secondary action
-              onClick={handleClose} // cancel — close without save
-              className="h-9 px-4 border-zinc-200 text-zinc-800 rounded-lg font-medium hover:bg-zinc-100"
+              variant="outline"
+              onClick={handleClose}
+              className="h-9 px-4 border-zinc-200 dark:border-white/10 text-zinc-800 dark:text-zinc-200 rounded-lg font-medium hover:bg-zinc-100 dark:hover:bg-white/10"
             >
               Cancel
             </Button>

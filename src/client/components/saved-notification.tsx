@@ -58,14 +58,14 @@ export function SavedNotificationHost() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-auto fixed right-4 top-4 z-[200] flex items-center gap-2.5 rounded-xl border border-zinc-200/90 bg-white px-3.5 py-2.5 text-zinc-900 shadow-[0_8px_28px_rgba(24,24,27,0.12)] animate-in fade-in slide-in-from-top-2 duration-200"
+      className="pointer-events-auto fixed right-4 top-4 z-[200] flex items-center gap-2.5 rounded-xl border border-zinc-200/90 bg-white px-3.5 py-2.5 text-zinc-900 shadow-[0_8px_28px_rgba(24,24,27,0.12)] animate-in fade-in slide-in-from-top-2 duration-200 dark:border-white/10 dark:bg-[#202023] dark:text-[#fafafa] dark:shadow-[0_8px_28px_rgba(0,0,0,0.5)]"
     >
-      <Info className="h-4 w-4 shrink-0 text-zinc-800" aria-hidden />
+      <Info className="h-4 w-4 shrink-0 text-zinc-800 dark:text-zinc-200" aria-hidden />
       <span className="text-[13.5px] font-medium leading-none">Saved</span>
       <button
         type="button"
         onClick={dismissSavedNotification}
-        className="ml-1 flex h-5 w-5 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+        className="ml-1 flex h-5 w-5 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-100"
         aria-label="Dismiss"
       >
         <X className="h-3.5 w-3.5" />

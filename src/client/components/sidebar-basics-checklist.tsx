@@ -88,16 +88,16 @@ export function SidebarBasicsChecklist({
 
   return (
     <div className={cn("shrink-0 px-1.5 pb-1", className)}>
-      <div className="group/basics rounded-lg border border-[rgba(31,31,30,0.12)] bg-white/90 p-1.5 shadow-[0_1px_2px_rgba(11,11,11,0.045)] backdrop-blur-sm">
+      <div className="group/basics rounded-lg border border-[rgba(31,31,30,0.12)] bg-white/90 p-1.5 shadow-[0_1px_2px_rgba(11,11,11,0.045)] backdrop-blur-sm dark:border-white/10 dark:bg-zinc-800/80">
         <div className="relative flex max-h-[264px] flex-col">
           <div className="flex items-center gap-2 px-2 pt-2">
-            <h2 className="flex-1 truncate text-[11.5px] font-[430] leading-4 text-zinc-900">
+            <h2 className="flex-1 truncate text-[11.5px] font-[430] leading-4 text-zinc-900 dark:text-zinc-100">
               Try the basics
             </h2>
             <div className="relative flex h-7 min-w-[2.25rem] shrink-0 items-center justify-end">
               <span
                 aria-hidden="true"
-                className="text-[12px] leading-[16.8px] text-[#7b7974] transition-opacity duration-150 group-hover/basics:opacity-0"
+                className="text-[12px] leading-[16.8px] text-[#7b7974] dark:text-zinc-400 transition-opacity duration-150 group-hover/basics:opacity-0"
               >
                 {completedCount} / {steps.length}
               </span>
@@ -105,7 +105,7 @@ export function SidebarBasicsChecklist({
                 type="button"
                 aria-label="Dismiss checklist"
                 onClick={dismiss}
-                className="no-hover-overlay absolute right-0 flex h-7 w-7 items-center justify-center rounded-full text-zinc-500 opacity-0 transition-[opacity,color,background-color] duration-150 hover:bg-zinc-100 hover:text-zinc-700 group-hover/basics:opacity-100"
+                className="no-hover-overlay absolute right-0 flex h-7 w-7 items-center justify-center rounded-full text-zinc-500 opacity-0 transition-[opacity,color,background-color] duration-150 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-200 group-hover/basics:opacity-100"
               >
                 <X className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
               </button>
@@ -113,7 +113,7 @@ export function SidebarBasicsChecklist({
           </div>
 
           <div className="px-2 pb-1.5 pt-1.5">
-            <div className="rounded-full bg-[#e6e5e0] p-0.5">
+            <div className="rounded-full bg-[#e6e5e0] dark:bg-white/10 p-0.5">
               <div
                 className="h-1 rounded-full bg-[#256bc1] transition-[width] duration-300 ease-out"
                 style={{ width: `${progress}%` }}
@@ -132,14 +132,14 @@ export function SidebarBasicsChecklist({
                       markComplete(step.id);
                       step.onSelect();
                     }}
-                    className="flex w-full items-start gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-zinc-100"
+                    className="flex w-full items-start gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-white/10"
                   >
                     <span
                       className={cn(
                         "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
                         done
                           ? "border-[#256bc1] bg-[#256bc1]"
-                          : "border-[rgba(31,31,30,0.15)] bg-white",
+                          : "border-[rgba(31,31,30,0.15)] bg-white dark:border-white/20 dark:bg-zinc-700",
                       )}
                     >
                       {done ? (
@@ -147,11 +147,11 @@ export function SidebarBasicsChecklist({
                       ) : null}
                     </span>
                     <span className="min-w-0">
-                      <p className="text-[12.5px] leading-[17px] text-zinc-900">
+                      <p className="text-[12.5px] leading-[17px] text-zinc-900 dark:text-zinc-100">
                         {step.title}
                       </p>
                       {step.description ? (
-                        <p className="text-[12px] leading-4 text-[#7b7974]">
+                        <p className="text-[12px] leading-4 text-[#7b7974] dark:text-zinc-400">
                           {step.description}
                         </p>
                       ) : null}

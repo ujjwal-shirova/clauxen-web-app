@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "clauxen-oauth-broker",
+  "main": "src/index.ts",
+  "account_id": "8fc7a67e9057989309921f362784ecf4",
+  "compatibility_date": "2026-10-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "www.clauxen.com/auth/oauth*", "zone_name": "clauxen.com" },
+    { "pattern": "clauxen.com/auth/oauth*", "zone_name": "clauxen.com" }
+  ],
+  "vars": { "BROKER_PROVIDERS": "github,gitlab" },
+  "services": [{ "binding": "APP", "service": "clauxen-app" }],
+  "ratelimits": [{ "name": "AUTH_RATE_LIMIT", "namespace_id": "2026101703", "simple": { "limit": 120, "period": 60 } }],
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "54df64d31cce4e6f8f34415c6fb4e849" }],
+  "durable_objects": { "bindings": [{ "name": "OAUTH_FLOWS", "class_name": "OAuthFlow" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OAuthFlow"] }],
+  "observability": { "enabled": true, "redact_query_string": true, "head_sampling_rate": 0.01 },
+  "keep_vars": true
+}

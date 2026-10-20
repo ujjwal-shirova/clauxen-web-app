@@ -338,7 +338,7 @@ function ManagedConnectionRow({
 }) {
   const name = connection.pluginName || connection.pluginId;
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-[var(--ui-border)] bg-white p-3">
+    <li className="flex items-center gap-3 rounded-xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
       <button
         type="button"
         onClick={() =>

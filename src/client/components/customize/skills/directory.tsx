@@ -95,7 +95,7 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   aria-current="true"
-                  className="flex items-center gap-3 rounded-lg bg-zinc-100 px-4 py-1.5 app-page-body font-semibold"
+                  className="flex items-center gap-3 rounded-lg bg-zinc-100 dark:bg-white/10 px-4 py-1.5 app-page-body font-semibold"
                 >
                   <BookOpen className="h-5 w-5" />
                   <span>Skills</span>
@@ -104,14 +104,14 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
             </aside>
 
             <div className="flex min-w-0 flex-1 flex-col gap-4 pt-2">
-              <div className="flex h-8 w-full items-center gap-2 rounded-lg bg-white/70 px-2 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)]">
-                <Search className="h-4 w-4 shrink-0 text-[#898781]" />
+              <div className="flex h-8 w-full items-center gap-2 rounded-lg bg-white/70 dark:bg-white/5 px-2 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
+                <Search className="h-4 w-4 shrink-0 text-[#898781] dark:text-[var(--ui-fg-muted)]" />
                 <input
                   aria-label="Search directory"
                   placeholder="Search skills..."
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  className="app-page-body h-full min-w-0 flex-1 bg-transparent outline-none placeholder:text-zinc-400"
+                  className="app-page-body h-full min-w-0 flex-1 bg-transparent outline-none placeholder:text-zinc-400 dark:placeholder:text-[var(--ui-fg-placeholder)]"
                 />
               </div>
 
@@ -119,7 +119,7 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   aria-pressed
-                  className="app-page-body shrink-0 rounded-full bg-zinc-100 px-3 py-1"
+                  className="app-page-body shrink-0 rounded-full bg-zinc-100 dark:bg-white/10 px-3 py-1"
                 >
                   Shirova &amp; Partners
                 </button>
@@ -128,7 +128,7 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
                     <button
                       key={label}
                       type="button"
-                      className="app-page-muted flex h-8 min-w-[120px] items-center justify-between rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white px-3"
+                      className="app-page-muted flex h-8 min-w-[120px] items-center justify-between rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white dark:bg-[var(--ui-card-bg)] px-3"
                     >
                       <span>{label}</span>
                       <ChevronDown className="h-4 w-4" />

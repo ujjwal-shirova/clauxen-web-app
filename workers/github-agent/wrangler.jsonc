@@ -1,0 +1,19 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "clauxen-github-agent",
+  "main": "src/index.ts",
+  "account_id": "8fc7a67e9057989309921f362784ecf4",
+  "compatibility_date": "2026-10-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "keep_vars": true,
+  "routes": [
+    { "pattern": "www.clauxen.com/api/v1/github/*", "zone_name": "clauxen.com" },
+    { "pattern": "www.clauxen.com/github*", "zone_name": "clauxen.com" }
+  ],
+  "vars": { "APP_ORIGIN": "https://www.clauxen.com" },
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "54df64d31cce4e6f8f34415c6fb4e849" }],
+  "ratelimits": [{ "name": "RATE_LIMIT", "namespace_id": "2026101701", "simple": { "limit": 90, "period": 60 } }],
+  "observability": { "enabled": true, "redact_query_string": true, "head_sampling_rate": 0.05 }
+}

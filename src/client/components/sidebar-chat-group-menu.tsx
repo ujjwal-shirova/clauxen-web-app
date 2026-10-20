@@ -21,7 +21,7 @@ const groupOptions: Array<{
 ];
 
 export const sidebarSectionIconButtonClass =
-  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-zinc-800/66 shadow-none transition-colors hover:bg-black/[0.04] hover:text-zinc-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10 data-[state=open]:bg-black/[0.04] data-[state=open]:text-zinc-800/80";
+  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-[var(--cx-sidebar-muted)] shadow-none transition-colors hover:bg-[var(--cx-sidebar-hover)] hover:text-[var(--cx-sidebar-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] data-[state=open]:bg-[var(--cx-sidebar-hover)] data-[state=open]:text-[var(--cx-sidebar-fg)]";
 
 export function SidebarChatGroupMenu({
   value,
@@ -49,9 +49,9 @@ export function SidebarChatGroupMenu({
         align="end"
         sideOffset={6}
         avoidCollisions={false}
-        className="z-50 min-w-[148px] rounded-[10px] border border-black/[0.08] bg-white p-1 shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
+        className="z-50 min-w-[148px] rounded-[10px] border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-1 shadow-[var(--panel-shadow)] font-sans"
       >
-        <DropdownMenuLabel className="px-2 py-1.5 text-[12px] font-medium text-zinc-500">
+        <DropdownMenuLabel className="px-2 py-1.5 text-[11.5px] font-medium text-[var(--ui-fg-muted)]">
           Group by
         </DropdownMenuLabel>
         {groupOptions.map((option) => {
@@ -62,12 +62,12 @@ export function SidebarChatGroupMenu({
               key={option.value}
               onClick={() => onChange(option.value)}
               className={cn(
-                "flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-[13px] font-medium text-zinc-800 focus:bg-zinc-100",
+                "ui-menu-row flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-[13px] font-normal text-[var(--ui-fg)] hover:bg-[var(--ui-hover-wash)] focus:bg-[var(--ui-hover-wash)]",
               )}
             >
               <span>{option.label}</span>
               {isSelected ? (
-                <Check className="h-3.5 w-3.5 text-[#256bc1]" strokeWidth={2} />
+                <Check className="size-3.5 text-[var(--link,#256bc1)]" strokeWidth={2} />
               ) : null}
             </DropdownMenuItem>
           );

@@ -17,6 +17,7 @@
     "binding": "ASSETS",
   },
   "services": [
+    { "binding": "GITHUB_AGENT", "service": "clauxen-github-agent" },
     { "binding": "CHAT_COORD", "service": "clauxen-chat-coord" },
     { "binding": "CHAT_HISTORY", "service": "clauxen-chat-history" },
     { "binding": "BILLING", "service": "clauxen-billing" },

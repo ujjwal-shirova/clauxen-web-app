@@ -1,0 +1,5 @@
+SEAL_KEY=base64-32-byte-key
+SETUP_TOKEN=random-bootstrap-secret
+INTERNAL_TOKEN=random-server-only-secret
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_PUBLIC_KEY=publishable-key

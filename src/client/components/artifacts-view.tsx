@@ -119,15 +119,13 @@ export function ArtifactsView() {
 
   return (
     // full-page layout — sticky header + scrollable main grid
-    <div className="flex flex-col flex-1 w-full bg-zinc-50 animate-in fade-in duration-500 font-sans h-full">
-      {" "}
+    <div className="flex flex-col flex-1 w-full bg-[var(--app-panel-bg)] animate-in fade-in duration-500 font-sans h-full">
       {/* root flex column — warm background + page fade-in */}
-      <div className="sticky top-0 z-20 bg-zinc-50">
+      <div className="sticky top-0 z-20 bg-[var(--app-panel-bg)]">
         <header className="flex items-center justify-center h-16 sm:h-20 w-full shrink-0 px-3 sm:px-5 max-w-[780px] mx-auto">
-          {" "}
           {/* top bar — responsive height */}
           <div className="flex items-center justify-between w-full px-2 sm:px-6">
-            <h1 className="text-[21px] sm:text-[22px] font-serif font-medium text-zinc-800">
+            <h1 className="text-[21px] sm:text-[22px] font-serif font-medium text-[var(--ui-fg)]">
               Artifacts
             </h1>
             <Button
@@ -149,23 +147,21 @@ export function ArtifactsView() {
         </header>
 
         <div className="max-w-[780px] mx-auto px-4 sm:px-10 mb-4 sm:mb-5">
-          {" "}
           {/* tab switcher container */}
-          <div className="flex gap-1 border-b border-zinc-200 w-full">
-            {" "}
+          <div className="flex gap-1 border-b border-[var(--ui-border-subtle)] w-full">
             {/* underline-style tab bar */}
             <button
               onClick={() => setActiveTab("inspiration")} // Inspiration gallery tab activate
               className={cn(
                 "h-11 px-1.5 text-[13px] font-medium transition-all relative",
                 activeTab === "inspiration"
-                  ? "text-zinc-900" // active tab — dark text
-                  : "text-zinc-500 hover:text-zinc-900", // inactive — muted + hover
+                  ? "text-[var(--ui-fg)]" // active tab — dark text
+                  : "text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]", // inactive — muted + hover
               )}
             >
               <span>Inspiration</span>
               {activeTab === "inspiration" && ( // active indicator underline
-                <div className="absolute bottom-0 left-0 right-0 h-[1.33333px] bg-zinc-900 no-hover-overlay" />
+                <div className="absolute bottom-0 left-0 right-0 h-[1.33333px] bg-[var(--ui-fg)] no-hover-overlay" />
               )}
             </button>
             <button
@@ -173,13 +169,13 @@ export function ArtifactsView() {
               className={cn(
                 "h-11 px-1.5 text-[13px] font-medium transition-all relative",
                 activeTab === "yours"
-                  ? "text-zinc-900"
-                  : "text-zinc-500 hover:text-zinc-900",
+                  ? "text-[var(--ui-fg)]"
+                  : "text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]",
               )}
             >
               <span>Your artifacts</span>
               {activeTab === "yours" && (
-                <div className="absolute bottom-0 left-0 right-0 h-[1.33333px] bg-zinc-900 no-hover-overlay" />
+                <div className="absolute bottom-0 left-0 right-0 h-[1.33333px] bg-[var(--ui-fg)] no-hover-overlay" />
               )}
             </button>
           </div>
@@ -195,8 +191,8 @@ export function ArtifactsView() {
                   className={cn(
                     "px-3 py-1.5 rounded-full text-[13px] whitespace-nowrap transition-all border border-transparent",
                     activeCategory === cat
-                      ? "bg-[#e8e6dc] text-zinc-900 font-medium" // selected pill — filled background
-                      : "text-zinc-500 hover:bg-zinc-100", // unselected — subtle hover
+                      ? "bg-[#e8e6dc] text-zinc-900 dark:bg-white/15 dark:text-zinc-100 font-medium" // selected pill — filled background
+                      : "text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]", // unselected — subtle hover
                   )}
                 >
                   {cat}
@@ -209,7 +205,6 @@ export function ArtifactsView() {
       <main className="app-scrollbar mx-auto w-full max-w-[780px] flex-1 overflow-y-auto px-4 pb-16 sm:px-10">
         {activeTab === "inspiration" ? ( // Inspiration tab — template card grid
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mt-3">
-            {" "}
             {/* responsive 1/2/3 column grid */}
             {filteredInspirations.map((item) => (
               <button
@@ -218,8 +213,7 @@ export function ArtifactsView() {
                 onClick={() => void createArtifact(item.title, "template")}
                 className="flex flex-col gap-2.5 group cursor-pointer text-left"
               >
-                <div className="aspect-[260/164] bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
-                  {" "}
+                <div className="aspect-[260/164] bg-white dark:bg-[#202023] border border-zinc-200 dark:border-white/10 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
                   {/* fixed aspect preview frame */}
                   <img
                     src={item.image} // external SVG/PNG preview URL
@@ -229,18 +223,18 @@ export function ArtifactsView() {
                     className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
                   />
                 </div>
-                <span className="text-[13px] font-medium text-zinc-800 line-clamp-1">
+                <span className="text-[13px] font-medium text-[var(--ui-fg)] line-clamp-1">
                   {item.title}
                 </span>
               </button>
             ))}
           </div>
         ) : loading ? (
-          <div className="flex items-center justify-center py-16 text-zinc-500">
+          <div className="flex items-center justify-center py-16 text-[var(--ui-fg-muted)]">
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : artifacts.length === 0 ? (
-          <p className="text-center text-[14px] text-zinc-500 py-16">
+          <p className="text-center text-[14px] text-[var(--ui-fg-muted)] py-16">
             No artifacts yet. Create one to get started.
           </p>
         ) : (
@@ -249,12 +243,12 @@ export function ArtifactsView() {
             {artifacts.map((artifact) => (
               <article
                 key={artifact.id} // stable server id — list key
-                className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
+                className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#202023] p-4 shadow-sm"
               >
-                <h3 className="text-[14px] font-medium text-zinc-800 truncate">
+                <h3 className="text-[14px] font-medium text-[var(--ui-fg)] truncate">
                   {artifact.title}
                 </h3>
-                <p className="text-[12px] text-zinc-500 capitalize">
+                <p className="text-[12px] text-[var(--ui-fg-muted)] capitalize">
                   {artifact.kind} · {artifact.status}{" "}
                   {/* kind (template/custom) + lifecycle status */}
                 </p>

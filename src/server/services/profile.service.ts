@@ -1,5 +1,5 @@
 import { AppError } from "@/server/db/errors";
-import { query } from "@/server/db/pool";
+import { query, queryOne } from "@/server/db/pool";
 import * as profileRepo from "@/server/repositories/profile.repository";
 import * as settingsRepo from "@/server/repositories/settings.repository";
 import * as avatarService from "@/server/services/avatar.service";
@@ -85,29 +85,95 @@ export async function updateUserProfile(
     preferredName?: string;
     occupation?: string;
     avatarFileId?: string;
+    username?: string;
+    avatarShape?: string;
+    showUsageStatistics?: boolean;
+    showActivityGraph?: boolean;
+    showTopPlugins?: boolean;
+    showInsights?: boolean;
   },
 ) {
   const fullName = trimProfileName(input.fullName);
   const preferredName = trimProfileName(input.preferredName);
   const occupation = trimProfileName(input.occupation);
+  const username = input.username?.trim().toLowerCase();
+  if (username !== undefined && !/^[a-z0-9_]{3,32}$/.test(username)) {
+    throw new AppError(
+      "Use 3–32 letters, numbers, or underscores for your username.",
+      400,
+      "invalid_username",
+    );
+  }
+  const avatarShapes = new Set([
+    "circle",
+    "squircle",
+    "rounded",
+    "oval",
+    "scallop",
+  ]);
+  if (input.avatarShape !== undefined && !avatarShapes.has(input.avatarShape)) {
+    throw new AppError(
+      "Choose a supported profile photo shape.",
+      400,
+      "invalid_avatar_shape",
+    );
+  }
 
   if (input.avatarFileId) {
     await avatarService.attachUploadedAvatar(userId, input.avatarFileId);
   }
 
-  if (fullName !== null || preferredName !== null) {
-    await profileRepo.updateProfile(userId, {
-      ...(fullName !== null ? { displayName: fullName } : {}),
-      ...(preferredName !== null ? { preferredName } : {}),
-    });
+  if (
+    fullName !== null ||
+    preferredName !== null ||
+    username !== undefined ||
+    input.avatarShape !== undefined ||
+    input.showUsageStatistics !== undefined ||
+    input.showActivityGraph !== undefined ||
+    input.showTopPlugins !== undefined ||
+    input.showInsights !== undefined
+  ) {
+    try {
+      await profileRepo.updateProfile(userId, {
+        ...(fullName !== null ? { displayName: fullName } : {}),
+        ...(preferredName !== null ? { preferredName } : {}),
+        ...(username !== undefined ? { username } : {}),
+        ...(input.avatarShape !== undefined
+          ? { avatarShape: input.avatarShape }
+          : {}),
+        ...(input.showUsageStatistics !== undefined
+          ? { showUsageStatistics: input.showUsageStatistics }
+          : {}),
+        ...(input.showActivityGraph !== undefined
+          ? { showActivityGraph: input.showActivityGraph }
+          : {}),
+        ...(input.showTopPlugins !== undefined
+          ? { showTopPlugins: input.showTopPlugins }
+          : {}),
+        ...(input.showInsights !== undefined
+          ? { showInsights: input.showInsights }
+          : {}),
+      });
+    } catch (error) {
+      if (
+        username !== undefined &&
+        error instanceof AppError &&
+        error.code === "conflict"
+      ) {
+        throw new AppError(
+          "That username is already in use.",
+          409,
+          "username_taken",
+        );
+      }
+      throw error;
+    }
   }
 
   await mirrorPersonalizationNames(userId, {
     ...(fullName !== null ? { fullName } : {}),
     ...(preferredName !== null ? { nickname: preferredName } : {}),
-    ...(input.occupation !== undefined
-      ? { occupation: occupation ?? "" }
-      : {}),
+    ...(input.occupation !== undefined ? { occupation: occupation ?? "" } : {}),
   });
 
   if (fullName) {
@@ -132,6 +198,124 @@ export async function updateUserProfile(
   }
 
   return profileRepo.getProfile(userId);
+}
+
+export async function getPublicProfile(username: string) {
+  const row = await profileRepo.getPublicProfileByUsername(username);
+  if (!row) return null;
+
+  const [usage, longestStreak, longestTask, plugins, myClauxen] =
+    await Promise.all([
+      queryOne<{ lifetime_tokens: string; peak_tokens: string }>(
+        `select
+         (select coalesce(sum(amount), 0)::text from public.token_transactions where user_id = $1 and type = 'debit') as lifetime_tokens,
+         (select coalesce(max(day_total), 0)::text from (
+           select sum(amount) as day_total from public.token_transactions
+           where user_id = $1 and type = 'debit' group by created_at::date
+         ) daily) as peak_tokens`,
+        [row.id],
+      ),
+      queryOne<{ days: string; current_days: string }>(
+        `with anchor as (
+           select case when exists (
+             select 1 from public.user_activity_days
+             where user_id = $1 and activity_date = $2::date and message_count > 0
+           ) then $2::date else $2::date - 1 end as day
+         ), runs as (
+           select activity_date,
+             activity_date - (row_number() over (order by activity_date))::int as grp
+           from public.user_activity_days where user_id = $1 and message_count > 0
+         ), streaks as (
+           select count(*) as days, max(activity_date) as last_day
+           from runs group by grp
+         )
+         select coalesce(max(days), 0)::text as days,
+           coalesce(max(days) filter (where last_day = (select day from anchor)), 0)::text as current_days
+         from streaks`,
+        [row.id, new Date().toISOString().slice(0, 10)],
+      ),
+      queryOne<{ seconds: string | null }>(
+        `select coalesce(max(extract(epoch from (bounds.last_at - bounds.first_at))), 0)::text as seconds
+       from (
+         select min(created_at) as first_at, max(created_at) as last_at
+         from public.chat_messages m
+         join public.chats c on c.id = m.chat_id
+         where c.user_id = $1 and m.user_id = $1 and m.role = 'user'
+         group by m.chat_id
+       ) bounds`,
+        [row.id],
+      ),
+      query<{
+        plugin_id: string;
+        plugin_name: string;
+        plugin_icon_url: string | null;
+        last_used_at: string | null;
+      }>(
+        `select plugin_id, plugin_name, plugin_icon_url, last_used_at
+         from (
+           select distinct on (plugin_id) plugin_id, plugin_name, plugin_icon_url, last_used_at
+           from public.plugin_connections where user_id = $1 and status = 'active'
+           order by plugin_id, last_used_at desc nulls last
+         ) active_plugins
+         order by last_used_at desc nulls last, plugin_name
+         limit 5`,
+        [row.id],
+      ),
+      import("@/server/services/my-clauxen.service").then((m) =>
+        m.getMyClauxen(row.id),
+      ),
+    ]);
+
+  return {
+    username: row.username,
+    displayName:
+      row.preferred_name?.trim() || row.display_name?.trim() || "User",
+    avatarUrl: toClientAvatarUrl(row),
+    avatarShape: row.avatar_shape,
+    visibility: {
+      usageStatistics: row.show_usage_statistics,
+      activityGraph: row.show_activity_graph,
+      topPlugins: row.show_top_plugins,
+      insights: row.show_insights,
+    },
+    ...(row.show_usage_statistics
+      ? {
+          usage: {
+            lifetimeTokens: Number(usage?.lifetime_tokens ?? 0),
+            peakTokens: Number(usage?.peak_tokens ?? 0),
+            longestTaskSeconds: Number(longestTask?.seconds ?? 0),
+            longestStreakDays: Number(longestStreak?.days ?? 0),
+            currentStreakDays: Number(longestStreak?.current_days ?? 0),
+          },
+        }
+      : {}),
+    ...(row.show_activity_graph ? { activity: myClauxen.heatmap } : {}),
+    ...(row.show_top_plugins
+      ? {
+          plugins: plugins.map((plugin) => ({
+            id: plugin.plugin_id,
+            name: plugin.plugin_name,
+            iconUrl: plugin.plugin_icon_url,
+          })),
+        }
+      : {}),
+    ...(row.show_insights
+      ? {
+          insights: {
+            messages: myClauxen.messageCount,
+            chats: myClauxen.chatCount,
+            skills: Number(
+              (
+                await queryOne<{ count: string }>(
+                  "select count(*)::text as count from public.user_skills where user_id = $1",
+                  [row.id],
+                )
+              )?.count ?? 0,
+            ),
+          },
+        }
+      : {}),
+  };
 }
 
 export function assertAvatarMime(mimeType: string | null | undefined) {

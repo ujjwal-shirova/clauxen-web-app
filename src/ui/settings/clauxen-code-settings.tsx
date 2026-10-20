@@ -111,16 +111,34 @@ export function ClauxenCodeSettings({
       <SettingsPanelTitle>Clauxen Code</SettingsPanelTitle>
 
       <div className="settings-card p-5">
+        <h2 className="text-[16px] font-semibold">Clauxen Agent for GitHub</h2>
+        <p className="mt-1 text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+          Connect repositories once and use them in Clauxen on web and Android.
+          Prepare code changes on new branches and review draft pull requests.
+        </p>
+        <a
+          href="/github"
+          className="settings-btn settings-btn--primary mt-3 w-fit"
+        >
+          Manage GitHub connection{" "}
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+        </a>
+      </div>
+
+      <div className="settings-card p-5">
         <h2 className="text-[16px] font-semibold">Connect the terminal</h2>
         <p className="mt-1 max-w-xl text-[13px] leading-5 text-[var(--settings-fg-muted)]">
           Sign in with{" "}
           <code className="rounded bg-[var(--settings-icon-bg)] px-1 py-0.5 text-[12px]">
             clauxen
           </code>{" "}
-          (browser OAuth) or create a token below. Sessions bill to your
-          Clauxen balance.
+          (browser OAuth) or create a token below. Sessions bill to your Clauxen
+          balance.
         </p>
-        <a href="/new#pricing" className="settings-btn settings-btn--primary mt-3 w-fit">
+        <a
+          href="/new#pricing"
+          className="settings-btn settings-btn--primary mt-3 w-fit"
+        >
           Upgrade to Max or Pro
           <ExternalLink className="h-3.5 w-3.5" aria-hidden />
         </a>
@@ -191,7 +209,11 @@ export function ClauxenCodeSettings({
           options={["Narrow", "Medium", "Wide"]}
           onChange={(transcriptWidth) => patchPrefs({ transcriptWidth })}
         />
-        <SettingsRow label="Code font" description="Custom monospace." borderless>
+        <SettingsRow
+          label="Code font"
+          description="Custom monospace."
+          borderless
+        >
           <input
             type="text"
             value={prefs.codeFont}
@@ -202,7 +224,10 @@ export function ClauxenCodeSettings({
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection title="Pull requests" description="Branches and automation.">
+      <SettingsSection
+        title="Pull requests"
+        description="Branches and automation."
+      >
         <SettingsRow label="Branch prefix">
           <input
             type="text"

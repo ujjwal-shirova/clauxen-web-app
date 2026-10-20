@@ -71,7 +71,21 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const response = NextResponse.redirect(data.url, 303);
+  let redirectUrl = data.url;
+  try {
+    const dest = new URL(redirectUrl);
+    if (
+      dest.pathname === "/auth/v1/authorize" &&
+      ["github", "gitlab"].includes(dest.searchParams.get("provider") ?? "")
+    ) {
+      dest.host = "auth.clauxen.com";
+      redirectUrl = dest.href;
+    }
+  } catch {
+    // Preserve data.url if parsing fails
+  }
+
+  const response = NextResponse.redirect(redirectUrl, 303);
   response.headers.set("Cache-Control", "no-store");
   for (const { name, value, options: cookieOptions } of pendingCookies) {
     response.cookies.set(name, value, {

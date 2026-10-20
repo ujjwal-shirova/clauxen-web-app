@@ -40,7 +40,7 @@ export function ChatOptionsMenuContent({
       side="bottom"
       sideOffset={6}
       className={cn(
-        "z-50 min-w-[220px] rounded-xl border border-black/[0.08] bg-white p-1.5 text-zinc-800 shadow-[0_8px_28px_rgba(26,23,18,0.12)]",
+        "z-50 min-w-[220px] rounded-xl border border-[var(--popup-border)] bg-[var(--popup-bg)] p-1.5 text-[var(--ui-fg)] shadow-[var(--popup-shadow)]",
         className,
       )}
     >
@@ -51,7 +51,7 @@ export function ChatOptionsMenuContent({
           onRename?.();
         }}
       >
-        <Pencil className="size-4 shrink-0 text-zinc-800" />
+        <Pencil className="size-4 shrink-0 text-[var(--ui-fg-muted)]" />
         Rename
       </DropdownMenuItem>
       <DropdownMenuItem
@@ -66,21 +66,21 @@ export function ChatOptionsMenuContent({
         }}
       >
         {isPinned ? (
-          <PinOff className="size-4 shrink-0 text-zinc-800" />
+          <PinOff className="size-4 shrink-0 text-[var(--ui-fg-muted)]" />
         ) : (
-          <Pin className="size-4 shrink-0 text-zinc-800" />
+          <Pin className="size-4 shrink-0 text-[var(--ui-fg-muted)]" />
         )}
         {isPinned ? "Unpin chat" : "Pin chat"}
       </DropdownMenuItem>
-      <DropdownMenuSeparator className="my-1 bg-zinc-900/10" />
+      <DropdownMenuSeparator className="my-1 bg-[var(--ui-border-subtle)]" />
       <DropdownMenuItem
-        className="ui-menu-row cursor-pointer text-[#8a2424] hover:bg-[#8a2424]/10 focus:bg-[#8a2424]/10"
+        className="ui-menu-row cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-500/10 focus:bg-red-500/10"
         onSelect={(event) => {
           event.preventDefault();
           onDelete?.();
         }}
       >
-        <Trash2 className="size-4 shrink-0 text-[#8a2424]" />
+        <Trash2 className="size-4 shrink-0 text-red-600 dark:text-red-400" />
         Delete
       </DropdownMenuItem>
     </DropdownMenuContent>
