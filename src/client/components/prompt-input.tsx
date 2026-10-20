@@ -1048,7 +1048,7 @@ export function PromptInput({
   const promptIsExpanded =
     isMultiline || showComposeControls || hasPromptAddons;
   const promptShellClass = cn(
-    "relative w-full max-w-full bg-[var(--chat-user-card-bg,#ffffff)] transition-[min-height,border-color,background-color,box-shadow] duration-300 ease-out rounded-[var(--prompt-radius)]",
+    "relative w-full max-w-full bg-white transition-[min-height,border-color,background-color,box-shadow] duration-200 ease-out rounded-[20px] border border-black/[0.08] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)] focus-within:border-black/[0.18] focus-within:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.07),0_2px_6px_-1px_rgba(0,0,0,0.03)]",
     showComposeControls && "min-h-[40px]",
     composerVariant === "incognito" &&
       "border border-dashed border-zinc-300/90 shadow-none",
@@ -1262,7 +1262,7 @@ export function PromptInput({
       </ShortcutHint>
       {!isConversationStarted ? (
         <div
-          className="ml-0.5 inline-flex h-7 items-center rounded-lg bg-black/[0.04] p-0.5 dark:bg-white/[0.06]"
+          className="ml-1 inline-flex h-7 items-center rounded-full bg-zinc-100/90 p-0.5"
           role="tablist"
           aria-label="Composer mode"
         >
@@ -1278,10 +1278,10 @@ export function PromptInput({
                 setComposerMode(mode);
               }}
               className={cn(
-                "h-6 rounded-md px-2.5 text-[13px] font-medium leading-none transition-colors",
+                "h-6 rounded-full px-3 text-[12px] font-medium leading-none transition-all",
                 composerMode === mode
-                  ? "bg-white text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.08)] dark:bg-zinc-800 dark:text-zinc-100"
-                  : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400",
+                  ? "bg-white text-zinc-900 shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-800",
               )}
             >
               {mode === "chat" ? "Chat" : "Collabry"}
@@ -1384,7 +1384,7 @@ export function PromptInput({
           <span
             aria-hidden
             className={cn(
-              "pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-[14px] font-[430] leading-[21px] text-black/36 transition-opacity duration-300",
+              "pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-[14.5px] font-normal leading-[22px] text-zinc-400 transition-opacity duration-300",
               hintVisible ? "opacity-100" : "opacity-0",
             )}
           >
@@ -1422,7 +1422,7 @@ export function PromptInput({
           onPaste={scheduleResizeTextarea}
           onCompositionEnd={scheduleResizeTextarea}
           className={cn(
-            "prompt-textarea block min-w-[3rem] min-h-0 flex-1 resize-none overflow-x-hidden border-0 bg-transparent text-[14px] font-[430] leading-[21px] text-[var(--ui-fg)] shadow-none outline-none ring-0 placeholder:text-black/36 focus:border-0 focus:outline-none focus:ring-0 sm:text-[14px] sm:leading-[21px]",
+            "prompt-textarea block min-w-[3rem] min-h-0 flex-1 resize-none overflow-x-hidden border-0 bg-transparent text-[14.5px] font-normal leading-[22px] text-zinc-900 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-0 focus:outline-none focus:ring-0 sm:text-[14.5px] sm:leading-[22px]",
             showComposeControls ? "px-1 py-2" : "px-0 py-2",
             className,
           )}

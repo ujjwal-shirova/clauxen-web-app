@@ -212,7 +212,7 @@ function SidebarSectionLabel({
   trailing?: React.ReactNode;
 }) {
   return (
-    <div className="cx-section-head group/section flex h-7 items-center justify-between px-2 pt-2 pb-0.5 select-none">
+    <div className="cx-section-head group/section flex h-6 items-center justify-between px-2 pt-2 pb-0.5 select-none">
       <button
         type="button"
         onClick={(event) => {
@@ -220,14 +220,14 @@ function SidebarSectionLabel({
           onToggle();
         }}
         aria-expanded={expanded}
-        className="cx-section-toggle no-hover-overlay flex min-w-0 flex-1 items-center gap-1.5 bg-transparent p-0 text-left cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--brand-ring)] rounded"
+        className="cx-section-toggle no-hover-overlay flex min-w-0 flex-1 items-center gap-1.5 bg-transparent p-0 text-left cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 rounded"
       >
-        <span className="truncate text-[11.5px] font-medium tracking-[0.01em] text-[var(--cx-sidebar-muted)]">
+        <span className="truncate text-[11px] font-semibold uppercase tracking-wider text-zinc-400 group-hover/section:text-zinc-600 transition-colors">
           {label}
         </span>
         <ChevronRight
           className={cn(
-            "sidebar-section-chevron size-3 shrink-0 text-[var(--cx-sidebar-muted)] transition-transform duration-150 opacity-0 group-hover/section:opacity-100 group-focus-within/section:opacity-100",
+            "sidebar-section-chevron size-3 shrink-0 text-zinc-400 transition-transform duration-150 opacity-0 group-hover/section:opacity-100 group-focus-within/section:opacity-100",
             expanded && "rotate-90",
           )}
           strokeWidth={2}
@@ -555,8 +555,8 @@ export function Sidebar({
           setUnpinDropHot(false);
         }}
         className={cn(
-          "group/chat cx-chat-row glass-sidebar-agent-menu-btn relative flex h-8 w-full items-center rounded-lg px-2 select-none transition-colors duration-150 text-[13.5px] text-[var(--cx-sidebar-fg)] hover:bg-[var(--cx-sidebar-hover)]",
-          isActive && "bg-[var(--cx-sidebar-active)] font-medium",
+          "group/chat cx-chat-row glass-sidebar-agent-menu-btn relative flex h-7.5 w-full items-center rounded-md px-2 select-none transition-colors duration-150 text-[13px] text-zinc-600 hover:bg-black/[0.035] hover:text-zinc-900",
+          isActive && "bg-[#ebecef] text-zinc-950 font-medium",
         )}
       >
         <AppHref
@@ -570,18 +570,18 @@ export function Sidebar({
             onSelectChat(chat);
             if (isMobileLayout) onNavigate?.();
           }}
-          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] rounded-lg"
+          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-md"
         >
           {showSidebarSpinner ? (
             <span
-              className="cx-chat-status flex size-4 shrink-0 items-center justify-center"
+              className="cx-chat-status flex size-3.5 shrink-0 items-center justify-center"
               role="status"
               aria-label="Generating"
             >
-              <span className="chat-gen-spinner size-3.5 animate-spin rounded-full border-[1.5px] border-[var(--cx-sidebar-muted)] border-t-[var(--cx-sidebar-fg)]" />
+              <span className="chat-gen-spinner size-3 animate-spin rounded-full border-[1.5px] border-zinc-400 border-t-zinc-900" />
             </span>
           ) : null}
-          <span className="cx-chat-title min-w-0 flex-1 truncate text-[13.5px] font-normal leading-normal text-[var(--cx-sidebar-fg)]">
+          <span className="cx-chat-title min-w-0 flex-1 truncate text-[13px] font-normal leading-normal text-inherit">
             {chat.isTitleStreaming ? (
               <StreamingChatTitle title={chat.name || "New Chat"} isStreaming />
             ) : (
@@ -599,9 +599,9 @@ export function Sidebar({
                 <button
                   type="button"
                   aria-label={`Chat options for ${chat.name || "New Chat"}`}
-                  className="ui-row-icon-button flex size-6 items-center justify-center rounded-md text-[var(--cx-sidebar-muted)] hover:text-[var(--cx-sidebar-fg)] hover:bg-[var(--cx-sidebar-hover)] data-[state=open]:bg-[var(--cx-sidebar-hover)] data-[state=open]:text-[var(--cx-sidebar-fg)] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-[var(--brand-ring)]"
+                  className="ui-row-icon-button flex size-5.5 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 hover:bg-black/[0.05] data-[state=open]:bg-black/[0.05] data-[state=open]:text-zinc-800 transition-colors outline-none focus-visible:ring-1 focus-visible:ring-zinc-400"
                 >
-                  <MoreVertical className="size-3.5" />
+                  <MoreVertical className="size-3" />
                 </button>
               </DropdownMenuTrigger>
               <ChatRowMenuContent
@@ -637,14 +637,14 @@ export function Sidebar({
             "transition-[width] duration-300 ease-in-out",
           !isMobileLayout && !sidebarReady && "transition-none",
           isMobileLayout &&
-            "w-[min(88vw,288px)] shadow-[12px_0_32px_rgba(24,24,27,0.08)]",
+            "w-[min(88vw,248px)] shadow-[12px_0_32px_rgba(24,24,27,0.08)]",
           isMobileLayout &&
             isCollapsed &&
             "pointer-events-none -translate-x-full",
           isMobileLayout &&
             !isCollapsed &&
             "translate-x-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]",
-          !isMobileLayout && isCollapsed && "w-[52px] cursor-pointer",
+          !isMobileLayout && isCollapsed && "w-[48px] cursor-pointer",
           !isMobileLayout && !isCollapsed && "h-full w-full min-w-0",
         )}
       >
@@ -653,9 +653,22 @@ export function Sidebar({
             "ui-sidebar-top-bar relative flex h-11 shrink-0 items-center px-2.5",
             isCollapsed && !isMobileLayout && !isPeekPreview
               ? "justify-center"
-              : "justify-start gap-2",
+              : "justify-between",
           )}
         >
+          <div className="flex items-center gap-1.5 min-w-0">
+            {!isCollapsed || isPeekPreview ? (
+              <span
+                className="clauxen-wordmark min-w-0 truncate text-[15px] font-semibold tracking-tight text-zinc-900 leading-none select-none pl-0.5"
+                aria-label="Clauxen"
+              >
+                Clauxen
+              </span>
+            ) : (
+              <span className="sr-only">Clauxen</span>
+            )}
+          </div>
+
           {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
             <ShortcutHint
               label="Toggle sidebar"
@@ -665,7 +678,7 @@ export function Sidebar({
               <button
                 type="button"
                 aria-label={isPeekPreview ? "Expand sidebar" : "Hide sidebar"}
-                className="cx-hide-sidebar flex size-6 shrink-0 items-center justify-center rounded-md p-0 text-[var(--cx-sidebar-fg)] transition-colors hover:bg-[var(--cx-sidebar-hover)]"
+                className="cx-hide-sidebar flex size-7 shrink-0 items-center justify-center rounded-md p-0 text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
                 onClick={(event) => {
                   event.stopPropagation();
                   // The hover preview is already the full sidebar. Pin it open
@@ -673,20 +686,10 @@ export function Sidebar({
                   setIsCollapsed(isPeekPreview ? false : true);
                 }}
               >
-                <SidebarToggleIcon className="size-5 shrink-0" aria-hidden />
+                <SidebarToggleIcon className="size-4 shrink-0" aria-hidden />
               </button>
             </ShortcutHint>
           ) : null}
-          {!isCollapsed || isPeekPreview ? (
-            <span
-              className="clauxen-wordmark min-w-0 truncate text-[16.5px] font-semibold tracking-[-0.015em] text-[var(--cx-sidebar-fg)] leading-normal py-0.5 select-none pl-0.5"
-              aria-label="Clauxen"
-            >
-              Clauxen
-            </span>
-          ) : (
-            <span className="sr-only">Clauxen</span>
-          )}
 
           {isMobileLayout && !isCollapsed ? (
             <button
@@ -696,7 +699,7 @@ export function Sidebar({
                 setIsCollapsed(true);
               }}
               aria-label="Close menu"
-              className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-md text-[var(--cx-sidebar-muted)] transition-colors hover:bg-[var(--cx-sidebar-hover)] hover:text-[var(--cx-sidebar-fg)]"
+              className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
             >
               <X className="size-4" />
             </button>
@@ -722,16 +725,16 @@ export function Sidebar({
               aria-label="New chat"
               aria-current={newChatActive ? "page" : undefined}
               className={cn(
-                "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
-                newChatActive && "is-active font-medium bg-[var(--cx-sidebar-active)]",
+                "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
+                newChatActive && "is-active bg-[#ebecef] text-zinc-950 font-medium",
                 isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
               )}
             >
-              <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
-                <SquarePen className="size-[17px]" strokeWidth={1.75} />
+              <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
+                <SquarePen className="size-4" strokeWidth={1.75} />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
-                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">New chat</span>
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">New chat</span>
               )}
               {isCollapsed && !isMobileLayout ? null : (
                 <ShortcutBadge shortcutId="openNewChat" className="ml-auto" />
@@ -751,16 +754,16 @@ export function Sidebar({
               aria-label="Library"
               aria-current={activeView === "library" ? "page" : undefined}
               className={cn(
-                "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
-                activeView === "library" && "is-active font-medium bg-[var(--cx-sidebar-active)]",
+                "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
+                activeView === "library" && "is-active bg-[#ebecef] text-zinc-950 font-medium",
                 isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
               )}
             >
-              <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
-                <Library className="size-[17px]" strokeWidth={1.75} />
+              <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
+                <Library className="size-4" strokeWidth={1.75} />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
-                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">Library</span>
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">Library</span>
               )}
             </AppHref>
           </ShortcutHint>
@@ -778,16 +781,16 @@ export function Sidebar({
                 aria-label="Projects"
                 aria-current={activeView === "projects" ? "page" : undefined}
                 className={cn(
-                  "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
-                  activeView === "projects" && "is-active font-medium bg-[var(--cx-sidebar-active)]",
+                  "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
+                  activeView === "projects" && "is-active bg-[#ebecef] text-zinc-950 font-medium",
                   isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
                 )}
               >
-                <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
-                  <FolderKanban className="size-[17px]" strokeWidth={1.75} />
+                <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
+                  <FolderKanban className="size-4" strokeWidth={1.75} />
                 </span>
                 {isCollapsed && !isMobileLayout ? null : (
-                  <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">Projects</span>
+                  <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">Projects</span>
                 )}
               </AppHref>
             </ShortcutHint>
@@ -795,7 +798,7 @@ export function Sidebar({
               <button
                 type="button"
                 aria-label="New project"
-                className="cx-nav-plus absolute right-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-[var(--cx-sidebar-muted)] opacity-0 group-hover/proj:opacity-100 group-focus-within/proj:opacity-100 hover:text-[var(--cx-sidebar-fg)] hover:bg-[var(--cx-sidebar-active)] transition-all duration-150"
+                className="cx-nav-plus absolute right-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-zinc-400 opacity-0 group-hover/proj:opacity-100 group-focus-within/proj:opacity-100 hover:text-zinc-900 hover:bg-black/[0.06] transition-all duration-150"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -819,16 +822,16 @@ export function Sidebar({
             aria-label="Plugins"
             aria-current={activeView === "plugins" ? "page" : undefined}
             className={cn(
-              "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
-              activeView === "plugins" && "is-active font-medium bg-[var(--cx-sidebar-active)]",
+              "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
+              activeView === "plugins" && "is-active bg-[#ebecef] text-zinc-950 font-medium",
               isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
             )}
           >
-            <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
-              <Puzzle className="size-[17px]" strokeWidth={1.75} />
+            <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
+              <Puzzle className="size-4" strokeWidth={1.75} />
             </span>
             {isCollapsed && !isMobileLayout ? null : (
-              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">Plugins</span>
+              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">Plugins</span>
             )}
           </AppHref>
           <AppHref
@@ -845,15 +848,15 @@ export function Sidebar({
             }}
             aria-label="Code"
             className={cn(
-              "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+              "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
               isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
             )}
           >
-            <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
-              <Code2 className="size-[17px]" strokeWidth={1.75} />
+            <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
+              <Code2 className="size-4" strokeWidth={1.75} />
             </span>
             {isCollapsed && !isMobileLayout ? null : (
-              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">Code</span>
+              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">Code</span>
             )}
           </AppHref>
           {(
@@ -874,15 +877,15 @@ export function Sidebar({
               }}
               aria-label={item.label}
               className={cn(
-                "cx-nav-btn group flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-normal tracking-[-0.005em] text-[var(--cx-sidebar-fg)] transition-colors duration-150 outline-none select-none hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
                 isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
               )}
             >
-              <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center">
-                <item.icon className="size-[17px]" strokeWidth={1.75} />
+              <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
+                <item.icon className="size-4" strokeWidth={1.75} />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
-                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">{item.label}</span>
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">{item.label}</span>
               )}
             </AppHref>
           ))}
@@ -1068,13 +1071,13 @@ export function Sidebar({
                   }}
                   aria-label="Log in"
                   className={cn(
-                    "menu-trigger-active group/login flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] rounded-lg",
+                    "menu-trigger-active group/login flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-black/[0.035] focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-lg",
                     isCollapsed
                       ? "size-8 shrink-0 justify-center !p-0"
-                      : "h-8 min-w-0 flex-1 justify-start gap-2 px-2",
+                      : "h-9 min-w-0 flex-1 justify-start gap-2.5 px-2",
                   )}
                 >
-                  <span className="flex size-5 shrink-0 items-center justify-center text-[var(--cx-sidebar-muted)]">
+                  <span className="flex size-5 shrink-0 items-center justify-center text-zinc-500">
                     <LogIn
                       className="size-4"
                       strokeWidth={1.75}
@@ -1087,7 +1090,7 @@ export function Sidebar({
                       isCollapsed && "hidden",
                     )}
                   >
-                    <span className="cx-account-name text-[13.5px] font-medium text-[var(--cx-sidebar-fg)]">
+                    <span className="cx-account-name text-[13px] font-medium text-zinc-800">
                       Log in
                     </span>
                   </div>
@@ -1104,26 +1107,26 @@ export function Sidebar({
                       onPointerDown={(e) => e.stopPropagation()}
                       aria-label="Account menu"
                       className={cn(
-                        "menu-trigger-active group/account flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-[var(--cx-sidebar-hover)] data-[state=open]:bg-[var(--cx-sidebar-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] rounded-lg",
+                        "menu-trigger-active group/account flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-black/[0.035] data-[state=open]:bg-black/[0.05] focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-lg",
                         isCollapsed
                           ? "size-8 shrink-0 justify-center !p-0"
-                          : "h-8 min-w-0 flex-1 justify-start gap-2 px-2",
+                          : "h-9 min-w-0 flex-1 justify-start gap-2.5 px-2",
                       )}
                     >
                       <UserAvatarDisplay
                         name={userDisplayName || "?"}
                         avatarUrl={userAvatarUrl}
                         size="sm"
-                        className="size-5 shrink-0 rounded-full bg-[var(--cx-sidebar-hover)] text-[9.5px] font-medium leading-none text-[var(--cx-sidebar-fg)]"
+                        className="size-5.5 shrink-0 rounded-full bg-zinc-200 text-[10px] font-semibold leading-none text-zinc-800"
                       />
                       <div
                         className={cn(
-                          "cx-account-line min-w-0 flex-1 flex items-baseline gap-1 truncate text-left",
+                          "cx-account-line min-w-0 flex-1 flex items-baseline gap-1.5 truncate text-left",
                           isCollapsed && "hidden",
                         )}
                       >
                         {!accountLoading && userDisplayName ? (
-                          <span className="cx-account-name text-[13px] font-medium text-[var(--cx-sidebar-fg)] truncate">
+                          <span className="cx-account-name text-[13px] font-medium text-zinc-800 truncate">
                             {userDisplayName}
                           </span>
                         ) : null}
@@ -1131,17 +1134,17 @@ export function Sidebar({
                         !(Boolean(userEmail) && (planLoading || !planLabel)) &&
                         planLabel ? (
                           <>
-                            <span className="cx-account-dot text-[11px] text-[var(--cx-sidebar-muted)]" aria-hidden>
+                            <span className="cx-account-dot text-[11px] text-zinc-400" aria-hidden>
                               ·
                             </span>
-                            <span className="cx-account-plan text-[11.5px] text-[var(--cx-sidebar-muted)] truncate">
+                            <span className="cx-account-plan text-[11px] font-normal text-zinc-400 truncate">
                               {planLabel}
                             </span>
                           </>
                         ) : null}
                       </div>
                       {!isCollapsed && (
-                        <ProfileMenuChevron className="size-3.5 shrink-0 text-[var(--cx-sidebar-muted)] opacity-60 group-hover/account:opacity-100 transition-opacity" />
+                        <ProfileMenuChevron className="size-3.5 shrink-0 text-zinc-400 opacity-60 group-hover/account:opacity-100 transition-opacity" />
                       )}
                     </button>
                   </DropdownMenuTrigger>

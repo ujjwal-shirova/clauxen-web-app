@@ -275,7 +275,7 @@ export function AppPreferencesProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="system"
+      defaultTheme="light"
       enableSystem
       storageKey="theme"
       disableTransitionOnChange

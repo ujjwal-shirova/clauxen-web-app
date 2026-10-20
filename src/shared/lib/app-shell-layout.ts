@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 export const APP_SIDEBAR_RAIL_WIDTH_PX = 48;
 /** Expanded primary nav width. */
-export const APP_SIDEBAR_EXPANDED_WIDTH_PX = 256;
+export const APP_SIDEBAR_EXPANDED_WIDTH_PX = 248;
 export const APP_SHELL_GAP = "0.625rem";
 
 /** Shared main-content shell — full-bleed, no contained-panel inset. */
@@ -14,7 +14,7 @@ export function appMainShellClassName(options: {
   // main content is now always full-bleed.
   void options.fullBleed;
 
-  return "app-main-shell relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-sidebar-bg,var(--app-shell-bg))] p-0";
+  return "app-main-shell relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg,#ffffff)] p-0";
 }
 
 export function appAgentPanelClassName(options: {

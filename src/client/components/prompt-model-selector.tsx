@@ -53,11 +53,11 @@ export function PromptModelSelector({
         <button
           type="button"
           aria-label={`Model: ${activeModel.label}`}
-          className="prompt-model-selector no-hover-overlay no-hover inline-flex h-7 max-w-[140px] shrink-0 items-center gap-1 rounded-[8px] bg-transparent px-2 text-[12.5px] font-normal leading-[18px] text-[var(--ui-fg)] outline-none sm:max-w-[180px]"
+          className="prompt-model-selector inline-flex h-7 max-w-[140px] shrink-0 items-center gap-1 rounded-full bg-transparent px-2 text-[12px] font-medium leading-[18px] text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.04] transition-colors outline-none sm:max-w-[180px]"
         >
           <span className="truncate">{activeModel.label}</span>
           <ChevronDown
-            className="size-3.5 shrink-0 text-[var(--ui-fg-muted)]"
+            className="size-3 shrink-0 text-zinc-400 group-hover:text-zinc-600"
             strokeWidth={1.8}
             aria-hidden="true"
           />

@@ -343,7 +343,7 @@ export function readLocalGeneralPrefs(): {
 } {
   if (typeof window === "undefined") {
     return {
-      appearancePreset: "System",
+      appearancePreset: "Light",
       chatFont: "Default",
       motion: "System",
       followUpSuggestions: true,
@@ -355,7 +355,7 @@ export function readLocalGeneralPrefs(): {
   try {
     const appearanceRaw = localStorage.getItem(APPEARANCE_STORAGE_KEY);
     const themeRaw = localStorage.getItem("theme");
-    let appearancePreset: AppearancePreset = "System";
+    let appearancePreset: AppearancePreset = "Light";
     if (appearanceRaw === "Light" || appearanceRaw === "Dark" || appearanceRaw === "System") {
       appearancePreset = appearanceRaw;
     } else if (themeRaw === "light") {
@@ -380,7 +380,7 @@ export function readLocalGeneralPrefs(): {
     };
   } catch {
     return {
-      appearancePreset: "System",
+      appearancePreset: "Light",
       chatFont: "Default",
       motion: "System",
       followUpSuggestions: true,

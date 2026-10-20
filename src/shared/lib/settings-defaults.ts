@@ -3,9 +3,9 @@ import type { AppSettings } from "@/lib/api/settings";
 /** Mirrors API defaults in `src/app/api/v1/settings/route.ts`. */
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   general: {
-    colorMode: "auto",
+    colorMode: "light",
     chatFont: "Default",
-    appearancePreset: "System",
+    appearancePreset: "Light",
     contrastMode: "System",
     accentColor: "Blue",
     language: "Auto-detect",
@@ -17,7 +17,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     motion: "System",
     voiceSpeed: "Normal",
     followUpSuggestions: true,
-    sidebarWidth: 288,
+    sidebarWidth: 248,
   },
   personalization: {
     personality: "Default",

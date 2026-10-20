@@ -190,27 +190,25 @@
     --pricing-toggle-track: var(--pricing-thumb);
     --pricing-thumb-active: color-mix(in oklab, var(--app-panel-bg) 91%, #14151a 9%);
 
-    /* App shell — sidebar + the inset around the elevated panel share one
-       canvas so the main content reads as a pop-out of the sidebar surface. */
-    --app-sidebar-bg: #fafaf9;
+    /* App shell — pristine white combination: refined soft off-white sidebar + brilliant pure white main content */
+    --app-sidebar-bg: #fbfbfb;
     --app-frame-bg: var(--app-sidebar-bg);
     --app-shell-bg: var(--app-sidebar-bg);
-    --app-panel-bg: #fcfcfb;
-    --chat-canvas-bg: #fcfcfb;
-    --chat-user-card-bg: #f7f7f7;
-    --overlay-scrim: rgba(20, 21, 26, 0.42);
-    --overlay-scrim-soft: rgba(232, 234, 238, 0.88);
+    --app-panel-bg: #ffffff;
+    --chat-canvas-bg: #ffffff;
+    --chat-user-card-bg: #f4f4f5;
+    --overlay-scrim: rgba(20, 21, 26, 0.35);
+    --overlay-scrim-soft: rgba(240, 242, 245, 0.88);
 
     /* Shared chat / composer column breadth */
     --chat-column-max-width: 720px;
     --chat-reading-column-max-width: 704px;
-    --glass-chat-surface-background: #fcfcfb;
+    --glass-chat-surface-background: #ffffff;
     /* Solid popup surface — no glass/blur */
     --popup-bg: #ffffff;
-    --popup-border: rgba(20, 21, 26, 0.1);
+    --popup-border: rgba(0, 0, 0, 0.08);
     --popup-shadow:
-      inset 0 1px 0 var(--edge-sheen),
-      0 1px 2px rgba(20, 21, 26, 0.05), 0 14px 38px -16px rgba(20, 21, 26, 0.22);
+      0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px -8px rgba(0, 0, 0, 0.12);
     --popup-radius: 12px;
     --popup-radius-lg: 14px;
     --popup-max-height: 380px;
@@ -221,15 +219,15 @@
     --popup-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
     /* Prompt composer */
-    --prompt-radius: 16px;
-    --prompt-radius-lg: 16px;
-    --prompt-radius-expanded: 16px;
+    --prompt-radius: 20px;
+    --prompt-radius-lg: 20px;
+    --prompt-radius-expanded: 18px;
     --prompt-control-size: 28px;
     --prompt-editor-min-height: 24px;
     --prompt-shadow:
-      0 0 0 1px rgba(20, 21, 26, 0.1), 0 1px 2px rgba(20, 21, 26, 0.04);
+      0 2px 10px -2px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
     --prompt-shadow-focus:
-      0 0 0 1px rgba(20, 21, 26, 0.24), 0 1px 3px rgba(20, 21, 26, 0.06);
+      0 8px 24px -4px rgba(0, 0, 0, 0.07), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
 
     --panel-shadow:
       0 1px 2px rgba(20, 21, 26, 0.04), 0 12px 28px -16px rgba(20, 21, 26, 0.12);
@@ -2408,10 +2406,10 @@ nav.sidebar-hover-area {
 
 /* Compact prompt composer — crisp, well-defined hairline boundary with no uncertain fading */
 [data-prompt-root] [data-prompt-shell] {
-  background: var(--chat-user-card-bg, #ffffff) !important;
-  border: 1px solid rgba(24, 24, 27, 0.1) !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
-  border-radius: var(--prompt-radius, 12px) !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(24, 24, 27, 0.08) !important;
+  box-shadow: 0 2px 10px -2px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+  border-radius: var(--prompt-radius, 20px) !important;
   overflow: hidden;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -2429,12 +2427,12 @@ nav.sidebar-hover-area {
 
 /* Expanded uses the same radius — never start as a pill then shrink */
 [data-prompt-root] [data-prompt-shell][data-prompt-expanded="true"] {
-  border-radius: var(--prompt-radius-expanded, 12px) !important;
+  border-radius: var(--prompt-radius-expanded, 18px) !important;
 }
 
 [data-prompt-root] [data-prompt-shell]:focus-within {
-  border-color: rgba(24, 24, 27, 0.24) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(24, 24, 27, 0.18) !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.07), 0 2px 6px -1px rgba(0, 0, 0, 0.03) !important;
 }
 
 .dark [data-prompt-root] [data-prompt-shell]:focus-within {
@@ -2772,7 +2770,7 @@ button.user-message-card__body:not(:disabled):hover,
 
 .content-pane-top-bar {
   border-bottom: 0 !important;
-  background: var(--chat-canvas-bg, #f2f3f6) !important;
+  background: var(--chat-canvas-bg, #ffffff) !important;
   box-shadow: none !important;
   height: var(--chat-header-height) !important;
   min-height: var(--chat-header-height) !important;
@@ -3109,7 +3107,7 @@ button.user-message-card__body:not(:disabled):hover,
   flex-direction: column;
   gap: 8px;
   width: 100%;
-  padding: 12px 12px 8px;
+  padding: 12px 14px 10px;
   box-sizing: border-box;
 }
 
@@ -3117,13 +3115,13 @@ button.user-message-card__body:not(:disabled):hover,
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  min-height: 36px;
+  min-height: 44px;
 }
 
 .prompt-welcome__bar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -3144,14 +3142,14 @@ button.user-message-card__body:not(:disabled):hover,
   background: rgba(0, 0, 0, 0.04);
 }
 
-/* Prompt control buttons — compact density */
+/* Prompt control buttons — minimal density */
 [data-prompt-root] .prompt-control-filled,
 [data-prompt-root] .prompt-control-ghost {
   box-sizing: border-box;
-  width: var(--prompt-control-size, 24px) !important;
-  height: var(--prompt-control-size, 24px) !important;
-  min-width: var(--prompt-control-size, 24px);
-  min-height: var(--prompt-control-size, 24px);
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px;
+  min-height: 28px;
   padding: 0 !important;
   border-radius: 9999px !important;
   display: inline-flex;
@@ -3169,12 +3167,12 @@ button.user-message-card__body:not(:disabled):hover,
   height: 28px !important;
   min-width: 28px !important;
   min-height: 28px !important;
-  border-radius: 8px !important;
+  border-radius: 9999px !important;
 }
 
 [data-prompt-root] .prompt-add-nav-match svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 [data-prompt-root] .prompt-control-filled,
@@ -3182,28 +3180,29 @@ button.user-message-card__body:not(:disabled):hover,
 [data-prompt-root] .prompt-control-filled:focus,
 [data-prompt-root] .prompt-control-filled:focus-visible,
 [data-prompt-root] .prompt-control-filled[data-app-button]:hover {
-  background-color: #141414 !important;
-  color: #fcfcfc !important;
-  box-shadow: none !important;
+  background-color: #18181b !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
   opacity: 1 !important;
   filter: none !important;
 }
 
 [data-prompt-root] .prompt-control-filled:hover:not(:disabled),
 [data-prompt-root] .prompt-control-filled:focus-visible:not(:disabled) {
-  background-color: #2a2a2a !important;
+  background-color: #000000 !important;
   color: #ffffff !important;
 }
 
 [data-prompt-root] .prompt-control-filled:active:not(:disabled) {
-  background-color: #0a0a0a !important;
+  background-color: #09090b !important;
   color: #ffffff !important;
 }
 
 [data-prompt-root] .prompt-control-filled:disabled {
-  opacity: 0.4 !important;
-  background-color: #141414 !important;
-  color: #fcfcfc !important;
+  opacity: 0.5 !important;
+  background-color: #f4f4f5 !important;
+  color: #a1a1aa !important;
+  box-shadow: none !important;
 }
 
 [data-prompt-root] .prompt-control-filled svg {
@@ -3222,14 +3221,14 @@ button.user-message-card__body:not(:disabled):hover,
 [data-prompt-root] .prompt-control-ghost:hover:not(:disabled),
 [data-prompt-root] .prompt-control-ghost:focus-visible:not(:disabled),
 [data-prompt-root] .prompt-control-ghost[aria-expanded="true"] {
-  background-color: rgba(24, 24, 27, 0.06) !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
   color: #18181b !important;
   box-shadow: none !important;
 }
 
 [data-prompt-root] .prompt-control-ghost svg {
-  width: 15px !important;
-  height: 15px !important;
+  width: 16px !important;
+  height: 16px !important;
 }
 
 [data-prompt-root]
@@ -3246,7 +3245,7 @@ button.user-message-card__body:not(:disabled):hover,
   max-width: 100%;
   flex-shrink: 0;
   align-self: stretch;
-  background-color: var(--chat-canvas-bg, #f2f3f6);
+  background-color: var(--chat-canvas-bg, #ffffff);
   overflow: visible;
   overflow-anchor: none;
   /* Always inset the card under the absolute header so the rounded top
@@ -3278,7 +3277,7 @@ button.user-message-card__body:not(:disabled):hover,
 .sticky-user-msg-host[data-user-msg-editing="true"].sticky-user-msg--stuck {
   z-index: 32;
   isolation: isolate;
-  background-color: var(--chat-canvas-bg, #f2f3f6);
+  background-color: var(--chat-canvas-bg, #ffffff);
 }
 
 [data-conversation-turn] .assistant-message {
@@ -3372,7 +3371,7 @@ button.user-message-card__body:not(:disabled):hover,
 .sticky-user-msg--stuck {
   z-index: 32;
   isolation: isolate;
-  background-color: var(--chat-canvas-bg, #f2f3f6);
+  background-color: var(--chat-canvas-bg, #ffffff);
   /* Metric-identical to the resting host: any padding change here alters
      offsetHeight, which feeds --turn-user-msg-height and visibly shifts every
      sticky code/table header in the turn at the dock/undock boundary. The
@@ -3401,7 +3400,7 @@ button.user-message-card__body:not(:disabled):hover,
   bottom: 0;
   height: 10px;
   pointer-events: none;
-  background: var(--chat-canvas-bg, #f2f3f6);
+  background: var(--chat-canvas-bg, #ffffff);
   z-index: 0;
 }
 
@@ -7277,20 +7276,20 @@ button.prompt-model-selector[aria-expanded="true"] {
    ========================================================================== */
 
 :root {
-  --cx-accent: #14151a;
-  --cx-accent-strong: #2a2b30;
-  --cx-on-accent: #fcfcfb;
-  --cx-ink: #14151a;
+  --cx-accent: #18181b;
+  --cx-accent-strong: #09090b;
+  --cx-on-accent: #ffffff;
+  --cx-ink: #09090b;
   --cx-paper: var(--app-sidebar-bg);
   --cx-paper-raised: var(--app-panel-bg);
-  --cx-sidebar-bg: var(--app-sidebar-bg);
-  --cx-sidebar-fg: #52514e;
-  --cx-sidebar-muted: #898781;
-  --cx-sidebar-faint: #898781;
-  --cx-sidebar-hover: rgba(11, 11, 11, 0.04);
-  --cx-sidebar-active: #edece8;
-  --cx-sidebar-line: rgba(11, 11, 11, 0.1);
-  --cx-radius: 12px;
+  --cx-sidebar-bg: #fbfbfb;
+  --cx-sidebar-fg: #18181b;
+  --cx-sidebar-muted: #71717a;
+  --cx-sidebar-faint: #a1a1aa;
+  --cx-sidebar-hover: rgba(0, 0, 0, 0.045);
+  --cx-sidebar-active: #ebecef;
+  --cx-sidebar-line: rgba(0, 0, 0, 0.065);
+  --cx-radius: 10px;
   --cx-radius-sm: 8px;
 }
 
@@ -8740,7 +8739,7 @@ textarea.cx-field {
 
 /* Sidebar width, edge fade, plan scroller, gift preview, search ellipsis. */
 :root {
-  --app-sidebar-width: 288px;
+  --app-sidebar-width: 248px;
 }
 
 html[data-sidebar-resizing="1"] .app-sidebar-slot,
@@ -9670,7 +9669,7 @@ body:has([data-radix-portal]) .cx-pin-tip {
 }
 
 nav.cx-sidebar {
-  border-right: 0.5px solid var(--cx-sidebar-line) !important;
+  border-right: 1px solid var(--cx-sidebar-line) !important;
 }
 
 .cx-sidebar .sidebar-scrollable .cx-section-head button,
