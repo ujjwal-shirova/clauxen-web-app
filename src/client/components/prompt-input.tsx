@@ -11,11 +11,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDown,
   ArrowUp,
+  AudioWaveform,
   Check,
+  ChevronDown,
+  FolderKanban,
   LoaderCircle,
   Mic,
   Plus,
+  SlidersHorizontal,
   Square,
+  Star,
   Telescope,
   X,
 } from "lucide-react";
@@ -65,6 +70,23 @@ import {
   useStreamingDictation,
 } from "@/features/dictation/use-streaming-dictation";
 import type { CaretRange } from "@/features/dictation/transcript";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CreateProjectDialog } from "./projects/projects-view";
+import {
+  listProjects,
+  updateProject,
+  type ProjectSummary,
+} from "@/lib/api/projects";
 
 function openOverlayHash(overlay: Parameters<typeof overlayToHash>[0]) {
   const hash = overlayToHash(overlay);
@@ -112,6 +134,8 @@ interface PromptInputProps {
   allowAttachments?: boolean;
   /** Visual variant — Incognito uses a dashed border shell. */
   composerVariant?: "default" | "incognito";
+  composerMode?: "chat" | "cowork";
+  onComposerModeChange?: (mode: "chat" | "cowork") => void;
 }
 
 const COMPOSE_ACTION_META: Record<
@@ -176,6 +200,334 @@ function measureTextareaScrollHeight(textarea: HTMLTextAreaElement): number {
   return measured;
 }
 
+function ProjectSelectorPopover({
+  projectId,
+  onProjectChange,
+  canOpen,
+}: {
+  projectId?: string | null;
+  onProjectChange?: (projectId: string | null) => void;
+  canOpen?: () => boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId ?? null);
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setSelectedProjectId(projectId ?? null);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    listProjects()
+      .then((res) => {
+        if (res?.projects) {
+          setProjects(res.projects);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [open]);
+
+  const handleTogglePin = async (e: React.MouseEvent, project: ProjectSummary) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const nextPinned = !project.pinned;
+    setProjects((prev) =>
+      prev.map((p) => (p.id === project.id ? { ...p, pinned: nextPinned } : p)),
+    );
+    try {
+      await updateProject(project.id, { pinned: nextPinned });
+    } catch {
+      setProjects((prev) =>
+        prev.map((p) => (p.id === project.id ? { ...p, pinned: !nextPinned } : p)),
+      );
+    }
+  };
+
+  const filteredProjects = projects.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const activeProject = projects.find((p) => p.id === selectedProjectId);
+
+  return (
+    <>
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          if (next && canOpen && !canOpen()) return;
+          setOpen(next);
+          if (!next) setSearch("");
+        }}
+      >
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label="Select project"
+            className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-zinc-400"
+          >
+            <span className="truncate max-w-[140px]">
+              {activeProject ? activeProject.name : "Project"}
+            </span>
+            <ChevronDown className="size-3 shrink-0 text-zinc-400" strokeWidth={1.8} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          side="top"
+          sideOffset={8}
+          className="z-[120] w-[270px] rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5 shadow-xl text-[13px]"
+        >
+          {/* Top Search bar */}
+          <div className="relative flex items-center h-8 w-full rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-2.5 mb-1 border border-zinc-200/60 dark:border-zinc-700/60 focus-within:border-zinc-300 dark:focus-within:border-zinc-600 focus-within:bg-white dark:focus-within:bg-zinc-800">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search or create a project"
+              className="w-full bg-transparent text-[12.5px] text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 outline-none"
+            />
+            <SlidersHorizontal className="size-3.5 text-zinc-400 shrink-0 ml-1.5" />
+          </div>
+
+          <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
+
+          {/* Project list */}
+          <div className="max-h-[220px] overflow-y-auto space-y-0.5 py-0.5">
+            {filteredProjects.length > 0 ? (
+              filteredProjects.map((proj) => {
+                const isSelected = selectedProjectId === proj.id;
+                return (
+                  <button
+                    key={proj.id}
+                    type="button"
+                    onClick={() => {
+                      const nextId = isSelected ? null : proj.id;
+                      setSelectedProjectId(nextId);
+                      onProjectChange?.(nextId);
+                      setOpen(false);
+                    }}
+                    className={cn(
+                      "flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-left text-[13px] transition-colors group cursor-pointer",
+                      isSelected
+                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-950 dark:text-zinc-100 font-medium"
+                        : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
+                    )}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <FolderKanban
+                        className="size-4 shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200"
+                        strokeWidth={1.75}
+                      />
+                      <span className="truncate">{proj.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={proj.pinned ? "Unstar project" : "Star project"}
+                      onClick={(e) => void handleTogglePin(e, proj)}
+                      className="p-1 rounded hover:bg-black/[0.05] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                    >
+                      <Star
+                        className={cn(
+                          "size-3.5",
+                          proj.pinned && "fill-amber-400 text-amber-500",
+                        )}
+                        strokeWidth={1.8}
+                      />
+                    </button>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="px-3 py-4 text-center text-[12px] text-zinc-400">
+                {loading ? "Loading..." : "No projects found"}
+              </div>
+            )}
+          </div>
+
+          <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
+
+          {/* New project action */}
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setCreateProjectOpen(true);
+            }}
+            className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors cursor-pointer"
+          >
+            <Plus className="size-3.5 text-zinc-500" strokeWidth={2} />
+            <span>New project</span>
+          </button>
+        </PopoverContent>
+      </Popover>
+
+      <CreateProjectDialog
+        open={createProjectOpen}
+        onOpenChange={setCreateProjectOpen}
+      />
+    </>
+  );
+}
+
+function PermissionModePopover({
+  canOpen,
+}: {
+  canOpen?: () => boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [permissionMode, setPermissionMode] = useState<"manual" | "auto">("manual");
+
+  useEffect(() => {
+    settingsApi.getSettings()
+      .then((res) => {
+        if (res?.general?.toolMode === "auto") {
+          setPermissionMode("auto");
+        } else {
+          setPermissionMode("manual");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSelectMode = (mode: "manual" | "auto") => {
+    setPermissionMode(mode);
+    setOpen(false);
+    void settingsApi.updateSettings({
+      general: { toolMode: mode },
+    }).catch(() => {});
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next && canOpen && !canOpen()) return;
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Permission mode"
+          className="inline-flex h-6 items-center px-2.5 rounded-full text-[12px] font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer select-none outline-none focus-visible:ring-1 focus-visible:ring-zinc-400"
+        >
+          {permissionMode === "manual" ? "Manual" : "Auto"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="top"
+        sideOffset={8}
+        className="z-[120] w-[275px] rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2 shadow-xl text-[13px]"
+      >
+        <div className="px-1.5 pt-1 pb-1.5 text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+          Permission mode
+        </div>
+
+        <div className="space-y-1">
+          {/* Manual */}
+          <button
+            type="button"
+            onClick={() => handleSelectMode("manual")}
+            className="flex items-start justify-between w-full p-2 rounded-lg text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors group cursor-pointer"
+          >
+            <div className="min-w-0 flex-1 pr-2">
+              <div className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                Manual
+              </div>
+              <div className="text-[11.5px] leading-snug text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Clauxen asks before using new tools or opening new sites.
+              </div>
+            </div>
+            {permissionMode === "manual" ? (
+              <Check className="size-4 text-blue-500 shrink-0 mt-0.5" strokeWidth={2.5} />
+            ) : null}
+          </button>
+
+          {/* Auto */}
+          <button
+            type="button"
+            onClick={() => handleSelectMode("auto")}
+            className="flex items-start justify-between w-full p-2 rounded-lg text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors group cursor-pointer"
+          >
+            <div className="min-w-0 flex-1 pr-2">
+              <div className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                Auto
+              </div>
+              <div className="text-[11.5px] leading-snug text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Clauxen runs on its own and pauses to ask if anything looks unsafe.
+              </div>
+            </div>
+            {permissionMode === "auto" ? (
+              <Check className="size-4 text-blue-500 shrink-0 mt-0.5" strokeWidth={2.5} />
+            ) : null}
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ReasoningEffortSelector({
+  effort = "high",
+  onEffortChange,
+}: {
+  effort?: HomerReasoningEffort;
+  onEffortChange?: (effort: HomerReasoningEffort) => void;
+}) {
+  const [selectedEffort, setSelectedEffort] = useState<string>("Medium");
+
+  const options = ["Low", "Medium", "High", "Max"] as const;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Reasoning effort"
+          className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors outline-none cursor-pointer"
+        >
+          <span>{selectedEffort}</span>
+          <ChevronDown className="size-3 shrink-0 text-zinc-400" strokeWidth={1.8} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        side="top"
+        sideOffset={8}
+        className="z-[120] min-w-[140px] rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1 shadow-lg text-[13px]"
+      >
+        <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+          Reasoning effort
+        </div>
+        {options.map((opt) => (
+          <DropdownMenuItem
+            key={opt}
+            onSelect={() => {
+              setSelectedEffort(opt);
+              if (onEffortChange) {
+                onEffortChange(opt === "Max" ? "max" : "high");
+              }
+            }}
+            className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[12.5px] cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+          >
+            <span>{opt}</span>
+            {selectedEffort === opt ? (
+              <Check className="size-3.5 text-blue-500" strokeWidth={2.2} />
+            ) : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function PromptInput({
   onSendMessage,
   onStopGeneration,
@@ -203,11 +555,15 @@ export function PromptInput({
   allowAttachments = true,
   composerVariant = "default",
   projectId = null,
+  composerMode: composerModeProp,
+  onComposerModeChange: onComposerModeChangeProp,
 }: PromptInputProps) {
   const activeChatId = useActiveChatId();
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
-  const [composerMode, setComposerMode] = useState<"chat" | "cowork">("chat");
+  const [internalComposerMode, setInternalComposerMode] = useState<"chat" | "cowork">("chat");
+  const composerMode = composerModeProp ?? internalComposerMode;
+  const setComposerMode = onComposerModeChangeProp ?? setInternalComposerMode;
   const [hintIndex, setHintIndex] = useState(0);
   const [hintVisible, setHintVisible] = useState(true);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
@@ -1080,7 +1436,12 @@ export function PromptInput({
             aria-hidden
           />
         ) : (
-          <Mic className="icon-sm shrink-0" strokeWidth={1.75} aria-hidden />
+          <div className="flex items-center gap-0.5">
+            <Mic className="icon-sm shrink-0" strokeWidth={1.75} aria-hidden />
+            {!isConversationStarted ? (
+              <ChevronDown className="size-2.5 text-zinc-400" strokeWidth={2} />
+            ) : null}
+          </div>
         )}
       </button>
     </HintTooltip>
@@ -1260,35 +1621,6 @@ export function PromptInput({
           />
         </button>
       </ShortcutHint>
-      {!isConversationStarted ? (
-        <div
-          className="ml-1 inline-flex h-7 items-center rounded-full bg-zinc-100/90 p-0.5"
-          role="tablist"
-          aria-label="Composer mode"
-        >
-          {(["chat", "cowork"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              role="tab"
-              aria-selected={composerMode === mode}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => {
-                if (!requireAuthGate()) return;
-                setComposerMode(mode);
-              }}
-              className={cn(
-                "h-6 rounded-full px-3 text-[12px] font-medium leading-none transition-all",
-                composerMode === mode
-                  ? "bg-white text-zinc-900 shadow-sm"
-                  : "text-zinc-500 hover:text-zinc-800",
-              )}
-            >
-              {mode === "chat" ? "Chat" : "Collabry"}
-            </button>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 
@@ -1331,9 +1663,22 @@ export function PromptInput({
           <div className="prompt-welcome__bar">
             {renderAddMenuButton()}
             <div className="min-w-0 flex-1" />
-            {renderModelSelector()}
-            {renderMicButton()}
-            {renderTrailingActions(true)}
+            <div className="flex items-center gap-1.5">
+              {renderMicButton()}
+              <button
+                type="button"
+                aria-label="Audio mode"
+                onClick={() => {
+                  if (!requireAuthGate()) return;
+                  void dictation.start();
+                }}
+                className="no-hover-overlay prompt-control-ghost shrink-0 outline-none hover:text-zinc-900 text-zinc-500 p-1 rounded-md transition-colors"
+              >
+                <AudioWaveform className="size-4" strokeWidth={1.75} />
+              </button>
+              <span className="size-2 rounded-full bg-emerald-500 shrink-0 ml-0.5" title="Ready" />
+              {renderTrailingActions(true)}
+            </div>
           </div>
           {centerSlot}
         </div>
@@ -1635,6 +1980,24 @@ export function PromptInput({
               ) : null}
             </AnimatePresence>
           </div>
+          {!isConversationStarted ? (
+            <div className="flex items-center justify-between px-1 pt-2 pb-0 text-zinc-600">
+              <div className="flex items-center">
+                <ProjectSelectorPopover
+                  projectId={projectId}
+                  canOpen={requireAuthGate}
+                />
+              </div>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                {renderModelSelector()}
+                <ReasoningEffortSelector
+                  effort={homerReasoningEffort}
+                  onEffortChange={onHomerReasoningEffortChange}
+                />
+                <PermissionModePopover canOpen={requireAuthGate} />
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
       {isConversationStarted ? (

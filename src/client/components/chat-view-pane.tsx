@@ -1,22 +1,11 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  BookOpen,
-  Code,
-  Heart,
-  Microscope,
-  PenTool,
-  Search,
-  Sparkles,
-} from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { greetingFirstName } from "@/lib/profile-names";
 import { ChatFrostedEdge } from "./ui/chat-frosted-edge";
-import { PromptSuggestions } from "./prompt-suggestions";
 import { ClauxenLogo } from "./icons/clauxen-logo";
 
 interface ChatViewPaneProps {
@@ -43,89 +32,6 @@ interface ChatViewPaneProps {
   /** Free-plan upgrade card shown only on the blank `/new` welcome route. */
   showNewChatUpgradeCard?: boolean;
 };
-
-const allChips = [
-  { icon: PenTool, label: "Write or edit" },
-  { icon: Search, label: "Look something up" },
-  { icon: BookOpen, label: "Learn" },
-  { icon: Code, label: "Code" },
-  { icon: Heart, label: "Life stuff" },
-  { icon: Sparkles, label: "Clauxen's choice" },
-  { icon: Microscope, label: "Deep Research" },
-] as const;
-
-/** Welcome suggestion chips + expanded suggestion card (new-chat hero + demos). */
-function WelcomeChips({
-  hasPromptDraft,
-  activeChip,
-  onActiveChipChange,
-  onSendMessage,
-  compact = false,
-}: {
-  hasPromptDraft: boolean;
-  activeChip: string | null;
-  onActiveChipChange: (chip: string | null) => void;
-  onSendMessage: (prompt: string) => void;
-  compact?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex w-full flex-col items-center justify-start transition-[min-height] duration-200 ease-out",
-        compact ? "min-h-0" : "min-h-[72px]",
-      )}
-    >
-      <AnimatePresence mode="wait" initial={false}>
-        {!hasPromptDraft && activeChip ? (
-          <motion.div
-            key={`suggestions-${activeChip}`}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="w-full"
-          >
-            <PromptSuggestions
-              category={activeChip}
-              onClose={() => onActiveChipChange(null)}
-              onSelect={(suggestion) => {
-                onSendMessage(suggestion);
-                onActiveChipChange(null);
-              }}
-            />
-          </motion.div>
-        ) : !hasPromptDraft ? (
-          <motion.div
-            key="chips"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className={cn(
-              "flex w-full flex-wrap justify-center gap-1.5",
-              compact && "gap-1",
-            )}
-          >
-            {allChips.map((chip) => (
-              <button
-                key={chip.label}
-                type="button"
-                onClick={() => onActiveChipChange(chip.label)}
-                className={cn(
-                  "flex h-7 items-center gap-1.5 rounded-[8px] border border-[var(--ui-border)] bg-transparent px-2.5 text-[12.5px] leading-[18px] text-[var(--ui-fg-muted)] transition-colors duration-150 hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
-                  compact && "h-6 gap-1 px-2 text-[11.5px]",
-                )}
-              >
-                <chip.icon className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
-                <span>{chip.label}</span>
-              </button>
-            ))}
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 const NAMED_WELCOMES = [
   (name: string) => `What are we thinking about, ${name}?`,
@@ -328,14 +234,6 @@ export function ChatViewPane({
               </h2>
             </div>
             <div className="w-full">{promptInput}</div>
-            <div className="w-full">
-              <WelcomeChips
-                hasPromptDraft={hasPromptDraft}
-                activeChip={activeChip}
-                onActiveChipChange={onActiveChipChange}
-                onSendMessage={onSendMessage}
-              />
-            </div>
           </div>
         </div>
       ) : (
@@ -461,18 +359,7 @@ export function ChatViewPane({
                         Learn more about how your data is used.
                       </a>
                     </div>
-                  ) : (
-                  /* Welcome action chips — same strip as main-app new chat. */
-                  <div className="w-full max-w-[var(--chat-column-max-width,720px)]">
-                    <WelcomeChips
-                      hasPromptDraft={hasPromptDraft}
-                      activeChip={activeChip}
-                      onActiveChipChange={onActiveChipChange}
-                      onSendMessage={onSendMessage}
-                      compact={composerOnlyWelcome}
-                    />
-                  </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             )}

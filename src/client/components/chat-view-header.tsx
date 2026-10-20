@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useIsClient } from "@/hooks/use-is-client";
-import { ChevronDown, Files, MoreHorizontal, Share } from "lucide-react";
+import { ChevronDown, Files, HatGlasses, MoreHorizontal, Share } from "lucide-react";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
@@ -16,6 +16,7 @@ import {
 import { AppHref } from "@/components/app-href";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
+import { HintTooltip } from "@/components/ui/hint-tooltip";
 
 interface ChatViewHeaderProps {
   isConversationStarted: boolean;
@@ -40,6 +41,8 @@ interface ChatViewHeaderProps {
   className?: string;
   /** Hide interactive header controls until the chat id exists on the server (no shimmer). */
   headerControlsLoading?: boolean;
+  composerMode?: "chat" | "cowork";
+  onComposerModeChange?: (mode: "chat" | "cowork") => void;
 }
 
 export function ChatViewHeader({
@@ -63,6 +66,8 @@ export function ChatViewHeader({
   showFreePlanUpgrade = false,
   className,
   headerControlsLoading = false,
+  composerMode = "chat",
+  onComposerModeChange,
 }: ChatViewHeaderProps) {
   const isClient = useIsClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -192,26 +197,69 @@ export function ChatViewHeader({
         className,
       )}
     >
-      <div className="flex h-full w-full min-w-0 items-center gap-1 px-2 sm:gap-2.5 sm:px-4">
-        {showMobileMenu && onOpenMobileNav ? (
-          <MobileMenuButton
-            onClick={onOpenMobileNav}
-            aria-controls="app-primary-nav"
-            className="-ml-0.5 shrink-0"
-          />
-        ) : null}
-        {showFreePlanUpgrade ? (
-          <div className="pointer-events-none absolute inset-x-12 top-1/2 flex -translate-y-1/2 items-center justify-center sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2">
+      <div className="relative flex h-full w-full min-w-0 items-center justify-between px-2 sm:px-4">
+        <div className="flex items-center gap-1">
+          {showMobileMenu && onOpenMobileNav ? (
+            <MobileMenuButton
+              onClick={onOpenMobileNav}
+              aria-controls="app-primary-nav"
+              className="-ml-0.5 shrink-0"
+            />
+          ) : null}
+        </div>
+
+        {/* Center: Chat / Collabry Mode Selector */}
+        <div className="pointer-events-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div
+            className="inline-flex h-9 items-center rounded-full bg-zinc-100 p-1 text-[13px] font-medium text-zinc-600 border border-black/[0.04]"
+            role="tablist"
+            aria-label="Composer mode"
+          >
+            {(["chat", "cowork"] as const).map((mode) => {
+              const active = composerMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => onComposerModeChange?.(mode)}
+                  className={cn(
+                    "h-7 rounded-full px-4 text-[13px] font-medium leading-none transition-all duration-150 outline-none select-none",
+                    active
+                      ? "bg-white text-zinc-950 shadow-sm"
+                      : "text-zinc-500 hover:text-zinc-900",
+                  )}
+                >
+                  {mode === "chat" ? "Chat" : "Collabry"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Corner: Incognito Mode button */}
+        <div className="ml-auto flex items-center gap-2">
+          {showFreePlanUpgrade ? (
             <button
               type="button"
               onClick={onUpgradeClick}
-              className="free-plan-upgrade pointer-events-auto outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+              className="free-plan-upgrade hidden md:inline-flex pointer-events-auto outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
             >
               Free plan <span aria-hidden>·</span>{" "}
               <span className="free-plan-upgrade__action">Upgrade</span>
             </button>
-          </div>
-        ) : null}
+          ) : null}
+          <HintTooltip content="Incognito Mode" side="bottom">
+            <AppHref
+              href="/incognito"
+              aria-label="Incognito Mode"
+              className="ui-icon-button flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+            >
+              <HatGlasses className="size-4.5" strokeWidth={1.75} />
+            </AppHref>
+          </HintTooltip>
+        </div>
       </div>
     </header>
   );

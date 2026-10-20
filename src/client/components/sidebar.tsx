@@ -650,25 +650,12 @@ export function Sidebar({
       >
         <div
           className={cn(
-            "ui-sidebar-top-bar relative flex h-11 shrink-0 items-center px-2.5",
+            "ui-sidebar-top-bar relative flex h-11 shrink-0 items-center px-2",
             isCollapsed && !isMobileLayout && !isPeekPreview
               ? "justify-center"
-              : "justify-between",
+              : "justify-start gap-2",
           )}
         >
-          <div className="flex items-center gap-1.5 min-w-0">
-            {!isCollapsed || isPeekPreview ? (
-              <span
-                className="clauxen-wordmark min-w-0 truncate text-[15px] font-semibold tracking-tight text-zinc-900 leading-none select-none pl-0.5"
-                aria-label="Clauxen"
-              >
-                Clauxen
-              </span>
-            ) : (
-              <span className="sr-only">Clauxen</span>
-            )}
-          </div>
-
           {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
             <ShortcutHint
               label="Toggle sidebar"
@@ -678,7 +665,7 @@ export function Sidebar({
               <button
                 type="button"
                 aria-label={isPeekPreview ? "Expand sidebar" : "Hide sidebar"}
-                className="cx-hide-sidebar flex size-7 shrink-0 items-center justify-center rounded-md p-0 text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
+                className="cx-hide-sidebar flex size-6 shrink-0 items-center justify-center rounded-md p-0 text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
                 onClick={(event) => {
                   event.stopPropagation();
                   // The hover preview is already the full sidebar. Pin it open
@@ -686,10 +673,23 @@ export function Sidebar({
                   setIsCollapsed(isPeekPreview ? false : true);
                 }}
               >
-                <SidebarToggleIcon className="size-4 shrink-0" aria-hidden />
+                <SidebarToggleIcon className="size-5 shrink-0" aria-hidden />
               </button>
             </ShortcutHint>
           ) : null}
+
+          <div className="flex items-center gap-1.5 min-w-0">
+            {!isCollapsed || isPeekPreview ? (
+              <span
+                className="clauxen-wordmark min-w-0 truncate text-[15px] font-semibold tracking-tight text-zinc-900 leading-none select-none"
+                aria-label="Clauxen"
+              >
+                Clauxen
+              </span>
+            ) : (
+              <span className="sr-only">Clauxen</span>
+            )}
+          </div>
 
           {isMobileLayout && !isCollapsed ? (
             <button
@@ -784,6 +784,7 @@ export function Sidebar({
                   "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
                   activeView === "projects" && "is-active bg-[#ebecef] text-zinc-950 font-medium",
                   isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
+                  (!isCollapsed || isMobileLayout) && "pr-8",
                 )}
               >
                 <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
@@ -798,7 +799,8 @@ export function Sidebar({
               <button
                 type="button"
                 aria-label="New project"
-                className="cx-nav-plus absolute right-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-zinc-400 opacity-0 group-hover/proj:opacity-100 group-focus-within/proj:opacity-100 hover:text-zinc-900 hover:bg-black/[0.06] transition-all duration-150"
+                title="New project"
+                className="cx-nav-plus absolute right-1.5 top-1/2 -translate-y-1/2 z-20 flex size-5 cursor-pointer pointer-events-auto items-center justify-center rounded text-zinc-400 opacity-0 group-hover/proj:opacity-100 group-focus-within/proj:opacity-100 hover:text-zinc-900 hover:bg-black/[0.06] transition-all duration-150"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();

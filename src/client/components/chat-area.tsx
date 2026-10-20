@@ -154,6 +154,7 @@ function ChatAreaLayout({
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const scheduleSetup = useSearchParams().get("schedule");
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [composerMode, setComposerMode] = useState<"chat" | "cowork">("chat");
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -360,6 +361,8 @@ function ChatAreaLayout({
     <IsolatedChatInput
       key="prompt-input"
       projectId={projectCrumb?.id}
+      composerMode={composerMode}
+      onComposerModeChange={setComposerMode}
       onSendMessage={handleSendMessageAndScroll}
       onStopGeneration={onStopGeneration}
       onScrollToBottom={scrollToBottom}
@@ -415,6 +418,8 @@ function ChatAreaLayout({
           !blankRouteHydration ? (
             <ChatViewHeader
               isConversationStarted={false}
+              composerMode={composerMode}
+              onComposerModeChange={setComposerMode}
               isGenerating={isGenerating}
               onUpgradeClick={onUpgradeClick}
               onShareClick={() => setIsShareDialogOpen(true)}
