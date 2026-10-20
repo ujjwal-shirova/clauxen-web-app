@@ -570,22 +570,17 @@ export function Sidebar({
             onSelectChat(chat);
             if (isMobileLayout) onNavigate?.();
           }}
-          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2.5 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] rounded-lg"
+          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] rounded-lg"
         >
-          <span
-            className="cx-chat-status flex size-5 shrink-0 items-center justify-center"
-            role={showSidebarSpinner ? "status" : "img"}
-            aria-label={showSidebarSpinner ? "Generating" : "Idle"}
-          >
-            {showSidebarSpinner ? (
+          {showSidebarSpinner ? (
+            <span
+              className="cx-chat-status flex size-4 shrink-0 items-center justify-center"
+              role="status"
+              aria-label="Generating"
+            >
               <span className="chat-gen-spinner size-3.5 animate-spin rounded-full border-[1.5px] border-[var(--cx-sidebar-muted)] border-t-[var(--cx-sidebar-fg)]" />
-            ) : (
-              <span
-                className="cx-chat-idle size-1.5 rounded-full bg-[var(--cx-sidebar-muted)] opacity-40 transition-opacity group-hover/chat:opacity-75 group-data-[active=true]/chat:opacity-95"
-                aria-hidden
-              />
-            )}
-          </span>
+            </span>
+          ) : null}
           <span className="cx-chat-title min-w-0 flex-1 truncate text-[13.5px] font-normal leading-normal text-[var(--cx-sidebar-fg)]">
             {chat.isTitleStreaming ? (
               <StreamingChatTitle title={chat.name || "New Chat"} isStreaming />
@@ -670,7 +665,7 @@ export function Sidebar({
               <button
                 type="button"
                 aria-label={isPeekPreview ? "Expand sidebar" : "Hide sidebar"}
-                className="cx-hide-sidebar flex size-7 shrink-0 items-center justify-center rounded-md text-[var(--cx-sidebar-fg)] transition-colors hover:bg-[var(--cx-sidebar-hover)]"
+                className="cx-hide-sidebar flex size-6 shrink-0 items-center justify-center rounded-md p-0 text-[var(--cx-sidebar-fg)] transition-colors hover:bg-[var(--cx-sidebar-hover)]"
                 onClick={(event) => {
                   event.stopPropagation();
                   // The hover preview is already the full sidebar. Pin it open
@@ -678,13 +673,13 @@ export function Sidebar({
                   setIsCollapsed(isPeekPreview ? false : true);
                 }}
               >
-                <SidebarToggleIcon className="size-[18px]" aria-hidden />
+                <SidebarToggleIcon className="size-5 shrink-0" aria-hidden />
               </button>
             </ShortcutHint>
           ) : null}
           {!isCollapsed || isPeekPreview ? (
             <span
-              className="clauxen-wordmark min-w-0 truncate text-[16.5px] font-semibold tracking-[-0.015em] text-[var(--cx-sidebar-fg)] leading-none select-none pl-0.5"
+              className="clauxen-wordmark min-w-0 truncate text-[16.5px] font-semibold tracking-[-0.015em] text-[var(--cx-sidebar-fg)] leading-normal py-0.5 select-none pl-0.5"
               aria-label="Clauxen"
             >
               Clauxen
@@ -736,7 +731,7 @@ export function Sidebar({
                 <SquarePen className="size-[17px]" strokeWidth={1.75} />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
-                <span className="min-w-0 flex-1 truncate text-left leading-none">New chat</span>
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">New chat</span>
               )}
               {isCollapsed && !isMobileLayout ? null : (
                 <ShortcutBadge shortcutId="openNewChat" className="ml-auto" />
@@ -765,7 +760,7 @@ export function Sidebar({
                 <Library className="size-[17px]" strokeWidth={1.75} />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
-                <span className="min-w-0 flex-1 truncate text-left leading-none">Library</span>
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">Library</span>
               )}
             </AppHref>
           </ShortcutHint>
@@ -792,7 +787,7 @@ export function Sidebar({
                   <FolderKanban className="size-[17px]" strokeWidth={1.75} />
                 </span>
                 {isCollapsed && !isMobileLayout ? null : (
-                  <span className="min-w-0 flex-1 truncate text-left leading-none">Projects</span>
+                  <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">Projects</span>
                 )}
               </AppHref>
             </ShortcutHint>
@@ -833,7 +828,7 @@ export function Sidebar({
               <Puzzle className="size-[17px]" strokeWidth={1.75} />
             </span>
             {isCollapsed && !isMobileLayout ? null : (
-              <span className="min-w-0 flex-1 truncate text-left leading-none">Plugins</span>
+              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">Plugins</span>
             )}
           </AppHref>
           <AppHref
@@ -858,7 +853,7 @@ export function Sidebar({
               <Code2 className="size-[17px]" strokeWidth={1.75} />
             </span>
             {isCollapsed && !isMobileLayout ? null : (
-              <span className="min-w-0 flex-1 truncate text-left leading-none">Code</span>
+              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">Code</span>
             )}
           </AppHref>
           {(
@@ -887,7 +882,7 @@ export function Sidebar({
                 <item.icon className="size-[17px]" strokeWidth={1.75} />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
-                <span className="min-w-0 flex-1 truncate text-left leading-none">{item.label}</span>
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal py-0.5">{item.label}</span>
               )}
             </AppHref>
           ))}

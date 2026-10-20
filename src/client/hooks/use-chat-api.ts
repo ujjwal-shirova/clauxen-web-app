@@ -1290,7 +1290,10 @@ export function useChatApi(
       // Never reconcile over a live turn — silent Worker fetches were wiping
       // the optimistic orb on new-chat / follow-up navigations.
       const ownsStream = Boolean(getGeneration(chatId));
-      if (silent && ownsStream) {
+      if (ownsStream || isChatActivelyGenerating(chatId)) {
+        if (!silent) {
+          setLoadingChatId((current) => (current === chatId ? null : current));
+        }
         return;
       }
       // One in-flight hydrate per chat: a newer load supersedes the old one.
@@ -1589,6 +1592,17 @@ export function useChatApi(
         if (ssrSeed.hasMore || !isChatActivelyGenerating(chatId)) {
           void loadChatMessages(chatId, { silent: true });
         }
+        return;
+      }
+
+      // Active generation or live stream: never show a loading skeleton; fetch silently in background if needed.
+      const isGeneratingNow =
+        isChatActivelyGenerating(chatId) ||
+        Boolean(getGeneration(chatId)) ||
+        Boolean(useChatStore.getState().generatingChatIds[chatId]);
+      if (isGeneratingNow) {
+        setLoadingChatId((current) => (current === chatId ? null : current));
+        void loadChatMessages(chatId, { silent: true });
         return;
       }
 
@@ -2913,12 +2927,26 @@ export function useChatApi(
             // Navigation callbacks must not abort the send path.
           }
 
-          const { chat } = await chatsApi.createChat({
+          let createdChat: { id: string; title: string } = {
             id: pendingChatId,
             title: "New chat",
-            projectId: options?.projectId,
-          });
-          const realId = chat.id;
+          };
+          try {
+            const res = await chatsApi.createChat({
+              id: pendingChatId,
+              title: "New chat",
+              projectId: options?.projectId,
+            });
+            if (res.chat?.id) {
+              createdChat = res.chat;
+            }
+          } catch (createErr) {
+            console.warn(
+              "[chat] createChat background attempt non-fatal, falling back to generate auto-creation:",
+              createErr,
+            );
+          }
+          const realId = createdChat.id || pendingChatId;
 
           if (realId !== pendingChatId) {
             const pendingGen = getGeneration(pendingChatId);
@@ -2942,7 +2970,7 @@ export function useChatApi(
             const next = [
               {
                 id: realId,
-                name: chat.title || "New chat",
+                name: createdChat.title || "New chat",
                 titleGenerated: false,
                 isCreating: false,
                 updatedAt: Date.now(),

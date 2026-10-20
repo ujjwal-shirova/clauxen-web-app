@@ -113,7 +113,7 @@ export function artifactMetaLabel(path: string, language: string): string {
   return `${documentKindLabel(language)} · ${ext}`;
 }
 
-/** Only markdown artifacts get a rendered preview; everything else opens in the code viewer. */
+/** Rendered preview supported for markdown, HTML, and SVG; everything else opens in the code viewer. */
 export function artifactSupportsPreview(
   path: string,
   language?: string,
@@ -124,7 +124,12 @@ export function artifactSupportsPreview(
     ext === "md" ||
     ext === "markdown" ||
     normalized === "markdown" ||
-    normalized === "md"
+    normalized === "md" ||
+    ext === "html" ||
+    ext === "htm" ||
+    normalized === "html" ||
+    ext === "svg" ||
+    normalized === "svg"
   );
 }
 

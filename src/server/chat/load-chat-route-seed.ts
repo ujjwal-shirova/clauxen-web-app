@@ -28,9 +28,13 @@ export async function loadChatRouteSeed(
     const claims = await getClaimsFromCookies(await cookies());
     if (!claims) return null;
 
-    const page = await chatService.listChatThreadPage(chatId, claims.sub, {
-      limit: SEED_PAGE_LIMIT,
-    });
+    const page = await Promise.race([
+      chatService.listChatThreadPage(chatId, claims.sub, {
+        limit: SEED_PAGE_LIMIT,
+      }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200)),
+    ]);
+    if (!page) return null;
 
     const messages: ApiMessage[] = page.messages.map((row) => ({
       id: row.id,

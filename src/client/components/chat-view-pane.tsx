@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
 import {
   BookOpen,
   Code,
@@ -18,6 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { greetingFirstName } from "@/lib/profile-names";
 import { ChatFrostedEdge } from "./ui/chat-frosted-edge";
 import { PromptSuggestions } from "./prompt-suggestions";
+import { ClauxenLogo } from "./icons/clauxen-logo";
 
 interface ChatViewPaneProps {
   hasConversation: boolean;
@@ -315,21 +315,18 @@ export function ChatViewPane({
       {!hasConversation && !composerOnlyWelcome && !incognitoWelcome ? (
         <div className="new-chat-hero flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="new-chat-hero__inner m-auto flex w-full flex-col items-center px-4 py-6 sm:px-6">
-            <h2
-              className="new-chat-greeting w-full max-w-full text-center text-[var(--ui-fg)]"
-              suppressHydrationWarning
-            >
-              <Image
-                src="/assets/icons/clauxen-icon.png"
-                width={38}
-                height={38}
-                alt=""
-                aria-hidden="true"
-                priority
-                className="new-chat-greeting__mark"
+            <div className="flex flex-col items-center gap-3.5 text-center">
+              <ClauxenLogo
+                size={40}
+                className="text-zinc-400 dark:text-zinc-500 transition-colors"
               />
-              {greeting || "\u00a0"}
-            </h2>
+              <h2
+                className="new-chat-greeting w-full max-w-full text-center text-[var(--ui-fg)]"
+                suppressHydrationWarning
+              >
+                {greeting || "\u00a0"}
+              </h2>
+            </div>
             <div className="w-full">{promptInput}</div>
             <div className="w-full">
               <WelcomeChips
@@ -339,9 +336,6 @@ export function ChatViewPane({
                 onSendMessage={onSendMessage}
               />
             </div>
-            <p className="text-center text-[11px] leading-4 text-[var(--ui-fg-subtle)]">
-              Clauxen can make mistakes. Check important info.
-            </p>
           </div>
         </div>
       ) : (
@@ -411,6 +405,13 @@ export function ChatViewPane({
                     >
                       Upgrade to Pro
                     </button>
+                  ) : null}
+
+                  {composerOnlyWelcome ? (
+                    <ClauxenLogo
+                      size={40}
+                      className="text-zinc-400 dark:text-zinc-500 transition-colors"
+                    />
                   ) : null}
 
                   <h2

@@ -149,6 +149,7 @@ export async function createChatFast(input: {
            (select default_workspace_id from public.profiles where id = $2 limit 1),
            $3,
            $4
+         on conflict (id) do update set updated_at = now()
          returning id, user_id, workspace_id, title, status, model_id, starred, created_at, updated_at`,
         [id, input.userId, input.title ?? "New chat", input.projectId ?? null],
       );

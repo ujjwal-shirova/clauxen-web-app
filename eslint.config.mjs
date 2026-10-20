@@ -16,6 +16,7 @@ const config = [
       "output/**",
       ".tools/**",
       "workers/**",
+      "public/**",
     ],
   },
   ...nextVitals,

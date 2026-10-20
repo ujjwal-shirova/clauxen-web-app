@@ -35,6 +35,9 @@ import {
   DEFAULT_HOMER_REASONING_EFFORT,
   type HomerReasoningEffort,
 } from "@/lib/model-effort";
+import { useChatStore } from "@/stores/chat-store";
+import { useShallow } from "zustand/react/shallow";
+import type { Message } from "@/lib/types";
 
 interface ChatViewProps {
   apiEnabled?: boolean;
@@ -206,19 +209,6 @@ function ChatViewBody({
     startNewChat,
     handleSelectChat,
   } = chat;
-  const sentInitialPromptRef = useRef<string | null>(null);
-  const authGate = useOptionalAuthGate();
-
-  useEffect(() => {
-    const prompt = initialPrompt?.trim();
-    if (!prompt || sentInitialPromptRef.current === prompt) return;
-    sentInitialPromptRef.current = prompt;
-    // Guest preview — sending needs a session; the gate opens the sign-in
-    // dialog (the login form as a popup) instead of sending.
-    if (authGate && !authGate.requireAuth()) return;
-    void handleSendMessage(prompt);
-  }, [authGate, handleSendMessage, initialPrompt]);
-
   const creatingChatPending = Boolean(
     (chat as { creatingChatPending?: boolean }).creatingChatPending,
   );
@@ -232,6 +222,32 @@ function ChatViewBody({
   ).retryLoadMessages;
 
   const routeChatId = getRouteChatId(pathname);
+  const targetChatId = routeChatId || activeChatId;
+
+  const storeMessagesForTarget = useChatStore(
+    useShallow((state) => {
+      if (!targetChatId) return null;
+      const ids = state.messageIdsByChatId[targetChatId];
+      if (!ids || ids.length === 0) return null;
+      const res: Message[] = [];
+      for (const id of ids) {
+        const m = state.messagesById[id];
+        if (m) res.push(m);
+      }
+      return res;
+    }),
+  );
+
+  const isTargetGenerating = useChatStore(
+    useShallow((state) =>
+      Boolean(targetChatId && state.generatingChatIds[targetChatId]),
+    ),
+  );
+
+  const hasTargetMessages = Boolean(
+    storeMessagesForTarget && storeMessagesForTarget.length > 0,
+  );
+
   const [projectCrumb, setProjectCrumb] = useState<{
     id: string;
     name: string;
@@ -261,39 +277,16 @@ function ChatViewBody({
   const blankNewChatComposer = isIncognito
     ? !isIncognitoSessionId(activeChatId) &&
       messages.length === 0 &&
-      !creatingChatPending
+      !hasTargetMessages &&
+      !creatingChatPending &&
+      !isGenerating
     : isNewChatPath(pathname) &&
       !activeChatId &&
       messages.length === 0 &&
-      !creatingChatPending;
-
-  const handleSelectChatRef = useRef(handleSelectChat);
-  handleSelectChatRef.current = handleSelectChat;
-  const startNewChatRef = useRef(startNewChat);
-  startNewChatRef.current = startNewChat;
-
-  useEffect(() => {
-    if (isIncognito) {
-      // Entering Incognito: clear any durable active chat so we don't hydrate.
-      if (activeChatId && !isIncognitoSessionId(activeChatId)) {
-        startNewChatRef.current();
-      }
-      return;
-    }
-    if (routeChatId) {
-      if (routeChatId !== activeChatId) {
-        void handleSelectChatRef.current(routeChatId);
-      }
-      return;
-    }
-    // ChatView stays mounted off-route; only clear when the visible surface
-    // is the blank new-chat page.
-    if (isNewChatPath(pathname)) {
-      if (activeChatId) {
-        startNewChatRef.current();
-      }
-    }
-  }, [isIncognito, activeChatId, routeChatId, pathname]);
+      !hasTargetMessages &&
+      !creatingChatPending &&
+      !isGenerating &&
+      !isTargetGenerating;
 
   const openChatRoute = useCallback(
     (chatId: string) => {
@@ -349,6 +342,64 @@ function ChatViewBody({
     ],
   );
 
+  const sentInitialPromptRef = useRef<string | null>(null);
+  const authGate = useOptionalAuthGate();
+
+  useEffect(() => {
+    const prompt = initialPrompt?.trim();
+    if (!prompt || sentInitialPromptRef.current === prompt) return;
+    sentInitialPromptRef.current = prompt;
+    // Guest preview — sending needs a session; the gate opens the sign-in
+    // dialog (the login form as a popup) instead of sending.
+    if (authGate && !authGate.requireAuth()) return;
+    void handleSendMessageAndRoute(prompt);
+  }, [authGate, handleSendMessageAndRoute, initialPrompt]);
+
+  const handleSelectChatRef = useRef(handleSelectChat);
+  handleSelectChatRef.current = handleSelectChat;
+  const startNewChatRef = useRef(startNewChat);
+  startNewChatRef.current = startNewChat;
+
+  useEffect(() => {
+    if (isIncognito) {
+      // Entering Incognito: clear any durable active chat so we don't hydrate.
+      if (activeChatId && !isIncognitoSessionId(activeChatId)) {
+        startNewChatRef.current();
+      }
+      return;
+    }
+    if (routeChatId) {
+      if (routeChatId !== activeChatId) {
+        void handleSelectChatRef.current(routeChatId);
+      }
+      return;
+    }
+    // Only reset to blank if we're not currently generating, not creating a chat,
+    // and there are no messages actively in progress.
+    if (isNewChatPath(pathname)) {
+      if (
+        activeChatId &&
+        !isGenerating &&
+        !isTargetGenerating &&
+        !creatingChatPending &&
+        messages.length === 0 &&
+        !hasTargetMessages
+      ) {
+        startNewChatRef.current();
+      }
+    }
+  }, [
+    isIncognito,
+    activeChatId,
+    routeChatId,
+    pathname,
+    isGenerating,
+    isTargetGenerating,
+    creatingChatPending,
+    messages.length,
+    hasTargetMessages,
+  ]);
+
   const handleCloseIncognito = useCallback(() => {
     startNewChat();
     instantNavigate(APP_ROUTES.newChat, { replace: true });
@@ -367,17 +418,22 @@ function ChatViewBody({
 
   const switchingRouteChat = Boolean(
     !isGenerating &&
+      !isTargetGenerating &&
       routeChatId &&
       routeChatId !== activeChatId &&
-      !isIncognito,
+      !isIncognito &&
+      !hasTargetMessages,
   );
-  const displayMessages =
-    blankNewChatComposer || switchingRouteChat ? [] : messages;
+  const displayMessages = blankNewChatComposer
+    ? []
+    : hasTargetMessages && storeMessagesForTarget
+      ? storeMessagesForTarget
+      : switchingRouteChat
+        ? []
+        : messages;
   const displayActiveChatId = blankNewChatComposer
     ? null
-    : switchingRouteChat
-      ? routeChatId
-      : activeChatId;
+    : routeChatId || activeChatId;
   const displayActiveChat =
     blankNewChatComposer || switchingRouteChat ? null : activeChat;
   // Route-first title: while `activeChatId` catches up after soft-nav to /c/:id,
@@ -404,7 +460,10 @@ function ChatViewBody({
     !blankNewChatComposer &&
     displayMessages.length === 0 &&
     Boolean(hydratingChatId) &&
-    (isChatRoute || Boolean(hydratingChatId));
+    (isChatRoute || Boolean(hydratingChatId)) &&
+    !isGenerating &&
+    !isTargetGenerating &&
+    !creatingChatPending;
   const blankPaneChatId = awaitingRouteHydration ? hydratingChatId : null;
 
   const visibleChatTitle = displayTitleChat?.name

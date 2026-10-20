@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Brain, Check, ChevronDown, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
 import { MarkdownRenderer } from "./markdown-renderer";
 
 interface ThinkingBlockProps {
@@ -45,8 +44,10 @@ export function ThinkingBlock({
 }: ThinkingBlockProps) {
   const [isVisible, setIsVisible] = useState(isStreaming);
   const [elapsedSeconds, setElapsedSeconds] = useState(1);
+  const [copied, setCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const previousIsStreamingRef = useRef(isStreaming);
+
   // Latch the earliest thinking start so a late-arriving stamp can never push
   // the live "Thinking for Ns" clock forward mid-stream.
   const latchedThinkingStartRef = useRef<number | undefined>(
@@ -108,6 +109,13 @@ export function ThinkingBlock({
     return () => window.clearInterval(timer);
   }, [isStreaming, thinkingDurationSeconds, latchedThinkingStart]);
 
+  const handleCopy = async () => {
+    if (!content.trim()) return;
+    await navigator.clipboard.writeText(content);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  };
+
   const hasContent = Boolean(content.trim());
   if (!hasContent && !isStreaming && !thinkingDurationSeconds) {
     return null;
@@ -120,69 +128,111 @@ export function ThinkingBlock({
   return (
     <div
       className={cn(
-        "w-full animate-in fade-in slide-in-from-top-1 duration-300",
+        "w-full animate-in fade-in slide-in-from-top-1 duration-200",
         className,
       )}
     >
-      <div>
-        <div className="grid gap-y-2">
-          <div className="min-w-0">
-            <button
-              type="button"
-              onClick={() => setIsVisible((value) => !value)}
-              className="group flex w-fit max-w-full items-center gap-1.5 border-0 bg-transparent py-0.5 text-left text-[14px] font-normal leading-6 text-[var(--ui-fg-muted)] transition-colors duration-200 hover:bg-transparent hover:text-[var(--ui-fg)] focus-visible:outline-none"
-              aria-expanded={isVisible}
-            >
-              <span
-                className={cn(
-                  "agent-activity-label--muted truncate font-normal",
-                  isStreaming && "shimmer-text",
-                )}
-                data-shimmer-active={isStreaming || undefined}
-              >
-                {displayLabel}
-              </span>
-              <ChevronDown
-                className={cn(
-                  "icon-md shrink-0 icon-muted opacity-0 transition-[opacity,transform] duration-200 group-hover:opacity-100 group-focus-visible:opacity-100",
-                  isVisible && "rotate-180",
-                )}
-              />
-            </button>
-          </div>
-
-          {/* Grid-rows trick animates the collapse/expand instead of hard-unmounting
-              the content (which used to cut instantly with no transition). */}
-          <div
+      <div className="grid gap-y-1.5">
+        <div className="min-w-0">
+          <button
+            type="button"
+            onClick={() => setIsVisible((value) => !value)}
             className={cn(
-              "grid transition-[grid-template-rows] duration-200 ease-out",
-              isVisible ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+              "group/thinking inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-left text-[12.5px] font-medium leading-none transition-all duration-150",
+              "border-zinc-200/90 bg-white/80 text-zinc-600 shadow-[0_1px_2px_rgba(0,0,0,0.02)] backdrop-blur-sm",
+              "hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900",
+              "dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-300 dark:shadow-none dark:hover:border-white/20 dark:hover:bg-white/[0.09] dark:hover:text-zinc-100",
+              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-500",
+              isVisible &&
+                "border-zinc-300 bg-zinc-100/90 text-zinc-900 dark:border-white/20 dark:bg-white/10 dark:text-zinc-100",
             )}
-            aria-hidden={!isVisible}
+            aria-expanded={isVisible}
+            aria-label={`${displayLabel} — click to ${isVisible ? "collapse" : "expand"}`}
           >
-            <div className="overflow-hidden pt-0.5">
-              <div className="agent-thinking-body grid max-w-[48rem] gap-3 pr-3 text-[14px] font-normal leading-6 text-[var(--ui-fg-muted)]">
-                <div
-                  ref={scrollRef}
-                  className="pr-1 text-[14px] leading-6"
-                  data-chat-scroll-passthrough=""
-                >
-                  <div className="thinking-markdown">
-                    {hasContent ? (
-                      <MarkdownRenderer
-                        content={content}
-                        isStreaming={isStreaming}
-                        showCursor={false}
-                        lightweightStream={isStreaming}
-                      />
+            <Brain
+              className={cn(
+                "size-3.5 shrink-0 transition-colors",
+                isStreaming
+                  ? "animate-pulse text-zinc-700 dark:text-zinc-200"
+                  : "text-zinc-400 group-hover/thinking:text-zinc-600 dark:text-zinc-500 dark:group-hover/thinking:text-zinc-300",
+              )}
+            />
+            <span
+              className={cn(
+                "truncate font-medium",
+                isStreaming && "shimmer-text",
+              )}
+              data-shimmer-active={isStreaming || undefined}
+            >
+              {displayLabel}
+            </span>
+            <ChevronDown
+              className={cn(
+                "size-3.5 shrink-0 text-zinc-400 transition-transform duration-200 group-hover/thinking:text-zinc-600 dark:text-zinc-500 dark:group-hover/thinking:text-zinc-300",
+                isVisible && "rotate-180",
+              )}
+            />
+          </button>
+        </div>
+
+        {/* Animated height container */}
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+            isVisible
+              ? "grid-rows-[1fr] opacity-100"
+              : "grid-rows-[0fr] opacity-0 pointer-events-none",
+          )}
+          aria-hidden={!isVisible}
+        >
+          <div className="overflow-hidden">
+            <div className="mt-1 w-full max-w-[48rem] overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50/70 shadow-[0_1px_3px_rgba(24,24,27,0.02)] backdrop-blur-sm dark:border-white/10 dark:bg-[#1a1a1e]/80">
+              <div className="flex items-center justify-between border-b border-zinc-200/70 px-3 py-1.5 dark:border-white/10">
+                <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.05em] text-zinc-400 dark:text-zinc-500">
+                  <Brain className="size-3 text-zinc-400 dark:text-zinc-500" />
+                  <span>Thought process</span>
+                  <span className="text-zinc-300 dark:text-zinc-600">·</span>
+                  <span className="tabular-nums normal-case text-zinc-500 dark:text-zinc-400">
+                    {elapsedSeconds}s {isStreaming ? "elapsed" : "duration"}
+                  </span>
+                </div>
+                {hasContent ? (
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    aria-label={copied ? "Copied thinking" : "Copy thinking"}
+                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-200/70 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+                  >
+                    {copied ? (
+                      <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
                     ) : (
-                      <p className="text-[var(--ui-fg-placeholder)]">
-                        {isStreaming
-                          ? "Extended reasoning is in progress."
-                          : "Extended reasoning completed before this response."}
-                      </p>
+                      <Copy className="size-3" />
                     )}
-                  </div>
+                    <span>{copied ? "Copied" : "Copy"}</span>
+                  </button>
+                ) : null}
+              </div>
+
+              <div
+                ref={scrollRef}
+                className="agent-thinking-scroll max-h-[20rem] overflow-x-hidden overflow-y-auto px-3.5 py-3 text-[13px] leading-[1.65] text-zinc-600 dark:text-zinc-300"
+                data-chat-scroll-passthrough=""
+              >
+                <div className="thinking-markdown">
+                  {hasContent ? (
+                    <MarkdownRenderer
+                      content={content}
+                      isStreaming={isStreaming}
+                      showCursor={false}
+                      lightweightStream={isStreaming}
+                    />
+                  ) : (
+                    <p className="text-[12.5px] italic text-zinc-400 dark:text-zinc-500">
+                      {isStreaming
+                        ? "Extended reasoning is in progress…"
+                        : "Extended reasoning completed before this response."}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

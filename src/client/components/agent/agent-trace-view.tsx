@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { ChevronRight } from "lucide-react";
+import { Brain, Check, ChevronRight, Copy } from "lucide-react";
 import type {
   AgentNarrationStep,
   AgentStep,
@@ -327,6 +327,7 @@ function ThinkingLedgerRow({
   const streaming = step.isStreaming === true;
   const content = step.content?.trim() ?? "";
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
+  const [copied, setCopied] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const latchedStart = useLatchedStartedAtMs(step.startedAtMs);
   const expanded = Boolean(content) && (userExpanded ?? streaming);
@@ -335,10 +336,48 @@ function ThinkingLedgerRow({
     ? Math.max(1, Math.floor((nowMs - (latchedStart ?? nowMs)) / 1000))
     : Math.max(1, step.durationSeconds ?? 1);
 
+  const handleCopy = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!content) return;
+    await navigator.clipboard.writeText(content);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  };
+
   return (
     <LedgerRowShell
-      label={streaming ? "Thinking" : "Thought"}
-      meta={`${seconds}s`}
+      label={
+        <span className="inline-flex items-center gap-1.5">
+          <Brain
+            className={cn(
+              "size-3.5 shrink-0",
+              streaming
+                ? "animate-pulse text-zinc-700 dark:text-zinc-200"
+                : "text-zinc-400 dark:text-zinc-500",
+            )}
+          />
+          <span>{streaming ? "Thinking" : "Thought"}</span>
+        </span>
+      }
+      meta={
+        <span className="inline-flex items-center gap-1.5">
+          <span>{seconds}s</span>
+          {expanded && content ? (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[11px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 transition-colors"
+              title={copied ? "Copied" : "Copy thought"}
+            >
+              {copied ? (
+                <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <Copy className="size-3" />
+              )}
+            </button>
+          ) : null}
+        </span>
+      }
       live={streaming}
       expandable={Boolean(content)}
       expanded={expanded}

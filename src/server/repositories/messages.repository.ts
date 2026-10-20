@@ -658,13 +658,33 @@ export async function beginChatTurn(input: {
   assistant: InsertedMessageRow;
 }> {
   return withTransaction(async (client) => {
-    const ownedChat = await client.query<{ id: string }>(
+    let ownedChat = await client.query<{ id: string }>(
       `select id
        from public.chats
        where id = $1 and user_id = $2 and status != 'deleted'
        for update`,
       [input.chatId, input.userId],
     );
+    if (!ownedChat.rows[0]) {
+      // Auto-create chat if not found yet (fast-path send from /new where generate races or initiates chat creation)
+      await client.query(
+        `insert into public.chats (id, user_id, workspace_id, title)
+         select
+           $1,
+           $2,
+           (select default_workspace_id from public.profiles where id = $2 limit 1),
+           'New chat'
+         on conflict (id) do nothing`,
+        [input.chatId, input.userId],
+      );
+      ownedChat = await client.query<{ id: string }>(
+        `select id
+         from public.chats
+         where id = $1 and user_id = $2 and status != 'deleted'
+         for update`,
+        [input.chatId, input.userId],
+      );
+    }
     if (!ownedChat.rows[0]) throw notFound("Chat not found.");
 
     const user = await insertIdempotentMessage(client, {

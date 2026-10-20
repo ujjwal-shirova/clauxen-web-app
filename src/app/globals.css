@@ -4433,6 +4433,11 @@ button.user-message-card__body:not(:disabled):hover,
   box-shadow: 0 5px 18px rgba(28, 25, 23, 0.055);
 }
 
+.dark .artifact-file-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
 @keyframes look-around {
   0%,
   16.6%,
@@ -9145,11 +9150,11 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  min-height: 24px;
-  padding: 0;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  padding: 0 !important;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -9163,8 +9168,8 @@ html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
 }
 
 .cx-sidebar .cx-hide-sidebar svg {
-  width: 20px;
-  height: 20px;
+  width: 20px !important;
+  height: 20px !important;
 }
 
 .cx-hide-sidebar + .clauxen-wordmark {
@@ -9340,6 +9345,13 @@ body:has([data-radix-portal]) .cx-pin-tip {
   background: var(--cx-sidebar-active) !important;
 }
 
+.cx-sidebar .cx-nav-label,
+.cx-sidebar .cx-nav-btn span.truncate {
+  line-height: 20px !important;
+  padding-top: 1px !important;
+  padding-bottom: 2px !important;
+}
+
 /* 20×20 leading icon bounding box for flawless vertical alignment across all sidebar items. */
 .cx-nav-icon {
   display: flex;
@@ -9488,30 +9500,25 @@ body:has([data-radix-portal]) .cx-pin-tip {
 
 .cx-chat-status {
   display: flex;
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
   flex: none;
   align-items: center;
   justify-content: center;
 }
 
 .cx-chat-idle {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--cx-sidebar-muted);
-  opacity: 0.45;
-  transition: opacity 0.15s ease;
+  display: none !important;
 }
 
 .cx-chat-row:hover .cx-chat-idle {
-  opacity: 0.75;
+  display: none !important;
 }
 
 .cx-chat-row[data-active="true"] .cx-chat-idle {
-  opacity: 0.95;
+  display: none !important;
 }
 
 .cx-chat-title {
@@ -9521,6 +9528,8 @@ body:has([data-radix-portal]) .cx-pin-tip {
   white-space: nowrap;
   font-size: 13.5px;
   line-height: 20px;
+  padding-top: 1px;
+  padding-bottom: 2px;
   color: var(--cx-sidebar-fg);
   mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
