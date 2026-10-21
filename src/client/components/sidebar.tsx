@@ -22,7 +22,6 @@ import {
   SquarePen,
   Code2,
   CalendarClock,
-  Hammer,
   Hand,
   Sparkles,
   X,
@@ -864,7 +863,6 @@ export function Sidebar({
           {(
             [
               { label: "Scheduled", icon: CalendarClock, href: "/scheduled" },
-              { label: "Build", icon: Hammer, href: "/new?app=build" },
             ] as const
           ).map((item) => (
             <AppHref

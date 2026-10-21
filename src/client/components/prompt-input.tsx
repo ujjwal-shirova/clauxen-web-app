@@ -11,7 +11,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDown,
   ArrowUp,
-  AudioWaveform,
   Check,
   ChevronDown,
   FolderKanban,
@@ -415,7 +414,7 @@ function PermissionModePopover({
         <button
           type="button"
           aria-label="Permission mode"
-          className="inline-flex h-6 items-center px-2.5 rounded-full text-[12px] font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer select-none outline-none focus-visible:ring-1 focus-visible:ring-zinc-400"
+          className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors outline-none cursor-pointer"
         >
           {permissionMode === "manual" ? "Manual" : "Auto"}
         </button>
@@ -1436,12 +1435,7 @@ export function PromptInput({
             aria-hidden
           />
         ) : (
-          <div className="flex items-center gap-0.5">
-            <Mic className="icon-sm shrink-0" strokeWidth={1.75} aria-hidden />
-            {!isConversationStarted ? (
-              <ChevronDown className="size-2.5 text-zinc-400" strokeWidth={2} />
-            ) : null}
-          </div>
+          <Mic className="icon-sm shrink-0" strokeWidth={1.75} aria-hidden />
         )}
       </button>
     </HintTooltip>
@@ -1663,20 +1657,8 @@ export function PromptInput({
           <div className="prompt-welcome__bar">
             {renderAddMenuButton()}
             <div className="min-w-0 flex-1" />
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               {renderMicButton()}
-              <button
-                type="button"
-                aria-label="Audio mode"
-                onClick={() => {
-                  if (!requireAuthGate()) return;
-                  void dictation.start();
-                }}
-                className="no-hover-overlay prompt-control-ghost shrink-0 outline-none hover:text-zinc-900 text-zinc-500 p-1 rounded-md transition-colors"
-              >
-                <AudioWaveform className="size-4" strokeWidth={1.75} />
-              </button>
-              <span className="size-2 rounded-full bg-emerald-500 shrink-0 ml-0.5" title="Ready" />
               {renderTrailingActions(true)}
             </div>
           </div>
@@ -1981,7 +1963,10 @@ export function PromptInput({
             </AnimatePresence>
           </div>
           {!isConversationStarted ? (
-            <div className="flex items-center justify-between px-1 pt-2 pb-0 text-zinc-600">
+            <div
+              data-prompt-toolbar="true"
+              className="flex items-center justify-between px-1 pt-2.5 pb-0 text-zinc-600 bg-transparent border-0 shadow-none rounded-none"
+            >
               <div className="flex items-center">
                 <ProjectSelectorPopover
                   projectId={projectId}

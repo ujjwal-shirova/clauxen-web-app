@@ -254,9 +254,9 @@ export function ChatViewHeader({
             <AppHref
               href="/incognito"
               aria-label="Incognito Mode"
-              className="ui-icon-button flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
             >
-              <HatGlasses className="size-4.5" strokeWidth={1.75} />
+              <HatGlasses className="size-5 shrink-0" strokeWidth={1.8} />
             </AppHref>
           </HintTooltip>
         </div>

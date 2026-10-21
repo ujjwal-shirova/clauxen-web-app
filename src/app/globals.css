@@ -2448,7 +2448,7 @@ nav.sidebar-hover-area {
     [data-context-footer]
   ):not([data-prompt-wrapper]):not([data-context-indicator]):not(
     [data-ask-user-input-composer]
-  ) {
+  ):not([data-prompt-toolbar]) {
   background-color: var(--chat-user-card-bg, #ffffff) !important;
   border: 0 !important;
   box-shadow: var(--prompt-shadow) !important;
@@ -2461,7 +2461,7 @@ nav.sidebar-hover-area {
     [data-context-footer]
   ):not([data-prompt-wrapper]):not([data-context-indicator]):not(
     [data-ask-user-input-composer]
-  ):focus-within {
+  ):not([data-prompt-toolbar]):focus-within {
   box-shadow: var(--prompt-shadow-focus) !important;
 }
 
@@ -2470,6 +2470,14 @@ nav.sidebar-hover-area {
   border: 0 !important;
   box-shadow: none !important;
   background: transparent !important;
+}
+
+/* Prompt toolbar below composer is completely flat & transparent — no round container */
+[data-prompt-root] [data-prompt-toolbar] {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
 }
 
 /* User message card */
