@@ -22,6 +22,12 @@ for (const file of [
 // CI-provided values take precedence over local defaults.
 Object.assign(runtimeEnv, process.env);
 runtimeEnv.CLOUDFLARE_API_TOKEN = runtimeEnv.CLOUDFLARE_API_TOKEN?.trim();
+if (!runtimeEnv.CLOUDFLARE_API_TOKEN) {
+  delete runtimeEnv.CLOUDFLARE_API_TOKEN;
+}
+if (!runtimeEnv.PATH?.includes("/Users/ujjwal_tyagi/.local/bin")) {
+  runtimeEnv.PATH = `/Users/ujjwal_tyagi/.local/bin:${runtimeEnv.PATH || ""}`;
+}
 runtimeEnv.CLOUDFLARE_ACCOUNT_ID = "8fc7a67e9057989309921f362784ecf4";
 runtimeEnv.HOSTING_PLATFORM = "cloudflare";
 runtimeEnv.NEXT_PUBLIC_APP_URL = "https://www.clauxen.com";
