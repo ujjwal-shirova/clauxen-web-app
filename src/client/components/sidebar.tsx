@@ -21,7 +21,6 @@ import {
   Pin,
   SquarePen,
   Code2,
-  CalendarClock,
   Hand,
   Sparkles,
   X,
@@ -860,35 +859,6 @@ export function Sidebar({
               <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">Code</span>
             )}
           </AppHref>
-          {(
-            [
-              { label: "Scheduled", icon: CalendarClock, href: "/scheduled" },
-            ] as const
-          ).map((item) => (
-            <AppHref
-              key={item.label}
-              href={item.href}
-              data-keynav-item
-              onClick={(event) => {
-                event.stopPropagation();
-                if (!isPlainLeftClick(event)) return;
-                if (!gateSidebarAction(event)) return;
-                if (isMobileLayout) onNavigate?.();
-              }}
-              aria-label={item.label}
-              className={cn(
-                "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
-                isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
-              )}
-            >
-              <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
-                <item.icon className="size-4" strokeWidth={1.75} />
-              </span>
-              {isCollapsed && !isMobileLayout ? null : (
-                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">{item.label}</span>
-              )}
-            </AppHref>
-          ))}
         </nav>
 
         <div

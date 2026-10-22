@@ -14,10 +14,10 @@ export function stripCursorText(value: string | null | undefined): string {
     .trim();
 }
 
-/** Keep card blurbs short and end them with a period or an ellipsis. */
+/** Keep card blurbs concise, legible, and properly punctuated. */
 export function cardDescription(
   value: string | null | undefined,
-  limit = 48,
+  limit = 110,
 ): string {
   const cleaned = stripCursorText(value).replace(/\s+/g, " ").trim();
   if (!cleaned) return "";
@@ -26,7 +26,7 @@ export function cardDescription(
   }
   let cut = cleaned.slice(0, limit);
   const lastSpace = cut.lastIndexOf(" ");
-  if (lastSpace > 20) cut = cut.slice(0, lastSpace);
+  if (lastSpace > 40) cut = cut.slice(0, lastSpace);
   cut = cut.replace(/[.,;:!?…\-–—]+$/g, "").trim();
-  return `${cut}...`;
+  return `${cut}…`;
 }
