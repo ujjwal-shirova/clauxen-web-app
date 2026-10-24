@@ -395,7 +395,8 @@
     "termsUrl": "https://www.quo.com/terms",
     "prompts": [
       "Help me prioritize my todos from our Sales inbox",
-      "Send a text to Nathan Cleary"
+      "Send a text to Nathan Cleary",
+      "Draft a quick response to the latest inquiry in our customer channel"
     ],
     "apps": [
       {
@@ -4150,7 +4151,8 @@
     "termsUrl": "https://clickhouse.com/legal/clickhouse-general-terms-and-conditions",
     "prompts": [
       "Show a ClickHouse Cloud overview for my primary org: service name, region, state, version, and HTTPS endpoint",
-      "Show my primary ClickHouse service health: state, version, HTTPS endpoint, backup schedule, latest backup"
+      "Show my primary ClickHouse service health: state, version, HTTPS endpoint, backup schedule, latest backup",
+      "Run an analytical query to aggregate event metrics over the past 30 days"
     ],
     "apps": [
       {
@@ -6077,7 +6079,8 @@
     "termsUrl": "https://www.airtable.com/company/tos",
     "prompts": [
       "Airtable show me a kanban of the product roadmap. What’s at risk? What’s up next?",
-      "Airtable which roadmap initiatives should I discuss with the enterprise sales team today?"
+      "Airtable which roadmap initiatives should I discuss with the enterprise sales team today?",
+      "Summarize all customer feedback records grouped by sentiment and product area"
     ],
     "apps": [
       {
@@ -6540,7 +6543,8 @@
     "termsUrl": "https://www.figma.com/legal/tos/",
     "prompts": [
       "read the attached PRD and create a flowchart of the 2FA flow",
-      "create a competitive analysis deck comparing travel platforms"
+      "create a competitive analysis deck comparing travel platforms",
+      "Generate design tokens and UI component specs based on the active Figma frame"
     ],
     "apps": [
       {
@@ -7491,7 +7495,8 @@
     "termsUrl": "https://miro.com/legal/terms-of-service/",
     "prompts": [
       "help me visualize my codebase in a technical diagram",
-      "help me organize my ideas and help me plan next steps"
+      "help me organize my ideas and help me plan next steps",
+      "Map out our user onboarding flow with decision branches and error states"
     ],
     "apps": [
       {
@@ -10914,7 +10919,8 @@
     "termsUrl": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
     "prompts": [
       "I've got an idea for something I'd like to build",
-      "Let's add a feature to this project"
+      "Let's add a feature to this project",
+      "Review the codebase architecture and propose modular extensions for this project"
     ],
     "apps": [
       {
@@ -12017,7 +12023,8 @@
     "termsUrl": "https://legal.hubspot.com/terms-of-service",
     "prompts": [
       "Show me unresolved high-priority tickets",
-      "Which lead sources brought in the most contacts this quarter?"
+      "Which lead sources brought in the most contacts this quarter?",
+      "List all deals in the pipeline closing this month sorted by deal value"
     ],
     "apps": [
       {
@@ -19473,6 +19480,42 @@
       {
         "name": "zernio-integration",
         "description": "Use when performing tasks involving Zernio. Triggers API tools, data queries, and actions."
+      }
+    ]
+  },
+  "health": {
+    "id": "health",
+    "name": "Health",
+    "author": "Clauxen",
+    "shortDescription": "Explore your health data in Clauxen",
+    "overview": "Connect and explore personal health and wellness metrics in Clauxen. Analyze workout trends, sleep cycles, heart rate variability, and nutrition logs to receive tailored health insights.",
+    "iconUrl": "",
+    "capabilities": "Read",
+    "developer": "Clauxen Health Team",
+    "category": "Health & Fitness",
+    "version": "1.0.0",
+    "websiteUrl": "https://clauxen.com",
+    "privacyUrl": "https://clauxen.com/legal/privacy",
+    "termsUrl": "https://clauxen.com/legal/terms",
+    "prompts": [
+      "Summarize my resting heart rate and sleep trends over the past month.",
+      "Compare my workout frequency this week against my monthly fitness goals.",
+      "Analyze my activity logs and give me recovery recommendations for today."
+    ],
+    "apps": [
+      {
+        "name": "Health",
+        "description": "Personal health and wellness assistant inside Clauxen."
+      }
+    ],
+    "skills": [
+      {
+        "name": "health-trends",
+        "description": "Analyze health telemetry, step count, sleep architecture, and biometric trends."
+      },
+      {
+        "name": "workout-insights",
+        "description": "Parse workout and exercise logs to track fitness progress and recovery."
       }
     ]
   }

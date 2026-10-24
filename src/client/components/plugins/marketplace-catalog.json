@@ -19,8 +19,12 @@
       "title": "Featured",
       "pluginIds": [
         "gmail",
-        "google-calendar",
         "google-drive",
+        "health",
+        "github",
+        "supabase",
+        "outlook",
+        "google-calendar",
         "granola",
         "notion",
         "slack"
@@ -3911,6 +3915,15 @@
       "author": "",
       "iconUrl": "https://ptht05hbb1ssoooe.public.blob.vercel-storage.com/assets/uploads/zernio-logo-1-kvPP6x6YgPbpGrFyrl5rRniGd3RFAV.png",
       "category": "Plugins",
+      "installed": false
+    },
+    "health": {
+      "id": "health",
+      "name": "Health",
+      "description": "Explore your health data in Clauxen",
+      "author": "Clauxen",
+      "iconUrl": "",
+      "category": "Health & Fitness",
       "installed": false
     }
   }

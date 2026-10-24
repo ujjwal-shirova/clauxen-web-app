@@ -77,59 +77,6 @@ type TopTab = "plugins" | "skills";
 type ViewMode = "marketplace" | "installed" | "detail";
 type FilterScope = "public" | "personal";
 
-interface PopularItemDefinition {
-  id: string;
-  name: string;
-  description: string;
-  actionType: "permission" | "info" | "menu" | "add";
-  icon: React.ReactNode;
-}
-
-const POPULAR_GRID_ITEMS: PopularItemDefinition[] = [
-  {
-    id: "gmail",
-    name: "Gmail",
-    description: "Read and manage Gmail",
-    actionType: "permission",
-    icon: <GmailIcon size={24} />,
-  },
-  {
-    id: "google-drive",
-    name: "Google Drive",
-    description: "Drive, Docs, Sheets or Slides",
-    actionType: "permission",
-    icon: <GoogleDriveIcon size={24} />,
-  },
-  {
-    id: "health",
-    name: "Health",
-    description: "Explore your health data in Clauxen",
-    actionType: "info",
-    icon: <HealthIcon size={24} />,
-  },
-  {
-    id: "github",
-    name: "GitHub",
-    description: "Triage PRs, issues, CI, and publish flows",
-    actionType: "menu",
-    icon: <GithubBrandIcon size={24} />,
-  },
-  {
-    id: "supabase",
-    name: "Supabase",
-    description: "Manage and query databases",
-    actionType: "menu",
-    icon: <SupabaseBrandIcon size={24} />,
-  },
-  {
-    id: "outlook",
-    name: "Outlook Email",
-    description: "Triage Outlook inboxes",
-    actionType: "add",
-    icon: <OutlookBrandIcon size={24} />,
-  },
-];
-
 interface InstalledItemDefinition {
   id: string;
   name: string;
@@ -137,17 +84,40 @@ interface InstalledItemDefinition {
 }
 
 const DEFAULT_INSTALLED_ROW_ICONS: InstalledItemDefinition[] = [
-  { id: "browser", name: "Browser Tools", icon: <BrowserToolsBrandIcon size={26} /> },
-  { id: "huggingface", name: "Hugging Face", icon: <HuggingFaceBrandIcon size={26} /> },
+  { id: "browser-use", name: "Browser Use", icon: <BrowserToolsBrandIcon size={26} /> },
+  { id: "hugging-face", name: "Hugging Face", icon: <HuggingFaceBrandIcon size={26} /> },
   { id: "linear", name: "Linear", icon: <LinearBrandIcon size={26} /> },
   { id: "vercel", name: "Vercel", icon: <VercelBrandIcon size={26} /> },
   { id: "supabase", name: "Supabase", icon: <SupabaseBrandIcon size={26} /> },
   { id: "notion", name: "Notion", icon: <NotionBrandIcon size={26} /> },
   { id: "github", name: "GitHub", icon: <GithubBrandIcon size={26} /> },
   { id: "mixpanel", name: "Mixpanel", icon: <MixpanelBrandIcon size={26} /> },
-  { id: "langchain", name: "LangChain", icon: <LangChainBrandIcon size={26} /> },
-  { id: "microsoft", name: "Microsoft 365", icon: <MicrosoftBrandIcon size={26} /> },
+  { id: "health", name: "Health", icon: <HealthIcon size={26} /> },
+  { id: "gmail", name: "Gmail", icon: <GmailIcon size={26} /> },
 ];
+
+const CATEGORY_TABS = [
+  { id: "all", label: "All" },
+  { id: "featured", label: "Popular" },
+  { id: "productivity", label: "Productivity" },
+  { id: "infrastructure", label: "Infrastructure" },
+  { id: "data-analytics", label: "Data & Analytics" },
+  { id: "inbox-and-collaboration", label: "Inbox" },
+  { id: "agent-orchestration", label: "Agent Orchestration" },
+  { id: "payments", label: "Payments" },
+  { id: "sales", label: "Sales" },
+  { id: "design", label: "Design" },
+  { id: "plugins", label: "Developer Tools" },
+] as const;
+
+function getDisplayTitle(id: string, rawTitle: string): string {
+  if (id === "featured") return "Popular";
+  if (id === "inbox-and-collaboration") return "Inbox & Collaboration";
+  if (id === "documents-and-files") return "Documents & Files";
+  if (id === "sales") return "Sales & CRM";
+  if (id === "plugins") return "Developer Tools & Extensions";
+  return rawTitle.replace(/\s+Plugins$/i, "").trim();
+}
 
 export function MarketplaceView() {
   const router = useRouter();
@@ -248,6 +218,37 @@ export function MarketplaceView() {
         plugin.category === "Agent Orchestration",
     );
   }, [allPlugins, connectedIds]);
+
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = useCallback((sectionId: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
+  }, []);
+
+  const sectionsData = useMemo(() => {
+    return marketplaceCatalog.sections
+      .map((section) => {
+        const plugins = pluginsByIds(section.pluginIds);
+        return {
+          id: section.id,
+          rawTitle: section.title,
+          displayTitle: getDisplayTitle(section.id, section.title),
+          plugins,
+        };
+      })
+      .filter((s) => s.plugins.length > 0);
+  }, []);
+
+  const displayedSections = useMemo(() => {
+    if (selectedCategory === "all") {
+      return sectionsData;
+    }
+    return sectionsData.filter((s) => s.id === selectedCategory);
+  }, [sectionsData, selectedCategory]);
 
   const openPluginById = useCallback(
     (pluginId: string, fallbackName?: string, fallbackDescription?: string) => {
@@ -629,8 +630,8 @@ export function MarketplaceView() {
                       No plugins found matching &ldquo;{query}&rdquo;.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-2.5">
-                      {filteredSearchPlugins.slice(0, 40).map((plugin) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3.5">
+                      {filteredSearchPlugins.map((plugin) => (
                         <div
                           key={plugin.id}
                           onClick={() => openPluginById(plugin.id, plugin.name, plugin.description)}
@@ -638,7 +639,7 @@ export function MarketplaceView() {
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
                             <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                              {getPluginBrandIcon(plugin.id, 22) || (
+                              {getPluginBrandIcon(plugin.id, 24) || (
                                 <PluginMark name={plugin.name} iconUrl={plugin.iconUrl} size={24} />
                               )}
                             </div>
@@ -651,11 +652,27 @@ export function MarketplaceView() {
                               </p>
                             </div>
                           </div>
-                          <div className="shrink-0">
+                          <div className="shrink-0 flex items-center" onClick={(e) => e.stopPropagation()}>
                             {connectedIds.has(plugin.id) ? (
-                              <MoreHorizontal className="size-4 text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors" />
+                              <button
+                                type="button"
+                                aria-label={`Manage ${plugin.name}`}
+                                onClick={() => openPluginById(plugin.id, plugin.name, plugin.description)}
+                                className="grid size-7 place-items-center text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                              >
+                                <MoreHorizontal className="size-4" />
+                              </button>
+                            ) : startingPluginId === plugin.id ? (
+                              <Loader2 className="size-4 animate-spin text-neutral-400" />
                             ) : (
-                              <Plus className="size-4 text-neutral-600 dark:text-neutral-400 hover:scale-110 transition-transform" />
+                              <button
+                                type="button"
+                                aria-label={`Add ${plugin.name}`}
+                                onClick={() => void handleAuthorize(plugin)}
+                                className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:scale-110 active:scale-95 transition-all"
+                              >
+                                <Plus className="size-4" />
+                              </button>
                             )}
                           </div>
                         </div>
@@ -664,7 +681,7 @@ export function MarketplaceView() {
                   )}
                 </div>
               ) : (
-                /* Default View: Installed Section & Popular Section */
+                /* Default View: Installed Row, Filters & Categorized Sections */
                 <>
                   {/* Installed Header & Icons Row */}
                   <div className="space-y-3 pt-1">
@@ -721,117 +738,257 @@ export function MarketplaceView() {
                     </button>
                   </div>
 
-                  {/* Popular Section */}
-                  <div className="space-y-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setQuery(" ")}
-                      className="inline-flex items-center gap-1 text-base font-semibold text-neutral-900 dark:text-neutral-100 hover:opacity-80 transition-opacity group"
-                    >
-                      <span>Popular</span>
-                      <ChevronRight className="size-4 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-200 transition-colors" />
-                    </button>
-
-                    {/* 2-Column Popular List */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3.5">
-                      {POPULAR_GRID_ITEMS.map((item) => {
-                        const isConnected = connectedIds.has(item.id);
-
-                        return (
-                          <div
-                            key={item.id}
-                            onClick={() => openPluginById(item.id, item.name, item.description)}
-                            className="flex items-center justify-between p-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer group"
+                  {filterScope === "public" ? (
+                    <>
+                      {/* Category Quick Chips */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto py-2 scrollbar-hide">
+                        {CATEGORY_TABS.map((cat) => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setSelectedCategory(cat.id)}
+                            className={cn(
+                              "rounded-full px-3 py-1 text-xs transition-colors whitespace-nowrap shrink-0 outline-none",
+                              selectedCategory === cat.id
+                                ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs"
+                                : "bg-neutral-100 dark:bg-neutral-800/80 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 font-medium",
+                            )}
                           >
-                            {/* Left: App Logo & Details */}
-                            <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
-                              <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                                {item.icon}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
-                                  {item.name}
-                                </h3>
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
-                                  {item.description}
-                                </p>
-                              </div>
-                            </div>
+                            {cat.label}
+                          </button>
+                        ))}
+                      </div>
 
-                            {/* Right: Action or Status Icon */}
-                            <div className="shrink-0 flex items-center">
-                              {isConnected ? (
+                      {/* Categorized Sections List */}
+                      <div className="space-y-8 pt-2">
+                        {displayedSections.map((section) => {
+                          const isExpanded =
+                            Boolean(expandedSections[section.id]) ||
+                            selectedCategory !== "all";
+                          const visiblePlugins = isExpanded
+                            ? section.plugins
+                            : section.plugins.slice(0, 6);
+                          const hasMore = section.plugins.length > 6;
+
+                          return (
+                            <div key={section.id} className="space-y-3">
+                              {/* Section Header */}
+                              <div className="flex items-center justify-between">
                                 <button
                                   type="button"
-                                  aria-label={`Manage ${item.name}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openPluginById(item.id, item.name, item.description);
-                                  }}
-                                  className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+                                  onClick={() => toggleSection(section.id)}
+                                  className="inline-flex items-center gap-1.5 text-base font-semibold text-neutral-900 dark:text-neutral-100 hover:opacity-80 transition-opacity group"
                                 >
-                                  <MoreHorizontal className="size-4" />
+                                  <span>{section.displayTitle}</span>
+                                  <ChevronRight
+                                    className={cn(
+                                      "size-4 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-200 transition-transform duration-200",
+                                      isExpanded && "rotate-90",
+                                    )}
+                                  />
                                 </button>
-                              ) : item.actionType === "permission" ? (
-                                <button
-                                  type="button"
-                                  aria-label="Account permission required"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openPluginById(item.id, item.name, item.description);
-                                  }}
-                                  className="grid size-7 place-items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-                                >
-                                  <UserCheck className="size-4" />
-                                </button>
-                              ) : item.actionType === "info" ? (
-                                <button
-                                  type="button"
-                                  aria-label={`About ${item.name}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openPluginById(item.id, item.name, item.description);
-                                  }}
-                                  className="grid size-7 place-items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-                                >
-                                  <Info className="size-4" />
-                                </button>
-                              ) : item.actionType === "menu" ? (
-                                <button
-                                  type="button"
-                                  aria-label={`Options for ${item.name}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openPluginById(item.id, item.name, item.description);
-                                  }}
-                                  className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
-                                >
-                                  <MoreHorizontal className="size-4" />
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  aria-label={`Add ${item.name}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const catalogPlugin = marketplaceCatalog.plugins[item.id];
-                                    if (catalogPlugin) {
-                                      void handleAuthorize(catalogPlugin);
-                                    } else {
-                                      openPluginById(item.id, item.name, item.description);
-                                    }
-                                  }}
-                                  className="grid size-7 place-items-center text-neutral-700 dark:text-neutral-300 hover:scale-110 active:scale-95 transition-transform"
-                                >
-                                  <Plus className="size-4" />
-                                </button>
-                              )}
+                                {hasMore && selectedCategory === "all" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSection(section.id)}
+                                    className="text-xs font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+                                  >
+                                    {isExpanded
+                                      ? "Show less"
+                                      : `See all (${section.plugins.length})`}
+                                  </button>
+                                ) : null}
+                              </div>
+
+                              {/* 2-Column Grid */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3.5">
+                                {visiblePlugins.map((plugin) => {
+                                  const isConnected = connectedIds.has(plugin.id);
+                                  const isStarting = startingPluginId === plugin.id;
+                                  const brandIcon = getPluginBrandIcon(plugin.id, 24);
+
+                                  return (
+                                    <div
+                                      key={plugin.id}
+                                      onClick={() =>
+                                        openPluginById(plugin.id, plugin.name, plugin.description)
+                                      }
+                                      className="flex items-center justify-between p-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer group"
+                                    >
+                                      {/* Left: Logo & Text */}
+                                      <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
+                                        <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
+                                          {brandIcon || (
+                                            <PluginMark
+                                              name={plugin.name}
+                                              iconUrl={plugin.iconUrl}
+                                              size={24}
+                                            />
+                                          )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                                            {stripCursorText(plugin.name) || plugin.name}
+                                          </h3>
+                                          <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
+                                            {stripCursorText(plugin.description)}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* Right: Action or Status */}
+                                      <div
+                                        className="shrink-0 flex items-center"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {isConnected ? (
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <button
+                                                type="button"
+                                                aria-label={`Options for ${plugin.name}`}
+                                                className="grid size-7 place-items-center text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                                              >
+                                                <MoreHorizontal className="size-4" />
+                                              </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent
+                                              align="end"
+                                              className="w-40 rounded-xl"
+                                            >
+                                              <DropdownMenuItem
+                                                onClick={() =>
+                                                  openPluginById(
+                                                    plugin.id,
+                                                    plugin.name,
+                                                    plugin.description,
+                                                  )
+                                                }
+                                              >
+                                                Details
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem
+                                                onClick={() => handleRemoveByPluginId(plugin.id)}
+                                                className="text-red-600 focus:text-red-600"
+                                              >
+                                                Disconnect
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        ) : isStarting ? (
+                                          <Loader2 className="size-4 animate-spin text-neutral-400" />
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            aria-label={`Add ${plugin.name}`}
+                                            onClick={() => void handleAuthorize(plugin)}
+                                            className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:scale-110 active:scale-95 transition-all"
+                                          >
+                                            <Plus className="size-4" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    /* Personal View */
+                    <div className="space-y-6 pt-4">
+                      <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-4">
+                        <div>
+                          <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                            Personal & Custom Plugins
+                          </h2>
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                            Connect custom integrations, enterprise MCP endpoints, and workspace tools
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCustomAddPlugin({
+                              id: "",
+                              name: "",
+                              description: "",
+                              author: "",
+                              iconUrl: "",
+                              category: "Custom",
+                              installed: false,
+                            })
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3.5 py-1.5 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 shadow-xs transition-colors"
+                        >
+                          <Plus className="size-3.5" />
+                          <span>Add custom</span>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3.5">
+                        {personalPlugins.map((plugin) => {
+                          const isConnected = connectedIds.has(plugin.id);
+                          const isStarting = startingPluginId === plugin.id;
+                          const brandIcon = getPluginBrandIcon(plugin.id, 24);
+
+                          return (
+                            <div
+                              key={plugin.id}
+                              onClick={() =>
+                                openPluginById(plugin.id, plugin.name, plugin.description)
+                              }
+                              className="flex items-center justify-between p-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer group"
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
+                                <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
+                                  {brandIcon || (
+                                    <PluginMark
+                                      name={plugin.name}
+                                      iconUrl={plugin.iconUrl}
+                                      size={24}
+                                    />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                                    {stripCursorText(plugin.name) || plugin.name}
+                                  </h3>
+                                  <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
+                                    {stripCursorText(plugin.description)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div
+                                className="shrink-0 flex items-center"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {isConnected ? (
+                                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                    Active
+                                  </span>
+                                ) : isStarting ? (
+                                  <Loader2 className="size-4 animate-spin text-neutral-400" />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    aria-label={`Add ${plugin.name}`}
+                                    onClick={() => void handleAuthorize(plugin)}
+                                    className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:scale-110 active:scale-95 transition-all"
+                                  >
+                                    <Plus className="size-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </>
               )}
             </div>
