@@ -54,23 +54,6 @@ import {
   usePluginConnections,
   type PluginConnection,
 } from "./use-plugin-connections";
-import {
-  getPluginBrandIcon,
-  GmailIcon,
-  GoogleDriveIcon,
-  HealthIcon,
-  GithubBrandIcon,
-  SupabaseBrandIcon,
-  OutlookBrandIcon,
-  NotionBrandIcon,
-  LinearBrandIcon,
-  VercelBrandIcon,
-  HuggingFaceBrandIcon,
-  MixpanelBrandIcon,
-  LangChainBrandIcon,
-  BrowserToolsBrandIcon,
-  MicrosoftBrandIcon,
-} from "./plugin-brand-icons";
 import type { MarketplacePlugin } from "./types";
 
 type TopTab = "plugins" | "skills";
@@ -80,20 +63,20 @@ type FilterScope = "public" | "personal";
 interface InstalledItemDefinition {
   id: string;
   name: string;
-  icon: React.ReactNode;
+  iconUrl: string;
 }
 
 const DEFAULT_INSTALLED_ROW_ICONS: InstalledItemDefinition[] = [
-  { id: "browser-use", name: "Browser Use", icon: <BrowserToolsBrandIcon size={26} /> },
-  { id: "hugging-face", name: "Hugging Face", icon: <HuggingFaceBrandIcon size={26} /> },
-  { id: "linear", name: "Linear", icon: <LinearBrandIcon size={26} /> },
-  { id: "vercel", name: "Vercel", icon: <VercelBrandIcon size={26} /> },
-  { id: "supabase", name: "Supabase", icon: <SupabaseBrandIcon size={26} /> },
-  { id: "notion", name: "Notion", icon: <NotionBrandIcon size={26} /> },
-  { id: "github", name: "GitHub", icon: <GithubBrandIcon size={26} /> },
-  { id: "mixpanel", name: "Mixpanel", icon: <MixpanelBrandIcon size={26} /> },
-  { id: "health", name: "Health", icon: <HealthIcon size={26} /> },
-  { id: "gmail", name: "Gmail", icon: <GmailIcon size={26} /> },
+  { id: "1password", name: "1Password", iconUrl: "https://cdn.clauxen.com/plugins/icons/1password.png" },
+  { id: "hugging-face", name: "Hugging Face", iconUrl: "https://cdn.clauxen.com/plugins/icons/hugging-face.png" },
+  { id: "linear", name: "Linear", iconUrl: "https://cdn.clauxen.com/plugins/icons/linear.png" },
+  { id: "vercel", name: "Vercel", iconUrl: "https://cdn.clauxen.com/plugins/icons/vercel.png" },
+  { id: "supabase", name: "Supabase", iconUrl: "https://cdn.clauxen.com/plugins/icons/supabase.png" },
+  { id: "notion", name: "Notion", iconUrl: "https://cdn.clauxen.com/plugins/icons/notion.png" },
+  { id: "github", name: "GitHub", iconUrl: "https://cdn.clauxen.com/plugins/icons/github.png" },
+  { id: "mixpanel", name: "Mixpanel", iconUrl: "https://cdn.clauxen.com/plugins/icons/mixpanel.png" },
+  { id: "health", name: "Health", iconUrl: "https://cdn.clauxen.com/plugins/icons/health.png" },
+  { id: "gmail", name: "Gmail", iconUrl: "https://cdn.clauxen.com/plugins/icons/gmail.png" },
 ];
 
 const CATEGORY_TABS = [
@@ -209,15 +192,13 @@ export function MarketplaceView() {
     return allPlugins.filter((plugin) => pluginMatches(plugin, needle));
   }, [allPlugins, query]);
 
-  // Personal/custom plugins
+  // User added custom plugins
+  const [customPlugins, setCustomPlugins] = useState<MarketplacePlugin[]>([]);
+
+  // Personal/custom plugins: only custom ones created/added by user
   const personalPlugins = useMemo(() => {
-    return allPlugins.filter(
-      (plugin) =>
-        connectedIds.has(plugin.id) ||
-        plugin.category === "Infrastructure" ||
-        plugin.category === "Agent Orchestration",
-    );
-  }, [allPlugins, connectedIds]);
+    return customPlugins;
+  }, [customPlugins]);
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -368,7 +349,7 @@ export function MarketplaceView() {
         id: item.id,
         name: item.name,
         description: catalogItem?.description || "Ready to connect to your workspace.",
-        iconUrl: catalogItem?.iconUrl || "",
+        iconUrl: item.iconUrl || catalogItem?.iconUrl || "",
         conn: null,
       };
     });
@@ -526,13 +507,11 @@ export function MarketplaceView() {
                 {installedList.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between py-3.5 px-2 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 rounded-xl transition-colors"
+                    className="flex items-center justify-between py-3.5 px-1 transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="size-10 rounded-xl flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                        {getPluginBrandIcon(item.id, 24) || (
-                          <PluginMark name={item.name} iconUrl={item.iconUrl} size={28} />
-                        )}
+                        <PluginMark name={item.name} iconUrl={item.iconUrl} size={28} />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -635,16 +614,14 @@ export function MarketplaceView() {
                         <div
                           key={plugin.id}
                           onClick={() => openPluginById(plugin.id, plugin.name, plugin.description)}
-                          className="flex items-center justify-between p-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer group"
+                          className="flex items-center justify-between py-2 px-1 cursor-pointer group transition-colors"
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
                             <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                              {getPluginBrandIcon(plugin.id, 24) || (
-                                <PluginMark name={plugin.name} iconUrl={plugin.iconUrl} size={24} />
-                              )}
+                              <PluginMark name={plugin.name} iconUrl={plugin.iconUrl} size={24} />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate group-hover:text-black dark:group-hover:text-white transition-colors">
                                 {stripCursorText(plugin.name) || plugin.name}
                               </h3>
                               <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
@@ -696,15 +673,32 @@ export function MarketplaceView() {
 
                     {/* Horizontal Squircle App Icons Row */}
                     <div className="flex items-center gap-3 overflow-x-auto py-2 scrollbar-hide">
-                      {DEFAULT_INSTALLED_ROW_ICONS.map((item) => (
+                      {(connections.length > 0
+                        ? connections.map((conn) => ({
+                            id: conn.pluginId,
+                            name: conn.pluginName || conn.pluginId,
+                            iconUrl:
+                              conn.pluginIconUrl ||
+                              `https://cdn.clauxen.com/plugins/icons/${conn.pluginId}.png`,
+                          }))
+                        : DEFAULT_INSTALLED_ROW_ICONS
+                      ).map((item) => (
                         <button
                           key={item.id}
                           type="button"
                           onClick={() => openPluginById(item.id, item.name)}
                           aria-label={`View ${item.name}`}
-                          className="size-10 rounded-xl flex items-center justify-center shrink-0 border border-neutral-200/70 dark:border-neutral-800/80 bg-white dark:bg-neutral-900 hover:shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                          className="size-10 rounded-xl flex items-center justify-center shrink-0 border border-neutral-200/70 dark:border-neutral-800/80 bg-white dark:bg-neutral-900 hover:shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] overflow-hidden"
                         >
-                          {item.icon}
+                          <img
+                            src={item.iconUrl}
+                            alt={item.name}
+                            className="size-full object-contain"
+                            loading="lazy"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = `/cdn/plugins/icons/${item.id}.png`;
+                            }}
+                          />
                         </button>
                       ))}
                     </div>
@@ -805,7 +799,6 @@ export function MarketplaceView() {
                                 {visiblePlugins.map((plugin) => {
                                   const isConnected = connectedIds.has(plugin.id);
                                   const isStarting = startingPluginId === plugin.id;
-                                  const brandIcon = getPluginBrandIcon(plugin.id, 24);
 
                                   return (
                                     <div
@@ -813,21 +806,19 @@ export function MarketplaceView() {
                                       onClick={() =>
                                         openPluginById(plugin.id, plugin.name, plugin.description)
                                       }
-                                      className="flex items-center justify-between p-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer group"
+                                      className="flex items-center justify-between py-2 px-1 cursor-pointer group transition-colors"
                                     >
                                       {/* Left: Logo & Text */}
                                       <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
                                         <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                                          {brandIcon || (
-                                            <PluginMark
-                                              name={plugin.name}
-                                              iconUrl={plugin.iconUrl}
-                                              size={24}
-                                            />
-                                          )}
+                                          <PluginMark
+                                            name={plugin.name}
+                                            iconUrl={plugin.iconUrl}
+                                            size={24}
+                                          />
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                                          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate group-hover:text-black dark:group-hover:text-white transition-colors">
                                             {stripCursorText(plugin.name) || plugin.name}
                                           </h3>
                                           <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
@@ -922,71 +913,76 @@ export function MarketplaceView() {
                               installed: false,
                             })
                           }
-                          className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3.5 py-1.5 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 shadow-xs transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3.5 py-1.5 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:opacity-80 shadow-xs transition-opacity"
                         >
                           <Plus className="size-3.5" />
                           <span>Add custom</span>
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3.5">
-                        {personalPlugins.map((plugin) => {
-                          const isConnected = connectedIds.has(plugin.id);
-                          const isStarting = startingPluginId === plugin.id;
-                          const brandIcon = getPluginBrandIcon(plugin.id, 24);
+                      {personalPlugins.length === 0 ? (
+                        <div className="py-20 text-center">
+                          <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
+                            No Plugins Found
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3.5">
+                          {personalPlugins.map((plugin) => {
+                            const isConnected = connectedIds.has(plugin.id);
+                            const isStarting = startingPluginId === plugin.id;
 
-                          return (
-                            <div
-                              key={plugin.id}
-                              onClick={() =>
-                                openPluginById(plugin.id, plugin.name, plugin.description)
-                              }
-                              className="flex items-center justify-between p-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer group"
-                            >
-                              <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
-                                <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                                  {brandIcon || (
+                            return (
+                              <div
+                                key={plugin.id}
+                                onClick={() =>
+                                  openPluginById(plugin.id, plugin.name, plugin.description)
+                                }
+                                className="flex items-center justify-between py-2 px-1 cursor-pointer group transition-colors"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
+                                  <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
                                     <PluginMark
                                       name={plugin.name}
                                       iconUrl={plugin.iconUrl}
                                       size={24}
                                     />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate group-hover:text-black dark:group-hover:text-white transition-colors">
+                                      {stripCursorText(plugin.name) || plugin.name}
+                                    </h3>
+                                    <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
+                                      {stripCursorText(plugin.description)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div
+                                  className="shrink-0 flex items-center"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {isConnected ? (
+                                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                      Active
+                                    </span>
+                                  ) : isStarting ? (
+                                    <Loader2 className="size-4 animate-spin text-neutral-400" />
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      aria-label={`Add ${plugin.name}`}
+                                      onClick={() => void handleAuthorize(plugin)}
+                                      className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:scale-110 active:scale-95 transition-all"
+                                    >
+                                      <Plus className="size-4" />
+                                    </button>
                                   )}
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
-                                    {stripCursorText(plugin.name) || plugin.name}
-                                  </h3>
-                                  <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
-                                    {stripCursorText(plugin.description)}
-                                  </p>
-                                </div>
                               </div>
-                              <div
-                                className="shrink-0 flex items-center"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {isConnected ? (
-                                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                                    Active
-                                  </span>
-                                ) : isStarting ? (
-                                  <Loader2 className="size-4 animate-spin text-neutral-400" />
-                                ) : (
-                                  <button
-                                    type="button"
-                                    aria-label={`Add ${plugin.name}`}
-                                    onClick={() => void handleAuthorize(plugin)}
-                                    className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:scale-110 active:scale-95 transition-all"
-                                  >
-                                    <Plus className="size-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </>

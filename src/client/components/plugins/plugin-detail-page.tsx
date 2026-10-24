@@ -27,7 +27,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PluginMark } from "./plugin-mark";
-import { getPluginBrandIcon } from "./plugin-brand-icons";
 import pluginDetailsDataset from "./plugin-details-dataset.json";
 import { marketplaceCatalog } from "./catalog";
 import type { MarketplacePlugin } from "./types";
@@ -154,8 +153,6 @@ export function PluginDetailPage({
     installed: connected,
   };
 
-  const brandIcon = getPluginBrandIcon(data.id, 32);
-
   return (
     <div className="plugin-detail-page mx-auto w-full max-w-[820px] px-5 sm:px-8 py-5 text-neutral-900 dark:text-neutral-100 font-sans select-none animate-in fade-in duration-200">
       {/* Top Breadcrumb Nav */}
@@ -178,9 +175,7 @@ export function PluginDetailPage({
         {/* Left: Icon & Title */}
         <div className="flex items-center gap-4 min-w-0">
           <div className="size-14 rounded-2xl flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-2 shadow-xs overflow-hidden">
-            {brandIcon || (
-              <PluginMark name={data.name} iconUrl={data.iconUrl || undefined} size={36} />
-            )}
+            <PluginMark name={data.name} iconUrl={data.iconUrl || undefined} size={40} />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100 truncate">
@@ -316,9 +311,7 @@ export function PluginDetailPage({
           {data.apps.map((app, idx) => (
             <div key={idx} className="flex items-center gap-3.5 py-3.5">
               <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                {brandIcon || (
-                  <PluginMark name={app.name} iconUrl={data.iconUrl || undefined} size={24} />
-                )}
+                <PluginMark name={app.name} iconUrl={app.iconUrl || data.iconUrl || undefined} size={24} />
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
