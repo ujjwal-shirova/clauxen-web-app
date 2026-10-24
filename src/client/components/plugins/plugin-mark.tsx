@@ -18,9 +18,19 @@ export function PluginMark({
   className,
 }: PluginMarkProps) {
   const [failed, setFailed] = useState(false);
+  const [src, setSrc] = useState(iconUrl);
   const letter = name.trim().charAt(0).toUpperCase() || "?";
   const brandIcon = getPluginBrandIcon(name, Math.round(size * 0.7));
-  const showImage = Boolean(iconUrl) && !failed;
+  const showImage = Boolean(src) && !failed;
+
+  const handleError = () => {
+    if (src?.startsWith("https://cdn.clauxen.com/")) {
+      const localPath = src.replace("https://cdn.clauxen.com", "/cdn");
+      setSrc(localPath);
+    } else {
+      setFailed(true);
+    }
+  };
 
   return (
     <span
@@ -34,16 +44,15 @@ export function PluginMark({
       {brandIcon ? (
         brandIcon
       ) : showImage ? (
-        // Remote marketplace artwork; next/image would need every CDN host.
         <img
-          src={iconUrl}
+          src={src}
           alt=""
           width={size}
           height={size}
           loading="lazy"
           decoding="async"
           className="size-full object-cover"
-          onError={() => setFailed(true)}
+          onError={handleError}
         />
       ) : (
         letter
