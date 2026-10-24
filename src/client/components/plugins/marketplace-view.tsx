@@ -7,18 +7,26 @@ import React, {
   useState,
 } from "react";
 import {
+  ArrowLeft,
   Check,
+  ChevronDown,
+  ChevronRight,
   ExternalLink,
+  Info,
   Layers,
   Loader2,
-  Plug,
+  Lock,
+  MoreHorizontal,
   Plus,
   Search,
+  Settings,
   ShieldCheck,
-  Sparkles,
   Trash2,
+  UserCheck,
+  Wrench,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -26,12 +34,19 @@ import { useToast } from "@/hooks/use-toast";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   marketplaceCatalog,
   pluginMatches,
   pluginsByIds,
 } from "./catalog";
-import { PluginCard } from "./plugin-card";
 import { PluginDetailDialog } from "./plugin-detail-dialog";
+import { AddPluginDialog } from "./add-plugin-dialog";
+import { PluginDetailPage } from "./plugin-detail-page";
 import { PluginMark } from "./plugin-mark";
 import { stripCursorText } from "./plugin-copy";
 import {
@@ -39,46 +54,143 @@ import {
   usePluginConnections,
   type PluginConnection,
 } from "./use-plugin-connections";
+import {
+  getPluginBrandIcon,
+  GmailIcon,
+  GoogleDriveIcon,
+  HealthIcon,
+  GithubBrandIcon,
+  SupabaseBrandIcon,
+  OutlookBrandIcon,
+  NotionBrandIcon,
+  LinearBrandIcon,
+  VercelBrandIcon,
+  HuggingFaceBrandIcon,
+  MixpanelBrandIcon,
+  LangChainBrandIcon,
+  BrowserToolsBrandIcon,
+  MicrosoftBrandIcon,
+} from "./plugin-brand-icons";
 import type { MarketplacePlugin } from "./types";
 
-type ViewTab = "marketplace" | "installed";
+type TopTab = "plugins" | "skills";
+type ViewMode = "marketplace" | "installed" | "detail";
+type FilterScope = "public" | "personal";
 
-type CategoryFilter =
-  | "all"
-  | "featured"
-  | "infrastructure"
-  | "productivity"
-  | "data"
-  | "orchestration"
-  | "communication"
-  | "finance";
+interface PopularItemDefinition {
+  id: string;
+  name: string;
+  description: string;
+  actionType: "permission" | "info" | "menu" | "add";
+  icon: React.ReactNode;
+}
 
-const CATEGORIES: Array<{ id: CategoryFilter; label: string }> = [
-  { id: "all", label: "All plugins" },
-  { id: "featured", label: "Featured" },
-  { id: "infrastructure", label: "Infrastructure & Dev" },
-  { id: "productivity", label: "Productivity" },
-  { id: "data", label: "Data & Analytics" },
-  { id: "orchestration", label: "Agent Orchestration" },
-  { id: "communication", label: "Communication" },
-  { id: "finance", label: "Finance & Payments" },
+const POPULAR_GRID_ITEMS: PopularItemDefinition[] = [
+  {
+    id: "gmail",
+    name: "Gmail",
+    description: "Read and manage Gmail",
+    actionType: "permission",
+    icon: <GmailIcon size={24} />,
+  },
+  {
+    id: "google-drive",
+    name: "Google Drive",
+    description: "Drive, Docs, Sheets or Slides",
+    actionType: "permission",
+    icon: <GoogleDriveIcon size={24} />,
+  },
+  {
+    id: "health",
+    name: "Health",
+    description: "Explore your health data in Clauxen",
+    actionType: "info",
+    icon: <HealthIcon size={24} />,
+  },
+  {
+    id: "github",
+    name: "GitHub",
+    description: "Triage PRs, issues, CI, and publish flows",
+    actionType: "menu",
+    icon: <GithubBrandIcon size={24} />,
+  },
+  {
+    id: "supabase",
+    name: "Supabase",
+    description: "Manage and query databases",
+    actionType: "menu",
+    icon: <SupabaseBrandIcon size={24} />,
+  },
+  {
+    id: "outlook",
+    name: "Outlook Email",
+    description: "Triage Outlook inboxes",
+    actionType: "add",
+    icon: <OutlookBrandIcon size={24} />,
+  },
 ];
 
-const INITIAL_DISPLAY_COUNT = 36;
-const PAGE_SIZE = 36;
+interface InstalledItemDefinition {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+}
+
+const DEFAULT_INSTALLED_ROW_ICONS: InstalledItemDefinition[] = [
+  { id: "browser", name: "Browser Tools", icon: <BrowserToolsBrandIcon size={26} /> },
+  { id: "huggingface", name: "Hugging Face", icon: <HuggingFaceBrandIcon size={26} /> },
+  { id: "linear", name: "Linear", icon: <LinearBrandIcon size={26} /> },
+  { id: "vercel", name: "Vercel", icon: <VercelBrandIcon size={26} /> },
+  { id: "supabase", name: "Supabase", icon: <SupabaseBrandIcon size={26} /> },
+  { id: "notion", name: "Notion", icon: <NotionBrandIcon size={26} /> },
+  { id: "github", name: "GitHub", icon: <GithubBrandIcon size={26} /> },
+  { id: "mixpanel", name: "Mixpanel", icon: <MixpanelBrandIcon size={26} /> },
+  { id: "langchain", name: "LangChain", icon: <LangChainBrandIcon size={26} /> },
+  { id: "microsoft", name: "Microsoft 365", icon: <MicrosoftBrandIcon size={26} /> },
+];
 
 export function MarketplaceView() {
+  const router = useRouter();
   const isMobile = useIsMobile();
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<ViewTab>("marketplace");
-  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("all");
+  const [topTab, setTopTab] = useState<TopTab>("plugins");
+  const [viewMode, setViewMode] = useState<ViewMode>("marketplace");
+  const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
+  const [filterScope, setFilterScope] = useState<FilterScope>("public");
   const [query, setQuery] = useState("");
-  const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
 
-  // Pop-up container state: the selected plugin detail modal.
+  // Sync URL query (?p=... or ?id=...) on mount & popstate
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const p =
+        new URLSearchParams(window.location.search).get("p") ||
+        new URLSearchParams(window.location.search).get("id");
+      if (p) {
+        setSelectedPluginId(p);
+        setViewMode("detail");
+      }
+    }
+
+    const onPopState = () => {
+      const p =
+        new URLSearchParams(window.location.search).get("p") ||
+        new URLSearchParams(window.location.search).get("id");
+      if (p) {
+        setSelectedPluginId(p);
+        setViewMode("detail");
+      } else {
+        setSelectedPluginId(null);
+        setViewMode("marketplace");
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   const [detailPlugin, setDetailPlugin] = useState<MarketplacePlugin | null>(null);
+  const [customAddPlugin, setCustomAddPlugin] = useState<MarketplacePlugin | null>(null);
   const [startingPluginId, setStartingPluginId] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -120,72 +232,46 @@ export function MarketplaceView() {
     [],
   );
 
-  const featuredPluginIds = useMemo(
-    () =>
-      marketplaceCatalog.sections.find((s) => s.id === "featured")?.pluginIds ??
-      [],
+  // Search filtered plugins across catalog
+  const filteredSearchPlugins = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return [];
+    return allPlugins.filter((plugin) => pluginMatches(plugin, needle));
+  }, [allPlugins, query]);
+
+  // Personal/custom plugins
+  const personalPlugins = useMemo(() => {
+    return allPlugins.filter(
+      (plugin) =>
+        connectedIds.has(plugin.id) ||
+        plugin.category === "Infrastructure" ||
+        plugin.category === "Agent Orchestration",
+    );
+  }, [allPlugins, connectedIds]);
+
+  const openPluginById = useCallback(
+    (pluginId: string, fallbackName?: string, fallbackDescription?: string) => {
+      setAddError(null);
+      setSelectedPluginId(pluginId);
+      setViewMode("detail");
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("p", pluginId);
+        window.history.pushState(null, "", url.toString());
+      }
+    },
     [],
   );
 
-  const featuredPlugins = useMemo(
-    () => pluginsByIds(featuredPluginIds),
-    [featuredPluginIds],
-  );
-
-  // Filtered plugins based on search & category
-  const filteredPlugins = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-
-    return allPlugins.filter((plugin) => {
-      // Search filter
-      if (needle && !pluginMatches(plugin, needle)) {
-        return false;
-      }
-
-      // Category filter
-      if (selectedCategory === "all") return true;
-      if (selectedCategory === "featured") {
-        return (
-          featuredPluginIds.includes(plugin.id) ||
-          plugin.category === "Featured"
-        );
-      }
-      if (selectedCategory === "infrastructure") {
-        return /infrastructure/i.test(plugin.category);
-      }
-      if (selectedCategory === "productivity") {
-        return /productivity|scheduling|canvas|documents/i.test(plugin.category);
-      }
-      if (selectedCategory === "data") {
-        return /data|analytics|research/i.test(plugin.category);
-      }
-      if (selectedCategory === "orchestration") {
-        return /orchestration/i.test(plugin.category);
-      }
-      if (selectedCategory === "communication") {
-        return /inbox|collaboration|support|sales/i.test(plugin.category);
-      }
-      if (selectedCategory === "finance") {
-        return /payments|finance/i.test(plugin.category);
-      }
-
-      return true;
-    });
-  }, [allPlugins, featuredPluginIds, query, selectedCategory]);
-
-  // Reset display count on filter change
-  useEffect(() => {
-    setDisplayCount(INITIAL_DISPLAY_COUNT);
-  }, [query, selectedCategory]);
-
-  const visiblePlugins = useMemo(
-    () => filteredPlugins.slice(0, displayCount),
-    [displayCount, filteredPlugins],
-  );
-
-  const openPlugin = useCallback((plugin: MarketplacePlugin) => {
-    setAddError(null);
-    setDetailPlugin(plugin);
+  const handleBackToMarketplace = useCallback(() => {
+    setSelectedPluginId(null);
+    setViewMode("marketplace");
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("p");
+      url.searchParams.delete("id");
+      window.history.pushState(null, "", url.pathname);
+    }
   }, []);
 
   const handleAuthorize = useCallback(
@@ -260,398 +346,501 @@ export function MarketplaceView() {
     [connections, handleRemoveConnection],
   );
 
-  // Search filtered installed connections
-  const filteredConnections = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return connections;
-    return connections.filter((c) =>
-      `${c.pluginName} ${c.pluginId}`.toLowerCase().includes(needle),
-    );
-  }, [connections, query]);
+  // Installed view list
+  const installedList = useMemo(() => {
+    if (connections.length > 0) {
+      return connections.map((conn) => {
+        const catalogItem = marketplaceCatalog.plugins[conn.pluginId];
+        return {
+          id: conn.pluginId,
+          name: conn.pluginName || conn.pluginId,
+          description: catalogItem?.description || "Connected to your workspace.",
+          iconUrl: conn.pluginIconUrl ?? catalogItem?.iconUrl ?? "",
+          conn,
+        };
+      });
+    }
+    // Fallback display list for empty state
+    return DEFAULT_INSTALLED_ROW_ICONS.slice(0, 6).map((item) => {
+      const catalogItem = marketplaceCatalog.plugins[item.id];
+      return {
+        id: item.id,
+        name: item.name,
+        description: catalogItem?.description || "Ready to connect to your workspace.",
+        iconUrl: catalogItem?.iconUrl || "",
+        conn: null,
+      };
+    });
+  }, [connections]);
 
   return (
-    <div className="plugin-marketplace relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans select-none">
+    <div className="plugin-marketplace relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg,#ffffff)] text-neutral-900 dark:text-neutral-100 font-sans select-none">
       {isMobile ? (
         <MobilePageHeader
-          title="Plugins"
+          title={
+            viewMode === "detail"
+              ? "Plugin Details"
+              : viewMode === "installed"
+                ? "Installed Plugins"
+                : "Plugins"
+          }
           onOpenMobileNav={openMobileNav}
           isNavOpen={!isSidebarCollapsed}
         />
       ) : null}
 
-      {/* Main Container */}
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1100px] flex-1 flex-col px-4 pt-4 sm:px-8 sm:pt-7">
-        {/* Header */}
-        <header className="shrink-0 space-y-4 pb-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-[22px] font-semibold tracking-[-0.03em] text-[var(--ui-fg)] sm:text-[24px]">
-                Plugins & Integrations
-              </h1>
-              <p className="mt-0.5 text-[13px] leading-5 text-[var(--ui-fg-muted)]">
-                Connect your workspace with third-party APIs, platforms, and
-                tools.
-              </p>
+      {/* Main Inner Container */}
+      <div
+        className="app-scrollbar flex-1 min-h-0 overflow-y-auto px-5 sm:px-10 pt-5 pb-20"
+        data-scroll-region=""
+      >
+        {viewMode === "detail" && selectedPluginId ? (
+          <PluginDetailPage
+            pluginId={selectedPluginId}
+            onBack={handleBackToMarketplace}
+            connected={connectedIds.has(selectedPluginId)}
+            isStarting={startingPluginId === selectedPluginId}
+            onConnect={handleAuthorize}
+            onDisconnect={handleRemoveByPluginId}
+          />
+        ) : (
+          <div className="mx-auto w-full max-w-[860px]">
+            {/* Top Bar Header */}
+          <div className="flex items-center justify-between pb-6">
+            {/* Top Switcher: Plugins | Skills */}
+            <div className="inline-flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setTopTab("plugins");
+                  setViewMode("marketplace");
+                }}
+                className={cn(
+                  "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors outline-none",
+                  topTab === "plugins"
+                    ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 shadow-none"
+                    : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100",
+                )}
+              >
+                Plugins
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTopTab("skills");
+                  router.push("/customize/skills");
+                }}
+                className={cn(
+                  "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors outline-none",
+                  topTab === "skills"
+                    ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 shadow-none"
+                    : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100",
+                )}
+              >
+                Skills
+              </button>
             </div>
 
-            {/* Top View Switcher: Marketplace vs Connected */}
-            <div className="flex items-center rounded-lg border border-[var(--ui-border)] bg-[var(--ui-muted-surface)] p-0.5 self-start sm:self-auto">
+            {/* Top Right Controls: Settings & Add Button */}
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setActiveTab("marketplace")}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1 text-[12.5px] font-medium transition-colors outline-none",
-                  activeTab === "marketplace"
-                    ? "bg-[var(--app-panel-bg)] text-[var(--ui-fg)] shadow-xs"
-                    : "text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]",
-                )}
+                onClick={() => router.push("/settings")}
+                aria-label="Settings"
+                className="grid size-8 place-items-center rounded-full text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
               >
-                <Layers className="size-3.5" />
-                <span>Marketplace</span>
+                <Settings className="size-4" />
               </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("installed")}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1 text-[12.5px] font-medium transition-colors outline-none",
-                  activeTab === "installed"
-                    ? "bg-[var(--app-panel-bg)] text-[var(--ui-fg)] shadow-xs"
-                    : "text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]",
-                )}
-              >
-                <Plug className="size-3.5" />
-                <span>Installed</span>
-                {connections.length > 0 ? (
-                  <span className="ml-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.2 text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    {connections.length}
-                  </span>
-                ) : null}
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 px-3.5 py-1.5 text-xs font-semibold shadow-xs hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors outline-none"
+                  >
+                    <span>Add</span>
+                    <ChevronDown className="size-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-48 rounded-xl border border-neutral-200/80 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1 shadow-lg text-xs"
+                >
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setCustomAddPlugin({
+                        id: "custom-mcp",
+                        name: "Custom MCP Plugin",
+                        description: "Connect to a custom Model Context Protocol server via remote endpoint.",
+                        author: "Custom Endpoint",
+                        iconUrl: "",
+                        category: "Developer Tools",
+                        installed: false,
+                      });
+                    }}
+                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 cursor-pointer font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Add MCP Server</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => router.push("/customize/skills")}
+                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 cursor-pointer font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                  >
+                    <Wrench className="size-3.5" />
+                    <span>Create Custom Skill</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
-          {/* Search Bar & Categories (Only in Marketplace tab) */}
-          {activeTab === "marketplace" ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <label className="relative flex h-8 min-w-[200px] max-w-[320px] flex-1 items-center">
-                  <Search
-                    className="pointer-events-none absolute left-2.5 size-3.5 text-[var(--ui-fg-placeholder)]"
-                    strokeWidth={1.75}
-                    aria-hidden
-                  />
-                  <input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search 380+ plugins, platforms, or tools…"
-                    aria-label="Search plugins"
-                    className="h-8 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-field-bg)] pl-8 pr-7 text-[12.5px] text-[var(--ui-fg)] placeholder:text-[var(--ui-fg-placeholder)] outline-none transition-colors focus:border-[var(--ui-field-focus-border)]"
-                  />
-                  {query ? (
-                    <button
-                      type="button"
-                      onClick={() => setQuery("")}
-                      aria-label="Clear search"
-                      className="absolute right-1.5 size-5 grid place-items-center rounded-md text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  ) : null}
-                </label>
-
-                {query ? (
-                  <span className="text-[12px] text-[var(--ui-fg-placeholder)] tabular-nums">
-                    {filteredPlugins.length} {filteredPlugins.length === 1 ? "result" : "results"}
-                  </span>
-                ) : null}
+          {/* Installed Drill-Down View */}
+          {viewMode === "installed" ? (
+            <div className="space-y-6 pt-2">
+              <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("marketplace")}
+                    aria-label="Back to plugins"
+                    className="grid size-8 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 transition-colors"
+                  >
+                    <ArrowLeft className="size-4" />
+                  </button>
+                  <div>
+                    <h1 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+                      Installed Plugins
+                    </h1>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                      {connections.length}{" "}
+                      {connections.length === 1 ? "plugin" : "plugins"} active on your workspace
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              {/* Category Pills */}
-              <div
-                className="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-hide border-b border-[var(--ui-border-subtle)] pb-2.5"
-                role="tablist"
-                aria-label="Plugin categories"
-              >
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={selectedCategory === cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={cn(
-                      "h-7 shrink-0 rounded-md px-2.5 text-[12px] font-medium transition-colors outline-none",
-                      selectedCategory === cat.id
-                        ? "bg-[var(--ui-fg)] text-[var(--app-panel-bg)] shadow-sm"
-                        : "text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
-                    )}
+              <div className="divide-y divide-neutral-100 dark:divide-neutral-800/80">
+                {installedList.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between py-3.5 px-2 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 rounded-xl transition-colors"
                   >
-                    {cat.label}
-                  </button>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="size-10 rounded-xl flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
+                        {getPluginBrandIcon(item.id, 24) || (
+                          <PluginMark name={item.name} iconUrl={item.iconUrl} size={28} />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                            {item.name}
+                          </h3>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>Active</span>
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openPluginById(item.id, item.name, item.description)}
+                        className="rounded-lg border border-neutral-200 dark:border-neutral-800 px-3 py-1 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                      >
+                        Details
+                      </button>
+                      {item.conn ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveConnection(item.conn)}
+                          aria-label={`Disconnect ${item.name}`}
+                          className="grid size-7 place-items-center rounded-lg text-neutral-400 hover:bg-red-500/10 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
           ) : (
-            /* Installed Tab Search */
-            <div className="flex items-center gap-2 border-b border-[var(--ui-border-subtle)] pb-2.5">
-              <label className="relative flex h-8 min-w-[200px] max-w-[320px] flex-1 items-center">
-                <Search
-                  className="pointer-events-none absolute left-2.5 size-3.5 text-[var(--ui-fg-placeholder)]"
-                  strokeWidth={1.75}
-                  aria-hidden
-                />
+            /* Main Marketplace Screen */
+            <div className="space-y-6">
+              {/* Title & Subtitle */}
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+                  Plugins
+                </h1>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                  Connect plugins to let Clauxen work across your tools
+                </p>
+              </div>
+
+              {/* Rounded-full Search Bar */}
+              <div className="relative flex items-center w-full rounded-full border border-neutral-200/90 dark:border-neutral-800 bg-white/70 dark:bg-neutral-900/60 px-4 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] focus-within:border-neutral-400 dark:focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-200/50 dark:focus-within:ring-neutral-800 transition-all">
+                <Search className="size-4 text-neutral-400 shrink-0 mr-2.5" />
                 <input
+                  type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Filter installed plugins…"
-                  aria-label="Filter installed plugins"
-                  className="h-8 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-field-bg)] pl-8 pr-7 text-[12.5px] text-[var(--ui-fg)] placeholder:text-[var(--ui-fg-placeholder)] outline-none transition-colors focus:border-[var(--ui-field-focus-border)]"
+                  placeholder="Search plugins"
+                  aria-label="Search plugins"
+                  className="w-full bg-transparent text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none"
                 />
                 {query ? (
                   <button
                     type="button"
                     onClick={() => setQuery("")}
                     aria-label="Clear search"
-                    className="absolute right-1.5 size-5 grid place-items-center rounded-md text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                    className="grid size-5 place-items-center rounded-full text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
                   >
-                    <X className="size-3" />
+                    <X className="size-3.5" />
                   </button>
                 ) : null}
-              </label>
-              <span className="text-[12px] text-[var(--ui-fg-placeholder)]">
-                {connections.length} connected
-              </span>
-            </div>
-          )}
-        </header>
+              </div>
 
-        {/* Scrollable Main Area */}
-        <div
-          className="app-scrollbar min-h-0 flex-1 overflow-y-auto pb-24"
-          data-scroll-region=""
-        >
-          {activeTab === "installed" ? (
-            /* =================== Installed / Connected View =================== */
-            <div className="py-2">
-              {filteredConnections.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="grid size-12 place-items-center rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-muted-surface)] text-[var(--ui-fg-muted)] shadow-xs">
-                    <Plug className="size-5" strokeWidth={1.75} />
-                  </div>
-                  <h2 className="mt-3.5 text-[15px] font-medium tracking-tight text-[var(--ui-fg)]">
-                    {query ? "No matching connected plugins" : "No plugins installed yet"}
-                  </h2>
-                  <p className="mt-1 max-w-sm text-[12.5px] leading-relaxed text-[var(--ui-fg-muted)]">
-                    {query
-                      ? `No connected plugin matches “${query}”.`
-                      : "Explore the marketplace to connect tools like Google Drive, Slack, GitHub, or Notion to your workspace."}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuery("");
-                      setActiveTab("marketplace");
-                    }}
-                    className={cn(appBtn.secondarySm, "mt-4 h-8 px-3.5 gap-1.5")}
-                  >
-                    <Layers className="size-3.5" />
-                    <span>Browse marketplace</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-                  {filteredConnections.map((conn) => {
-                    const plugin = marketplaceCatalog.plugins[conn.pluginId];
-                    const name = conn.pluginName || conn.pluginId;
-
-                    return (
-                      <div
-                        key={conn.id}
-                        className="flex flex-col justify-between rounded-xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-4 transition-all hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)]"
-                      >
-                        <div className="flex items-start gap-3">
-                          <PluginMark
-                            name={name}
-                            iconUrl={conn.pluginIconUrl ?? plugin?.iconUrl}
-                            size={40}
-                            className="rounded-lg border border-[var(--ui-border-subtle)] shrink-0"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <h3 className="truncate text-[14px] font-semibold tracking-[-0.01em] text-[var(--ui-fg)]">
-                              {name}
-                            </h3>
-                            <div className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-emerald-600 dark:text-emerald-400 font-medium">
-                              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              <span>Active on workspace</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 flex items-center justify-between border-t border-[var(--ui-border-subtle)] pt-3">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openPlugin(
-                                plugin ?? {
-                                  id: conn.pluginId,
-                                  name,
-                                  description: "",
-                                  author: "",
-                                  iconUrl: conn.pluginIconUrl ?? "",
-                                  category: "Plugin",
-                                  installed: true,
-                                },
-                              )
-                            }
-                            className="text-[12px] font-medium text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)] transition-colors"
-                          >
-                            Details
-                          </button>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleAuthorize(
-                                  plugin ?? {
-                                    id: conn.pluginId,
-                                    name,
-                                    description: "",
-                                    author: "",
-                                    iconUrl: conn.pluginIconUrl ?? "",
-                                    category: "Plugin",
-                                    installed: true,
-                                  },
-                                )
-                              }
-                              className={cn(appBtn.secondarySm, "h-7 px-2.5 text-[11.5px]")}
-                            >
-                              Reconnect
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveConnection(conn)}
-                              aria-label={`Disconnect ${name}`}
-                              className="size-7 grid place-items-center rounded-lg text-[var(--ui-fg-muted)] hover:bg-destructive/10 hover:text-destructive transition-colors"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            /* =================== Marketplace View =================== */
-            <div className="space-y-6 pt-1">
-              {/* Featured Highlight Section (only when on 'All' and not searching) */}
-              {!query && selectedCategory === "all" ? (
-                <section aria-labelledby="featured-plugins-heading" className="space-y-2.5">
-                  <div className="flex items-center gap-1.5 text-[13px] font-semibold tracking-tight text-[var(--ui-fg)]">
-                    <Sparkles className="size-3.5 text-amber-500" />
-                    <h2 id="featured-plugins-heading">Popular & Verified Integrations</h2>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-                    {featuredPlugins.map((plugin) => (
-                      <PluginCard
-                        key={`featured-${plugin.id}`}
-                        plugin={plugin}
-                        connected={connectedIds.has(plugin.id)}
-                        isStarting={startingPluginId === plugin.id}
-                        onOpen={openPlugin}
-                        onAdd={handleAuthorize}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-
-              {/* All / Category Grid */}
-              <section aria-labelledby="marketplace-grid-heading" className="space-y-2.5">
-                {!query && selectedCategory === "all" ? (
-                  <div className="flex items-center justify-between pt-2">
-                    <h2
-                      id="marketplace-grid-heading"
-                      className="text-[13px] font-semibold tracking-tight text-[var(--ui-fg)]"
-                    >
-                      All Integrations
-                    </h2>
-                    <span className="text-[11.5px] tabular-nums text-[var(--ui-fg-placeholder)]">
-                      {filteredPlugins.length} available
+              {/* Search Active View */}
+              {query.trim() ? (
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-neutral-500">
+                      Search results ({filteredSearchPlugins.length})
                     </span>
-                  </div>
-                ) : null}
-
-                {filteredPlugins.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-center">
-                    <div className="grid size-12 place-items-center rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-muted-surface)] text-[var(--ui-fg-muted)] shadow-xs">
-                      <Search className="size-5" strokeWidth={1.75} />
-                    </div>
-                    <h3 className="mt-3.5 text-[15px] font-medium tracking-tight text-[var(--ui-fg)]">
-                      No matching plugins
-                    </h3>
-                    <p className="mt-1 max-w-sm text-[12.5px] leading-relaxed text-[var(--ui-fg-muted)]">
-                      {query
-                        ? `Nothing found matching “${query}”. Try adjusting your search or category.`
-                        : "No plugins available in this category."}
-                    </p>
                     <button
                       type="button"
-                      onClick={() => {
-                        setQuery("");
-                        setSelectedCategory("all");
-                      }}
-                      className={cn(appBtn.secondarySm, "mt-4 h-8 px-3 text-[12px]")}
+                      onClick={() => setQuery("")}
+                      className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
                     >
-                      Reset filters
+                      Clear search
                     </button>
                   </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-                      {visiblePlugins.map((plugin) => (
-                        <PluginCard
+
+                  {filteredSearchPlugins.length === 0 ? (
+                    <div className="py-16 text-center text-neutral-500 text-sm">
+                      No plugins found matching &ldquo;{query}&rdquo;.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-2.5">
+                      {filteredSearchPlugins.slice(0, 40).map((plugin) => (
+                        <div
                           key={plugin.id}
-                          plugin={plugin}
-                          connected={connectedIds.has(plugin.id)}
-                          isStarting={startingPluginId === plugin.id}
-                          onOpen={openPlugin}
-                          onAdd={handleAuthorize}
-                        />
+                          onClick={() => openPluginById(plugin.id, plugin.name, plugin.description)}
+                          className="flex items-center justify-between p-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
+                            <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
+                              {getPluginBrandIcon(plugin.id, 22) || (
+                                <PluginMark name={plugin.name} iconUrl={plugin.iconUrl} size={24} />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                                {stripCursorText(plugin.name) || plugin.name}
+                              </h3>
+                              <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
+                                {stripCursorText(plugin.description)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="shrink-0">
+                            {connectedIds.has(plugin.id) ? (
+                              <MoreHorizontal className="size-4 text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors" />
+                            ) : (
+                              <Plus className="size-4 text-neutral-600 dark:text-neutral-400 hover:scale-110 transition-transform" />
+                            )}
+                          </div>
+                        </div>
                       ))}
                     </div>
+                  )}
+                </div>
+              ) : (
+                /* Default View: Installed Section & Popular Section */
+                <>
+                  {/* Installed Header & Icons Row */}
+                  <div className="space-y-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("installed")}
+                      className="inline-flex items-center gap-1 text-base font-semibold text-neutral-900 dark:text-neutral-100 hover:opacity-80 transition-opacity group"
+                    >
+                      <span>Installed</span>
+                      <ChevronRight className="size-4 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-200 transition-colors" />
+                    </button>
 
-                    {/* Load More Button */}
-                    {displayCount < filteredPlugins.length ? (
-                      <div className="flex justify-center pt-6 pb-2">
+                    {/* Horizontal Squircle App Icons Row */}
+                    <div className="flex items-center gap-3 overflow-x-auto py-2 scrollbar-hide">
+                      {DEFAULT_INSTALLED_ROW_ICONS.map((item) => (
                         <button
+                          key={item.id}
                           type="button"
-                          onClick={() =>
-                            setDisplayCount((prev) => prev + PAGE_SIZE)
-                          }
-                          className={cn(
-                            appBtn.secondarySm,
-                            "h-8 px-4 text-[12.5px] font-medium shadow-none hover:bg-[var(--ui-hover-wash)]",
-                          )}
+                          onClick={() => openPluginById(item.id, item.name)}
+                          aria-label={`View ${item.name}`}
+                          className="size-10 rounded-xl flex items-center justify-center shrink-0 border border-neutral-200/70 dark:border-neutral-800/80 bg-white dark:bg-neutral-900 hover:shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
                         >
-                          Show more integrations ({filteredPlugins.length - displayCount} remaining)
+                          {item.icon}
                         </button>
-                      </div>
-                    ) : null}
-                  </>
-                )}
-              </section>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Filter Scope Pills: Public | Personal */}
+                  <div className="flex items-center gap-1.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setFilterScope("public")}
+                      className={cn(
+                        "rounded-full px-3.5 py-1 text-xs font-semibold transition-colors outline-none",
+                        filterScope === "public"
+                          ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                          : "text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200",
+                      )}
+                    >
+                      Public
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilterScope("personal")}
+                      className={cn(
+                        "rounded-full px-3.5 py-1 text-xs font-medium transition-colors outline-none",
+                        filterScope === "personal"
+                          ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                          : "text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200",
+                      )}
+                    >
+                      Personal
+                    </button>
+                  </div>
+
+                  {/* Popular Section */}
+                  <div className="space-y-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setQuery(" ")}
+                      className="inline-flex items-center gap-1 text-base font-semibold text-neutral-900 dark:text-neutral-100 hover:opacity-80 transition-opacity group"
+                    >
+                      <span>Popular</span>
+                      <ChevronRight className="size-4 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-200 transition-colors" />
+                    </button>
+
+                    {/* 2-Column Popular List */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3.5">
+                      {POPULAR_GRID_ITEMS.map((item) => {
+                        const isConnected = connectedIds.has(item.id);
+
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => openPluginById(item.id, item.name, item.description)}
+                            className="flex items-center justify-between p-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer group"
+                          >
+                            {/* Left: App Logo & Details */}
+                            <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
+                              <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
+                                {item.icon}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                                  {item.name}
+                                </h3>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
+                                  {item.description}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Right: Action or Status Icon */}
+                            <div className="shrink-0 flex items-center">
+                              {isConnected ? (
+                                <button
+                                  type="button"
+                                  aria-label={`Manage ${item.name}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openPluginById(item.id, item.name, item.description);
+                                  }}
+                                  className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+                                >
+                                  <MoreHorizontal className="size-4" />
+                                </button>
+                              ) : item.actionType === "permission" ? (
+                                <button
+                                  type="button"
+                                  aria-label="Account permission required"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openPluginById(item.id, item.name, item.description);
+                                  }}
+                                  className="grid size-7 place-items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+                                >
+                                  <UserCheck className="size-4" />
+                                </button>
+                              ) : item.actionType === "info" ? (
+                                <button
+                                  type="button"
+                                  aria-label={`About ${item.name}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openPluginById(item.id, item.name, item.description);
+                                  }}
+                                  className="grid size-7 place-items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+                                >
+                                  <Info className="size-4" />
+                                </button>
+                              ) : item.actionType === "menu" ? (
+                                <button
+                                  type="button"
+                                  aria-label={`Options for ${item.name}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openPluginById(item.id, item.name, item.description);
+                                  }}
+                                  className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+                                >
+                                  <MoreHorizontal className="size-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  aria-label={`Add ${item.name}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const catalogPlugin = marketplaceCatalog.plugins[item.id];
+                                    if (catalogPlugin) {
+                                      void handleAuthorize(catalogPlugin);
+                                    } else {
+                                      openPluginById(item.id, item.name, item.description);
+                                    }
+                                  }}
+                                  className="grid size-7 place-items-center text-neutral-700 dark:text-neutral-300 hover:scale-110 active:scale-95 transition-transform"
+                                >
+                                  <Plus className="size-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
+      )}
       </div>
 
-      {/* Pop-up Container Dialog */}
+      {/* Pop-up Container Dialog: Details & Connect Modal */}
       <PluginDetailDialog
         plugin={detailPlugin}
         connected={detailPlugin ? connectedIds.has(detailPlugin.id) : false}
@@ -665,6 +854,18 @@ export function MarketplaceView() {
         }}
         onAdd={handleAuthorize}
         onRemove={handleRemoveByPluginId}
+      />
+
+      {/* Add Custom MCP Dialog */}
+      <AddPluginDialog
+        plugin={customAddPlugin}
+        mcpUrl={null}
+        connected={false}
+        error={null}
+        onOpenChange={(open) => {
+          if (!open) setCustomAddPlugin(null);
+        }}
+        onConfirm={handleAuthorize}
       />
     </div>
   );
