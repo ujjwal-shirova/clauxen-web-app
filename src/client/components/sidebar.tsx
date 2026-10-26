@@ -32,6 +32,7 @@ import {
   Keyboard,
 } from "@/components/ui/bootstrap-icon";
 import { SidebarToggleIcon } from "./icons";
+import { ClauxenLogo } from "./icons/clauxen-logo";
 import { cn } from "@/lib/utils";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
@@ -635,7 +636,7 @@ export function Sidebar({
             "transition-[width] duration-300 ease-in-out",
           !isMobileLayout && !sidebarReady && "transition-none",
           isMobileLayout &&
-            "w-[min(88vw,248px)] shadow-[12px_0_32px_rgba(24,24,27,0.08)]",
+            "w-[min(88vw,240px)] shadow-[12px_0_32px_rgba(24,24,27,0.08)]",
           isMobileLayout &&
             isCollapsed &&
             "pointer-events-none -translate-x-full",
@@ -646,14 +647,15 @@ export function Sidebar({
           !isMobileLayout && !isCollapsed && "h-full w-full min-w-0",
         )}
       >
-        <div
-          className={cn(
-            "ui-sidebar-top-bar relative flex h-14 shrink-0 items-center",
-            isCollapsed && !isMobileLayout && !isPeekPreview
-              ? "justify-center px-2"
-              : "justify-between px-3",
-          )}
-        >
+        <div className="ui-sidebar-top-bar relative flex h-12 shrink-0 items-center justify-between px-2.5">
+          <span
+            role="img"
+            aria-label="Clauxen"
+            className="cx-sidebar-logo flex size-8 shrink-0 items-center justify-center text-zinc-900 dark:text-zinc-100"
+          >
+            <ClauxenLogo size={22} />
+          </span>
+
           {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
             <ShortcutHint
               label="Toggle sidebar"
@@ -684,7 +686,7 @@ export function Sidebar({
                 setIsCollapsed(true);
               }}
               aria-label="Close menu"
-              className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
+              className="flex size-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
             >
               <X className="size-4" />
             </button>
@@ -881,7 +883,7 @@ export function Sidebar({
           <div
             className={cn(
               "space-y-px pb-1",
-              isCollapsed ? "flex flex-col items-center px-0" : "px-2",
+              isCollapsed ? "flex flex-col items-center px-0" : "px-2.5",
             )}
           >
             {/* Order: Pinned → Recent */}
@@ -1055,7 +1057,7 @@ export function Sidebar({
                     "menu-trigger-active group/login flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-black/[0.035] focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-lg",
                     isCollapsed
                       ? "size-8 shrink-0 justify-center !p-0"
-                      : "h-9.5 min-w-0 flex-1 justify-start gap-2.5 px-2",
+                      : "h-9.5 min-w-0 flex-1 justify-start gap-2.5 px-2.5",
                   )}
                 >
                   <span className="flex size-5 shrink-0 items-center justify-center text-zinc-500">
@@ -1091,7 +1093,7 @@ export function Sidebar({
                         "menu-trigger-active group/account flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-black/[0.035] data-[state=open]:bg-black/[0.05] focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-lg",
                         isCollapsed
                           ? "size-8 shrink-0 justify-center !p-0"
-                          : "h-9.5 min-w-0 flex-1 justify-start gap-2.5 px-2",
+                          : "h-9.5 min-w-0 flex-1 justify-start gap-2.5 px-2.5",
                       )}
                     >
                       <UserAvatarDisplay

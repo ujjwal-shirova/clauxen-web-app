@@ -13,14 +13,9 @@ import {
   ArrowUp,
   Check,
   ChevronDown,
-  Code2,
-  FileSpreadsheet,
-  FileText,
   Folder,
   FolderKanban,
-  Globe,
   Laptop,
-  Layers,
   LoaderCircle,
   Mic,
   Plus,
@@ -164,45 +159,6 @@ const TOOLBAR_PLUGIN_ICONS = [
   {
     id: "cloudflare",
     iconUrl: "https://cdn.clauxen.com/plugins/icons/cloudflare.png",
-  },
-] as const;
-
-const CAPABILITY_CHIPS = [
-  {
-    id: "deep-research",
-    label: "Deep Research",
-    icon: Telescope,
-    prompt: "",
-  },
-  {
-    id: "docs",
-    label: "Docs",
-    icon: FileText,
-    prompt: "Write a document about ",
-  },
-  {
-    id: "sheets",
-    label: "Sheets",
-    icon: FileSpreadsheet,
-    prompt: "Create a spreadsheet that ",
-  },
-  {
-    id: "slides",
-    label: "Slides",
-    icon: Layers,
-    prompt: "Create a presentation about ",
-  },
-  {
-    id: "code",
-    label: "Code",
-    icon: Code2,
-    prompt: "Help me build ",
-  },
-  {
-    id: "web",
-    label: "Web Search",
-    icon: Globe,
-    prompt: "Search the web for ",
   },
 ] as const;
 
@@ -1987,64 +1943,37 @@ export function PromptInput({
             </AnimatePresence>
           </div>
           {!isConversationStarted ? (
-            <>
-              <div data-prompt-toolbar="true" className="prompt-welcome-toolbar">
-                <div className="flex min-w-0 items-center gap-1">
-                  <ProjectSelectorPopover
-                    projectId={projectId}
-                    canOpen={requireAuthGate}
-                  />
-                  <AppHref href={APP_ROUTES.plugins} className="prompt-toolbar-link">
-                    <span className="prompt-toolbar-plugin-stack" aria-hidden>
-                      {TOOLBAR_PLUGIN_ICONS.map((plugin) => (
-                        <img
-                          key={plugin.id}
-                          src={plugin.iconUrl}
-                          alt=""
-                          width={18}
-                          height={18}
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ))}
-                    </span>
-                    <span>Plugins</span>
-                  </AppHref>
-                </div>
-                <AppHref
-                  href="/download"
-                  className="prompt-toolbar-link max-sm:hidden"
-                >
-                  <Laptop className="size-[15px] shrink-0" />
-                  <span>Use desktop app</span>
+            <div data-prompt-toolbar="true" className="prompt-welcome-toolbar">
+              <div className="flex min-w-0 items-center gap-1">
+                <ProjectSelectorPopover
+                  projectId={projectId}
+                  canOpen={requireAuthGate}
+                />
+                <AppHref href={APP_ROUTES.plugins} className="prompt-toolbar-link">
+                  <span className="prompt-toolbar-plugin-stack" aria-hidden>
+                    {TOOLBAR_PLUGIN_ICONS.map((plugin) => (
+                      <img
+                        key={plugin.id}
+                        src={plugin.iconUrl}
+                        alt=""
+                        width={18}
+                        height={18}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ))}
+                  </span>
+                  <span>Plugins</span>
                 </AppHref>
               </div>
-              <div className="prompt-capability-row" role="list">
-                {CAPABILITY_CHIPS.map((chip) => (
-                  <button
-                    key={chip.id}
-                    type="button"
-                    role="listitem"
-                    className="prompt-capability-chip"
-                    onClick={() => {
-                      if (chip.id === "deep-research") {
-                        if (!requireAuthGate()) return;
-                        setActiveInlineMode("deep-research");
-                      } else {
-                        syncDraftImmediate(chip.prompt);
-                      }
-                      requestAnimationFrame(() => {
-                        textareaRef.current?.focus({ preventScroll: true });
-                        scheduleResizeTextarea();
-                      });
-                    }}
-                  >
-                    <chip.icon className="size-[15px] shrink-0" />
-                    <span>{chip.label}</span>
-                  </button>
-                ))}
-              </div>
-            </>
+              <AppHref
+                href="/download"
+                className="prompt-toolbar-link max-sm:hidden"
+              >
+                <Laptop className="size-[15px] shrink-0" />
+                <span>Use desktop app</span>
+              </AppHref>
+            </div>
           ) : null}
         </div>
       </div>

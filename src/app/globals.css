@@ -5263,7 +5263,7 @@ button[data-speed-toggle][data-state="open"] {
 }
 
 .glass-sidebar-docked .ui-sidebar-content {
-  padding-inline: 6px;
+  padding: 12px 0 0;
 }
 
 .glass-sidebar-docked .clauxen-wordmark {
@@ -5290,7 +5290,9 @@ button[data-speed-toggle][data-state="open"] {
 
 .glass-sidebar-docked .ui-sidebar-menu-button,
 .glass-sidebar-docked .glass-sidebar-agent-menu-btn {
-  border-radius: 9px;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 10px;
   padding-inline: 10px;
   font-weight: 450;
 }
@@ -8747,7 +8749,7 @@ textarea.cx-field {
 
 /* Sidebar width, edge fade, plan scroller, gift preview, search ellipsis. */
 :root {
-  --app-sidebar-width: 248px;
+  --app-sidebar-width: 240px;
 }
 
 html[data-sidebar-resizing="1"] .app-sidebar-slot,
@@ -10765,9 +10767,9 @@ button.agent-ledger__row-head:hover {
 }
 
 .cx-sidebar .ui-sidebar-top-bar {
-  height: 56px !important;
-  min-height: 56px !important;
-  padding: 0 14px !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  padding: 0 10px !important;
 }
 
 .cx-sidebar .cx-logo-tile {
@@ -10804,7 +10806,7 @@ button.agent-ledger__row-head:hover {
   min-height: 34px !important;
   padding: 0 10px !important;
   border: 0 !important;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   background: transparent !important;
   box-shadow: none !important;
   color: var(--cx-sidebar-muted) !important;
@@ -11379,7 +11381,7 @@ nav.cx-sidebar {
 }
 
 /* ==========================================================================
-   Composer strip, capability chips, plus menu, contained shell, pricing.
+   Composer strip, plus menu, contained shell, pricing.
    ========================================================================== */
 
 /* Contained main sheet — inset on every side but the sidebar edge. */
@@ -11518,74 +11520,7 @@ nav.cx-sidebar {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-/* Capability chips */
-.prompt-capability-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  margin-top: 28px;
-}
-
-.prompt-capability-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 15px;
-  border: 1px solid rgba(20, 21, 26, 0.09);
-  border-radius: 999px;
-  background: #ffffff;
-  color: #3f3f46;
-  font-size: 13.5px;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.prompt-capability-chip:hover {
-  border-color: rgba(20, 21, 26, 0.16);
-  background: #fafaf9;
-  color: #18181b;
-}
-
-.prompt-capability-chip .bi {
-  color: #71717a;
-}
-
-.dark .prompt-capability-chip {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: #1c1c1f;
-  color: #d4d4d8;
-}
-
-.dark .prompt-capability-chip:hover {
-  background: #252529;
-  color: #fafafa;
-}
-
 @media (max-width: 640px) {
-  .prompt-capability-row {
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    overflow-x: auto;
-    margin-top: 20px;
-    padding-bottom: 2px;
-    scrollbar-width: none;
-  }
-
-  .prompt-capability-row::-webkit-scrollbar {
-    display: none;
-  }
-
-  .prompt-capability-chip {
-    flex: none;
-  }
-
   [data-prompt-root] .prompt-welcome-toolbar {
     width: calc(100% - 24px) !important;
   }
