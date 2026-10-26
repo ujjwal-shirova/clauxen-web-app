@@ -220,19 +220,10 @@ export function ChatViewPane({
     >
       {!hasConversation && !composerOnlyWelcome && !incognitoWelcome ? (
         <div className="new-chat-hero flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="new-chat-hero__inner m-auto flex w-full flex-col items-center px-4 py-6 sm:px-6">
-            <div className="flex flex-col items-center gap-3.5 text-center">
-              <ClauxenLogo
-                size={40}
-                className="text-zinc-400 dark:text-zinc-500 transition-colors"
-              />
-              <h2
-                className="new-chat-greeting w-full max-w-full text-center text-[var(--ui-fg)]"
-                suppressHydrationWarning
-              >
-                {greeting || "\u00a0"}
-              </h2>
-            </div>
+          <div className="new-chat-hero__inner m-auto flex w-full max-w-3xl flex-col items-center px-4 py-6 sm:px-6">
+            <h1 className="select-none text-4xl sm:text-[46px] font-extrabold tracking-tight text-neutral-900 dark:text-white mb-6">
+              CLAUXEN
+            </h1>
             <div className="w-full">{promptInput}</div>
           </div>
         </div>

@@ -11,18 +11,26 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDown,
   ArrowUp,
+  Box,
   Check,
   ChevronDown,
+  FileText,
   FolderKanban,
   LoaderCircle,
   Mic,
+  Monitor,
   Plus,
+  Presentation,
   SlidersHorizontal,
+  Sparkles,
   Square,
   Star,
+  Table,
   Telescope,
+  Wrench,
   X,
 } from "lucide-react";
+import { AppHref } from "@/components/app-href";
 import { cn } from "@/lib/utils";
 import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
 import {
@@ -1652,12 +1660,14 @@ export function PromptInput({
       return (
         <div className="prompt-welcome" data-prompt-welcome="true">
           <div className="prompt-welcome__input">
-            {renderTextareaField(placeholder, "py-1")}
+            {renderTextareaField(placeholder, "py-1.5")}
           </div>
-          <div className="prompt-welcome__bar">
-            {renderAddMenuButton()}
-            <div className="min-w-0 flex-1" />
+          <div className="prompt-welcome__bar flex items-center justify-between pt-1">
             <div className="flex items-center gap-1">
+              {renderAddMenuButton()}
+            </div>
+            <div className="flex items-center gap-2">
+              {renderModelSelector()}
               {renderMicButton()}
               {renderTrailingActions(true)}
             </div>
@@ -1963,24 +1973,75 @@ export function PromptInput({
             </AnimatePresence>
           </div>
           {!isConversationStarted ? (
-            <div
-              data-prompt-toolbar="true"
-              className="flex items-center justify-between px-1 pt-2.5 pb-0 text-zinc-600 bg-transparent border-0 shadow-none rounded-none"
-            >
-              <div className="flex items-center">
-                <ProjectSelectorPopover
-                  projectId={projectId}
-                  canOpen={requireAuthGate}
-                />
+            <div className="w-full flex flex-col items-center mt-3">
+              {/* Action row: Select project & Plugins on left, Use desktop app on right */}
+              <div className="w-full flex items-center justify-between px-1 text-[12.5px] text-zinc-600 dark:text-zinc-400">
+                <div className="flex items-center gap-2">
+                  <ProjectSelectorPopover
+                    projectId={projectId}
+                    canOpen={requireAuthGate}
+                  />
+                  <AppHref
+                    href="/plugins"
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[12.5px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+                  >
+                    <div className="flex items-center -space-x-1">
+                      <span className="size-3.5 rounded-xs bg-red-500/15 text-red-600 flex items-center justify-center text-[8px] font-bold">M</span>
+                      <span className="size-3.5 rounded-xs bg-amber-500/15 text-amber-600 flex items-center justify-center text-[8px] font-bold">D</span>
+                      <span className="size-3.5 rounded-xs bg-emerald-500/15 text-emerald-600 flex items-center justify-center text-[8px] font-bold">G</span>
+                    </div>
+                    <span>Plugins</span>
+                  </AppHref>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <AppHref
+                    href="/download"
+                    className="inline-flex h-7 items-center gap-1.5 text-[12px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                  >
+                    <Monitor className="size-3.5 text-zinc-400" />
+                    <span>Use desktop app</span>
+                  </AppHref>
+                </div>
               </div>
-              <div className="flex items-center gap-1 sm:gap-1.5">
-                {renderModelSelector()}
-                <ReasoningEffortSelector
-                  effort={homerReasoningEffort}
-                  onEffortChange={onHomerReasoningEffortChange}
-                />
-                <PermissionModePopover canOpen={requireAuthGate} />
+
+              {/* Suggestions chips */}
+              <div className="w-full mt-6 flex items-center justify-center gap-2 overflow-x-auto py-1 scrollbar-none">
+                {[
+                  { label: "3D Make", icon: Box, prompt: "Create a 3D model specification for a minimalist chair" },
+                  { label: "Slides", icon: Presentation, prompt: "Create a 5-slide deck outline on modern AI advancements" },
+                  { label: "Deep Research", icon: Telescope, prompt: "Deep research on multimodal video generation architectures" },
+                  { label: "Build", icon: Wrench, prompt: "Build a responsive web application dashboard" },
+                  { label: "Docs", icon: FileText, prompt: "Write a complete technical design document" },
+                  { label: "Sheets", icon: Table, prompt: "Create a financial projections and revenue model template" },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        syncDraftImmediate(item.prompt);
+                        textareaRef.current?.focus();
+                        scheduleResizeTextarea();
+                      }}
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-800/80 px-3.5 text-[12.5px] font-medium text-zinc-700 dark:text-zinc-200 shadow-2xs hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:border-black/[0.1] transition-all cursor-pointer"
+                    >
+                      <Icon className="size-3.5 text-zinc-400" strokeWidth={1.75} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* Explore inspiration */}
+              <AppHref
+                href="/library"
+                className="mt-8 inline-flex items-center gap-1.5 text-[12.5px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors cursor-pointer select-none"
+              >
+                <Sparkles className="size-3.5 text-zinc-400" />
+                <span>Explore inspiration</span>
+              </AppHref>
             </div>
           ) : null}
         </div>

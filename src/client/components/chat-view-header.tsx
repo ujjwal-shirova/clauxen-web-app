@@ -208,34 +208,16 @@ export function ChatViewHeader({
           ) : null}
         </div>
 
-        {/* Center: Chat / Collabry Mode Selector */}
+        {/* Center: Upgrade your plan pill */}
         <div className="pointer-events-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div
-            className="inline-flex h-9 items-center rounded-full bg-zinc-100 p-1 text-[13px] font-medium text-zinc-600 border border-black/[0.04]"
-            role="tablist"
-            aria-label="Composer mode"
+          <button
+            type="button"
+            onClick={onUpgradeClick}
+            className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-blue-50/90 dark:bg-blue-950/40 px-3.5 text-[12px] font-medium text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-all shadow-2xs cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-400 select-none"
           >
-            {(["chat", "cowork"] as const).map((mode) => {
-              const active = composerMode === mode;
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => onComposerModeChange?.(mode)}
-                  className={cn(
-                    "h-7 rounded-full px-4 text-[13px] font-medium leading-none transition-all duration-150 outline-none select-none",
-                    active
-                      ? "bg-white text-zinc-950 shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-900",
-                  )}
-                >
-                  {mode === "chat" ? "Chat" : "Collabry"}
-                </button>
-              );
-            })}
-          </div>
+            <span className="text-[13px] leading-none">🎵</span>
+            <span>Upgrade your plan</span>
+          </button>
         </div>
 
         {/* Right Corner: Incognito Mode button */}

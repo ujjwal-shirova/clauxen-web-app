@@ -32,6 +32,7 @@ import {
   Keyboard,
 } from "lucide-react";
 import { SidebarToggleIcon } from "./icons";
+import { ClauxenLogo } from "./icons/clauxen-logo";
 import { cn } from "@/lib/utils";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
@@ -553,8 +554,8 @@ export function Sidebar({
           setUnpinDropHot(false);
         }}
         className={cn(
-          "group/chat cx-chat-row glass-sidebar-agent-menu-btn relative flex h-7.5 w-full items-center rounded-md px-2 select-none transition-colors duration-150 text-[13px] text-zinc-600 hover:bg-black/[0.035] hover:text-zinc-900",
-          isActive && "bg-[#ebecef] text-zinc-950 font-medium",
+          "group/chat cx-chat-row glass-sidebar-agent-menu-btn relative flex h-8.5 w-full items-center rounded-lg px-2.5 select-none transition-colors duration-150 text-[13px] text-zinc-600 dark:text-zinc-300 hover:bg-black/[0.035] dark:hover:bg-white/[0.04] hover:text-zinc-950 dark:hover:text-zinc-50",
+          isActive && "bg-[#e6e8ec] dark:bg-zinc-800 text-zinc-950 dark:text-zinc-50 font-medium",
         )}
       >
         <AppHref
@@ -597,9 +598,9 @@ export function Sidebar({
                 <button
                   type="button"
                   aria-label={`Chat options for ${chat.name || "New Chat"}`}
-                  className="ui-row-icon-button flex size-5.5 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 hover:bg-black/[0.05] data-[state=open]:bg-black/[0.05] data-[state=open]:text-zinc-800 transition-colors outline-none focus-visible:ring-1 focus-visible:ring-zinc-400"
+                  className="ui-row-icon-button flex size-6 items-center justify-center rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] data-[state=open]:bg-black/[0.05] data-[state=open]:text-zinc-800 transition-colors outline-none focus-visible:ring-1 focus-visible:ring-zinc-400"
                 >
-                  <MoreVertical className="size-3" />
+                  <MoreVertical className="size-3.5" />
                 </button>
               </DropdownMenuTrigger>
               <ChatRowMenuContent
@@ -648,64 +649,69 @@ export function Sidebar({
       >
         <div
           className={cn(
-            "ui-sidebar-top-bar relative flex h-11 shrink-0 items-center px-2",
+            "ui-sidebar-top-bar relative flex h-13 shrink-0 items-center px-3.5",
             isCollapsed && !isMobileLayout && !isPeekPreview
               ? "justify-center"
-              : "justify-start gap-2",
+              : "justify-between",
           )}
         >
-          {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
-            <ShortcutHint
-              label="Toggle sidebar"
-              shortcutId="toggleSidebar"
-              side="bottom"
-            >
-              <button
-                type="button"
-                aria-label={isPeekPreview ? "Expand sidebar" : "Hide sidebar"}
-                className="cx-hide-sidebar flex size-6 shrink-0 items-center justify-center rounded-md p-0 text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  // The hover preview is already the full sidebar. Pin it open
-                  // instead of dismissing the overlay.
-                  setIsCollapsed(isPeekPreview ? false : true);
-                }}
-              >
-                <SidebarToggleIcon className="size-5 shrink-0" aria-hidden />
-              </button>
-            </ShortcutHint>
-          ) : null}
+          {isCollapsed && !isMobileLayout && !isPeekPreview ? (
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-black text-white shadow-xs">
+              <ClauxenLogo size={18} className="text-white" />
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-black text-white shadow-xs">
+                  <ClauxenLogo size={18} className="text-white" />
+                </div>
+                <span
+                  className="clauxen-wordmark min-w-0 truncate text-[16px] font-semibold tracking-tight text-zinc-900 leading-none select-none"
+                  aria-label="Clauxen"
+                >
+                  Clauxen
+                </span>
+              </div>
 
-          <div className="flex items-center gap-1.5 min-w-0">
-            {!isCollapsed || isPeekPreview ? (
-              <span
-                className="clauxen-wordmark min-w-0 truncate text-[15px] font-semibold tracking-tight text-zinc-900 leading-none select-none"
-                aria-label="Clauxen"
-              >
-                Clauxen
-              </span>
-            ) : (
-              <span className="sr-only">Clauxen</span>
-            )}
-          </div>
+              {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
+                <ShortcutHint
+                  label="Toggle sidebar"
+                  shortcutId="toggleSidebar"
+                  side="bottom"
+                >
+                  <button
+                    type="button"
+                    aria-label={isPeekPreview ? "Expand sidebar" : "Hide sidebar"}
+                    className="cx-hide-sidebar ml-auto flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.05] hover:text-zinc-900"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsCollapsed(isPeekPreview ? false : true);
+                    }}
+                  >
+                    <SidebarToggleIcon className="size-5 shrink-0" aria-hidden />
+                  </button>
+                </ShortcutHint>
+              ) : null}
 
-          {isMobileLayout && !isCollapsed ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsCollapsed(true);
-              }}
-              aria-label="Close menu"
-              className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
-            >
-              <X className="size-4" />
-            </button>
-          ) : null}
+              {isMobileLayout && !isCollapsed ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCollapsed(true);
+                  }}
+                  aria-label="Close menu"
+                  className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
+                >
+                  <X className="size-4" />
+                </button>
+              ) : null}
+            </>
+          )}
         </div>
 
         <nav
-          className="cx-nav cx-nav-sticky shrink-0 flex flex-col gap-0.5 px-2 py-1.5"
+          className="cx-nav cx-nav-sticky shrink-0 flex flex-col gap-1 px-3 py-2"
           aria-label="Primary"
           data-keynav-list="sidebar-nav"
         >
@@ -723,19 +729,22 @@ export function Sidebar({
               aria-label="New chat"
               aria-current={newChatActive ? "page" : undefined}
               className={cn(
-                "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
-                newChatActive && "is-active bg-[#ebecef] text-zinc-950 font-medium",
-                isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
+                "cx-nav-btn group flex h-10 w-full items-center gap-2.5 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-800 px-3 text-[13.5px] font-medium tracking-[-0.01em] text-zinc-900 dark:text-zinc-100 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 outline-none select-none hover:bg-white/95 hover:border-black/[0.1] hover:shadow-xs focus-visible:ring-1 focus-visible:ring-zinc-400",
+                newChatActive && "ring-1 ring-black/[0.08] dark:ring-white/[0.12] bg-white text-zinc-950 font-semibold shadow-xs",
+                isCollapsed && !isMobileLayout && "justify-center px-0 size-9 rounded-lg border-0 shadow-none bg-transparent hover:bg-black/[0.04]",
               )}
             >
-              <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
-                <SquarePen className="size-4" strokeWidth={1.75} />
+              <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center text-zinc-800 dark:text-zinc-200">
+                <Plus className="size-4.5" strokeWidth={2} />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
-                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">New chat</span>
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal font-medium">New chat</span>
               )}
               {isCollapsed && !isMobileLayout ? null : (
-                <ShortcutBadge shortcutId="openNewChat" className="ml-auto" />
+                <div className="ml-auto flex items-center gap-1 font-mono text-[11px] text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-700/60 px-1.5 py-0.5 rounded">
+                  <span>⌘</span>
+                  <span>K</span>
+                </div>
               )}
             </AppHref>
           </ShortcutHint>
@@ -752,16 +761,16 @@ export function Sidebar({
               aria-label="Library"
               aria-current={activeView === "library" ? "page" : undefined}
               className={cn(
-                "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
-                activeView === "library" && "is-active bg-[#ebecef] text-zinc-950 font-medium",
-                isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
+                "cx-nav-btn group flex h-9.5 w-full items-center gap-2.5 rounded-xl px-3 text-[13.5px] font-medium tracking-[-0.01em] text-zinc-700 dark:text-zinc-300 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-zinc-950 dark:hover:text-zinc-100 focus-visible:ring-1 focus-visible:ring-zinc-400",
+                activeView === "library" && "is-active bg-[#e6e8ec] dark:bg-zinc-800 text-zinc-950 dark:text-zinc-50 font-medium",
+                isCollapsed && !isMobileLayout && "justify-center px-0 size-9 rounded-lg",
               )}
             >
-              <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
-                <Library className="size-4" strokeWidth={1.75} />
+              <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
+                <Library className="size-4.5" strokeWidth={1.75} />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
-                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">Library</span>
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal">Library</span>
               )}
             </AppHref>
           </ShortcutHint>
@@ -779,17 +788,17 @@ export function Sidebar({
                 aria-label="Projects"
                 aria-current={activeView === "projects" ? "page" : undefined}
                 className={cn(
-                  "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
-                  activeView === "projects" && "is-active bg-[#ebecef] text-zinc-950 font-medium",
-                  isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
-                  (!isCollapsed || isMobileLayout) && "pr-8",
+                  "cx-nav-btn group flex h-9.5 w-full items-center gap-2.5 rounded-xl px-3 text-[13.5px] font-medium tracking-[-0.01em] text-zinc-700 dark:text-zinc-300 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-zinc-950 dark:hover:text-zinc-100 focus-visible:ring-1 focus-visible:ring-zinc-400",
+                  activeView === "projects" && "is-active bg-[#e6e8ec] dark:bg-zinc-800 text-zinc-950 dark:text-zinc-50 font-medium",
+                  isCollapsed && !isMobileLayout && "justify-center px-0 size-9 rounded-lg",
+                  (!isCollapsed || isMobileLayout) && "pr-9",
                 )}
               >
-                <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
-                  <FolderKanban className="size-4" strokeWidth={1.75} />
+                <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
+                  <FolderKanban className="size-4.5" strokeWidth={1.75} />
                 </span>
                 {isCollapsed && !isMobileLayout ? null : (
-                  <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">Projects</span>
+                  <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal">Projects</span>
                 )}
               </AppHref>
             </ShortcutHint>
@@ -798,7 +807,7 @@ export function Sidebar({
                 type="button"
                 aria-label="New project"
                 title="New project"
-                className="cx-nav-plus absolute right-1.5 top-1/2 -translate-y-1/2 z-20 flex size-5 cursor-pointer pointer-events-auto items-center justify-center rounded text-zinc-400 opacity-0 group-hover/proj:opacity-100 group-focus-within/proj:opacity-100 hover:text-zinc-900 hover:bg-black/[0.06] transition-all duration-150"
+                className="cx-nav-plus absolute right-2 top-1/2 -translate-y-1/2 z-20 flex size-6 cursor-pointer pointer-events-auto items-center justify-center rounded-md text-zinc-400 opacity-0 group-hover/proj:opacity-100 group-focus-within/proj:opacity-100 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-all duration-150"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -822,16 +831,16 @@ export function Sidebar({
             aria-label="Plugins"
             aria-current={activeView === "plugins" ? "page" : undefined}
             className={cn(
-              "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
-              activeView === "plugins" && "is-active bg-[#ebecef] text-zinc-950 font-medium",
-              isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
+              "cx-nav-btn group flex h-9.5 w-full items-center gap-2.5 rounded-xl px-3 text-[13.5px] font-medium tracking-[-0.01em] text-zinc-700 dark:text-zinc-300 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-zinc-950 dark:hover:text-zinc-100 focus-visible:ring-1 focus-visible:ring-zinc-400",
+              activeView === "plugins" && "is-active bg-[#e6e8ec] dark:bg-zinc-800 text-zinc-950 dark:text-zinc-50 font-medium",
+              isCollapsed && !isMobileLayout && "justify-center px-0 size-9 rounded-lg",
             )}
           >
-            <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
-              <Puzzle className="size-4" strokeWidth={1.75} />
+            <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
+              <Puzzle className="size-4.5" strokeWidth={1.75} />
             </span>
             {isCollapsed && !isMobileLayout ? null : (
-              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">Plugins</span>
+              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal">Plugins</span>
             )}
           </AppHref>
           <AppHref
@@ -848,15 +857,15 @@ export function Sidebar({
             }}
             aria-label="Code"
             className={cn(
-              "cx-nav-btn group flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium tracking-[-0.01em] text-zinc-700 transition-colors duration-150 outline-none select-none hover:bg-black/[0.035] hover:text-zinc-950 focus-visible:ring-1 focus-visible:ring-zinc-400",
-              isCollapsed && !isMobileLayout && "justify-center px-0 size-8",
+              "cx-nav-btn group flex h-9.5 w-full items-center gap-2.5 rounded-xl px-3 text-[13.5px] font-medium tracking-[-0.01em] text-zinc-700 dark:text-zinc-300 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-zinc-950 dark:hover:text-zinc-100 focus-visible:ring-1 focus-visible:ring-zinc-400",
+              isCollapsed && !isMobileLayout && "justify-center px-0 size-9 rounded-lg",
             )}
           >
-            <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-900">
-              <Code2 className="size-4" strokeWidth={1.75} />
+            <span className="cx-nav-icon flex size-5 shrink-0 items-center justify-center text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
+              <Code2 className="size-4.5" strokeWidth={1.75} />
             </span>
             {isCollapsed && !isMobileLayout ? null : (
-              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13px] leading-normal">Code</span>
+              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal">Code</span>
             )}
           </AppHref>
         </nav>
@@ -1015,13 +1024,38 @@ export function Sidebar({
           </div>
         </div>
 
+        {!isCollapsed && !isPeekPreview && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              runAccountOverlayAction(onGiftClick);
+            }}
+            className="mx-2.5 mb-2 rounded-xl bg-white/75 dark:bg-zinc-800/60 border border-black/[0.06] dark:border-white/[0.08] p-2.5 px-3 flex items-center justify-between hover:bg-white dark:hover:bg-zinc-800 transition-all cursor-pointer group shadow-2xs select-none"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-700/60 text-zinc-700 dark:text-zinc-200">
+                <Gift className="size-4" strokeWidth={1.75} />
+              </div>
+              <div className="min-w-0 flex-1 flex flex-col">
+                <span className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 leading-tight">
+                  Invite to Earn
+                </span>
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
+                  Get Membership Benefits
+                </span>
+              </div>
+            </div>
+            <ChevronRight className="size-4 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200 transition-colors shrink-0" />
+          </div>
+        )}
+
         {showAccountMenu && (
           <div
             className={cn(
               "sidebar-account-footer mt-auto shrink-0 border-t border-[var(--cx-sidebar-line)] bg-transparent",
               isCollapsed
                 ? "flex flex-col items-center gap-1.5 p-2"
-                : "flex flex-col items-stretch gap-1 p-2",
+                : "flex flex-col items-stretch gap-1 px-2.5 py-2",
             )}
           >
             <div
@@ -1044,7 +1078,7 @@ export function Sidebar({
                     "menu-trigger-active group/login flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-black/[0.035] focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-lg",
                     isCollapsed
                       ? "size-8 shrink-0 justify-center !p-0"
-                      : "h-9 min-w-0 flex-1 justify-start gap-2.5 px-2",
+                      : "h-10 min-w-0 flex-1 justify-start gap-2.5 px-2",
                   )}
                 >
                   <span className="flex size-5 shrink-0 items-center justify-center text-zinc-500">
@@ -1060,7 +1094,7 @@ export function Sidebar({
                       isCollapsed && "hidden",
                     )}
                   >
-                    <span className="cx-account-name text-[13px] font-medium text-zinc-800">
+                    <span className="cx-account-name text-[13.5px] font-medium text-zinc-800 dark:text-zinc-100">
                       Log in
                     </span>
                   </div>
@@ -1080,41 +1114,39 @@ export function Sidebar({
                         "menu-trigger-active group/account flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-black/[0.035] data-[state=open]:bg-black/[0.05] focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-lg",
                         isCollapsed
                           ? "size-8 shrink-0 justify-center !p-0"
-                          : "h-9 min-w-0 flex-1 justify-start gap-2.5 px-2",
+                          : "h-10 min-w-0 flex-1 justify-start gap-2 px-1.5",
                       )}
                     >
                       <UserAvatarDisplay
                         name={userDisplayName || "?"}
                         avatarUrl={userAvatarUrl}
                         size="sm"
-                        className="size-5.5 shrink-0 rounded-full bg-zinc-200 text-[10px] font-semibold leading-none text-zinc-800"
+                        className="size-7 shrink-0 rounded-full bg-zinc-200 text-[11px] font-semibold leading-none text-zinc-800"
                       />
                       <div
                         className={cn(
-                          "cx-account-line min-w-0 flex-1 flex items-baseline gap-1.5 truncate text-left",
+                          "cx-account-line min-w-0 flex-1 flex items-center gap-1.5 truncate text-left",
                           isCollapsed && "hidden",
                         )}
                       >
                         {!accountLoading && userDisplayName ? (
-                          <span className="cx-account-name text-[13px] font-medium text-zinc-800 truncate">
+                          <span className="cx-account-name text-[13.5px] font-medium text-zinc-800 dark:text-zinc-100 truncate">
                             {userDisplayName}
                           </span>
                         ) : null}
-                        {!accountLoading &&
-                        !(Boolean(userEmail) && (planLoading || !planLabel)) &&
-                        planLabel ? (
-                          <>
-                            <span className="cx-account-dot text-[11px] text-zinc-400" aria-hidden>
-                              ·
-                            </span>
-                            <span className="cx-account-plan text-[11px] font-normal text-zinc-400 truncate">
-                              {planLabel}
-                            </span>
-                          </>
-                        ) : null}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            runAccountOverlayAction(onUpgradeClick);
+                          }}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-zinc-200/80 hover:bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-100 border border-black/[0.04] transition-colors"
+                        >
+                          Upgrade
+                        </button>
                       </div>
                       {!isCollapsed && (
-                        <ProfileMenuChevron className="size-3.5 shrink-0 text-zinc-400 opacity-60 group-hover/account:opacity-100 transition-opacity" />
+                        <ProfileMenuChevron className="size-3.5 shrink-0 text-zinc-400 opacity-60 group-hover/account:opacity-100 transition-opacity ml-auto" />
                       )}
                     </button>
                   </DropdownMenuTrigger>

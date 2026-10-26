@@ -190,8 +190,8 @@
     --pricing-toggle-track: var(--pricing-thumb);
     --pricing-thumb-active: color-mix(in oklab, var(--app-panel-bg) 91%, #14151a 9%);
 
-    /* App shell — pristine white combination: refined soft off-white sidebar + brilliant pure white main content */
-    --app-sidebar-bg: #fbfbfb;
+    /* App shell — modern workspace combination: soft light gray frame + pure white containerized main content */
+    --app-sidebar-bg: #f4f5f7;
     --app-frame-bg: var(--app-sidebar-bg);
     --app-shell-bg: var(--app-sidebar-bg);
     --app-panel-bg: #ffffff;
@@ -8747,7 +8747,7 @@ textarea.cx-field {
 
 /* Sidebar width, edge fade, plan scroller, gift preview, search ellipsis. */
 :root {
-  --app-sidebar-width: 248px;
+  --app-sidebar-width: 264px;
 }
 
 html[data-sidebar-resizing="1"] .app-sidebar-slot,
