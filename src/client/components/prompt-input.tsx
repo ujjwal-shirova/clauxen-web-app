@@ -13,8 +13,14 @@ import {
   ArrowUp,
   Check,
   ChevronDown,
+  Code2,
+  FileSpreadsheet,
+  FileText,
   Folder,
   FolderKanban,
+  Globe,
+  Laptop,
+  Layers,
   LoaderCircle,
   Mic,
   Plus,
@@ -25,6 +31,7 @@ import {
   X,
 } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
+import { AppHref } from "@/components/app-href";
 import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
 import {
   captureDisplayScreenshot,
@@ -64,7 +71,7 @@ import { AttachmentChip } from "@/components/composer/attachment-chip";
 import { AttachmentPreviewHost } from "@/components/composer/attachment-preview-host";
 import { ComposerAttachmentStrip } from "@/components/composer/attachment-strip";
 import * as settingsApi from "@/lib/api/settings";
-import { overlayToHash } from "@/lib/app-routes";
+import { APP_ROUTES, overlayToHash } from "@/lib/app-routes";
 import {
   formatDictationRemaining,
   useStreamingDictation,
@@ -150,6 +157,54 @@ const COMPOSE_ACTION_META: Record<
     icon: Telescope,
   },
 };
+
+const TOOLBAR_PLUGIN_ICONS = [
+  { id: "gmail", iconUrl: "https://cdn.clauxen.com/plugins/icons/gmail.png" },
+  { id: "github", iconUrl: "https://cdn.clauxen.com/plugins/icons/github.png" },
+  {
+    id: "cloudflare",
+    iconUrl: "https://cdn.clauxen.com/plugins/icons/cloudflare.png",
+  },
+] as const;
+
+const CAPABILITY_CHIPS = [
+  {
+    id: "deep-research",
+    label: "Deep Research",
+    icon: Telescope,
+    prompt: "",
+  },
+  {
+    id: "docs",
+    label: "Docs",
+    icon: FileText,
+    prompt: "Write a document about ",
+  },
+  {
+    id: "sheets",
+    label: "Sheets",
+    icon: FileSpreadsheet,
+    prompt: "Create a spreadsheet that ",
+  },
+  {
+    id: "slides",
+    label: "Slides",
+    icon: Layers,
+    prompt: "Create a presentation about ",
+  },
+  {
+    id: "code",
+    label: "Code",
+    icon: Code2,
+    prompt: "Help me build ",
+  },
+  {
+    id: "web",
+    label: "Web Search",
+    icon: Globe,
+    prompt: "Search the web for ",
+  },
+] as const;
 
 const addMenuTriggerClass =
   "menu-trigger-active no-hover-overlay prompt-control-ghost shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
@@ -1631,8 +1686,13 @@ export function PromptInput({
           <div className="prompt-welcome__bar">
             {renderAddMenuButton()}
             <div className="min-w-0 flex-1" />
-            <div className="flex items-center gap-1 sm:gap-1.5">
+            <div className="prompt-welcome__controls">
               {renderModelSelector()}
+              <ReasoningEffortSelector
+                effort={homerReasoningEffort}
+                onEffortChange={onHomerReasoningEffortChange}
+              />
+              <PermissionModePopover canOpen={requireAuthGate} />
               {renderMicButton()}
               {renderTrailingActions(true)}
             </div>
@@ -1927,21 +1987,64 @@ export function PromptInput({
             </AnimatePresence>
           </div>
           {!isConversationStarted ? (
-            <div data-prompt-toolbar="true" className="prompt-welcome-toolbar">
-              <div className="flex min-w-0 items-center gap-1">
-                <ProjectSelectorPopover
-                  projectId={projectId}
-                  canOpen={requireAuthGate}
-                />
+            <>
+              <div data-prompt-toolbar="true" className="prompt-welcome-toolbar">
+                <div className="flex min-w-0 items-center gap-1">
+                  <ProjectSelectorPopover
+                    projectId={projectId}
+                    canOpen={requireAuthGate}
+                  />
+                  <AppHref href={APP_ROUTES.plugins} className="prompt-toolbar-link">
+                    <span className="prompt-toolbar-plugin-stack" aria-hidden>
+                      {TOOLBAR_PLUGIN_ICONS.map((plugin) => (
+                        <img
+                          key={plugin.id}
+                          src={plugin.iconUrl}
+                          alt=""
+                          width={18}
+                          height={18}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ))}
+                    </span>
+                    <span>Plugins</span>
+                  </AppHref>
+                </div>
+                <AppHref
+                  href="/download"
+                  className="prompt-toolbar-link max-sm:hidden"
+                >
+                  <Laptop className="size-[15px] shrink-0" />
+                  <span>Use desktop app</span>
+                </AppHref>
               </div>
-              <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-                <ReasoningEffortSelector
-                  effort={homerReasoningEffort}
-                  onEffortChange={onHomerReasoningEffortChange}
-                />
-                <PermissionModePopover canOpen={requireAuthGate} />
+              <div className="prompt-capability-row" role="list">
+                {CAPABILITY_CHIPS.map((chip) => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    role="listitem"
+                    className="prompt-capability-chip"
+                    onClick={() => {
+                      if (chip.id === "deep-research") {
+                        if (!requireAuthGate()) return;
+                        setActiveInlineMode("deep-research");
+                      } else {
+                        syncDraftImmediate(chip.prompt);
+                      }
+                      requestAnimationFrame(() => {
+                        textareaRef.current?.focus({ preventScroll: true });
+                        scheduleResizeTextarea();
+                      });
+                    }}
+                  >
+                    <chip.icon className="size-[15px] shrink-0" />
+                    <span>{chip.label}</span>
+                  </button>
+                ))}
               </div>
-            </div>
+            </>
           ) : null}
         </div>
       </div>

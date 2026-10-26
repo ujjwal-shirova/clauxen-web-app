@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useIsClient } from "@/hooks/use-is-client";
-import { ChevronDown, Files, HatGlasses, MoreHorizontal, Share } from "@/components/ui/bootstrap-icon";
+import { ChevronDown, Files, MoreHorizontal, Share } from "@/components/ui/bootstrap-icon";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
@@ -16,7 +16,6 @@ import {
 import { AppHref } from "@/components/app-href";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
-import { HintTooltip } from "@/components/ui/hint-tooltip";
 
 interface ChatViewHeaderProps {
   isConversationStarted: boolean;
@@ -217,18 +216,6 @@ export function ChatViewHeader({
           ) : null}
         </div>
 
-        {/* Right Corner: Incognito Mode button */}
-        <div className="ml-auto flex items-center gap-1.5">
-          <HintTooltip content="Incognito Mode" side="bottom">
-            <AppHref
-              href="/incognito"
-              aria-label="Incognito Mode"
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-black/[0.04] hover:text-zinc-800 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:text-zinc-500 dark:hover:bg-white/[0.06] dark:hover:text-zinc-100"
-            >
-              <HatGlasses className="size-[18px] shrink-0" />
-            </AppHref>
-          </HintTooltip>
-        </div>
       </div>
     </header>
   );

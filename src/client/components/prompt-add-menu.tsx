@@ -2,11 +2,14 @@
 
 import { Fragment, useEffect, useRef, useState, type RefObject } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import {
   Check,
   ChevronRight,
   Globe,
+  Lightbulb,
   Paperclip,
+  Puzzle,
   Telescope,
   type LucideIcon,
 } from "@/components/ui/bootstrap-icon";
@@ -15,7 +18,12 @@ import { cn } from "@/lib/utils";
 export type PromptComposeAction = "deep-research";
 export type WebSearchMode = "auto" | "off";
 
-type PromptAddMenuItemId = "files" | "web-search" | "deep-research";
+type PromptAddMenuItemId =
+  | "files"
+  | "plugins"
+  | "skills"
+  | "web-search"
+  | "deep-research";
 
 type SubmenuId = "web-search";
 
@@ -149,14 +157,14 @@ export function PromptAddMenuPanel({
   const internalRef = useRef<HTMLDivElement>(null);
   const resolvedRef = panelRef ?? internalRef;
   const [activeSubmenu, setActiveSubmenu] = useState<SubmenuId | null>(null);
+  const router = useRouter();
 
   const items: PromptAddMenuItem[] = [
     ...(onAddFiles
       ? [
           {
             id: "files" as const,
-            label: "Add photos & files",
-            description: "Upload from computer",
+            label: "Add files & images",
             icon: Paperclip,
             onSelect: () => {
               onClose();
@@ -165,6 +173,26 @@ export function PromptAddMenuPanel({
           },
         ]
       : []),
+    {
+      id: "plugins",
+      label: "Plugins",
+      description: "Connect external tools so Clauxen can use your apps",
+      icon: Puzzle,
+      onSelect: () => {
+        onClose();
+        router.push("/plugins");
+      },
+    },
+    {
+      id: "skills",
+      label: "Skills",
+      description: "Turn know-how into reusable skills",
+      icon: Lightbulb,
+      onSelect: () => {
+        onClose();
+        router.push("/customize/skills");
+      },
+    },
     {
       id: "web-search",
       label: "Web search",
@@ -222,8 +250,8 @@ export function PromptAddMenuPanel({
       aria-label="Composer tools"
       className={cn(
         placement === "above"
-          ? "absolute bottom-full left-0 z-50 mb-2 w-[min(320px,calc(100vw-24px))]"
-          : "absolute left-0 top-full z-50 mt-2 w-[min(320px,calc(100vw-24px))]",
+          ? "absolute bottom-full left-0 right-0 z-50 mb-2"
+          : "absolute left-0 right-0 top-full z-50 mt-2",
         "prompt-add-menu-popover",
         className,
       )}

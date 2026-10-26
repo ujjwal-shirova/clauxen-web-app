@@ -153,6 +153,11 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   // Boot: `/` → `/new` once identity resolves (preserve overlay hash).
   // Guests land on the `/new` preview too — the composer is the entry point.
   React.useEffect(() => {
+    if (!isIncognito) return;
+    instantNavigate(APP_ROUTES.newChat, { replace: true });
+  }, [isIncognito, instantNavigate]);
+
+  React.useEffect(() => {
     if (pathname !== "/") return;
     if (auth.loading) return;
     const hash = typeof window !== "undefined" ? window.location.hash : "";

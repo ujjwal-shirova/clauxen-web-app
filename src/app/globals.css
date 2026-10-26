@@ -11377,3 +11377,450 @@ nav.cx-sidebar {
   background: rgba(255, 255, 255, 0.08) !important;
   color: #fafafa !important;
 }
+
+/* ==========================================================================
+   Composer strip, capability chips, plus menu, contained shell, pricing.
+   ========================================================================== */
+
+/* Contained main sheet — inset on every side but the sidebar edge. */
+.app-agent-panel {
+  border: 1px solid rgba(20, 21, 26, 0.07) !important;
+  border-radius: 16px !important;
+}
+
+.dark .app-agent-panel {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Composer controls row */
+.prompt-welcome__controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.prompt-welcome__controls [aria-label="Reasoning effort"],
+.prompt-welcome__controls [aria-label="Permission mode"] {
+  height: 32px !important;
+  padding: 0 8px !important;
+  border-radius: 8px !important;
+  color: #8a8a90 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+
+.prompt-welcome__controls [aria-label="Reasoning effort"]:hover,
+.prompt-welcome__controls [aria-label="Permission mode"]:hover,
+.prompt-welcome__controls [aria-label="Reasoning effort"][data-state="open"],
+.prompt-welcome__controls [aria-label="Permission mode"][data-state="open"] {
+  background: rgba(20, 21, 26, 0.045) !important;
+  color: #18181b !important;
+}
+
+.prompt-welcome__controls [data-app-button],
+.prompt-welcome__controls .prompt-control-ghost {
+  margin-left: 2px;
+}
+
+@media (max-width: 640px) {
+  .prompt-welcome__controls [aria-label="Permission mode"] {
+    display: none !important;
+  }
+}
+
+/* Plus trigger: soft disc that reads as a close control when open. */
+[data-prompt-root] .prompt-add-nav-match {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  color: #3f3f46 !important;
+}
+
+[data-prompt-root] .prompt-add-nav-match.is-open {
+  background: #f0efee !important;
+  color: #18181b !important;
+}
+
+/* Attached strip */
+[data-prompt-root] .prompt-welcome-toolbar {
+  width: calc(100% - 40px) !important;
+  margin: -18px auto 0 !important;
+  padding: 26px 14px 8px !important;
+  border: 0 !important;
+  border-radius: 0 0 22px 22px !important;
+  background: #f5f5f4 !important;
+  box-shadow: none !important;
+}
+
+.prompt-toolbar-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 8px;
+  color: #6f6f75;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.prompt-toolbar-link:hover {
+  background: rgba(20, 21, 26, 0.05);
+  color: #18181b;
+}
+
+.prompt-toolbar-plugin-stack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.prompt-toolbar-plugin-stack img {
+  width: 18px;
+  height: 18px;
+  padding: 1.5px;
+  border-radius: 5px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(20, 21, 26, 0.08);
+  object-fit: contain;
+}
+
+.prompt-toolbar-plugin-stack img + img {
+  margin-left: -4px;
+}
+
+[data-prompt-root] .prompt-welcome-toolbar [aria-label="Select project"] {
+  height: 30px !important;
+  font-size: 13px !important;
+  color: #6f6f75 !important;
+}
+
+.dark [data-prompt-root] .prompt-welcome-toolbar {
+  background: #202023 !important;
+}
+
+.dark .prompt-toolbar-link {
+  color: #a1a1aa;
+}
+
+.dark .prompt-toolbar-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fafafa;
+}
+
+.dark .prompt-toolbar-plugin-stack img {
+  background: #2a2a2e;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Capability chips */
+.prompt-capability-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 28px;
+}
+
+.prompt-capability-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 15px;
+  border: 1px solid rgba(20, 21, 26, 0.09);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #3f3f46;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.prompt-capability-chip:hover {
+  border-color: rgba(20, 21, 26, 0.16);
+  background: #fafaf9;
+  color: #18181b;
+}
+
+.prompt-capability-chip .bi {
+  color: #71717a;
+}
+
+.dark .prompt-capability-chip {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #1c1c1f;
+  color: #d4d4d8;
+}
+
+.dark .prompt-capability-chip:hover {
+  background: #252529;
+  color: #fafafa;
+}
+
+@media (max-width: 640px) {
+  .prompt-capability-row {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    margin-top: 20px;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .prompt-capability-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .prompt-capability-chip {
+    flex: none;
+  }
+
+  [data-prompt-root] .prompt-welcome-toolbar {
+    width: calc(100% - 24px) !important;
+  }
+}
+
+/* Plus menu — full-width sheet beneath the composer. */
+[data-prompt-add-menu-root].prompt-add-menu-popover {
+  width: auto !important;
+  z-index: 60;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu] {
+  padding: 8px !important;
+  border-radius: 22px !important;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu-row] {
+  min-height: 44px !important;
+  padding: 10px 14px !important;
+  border-radius: 12px !important;
+  font-size: 14px !important;
+  gap: 12px !important;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu-row] > span:nth-child(2) {
+  color: var(--ui-fg);
+  font-weight: 500;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu-row] > span:nth-child(3) {
+  font-size: 13.5px !important;
+  color: #a1a1aa !important;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu-icon] .bi {
+  font-size: 17px;
+  color: #3f3f46;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu-row]:hover,
+[data-prompt-add-menu-root] [data-prompt-add-menu-row]:focus-visible,
+[data-prompt-add-menu-root] [data-prompt-add-menu-row][data-active="true"] {
+  background: #f5f5f4 !important;
+}
+
+.dark [data-prompt-add-menu-root] [data-prompt-add-menu-row]:hover,
+.dark [data-prompt-add-menu-root] [data-prompt-add-menu-row]:focus-visible,
+.dark [data-prompt-add-menu-root] [data-prompt-add-menu-row][data-active="true"] {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark [data-prompt-add-menu-root] [data-prompt-add-menu-icon] .bi {
+  color: #d4d4d8;
+}
+
+/* --------------------------------------------------------------------------
+   Pricing
+   -------------------------------------------------------------------------- */
+.pricing-page {
+  background: #fbfaf9;
+  color: #18181b;
+}
+
+.dark .pricing-page {
+  background: #111113;
+  color: #fafafa;
+}
+
+.pricing-page__header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 20px 0;
+}
+
+.pricing-page__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(20, 21, 26, 0.08);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #52525b;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.pricing-page__close:hover {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+.dark .pricing-page__close {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #1c1c1f;
+  color: #d4d4d8;
+}
+
+.pricing-page__main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 20px 72px;
+}
+
+.pricing-page__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.pricing-page__intro {
+  max-width: 560px;
+  margin: 8px auto 0;
+  text-align: center;
+}
+
+.pricing-page__intro h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 42px;
+  letter-spacing: -0.025em;
+}
+
+.pricing-page__intro p {
+  margin: 10px 0 0;
+  color: #71717a;
+  font-size: 15px;
+  line-height: 23px;
+}
+
+.pricing-controls [role="tablist"],
+.pricing-controls [role="group"] {
+  border-radius: 999px !important;
+  background: #efeeed !important;
+  padding: 3px !important;
+}
+
+.pricing-controls button {
+  border-radius: 999px !important;
+}
+
+.dark .pricing-controls [role="tablist"],
+.dark .pricing-controls [role="group"] {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.pricing-card {
+  padding: 22px;
+  border: 1px solid rgba(20, 21, 26, 0.08);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(20, 21, 26, 0.03);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.pricing-card:hover {
+  border-color: rgba(20, 21, 26, 0.14);
+  box-shadow: 0 12px 32px -24px rgba(20, 21, 26, 0.3);
+}
+
+.pricing-card.is-highlighted {
+  border-color: #18181b;
+  box-shadow: 0 0 0 1px #18181b;
+}
+
+.dark .pricing-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: #18181b;
+  box-shadow: none;
+}
+
+.dark .pricing-card.is-highlighted {
+  border-color: #fafafa;
+  box-shadow: 0 0 0 1px #fafafa;
+}
+
+.pricing-card h3 {
+  font-size: 17px !important;
+  font-weight: 600 !important;
+}
+
+.pricing-card li {
+  color: #3f3f46 !important;
+}
+
+.dark .pricing-card li {
+  color: #d4d4d8 !important;
+}
+
+.pricing-page__footnote {
+  max-width: 560px;
+  margin: 0 auto;
+  color: #a1a1aa;
+  font-size: 12.5px;
+  line-height: 19px;
+  text-align: center;
+}
+
+.pricing-page__footnote a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .pricing-page__intro h1 {
+    font-size: 26px;
+    line-height: 33px;
+  }
+
+  .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-page__main {
+    padding: 0 14px 56px;
+  }
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeft, Check, Info } from "@/components/ui/bootstrap-icon";
+import { Check, Info, X } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { chrome } from "@/lib/app-chrome";
 import { appBtn } from "@/lib/app-buttons";
@@ -151,66 +151,8 @@ function PlanFeatureList({
   );
 }
 
-function PlanCardsScroller({
-  resetKey,
-  children,
-}: {
-  resetKey: string;
-  children: React.ReactNode;
-}) {
-  const scrollerRef = React.useRef<HTMLDivElement>(null);
-  const items = React.Children.toArray(children);
-  const [edges, setEdges] = React.useState({ left: false, right: false });
-
-  const syncEdges = React.useCallback(() => {
-    const node = scrollerRef.current;
-    if (!node) return;
-    const max = node.scrollWidth - node.clientWidth;
-    setEdges({
-      left: node.scrollLeft > 8,
-      right: max - node.scrollLeft > 8,
-    });
-  }, []);
-
-  React.useLayoutEffect(() => {
-    const node = scrollerRef.current;
-    if (!node) return;
-    node.scrollTo({ left: 0 });
-    syncEdges();
-    const observer = new ResizeObserver(syncEdges);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [resetKey, items.length, syncEdges]);
-
-  return (
-    <div className="plan-tier-scroller relative min-w-0">
-      <div
-        aria-hidden
-        className={cn(
-          "plan-tier-scroller__fade plan-tier-scroller__fade--left",
-          edges.left && "is-visible",
-        )}
-      />
-      <div
-        aria-hidden
-        className={cn(
-          "plan-tier-scroller__fade plan-tier-scroller__fade--right",
-          edges.right && "is-visible",
-        )}
-      />
-      <div
-        ref={scrollerRef}
-        onScroll={syncEdges}
-        className="plan-tier-scroller__row flex items-stretch gap-3 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {items.map((child, index) => (
-          <div key={index} className="plan-tier-scroller__card flex shrink-0">
-            {child}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function PlanCardsGrid({ children }: { children: React.ReactNode }) {
+  return <div className="pricing-grid">{children}</div>;
 }
 
 function getPriceDisplay(
@@ -295,7 +237,7 @@ function PlanCarouselCard({
   return (
     <article
       className={cn(
-        "app-page-card plan-tier-card relative flex h-full min-h-0 w-full flex-col p-4",
+        "pricing-card relative flex h-full min-h-0 w-full flex-col",
         isHighlighted && "is-highlighted",
       )}
     >
@@ -404,7 +346,7 @@ function OrganizationPlanCarouselCard({
   return (
     <article
       className={cn(
-        "app-page-card plan-tier-card relative flex h-full w-full flex-col p-4",
+        "pricing-card relative flex h-full w-full flex-col",
         isPrimaryCta && "is-highlighted",
       )}
     >
@@ -657,9 +599,9 @@ export function PlansCarouselSection({
   const showOrganization = layout === "all" || activeTab === "team";
 
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
-      <div className="sticky top-0 z-10 -mx-4 bg-[var(--pricing-bg,var(--settings-canvas-bg,#f4f4f3))] px-4 py-2 sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:py-0">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+    <div className={cn("flex flex-col gap-6", className)}>
+      <div className="pricing-controls">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-center sm:gap-3">
         {layout === "tabs" && ORGANIZATION_PLANS.length > 0 ? (
           <div className={cn(segmentedTrackClass, "w-full sm:w-auto")} role="tablist" aria-label="Plan type">
             <button
@@ -706,7 +648,7 @@ export function PlansCarouselSection({
         </div>
       </div>
 
-      <PlanCardsScroller resetKey={`${layout}-${activeTab}`}>
+      <PlanCardsGrid>
         {showIndividual
           ? PERSONAL_PLANS.map((plan) => (
               <PlanCarouselCard
@@ -734,7 +676,7 @@ export function PlansCarouselSection({
               />
             ))
           : null}
-      </PlanCardsScroller>
+      </PlanCardsGrid>
 
       {layout === "tabs" && activeTab === "team" ? (
         <div className="settings-card flex items-start gap-2.5 px-3.5 py-3">
@@ -785,32 +727,23 @@ export default function UpgradePageContent({
   };
 
   return (
-    <div className={cn(chrome.overlay.surface, "settings-canvas")}>
-      <header className="relative z-20 flex w-full shrink-0 items-center px-2 py-2 sm:justify-center sm:px-4 sm:py-4">
+    <div className={cn(chrome.overlay.surface, "pricing-page")}>
+      <header className="pricing-page__header">
         <button
           type="button"
           onClick={onClose}
-          className="ui-icon-button no-hover-overlay text-[var(--settings-fg)] sm:absolute sm:left-6 sm:top-1/2 sm:-translate-y-1/2"
-          aria-label="Back"
+          className="pricing-page__close"
+          aria-label="Close plans"
         >
-          <ArrowLeft className="icon-lg" />
+          <X className="size-4" />
         </button>
-        <h1 className="min-w-0 flex-1 truncate px-1 text-[15px] font-medium tracking-[-0.02em] text-[var(--settings-fg)] sm:hidden">
-          Plans
-        </h1>
       </header>
 
-      <main
-        className="mobile-page-inset min-h-0 flex-1 overflow-y-auto pb-24 sm:px-6"
-        data-scroll-region=""
-      >
-        <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 pt-1 sm:gap-7 sm:pt-2">
-          <div className="mx-auto hidden max-w-[36rem] text-center sm:block">
-            <h1 className="app-page-title">Plans that grow with you</h1>
-            <p className="app-page-subtitle">
-              Free to start. Go is ₹399 a month, Pro is ₹1,999, and Max is for
-              the highest limits.
-            </p>
+      <main className="pricing-page__main" data-scroll-region="">
+        <div className="pricing-page__inner">
+          <div className="pricing-page__intro">
+            <h1>Upgrade your plan</h1>
+            <p>Start free. Upgrade any time for higher limits and more powerful models.</p>
           </div>
 
           <PlansCarouselSection
@@ -820,17 +753,12 @@ export default function UpgradePageContent({
             onOrganizationPlanSelect={handleOrganizationPlanSelection}
           />
 
-          <p className="app-page-muted mx-auto max-w-xl text-center">
-            *
-            <a
-              href="#"
-              onClick={handlePlaceholderLinkClick}
-              className="underline decoration-[var(--settings-fg)]/25 underline-offset-4 hover:text-[var(--settings-fg)]"
-            >
+          <p className="pricing-page__footnote">
+            <a href="#" onClick={handlePlaceholderLinkClick}>
               Usage limits apply
             </a>
-            . Prices shown don&apos;t include applicable tax. Plans and pricing
-            are subject to change at Shirova&apos;s discretion.
+            . Prices exclude applicable tax and may change at Shirova&apos;s
+            discretion.
           </p>
         </div>
       </main>

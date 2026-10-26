@@ -103,7 +103,7 @@ export const APP_ROUTES = {
 /** Chat thread surfaces — `/`, `/new`, `/c/:id`, incognito. */
 export function isChatSurfacePath(pathname: string | null): boolean {
   if (!pathname) return false;
-  if (isNewChatPath(pathname) || isIncognitoPath(pathname)) return true;
+  if (isNewChatPath(pathname)) return true;
   if (pathname.startsWith("/c/")) return true;
   return false;
 }
