@@ -8777,22 +8777,38 @@ html[data-sidebar-resizing="1"] .cx-sidebar {
 .app-sidebar-resize::after {
   content: "";
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 3px;
-  height: 48px;
-  translate: -50% -50%;
+  top: 6px;
+  right: 0;
+  bottom: 6px;
+  width: 2px;
   border-radius: 999px;
-  background: #898781;
+  background: rgba(20, 21, 26, 0.34);
   opacity: 0;
-  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) 0.2s;
+  transform: scaleY(0.94);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    background-color 0.18s ease;
+  transition-delay: 0.08s;
 }
 
 .app-sidebar-resize:hover::after,
 .app-sidebar-resize:focus-visible::after,
 html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
   opacity: 1;
+  transform: scaleY(1);
+  background: rgba(20, 21, 26, 0.46);
   transition-delay: 0s;
+}
+
+.dark .app-sidebar-resize::after {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.dark .app-sidebar-resize:hover::after,
+.dark .app-sidebar-resize:focus-visible::after,
+.dark html[data-sidebar-resizing="1"] .app-sidebar-resize::after {
+  background: rgba(255, 255, 255, 0.48);
 }
 
 .app-sidebar-resize:focus-visible {
@@ -11263,5 +11279,101 @@ button.agent-ledger__row-head:hover {
 
 .dark [data-prompt-root] .prompt-welcome-toolbar button:hover {
   background: rgba(255, 255, 255, 0.06) !important;
+  color: #fafafa !important;
+}
+
+/* Sidebar boundary — invisible until the drag rail is hovered. */
+.cx-sidebar,
+nav.cx-sidebar {
+  border-right: 0 !important;
+}
+
+/* Open add-menu trigger */
+[data-prompt-root] .prompt-add-nav-match.is-open {
+  background: rgba(20, 21, 26, 0.06) !important;
+  color: #18181b !important;
+}
+
+.dark [data-prompt-root] .prompt-add-nav-match.is-open {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fafafa !important;
+}
+
+/* Add-menu popover container */
+[data-prompt-add-menu-root].prompt-add-menu-popover {
+  width: min(320px, calc(100vw - 24px)) !important;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu] {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  padding: 6px !important;
+  border: 1px solid rgba(20, 21, 26, 0.09) !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 18px 44px -20px rgba(20, 21, 26, 0.3),
+    0 4px 12px rgba(20, 21, 26, 0.06) !important;
+  overflow: hidden !important;
+}
+
+.dark [data-prompt-add-menu-root] [data-prompt-add-menu] {
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  background: #1f1f23 !important;
+  box-shadow: 0 18px 44px -18px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu-row] {
+  min-height: 40px !important;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  gap: 10px !important;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu-row] [data-prompt-add-menu-icon] {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu-icon] .bi {
+  font-size: 16px;
+}
+
+[data-prompt-add-menu-root] [data-prompt-add-menu-chevron] .bi {
+  font-size: 13px;
+}
+
+[data-prompt-add-menu-root]
+  [data-prompt-add-menu-row]
+  > span:nth-child(3) {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: var(--ui-fg-muted) !important;
+}
+
+/* Keep the conversation sheet flush with the sidebar rail. */
+.app-agent-panel {
+  border-left-color: transparent !important;
+}
+
+/* Model selector open state + chevron rotation. */
+.prompt-model-selector[data-state="open"] {
+  background: rgba(20, 21, 26, 0.055) !important;
+  color: #18181b !important;
+}
+
+.prompt-model-selector .bi-chevron-down {
+  transition: transform 0.2s ease;
+}
+
+.prompt-model-selector[data-state="open"] .bi-chevron-down {
+  transform: rotate(180deg);
+}
+
+.dark .prompt-model-selector[data-state="open"] {
+  background: rgba(255, 255, 255, 0.08) !important;
   color: #fafafa !important;
 }

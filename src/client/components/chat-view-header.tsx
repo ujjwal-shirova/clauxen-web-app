@@ -41,8 +41,6 @@ interface ChatViewHeaderProps {
   className?: string;
   /** Hide interactive header controls until the chat id exists on the server (no shimmer). */
   headerControlsLoading?: boolean;
-  composerMode?: "chat" | "cowork";
-  onComposerModeChange?: (mode: "chat" | "cowork") => void;
 }
 
 export function ChatViewHeader({
@@ -66,8 +64,6 @@ export function ChatViewHeader({
   showFreePlanUpgrade = false,
   className,
   headerControlsLoading = false,
-  composerMode = "chat",
-  onComposerModeChange,
 }: ChatViewHeaderProps) {
   const isClient = useIsClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -206,33 +202,6 @@ export function ChatViewHeader({
               className="-ml-0.5 shrink-0"
             />
           ) : null}
-
-          <div
-            className="inline-flex h-7.5 items-center rounded-full bg-[#f4f3f2] p-0.5 text-[12px] font-medium text-zinc-500 dark:bg-zinc-800/80 dark:text-zinc-400"
-            role="tablist"
-            aria-label="Composer mode"
-          >
-            {(["chat", "cowork"] as const).map((mode) => {
-              const active = composerMode === mode;
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => onComposerModeChange?.(mode)}
-                  className={cn(
-                    "h-6.5 rounded-full px-3 text-[12px] font-medium leading-none transition-all duration-150 outline-none select-none",
-                    active
-                      ? "bg-white text-zinc-900 shadow-[0_1px_2px_rgba(20,21,26,0.08)] dark:bg-zinc-700 dark:text-zinc-50"
-                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100",
-                  )}
-                >
-                  {mode === "chat" ? "Chat" : "Collabry"}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* Center: Upgrade your plan */}

@@ -32,7 +32,6 @@ import {
   Keyboard,
 } from "@/components/ui/bootstrap-icon";
 import { SidebarToggleIcon } from "./icons";
-import { ClauxenLogo } from "./icons/clauxen-logo";
 import { cn } from "@/lib/utils";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
@@ -652,21 +651,9 @@ export function Sidebar({
             "ui-sidebar-top-bar relative flex h-14 shrink-0 items-center",
             isCollapsed && !isMobileLayout && !isPeekPreview
               ? "justify-center px-2"
-              : "justify-between px-3.5",
+              : "justify-between px-3",
           )}
         >
-          <div className="flex min-w-0 items-center">
-            <span
-              aria-hidden
-              className="cx-logo-tile flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-zinc-900 text-white shadow-[0_1px_2px_rgba(20,21,26,0.18)] dark:bg-zinc-100 dark:text-zinc-900"
-            >
-              <ClauxenLogo
-                size={18}
-                className="text-white dark:text-zinc-900"
-              />
-            </span>
-          </div>
-
           {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
             <ShortcutHint
               label="Toggle sidebar"
@@ -697,7 +684,7 @@ export function Sidebar({
                 setIsCollapsed(true);
               }}
               aria-label="Close menu"
-              className="flex size-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
+              className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
             >
               <X className="size-4" />
             </button>

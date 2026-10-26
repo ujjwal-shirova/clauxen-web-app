@@ -134,8 +134,6 @@ interface PromptInputProps {
   allowAttachments?: boolean;
   /** Visual variant — Incognito uses a dashed border shell. */
   composerVariant?: "default" | "incognito";
-  composerMode?: "chat" | "cowork";
-  onComposerModeChange?: (mode: "chat" | "cowork") => void;
 }
 
 const COMPOSE_ACTION_META: Record<
@@ -548,12 +546,10 @@ export function PromptInput({
   allowAttachments = true,
   composerVariant = "default",
   projectId = null,
-  composerMode: composerModeProp,
 }: PromptInputProps) {
   const activeChatId = useActiveChatId();
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
-  const composerMode = composerModeProp ?? "chat";
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const draftNotifyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -1567,25 +1563,27 @@ export function PromptInput({
         <button
           ref={addMenuTriggerRef}
           type="button"
-          aria-label="Add content"
+          aria-label={isAddMenuOpen ? "Close add menu" : "Add content"}
           aria-expanded={isAddMenuOpen}
+          aria-haspopup="menu"
           disabled={isCapturingScreenshot}
           onMouseDown={(event) => {
             event.preventDefault();
           }}
           onClick={() => {
-            if (!requireAuthGate()) return;
             setAddMenuOpen(!isAddMenuOpen);
           }}
           className={cn(
             addMenuTriggerClass,
             !isConversationStarted && "prompt-add-nav-match",
+            isAddMenuOpen && "is-open",
             isCapturingScreenshot && "opacity-50",
           )}
         >
           <Plus
             className={cn(
-              "shrink-0",
+              "shrink-0 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+              isAddMenuOpen && "rotate-45",
               isConversationStarted ? "icon-md" : "icon-xl",
             )}
             strokeWidth={1.75}
@@ -1600,7 +1598,6 @@ export function PromptInput({
       <PromptModelSelector
         selectedModel={chatModel}
         onSelectedModelChange={onChatModelChange}
-        canOpen={requireAuthGate}
         isFreePlan={isFreePlan}
         thinkingEnabled={thinkingMode === "on"}
         onThinkingEnabledChange={(enabled) =>
@@ -1677,9 +1674,7 @@ export function PromptInput({
       ? ""
       : listeningEmpty
         ? "Listening…"
-        : !isConversationStarted && composerMode === "cowork"
-          ? "What should we work on together?"
-          : placeholder;
+        : placeholder;
     return (
       <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-0">
         {activeInlineMode ? (
@@ -1908,7 +1903,14 @@ export function PromptInput({
                     setAddMenuOpen(false);
                     textareaRef.current?.focus({ preventScroll: true });
                   }}
-                  onAddFiles={allowAttachments ? openFilePicker : undefined}
+                  onAddFiles={
+                    allowAttachments
+                      ? () => {
+                          if (!requireAuthGate()) return;
+                          openFilePicker();
+                        }
+                      : undefined
+                  }
                   onDeepResearch={() => {
                     if (!requireAuthGate()) return;
                     setActiveInlineMode("deep-research");

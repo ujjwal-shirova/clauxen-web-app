@@ -222,8 +222,9 @@ export function PromptAddMenuPanel({
       aria-label="Composer tools"
       className={cn(
         placement === "above"
-          ? "absolute bottom-full left-0 z-50 mb-2 w-full"
-          : "relative mt-2 w-full",
+          ? "absolute bottom-full left-0 z-50 mb-2 w-[min(320px,calc(100vw-24px))]"
+          : "absolute left-0 top-full z-50 mt-2 w-[min(320px,calc(100vw-24px))]",
+        "prompt-add-menu-popover",
         className,
       )}
       data-prompt-add-menu-root
