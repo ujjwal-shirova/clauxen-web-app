@@ -1,6 +1,6 @@
 /** Desktop app sidebar width. Default until the user drags; then stored in settings. */
 
-export const SIDEBAR_WIDTH_DEFAULT = 264;
+export const SIDEBAR_WIDTH_DEFAULT = 248;
 export const SIDEBAR_WIDTH_MIN = 200;
 export const SIDEBAR_WIDTH_MAX = 380;
 export const SIDEBAR_WIDTH_STORAGE_KEY = "clauxen.sidebarWidth";

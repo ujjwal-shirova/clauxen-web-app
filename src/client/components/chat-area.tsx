@@ -394,7 +394,7 @@ function ChatAreaLayout({
   return (
     <div
       className={cn(
-        "glass-agent-drop-target relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--chat-canvas-bg,#ffffff)]",
+        "glass-agent-drop-target relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--chat-canvas-bg,#f2f3f6)]",
         incognito ? "rounded-none" : "rounded-[inherit]",
       )}
       data-incognito={incognito || undefined}
