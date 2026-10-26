@@ -4,7 +4,7 @@
 import * as React from "react";
 import * as ToastPrimitives from "@radix-ui/react-toast"; // Radix Toast primitive (Hindi: Radix Toast primitive)
 import { cva, type VariantProps } from "class-variance-authority";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/bootstrap-icon";
 
 import { cn } from "@/lib/utils";
 

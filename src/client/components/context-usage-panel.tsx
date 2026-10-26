@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/bootstrap-icon";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import {
   Popover,

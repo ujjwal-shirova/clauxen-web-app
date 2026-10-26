@@ -8,7 +8,7 @@ import {
   CornerDownLeft,
   Pencil,
   Trash2,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import type { QueuedChatMessage } from "@/stores/chat-store";

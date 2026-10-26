@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, X } from "lucide-react";
+import { ChevronRight, X } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { PluginMark } from "./plugin-mark";
 import type { PluginConnection } from "./use-plugin-connections";

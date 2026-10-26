@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Keyboard, X } from "lucide-react";
+import { Keyboard, X } from "@/components/ui/bootstrap-icon";
 
 import {
   Dialog,

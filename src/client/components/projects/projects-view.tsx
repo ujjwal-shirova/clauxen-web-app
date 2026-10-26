@@ -20,7 +20,7 @@ import {
   Share,
   Trash2,
   Upload,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { AppHref } from "@/components/app-href";
 import { IsolatedChatInput } from "@/components/isolated-chat-input";
 import { MobilePageHeader } from "@/components/mobile-page-header";

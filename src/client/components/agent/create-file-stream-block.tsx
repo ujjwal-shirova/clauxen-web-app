@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { FileCode, LoaderCircle } from "lucide-react";
+import { FileCode, LoaderCircle } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import type { CreateFileBlock } from "@/lib/create-file-tags";
 import { artifactMetaLabel } from "@/lib/create-file-tags";

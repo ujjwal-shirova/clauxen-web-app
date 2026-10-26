@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Plus, Loader2 } from "lucide-react"; // Lucide icons — New artifact (Plus), loading spinner (Loader2)
+import { Plus, Loader2 } from "@/components/ui/bootstrap-icon"; // Lucide icons — New artifact (Plus), loading spinner (Loader2)
 import { Button } from "@/components/ui/button"; // shadcn Button — header CTA "New artifact" styling
 import { cn } from "@/lib/utils"; // Tailwind className merge — tab/category active state classes conflict-free
 import { appBtn } from "@/lib/app-buttons";

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { LucideIcon, LucideProps } from "lucide-react";
+import type { LucideIcon, LucideProps } from "@/components/ui/bootstrap-icon";
 
 const sizeClasses = {
   xs: "icon-xs",
@@ -38,12 +38,7 @@ export function Icon({
 
   return (
     <LucideIcon
-      className={cn(
-        "lucide",
-        sizeClasses[size],
-        variantClasses[variant],
-        className,
-      )}
+      className={cn(sizeClasses[size], variantClasses[variant], className)}
       {...safeProps}
     />
   );

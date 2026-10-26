@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "@/components/ui/bootstrap-icon";
 import {
   Archive,
   Bell,
@@ -18,7 +18,7 @@ import {
   Sparkles,
   UserRound,
   Gauge,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 
 /** Settings navigation. Older sections remain accepted for existing deep links. */
 export const settingsNav = [

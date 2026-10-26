@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Menu } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 
 interface MobileMenuButtonProps {

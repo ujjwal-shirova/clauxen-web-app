@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "@/components/ui/bootstrap-icon";
 import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,

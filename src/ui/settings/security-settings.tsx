@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   Smartphone,
   Terminal,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import {
   SettingsButton,
   SettingsConfirmDialog,

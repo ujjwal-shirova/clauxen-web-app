@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Globe } from "lucide-react";
+import { Globe } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { domainFromUrl } from "@/lib/agent-trace";
 

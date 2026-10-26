@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search } from "@/components/ui/bootstrap-icon";
 import { ApiError } from "@/lib/api/client";
 import { listSkills } from "@/lib/api/customize";
 import {

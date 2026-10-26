@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   Trash2,
   Zap,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";

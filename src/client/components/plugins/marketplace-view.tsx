@@ -25,7 +25,7 @@ import {
   UserCheck,
   Wrench,
   X,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { useRouter } from "next/navigation";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";

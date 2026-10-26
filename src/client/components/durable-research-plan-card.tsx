@@ -10,7 +10,7 @@ import {
   Pause,
   Play,
   X,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { researchCountdown, type ResearchState } from "@/lib/research-state";
 import { type DeepResearchPlan } from "@/lib/deep-research";

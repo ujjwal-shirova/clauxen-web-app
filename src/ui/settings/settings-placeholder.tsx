@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive } from "lucide-react";
+import { Archive } from "@/components/ui/bootstrap-icon";
 
 interface SettingsPlaceholderProps {
   title: string;

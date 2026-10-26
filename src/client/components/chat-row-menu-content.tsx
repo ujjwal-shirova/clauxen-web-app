@@ -9,7 +9,7 @@ import {
   Share,
   Trash2,
   UserPlus,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import {
   DropdownMenuContent,
   DropdownMenuItem,

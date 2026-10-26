@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, Link as LinkIcon, Mail } from "lucide-react";
+import { ArrowLeft, Check, Link as LinkIcon, Mail } from "@/components/ui/bootstrap-icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { chrome } from "@/lib/app-chrome";

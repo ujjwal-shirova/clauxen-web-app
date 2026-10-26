@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/bootstrap-icon";
 import { appBtn } from "@/lib/app-buttons";
 import { Switch } from "@/components/ui/switch";
 import * as cookiesApi from "@/lib/api/cookies";

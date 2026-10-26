@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { CreditCard, Smartphone } from "lucide-react";
+import { CreditCard, Smartphone } from "@/components/ui/bootstrap-icon";
 import { FullscreenPortal } from "@/components/fullscreen-portal";
 import {
   CheckoutPaymentPanel,

@@ -9,7 +9,7 @@ import {
   PenTool,
   Search,
   Sparkles,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 
 interface PromptSuggestionsProps {
   category: string;

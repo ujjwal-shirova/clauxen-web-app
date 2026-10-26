@@ -2,7 +2,7 @@
 
 import "bootstrap-icons/font/bootstrap-icons.css";
 import React from "react";
-import { CreditCard, Landmark, Wallet } from "lucide-react";
+import { CreditCard, Landmark, Wallet } from "@/components/ui/bootstrap-icon";
 import { CheckoutOrDivider } from "@/components/checkout-or-divider";
 import {
   CheckoutPaymentPanel,

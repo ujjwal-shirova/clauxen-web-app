@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X } from "@/components/ui/bootstrap-icon";
 import { GhostChatIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 

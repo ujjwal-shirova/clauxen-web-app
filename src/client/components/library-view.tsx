@@ -32,7 +32,7 @@ import {
   Upload,
   X,
   type LucideIcon,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import {
   Dialog,
   DialogBody,

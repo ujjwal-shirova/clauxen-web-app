@@ -9,7 +9,7 @@ import {
   Paperclip,
   Telescope,
   type LucideIcon,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 
 export type PromptComposeAction = "deep-research";

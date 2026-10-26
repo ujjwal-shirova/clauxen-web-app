@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Brain, Check, ChevronDown, Copy } from "lucide-react";
+import { Brain, Check, ChevronDown, Copy } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "./markdown-renderer";
 

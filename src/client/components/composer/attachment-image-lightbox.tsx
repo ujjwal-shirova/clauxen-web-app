@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Copy, X } from "lucide-react";
+import { Check, Copy, X } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 
 async function copyImageToClipboard(previewUrl: string): Promise<void> {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 

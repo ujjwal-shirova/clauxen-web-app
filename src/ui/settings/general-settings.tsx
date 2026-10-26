@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { accentColors, contrastOptions, motionOptions } from "./constants";
 import {

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeft, Check, Info } from "lucide-react";
+import { ArrowLeft, Check, Info } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { chrome } from "@/lib/app-chrome";
 import { appBtn } from "@/lib/app-buttons";

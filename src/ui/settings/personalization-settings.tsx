@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/components/ui/bootstrap-icon";
 import type { PersonalizationSettings } from "@/lib/api/settings";
 import {
   baseStyleToneOptionItems,

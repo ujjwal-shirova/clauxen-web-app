@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink, X } from "@/components/ui/bootstrap-icon";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   collectChatSources,

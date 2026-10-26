@@ -29,8 +29,6 @@ interface ChatViewPaneProps {
   /** Optional override; defaults to preferred name from session. */
   userPreferredName?: string | null;
   onUpgradeClick?: () => void;
-  /** Free-plan upgrade card shown only on the blank `/new` welcome route. */
-  showNewChatUpgradeCard?: boolean;
 };
 
 const NAMED_WELCOMES = [
@@ -120,7 +118,6 @@ export function ChatViewPane({
   welcomeVariant = "default",
   userPreferredName,
   onUpgradeClick,
-  showNewChatUpgradeCard = false,
 }: ChatViewPaneProps) {
   const { user, loading: authLoading } = useAuth();
   const composerOnlyWelcome = welcomeVariant === "composer-only";
@@ -220,12 +217,14 @@ export function ChatViewPane({
     >
       {!hasConversation && !composerOnlyWelcome && !incognitoWelcome ? (
         <div className="new-chat-hero flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="new-chat-hero__inner m-auto flex w-full flex-col items-center px-4 py-6 sm:px-6">
-            <div className="flex flex-col items-center gap-3.5 text-center">
-              <ClauxenLogo
-                size={40}
-                className="text-zinc-400 dark:text-zinc-500 transition-colors"
-              />
+          <div className="new-chat-hero__inner m-auto flex w-full flex-col items-center px-4 pb-10 pt-2 sm:px-0">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <span
+                aria-hidden
+                className="new-chat-logo flex size-11 items-center justify-center rounded-[14px] bg-zinc-900 text-white shadow-[0_2px_10px_rgba(20,21,26,0.14)] dark:bg-zinc-100 dark:text-zinc-900"
+              >
+                <ClauxenLogo size={24} />
+              </span>
               <h2
                 className="new-chat-greeting w-full max-w-full text-center text-[var(--ui-fg)]"
                 suppressHydrationWarning
@@ -284,17 +283,6 @@ export function ChatViewPane({
                     "gap-3 sm:gap-6",
                   )}
                 >
-                  {showNewChatUpgradeCard ? (
-                    <button
-                      type="button"
-                      onClick={onUpgradeClick}
-                      className="free-plan-upgrade free-plan-upgrade--card outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
-                    >
-                      Free plan <span aria-hidden>·</span>{" "}
-                      <span className="free-plan-upgrade__action">Upgrade</span>
-                    </button>
-                  ) : null}
-
                   {incognitoWelcome ? (
                     <button
                       type="button"

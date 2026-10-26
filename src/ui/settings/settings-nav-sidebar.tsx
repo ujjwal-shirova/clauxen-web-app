@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ArrowLeft, ChevronDown, Menu, Search, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Menu, Search, X } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import {
   settingsItemLabel,

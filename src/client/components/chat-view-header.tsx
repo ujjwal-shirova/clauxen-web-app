@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useIsClient } from "@/hooks/use-is-client";
-import { ChevronDown, Files, HatGlasses, MoreHorizontal, Share } from "lucide-react";
+import { ChevronDown, Files, HatGlasses, MoreHorizontal, Share } from "@/components/ui/bootstrap-icon";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
@@ -197,8 +197,8 @@ export function ChatViewHeader({
         className,
       )}
     >
-      <div className="relative flex h-full w-full min-w-0 items-center justify-between px-2 sm:px-4">
-        <div className="flex items-center gap-1">
+      <div className="relative flex h-full w-full min-w-0 items-center justify-between px-3 sm:px-4">
+        <div className="flex min-w-0 items-center gap-1.5">
           {showMobileMenu && onOpenMobileNav ? (
             <MobileMenuButton
               onClick={onOpenMobileNav}
@@ -206,12 +206,9 @@ export function ChatViewHeader({
               className="-ml-0.5 shrink-0"
             />
           ) : null}
-        </div>
 
-        {/* Center: Chat / Collabry Mode Selector */}
-        <div className="pointer-events-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <div
-            className="inline-flex h-9 items-center rounded-full bg-zinc-100 p-1 text-[13px] font-medium text-zinc-600 border border-black/[0.04]"
+            className="inline-flex h-7.5 items-center rounded-full bg-[#f4f3f2] p-0.5 text-[12px] font-medium text-zinc-500 dark:bg-zinc-800/80 dark:text-zinc-400"
             role="tablist"
             aria-label="Composer mode"
           >
@@ -225,10 +222,10 @@ export function ChatViewHeader({
                   aria-selected={active}
                   onClick={() => onComposerModeChange?.(mode)}
                   className={cn(
-                    "h-7 rounded-full px-4 text-[13px] font-medium leading-none transition-all duration-150 outline-none select-none",
+                    "h-6.5 rounded-full px-3 text-[12px] font-medium leading-none transition-all duration-150 outline-none select-none",
                     active
-                      ? "bg-white text-zinc-950 shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-900",
+                      ? "bg-white text-zinc-900 shadow-[0_1px_2px_rgba(20,21,26,0.08)] dark:bg-zinc-700 dark:text-zinc-50"
+                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100",
                   )}
                 >
                   {mode === "chat" ? "Chat" : "Collabry"}
@@ -238,25 +235,28 @@ export function ChatViewHeader({
           </div>
         </div>
 
-        {/* Right Corner: Incognito Mode button */}
-        <div className="ml-auto flex items-center gap-2">
+        {/* Center: Upgrade your plan */}
+        <div className="pointer-events-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           {showFreePlanUpgrade ? (
             <button
               type="button"
               onClick={onUpgradeClick}
-              className="free-plan-upgrade hidden md:inline-flex pointer-events-auto outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+              className="landing-upgrade-pill outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
             >
-              Free plan <span aria-hidden>·</span>{" "}
-              <span className="free-plan-upgrade__action">Upgrade</span>
+              Upgrade your plan
             </button>
           ) : null}
+        </div>
+
+        {/* Right Corner: Incognito Mode button */}
+        <div className="ml-auto flex items-center gap-1.5">
           <HintTooltip content="Incognito Mode" side="bottom">
             <AppHref
               href="/incognito"
               aria-label="Incognito Mode"
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-black/[0.04] hover:text-zinc-800 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:text-zinc-500 dark:hover:bg-white/[0.06] dark:hover:text-zinc-100"
             >
-              <HatGlasses className="size-5 shrink-0" strokeWidth={1.8} />
+              <HatGlasses className="size-[18px] shrink-0" />
             </AppHref>
           </HintTooltip>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { PluginCard } from "./plugin-card";
 import type { MarketplacePlugin } from "./types";

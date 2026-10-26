@@ -1,4 +1,4 @@
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "@/components/ui/bootstrap-icon";
 
 export function AppContentLoader({
   label = "Loading",

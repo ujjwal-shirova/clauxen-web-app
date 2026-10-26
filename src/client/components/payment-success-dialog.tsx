@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { Check } from "lucide-react";
+import { Check } from "@/components/ui/bootstrap-icon";
 import { FullscreenPortal } from "@/components/fullscreen-portal";
 import { cn } from "@/lib/utils";
 

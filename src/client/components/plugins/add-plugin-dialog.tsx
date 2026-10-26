@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Loader2, ShieldCheck, Wrench } from "lucide-react";
+import { ExternalLink, Loader2, ShieldCheck, Wrench } from "@/components/ui/bootstrap-icon";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
 import {

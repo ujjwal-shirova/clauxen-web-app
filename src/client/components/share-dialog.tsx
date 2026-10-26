@@ -11,7 +11,7 @@ import {
   LoaderCircle,
   Lock,
   X,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import * as shareApi from "@/lib/api/share";
 

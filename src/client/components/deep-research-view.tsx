@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ArrowUpRight, Loader2, Microscope } from "lucide-react"; // Lucide icons — suggestion arrow, loading spinner, hero microscope icon
+import { ArrowUpRight, Loader2, Microscope } from "@/components/ui/bootstrap-icon"; // Lucide icons — suggestion arrow, loading spinner, hero microscope icon
 import { PromptInput } from "./prompt-input"; // shared chat-style prompt input component — research question submit
 import { useResearch } from "@/hooks/use-research"; // custom hook — research runs fetch/create API state
 import { useAuth } from "@/hooks/use-auth"; // auth hook — isAuthenticated gate for API calls

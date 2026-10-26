@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useState, useRef, useEffect, useMemo } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X, ChevronDown } from "lucide-react";
+import { X, ChevronDown } from "@/components/ui/bootstrap-icon";
 import QRCode from "qrcode";
 import { cn } from "@/lib/utils";
 import {

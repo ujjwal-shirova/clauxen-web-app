@@ -9,10 +9,10 @@ import {
   MoreHorizontal,
   Play,
   UserPlus,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/bootstrap-icon";
 
 import { cn } from "@/lib/utils";
 import { chrome } from "@/lib/app-chrome";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy } from "@/components/ui/bootstrap-icon";
 import {
   SettingsButton,
   SettingsConfirmDialog,

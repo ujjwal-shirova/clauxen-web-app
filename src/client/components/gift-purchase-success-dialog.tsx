@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Copy, Mail } from "lucide-react";
+import { Check, Copy, Mail } from "@/components/ui/bootstrap-icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { chrome } from "@/lib/app-chrome";

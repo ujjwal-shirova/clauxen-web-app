@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Copy, MoreHorizontal, Sparkles } from "lucide-react";
+import { Check, Copy, MoreHorizontal, Sparkles } from "@/components/ui/bootstrap-icon";
 import {
   billingInvoicePdfUrl,
   deletePaymentMethod,

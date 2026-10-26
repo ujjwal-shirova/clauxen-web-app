@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useRef, useState } from "react";
-import { Check, ChevronDown, Copy, Download } from "lucide-react";
+import { Check, ChevronDown, Copy, Download } from "@/components/ui/bootstrap-icon";
 import {
   DropdownMenu,
   DropdownMenuContent,

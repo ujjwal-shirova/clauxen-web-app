@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { Check, ShieldCheck, Wrench, ArrowRight, Loader2 } from "lucide-react";
+import { Check, ShieldCheck, Wrench, ArrowRight, Loader2 } from "@/components/ui/bootstrap-icon";
 import { pluginById } from "@/client/components/plugins/catalog";
 import { PluginMark } from "@/client/components/plugins/plugin-mark";
 import { stripCursorText } from "@/client/components/plugins/plugin-copy";

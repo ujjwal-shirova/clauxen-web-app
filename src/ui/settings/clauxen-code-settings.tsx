@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRight, ExternalLink } from "lucide-react";
+import { ArrowUpRight, ExternalLink } from "@/components/ui/bootstrap-icon";
 import {
   segmentedOptionClass,
   segmentedTrackClass,

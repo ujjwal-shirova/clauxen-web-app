@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, Plus } from "@/components/ui/bootstrap-icon";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
 import { cardDescription, stripCursorText } from "./plugin-copy";

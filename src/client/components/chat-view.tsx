@@ -501,12 +501,6 @@ function ChatViewBody({
         onRemoveQueuedMessage={removeQueuedMessage}
         onUpgradeClick={() => overlays.openPricing()}
         showFreePlanUpgrade={showFreePlanUpgrade}
-        showNewChatUpgradeCard={
-          showFreePlanUpgrade &&
-          blankNewChatComposer &&
-          isNewChatPath(pathname) &&
-          !isIncognito
-        }
         editMessageWithBranch={editMessageWithBranch}
         redoUserMessageWithBranch={redoUserMessageWithBranch}
         retryAssistantWithBranch={retryAssistantWithBranch}

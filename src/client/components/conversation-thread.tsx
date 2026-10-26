@@ -12,7 +12,7 @@ import {
   Search,
   Sparkles,
   SquarePen,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { displayResearchMessage } from "@/lib/deep-research";
 import { AgentMessageContent } from "./agent/agent-message-content";
 import { HintTooltip } from "./ui/hint-tooltip";

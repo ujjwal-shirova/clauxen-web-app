@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "@/components/ui/bootstrap-icon";
 import {
   CHECKOUT_CURRENCIES,
   CHECKOUT_CURRENCY_LABELS,

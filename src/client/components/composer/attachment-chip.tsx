@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, LoaderCircle, Play, X } from "lucide-react";
+import { FileText, LoaderCircle, Play, X } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import {
   documentTypeLabel,

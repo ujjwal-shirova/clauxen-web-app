@@ -8,7 +8,7 @@ import {
   Landmark,
   MoreHorizontal,
   Search,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { CheckoutCardBrandStack } from "@/components/checkout-card-brand-stack";
 import { CheckoutPaymentIcon } from "@/components/checkout-payment-icon";
 import {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowLeft, ChevronLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft } from "@/components/ui/bootstrap-icon";
 import {
   isSettingsTab,
   resolveVisibleTab,

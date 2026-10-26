@@ -28,7 +28,7 @@ import {
   Terminal,
   Wrench,
   type LucideIcon,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { ProjectIcon } from "@/lib/project-drafts";
 import { cn } from "@/lib/utils";

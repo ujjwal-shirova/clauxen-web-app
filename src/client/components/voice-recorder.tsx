@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react"; // useState — bar heights; useRef — animation frame, audio nodes, MediaStream
-import { X, Check } from "lucide-react";
+import { X, Check } from "@/components/ui/bootstrap-icon";
 
 interface VoiceRecorderProps {
   isRecording: boolean;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Info, X } from "lucide-react";
+import { Info, X } from "@/components/ui/bootstrap-icon";
 
 type SavedToastState = {
   id: number;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload } from "lucide-react";
+import { Upload } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { initialsFromName } from "@/lib/profile-names";
 import * as profileApi from "@/lib/api/profile";

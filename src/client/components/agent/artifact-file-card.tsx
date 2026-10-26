@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Code2, Copy, Download, Eye, FileText, Globe } from "lucide-react";
+import { Check, Code2, Copy, Download, Eye, FileText, Globe } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { downloadArtifact, type ChatArtifact } from "@/lib/chat-artifacts";
 import {

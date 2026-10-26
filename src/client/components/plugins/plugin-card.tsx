@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Check, Loader2, Plus } from "lucide-react";
+import { Check, Loader2, Plus } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { cardDescription, stripCursorText } from "./plugin-copy";
 import { PluginMark } from "./plugin-mark";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "clauxen_sidebar_basics_v1";

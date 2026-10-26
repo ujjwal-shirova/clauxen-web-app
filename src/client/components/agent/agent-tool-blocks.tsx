@@ -9,7 +9,7 @@ import {
   BookOpen,
   FileText,
   Plug,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import {
   domainFromUrl,
   type AgentToolStep,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/bootstrap-icon";
 
 export function AttachmentVideoLightbox({
   open,

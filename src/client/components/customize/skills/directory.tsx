@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, ChevronDown, Plus, Search, X } from "lucide-react";
+import { BookOpen, ChevronDown, Plus, Search, X } from "@/components/ui/bootstrap-icon";
 import { chrome } from "@/lib/app-chrome";
 import { cn } from "@/lib/utils";
 import { starterSkillsStructure } from "@/lib/starter-skills-data";

@@ -9,7 +9,7 @@ import {
   Plus,
   SquarePen,
   X,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { AttachmentChip } from "@/components/composer/attachment-chip";
 import { AttachmentPreviewHost } from "@/components/composer/attachment-preview-host";

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, Loader2, Pencil, X } from "lucide-react";
+import { Check, ChevronLeft, Loader2, Pencil, X } from "@/components/ui/bootstrap-icon";
 import { sessionFetch } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAppLayout } from "@/components/app-layout-context";

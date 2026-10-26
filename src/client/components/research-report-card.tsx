@@ -12,7 +12,7 @@ import {
   Waypoints,
   Telescope,
   LoaderCircle,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { apiFetch } from "@/lib/api/client";
 import type { ResearchReport } from "@/lib/research-report";
 import type { ResearchState } from "@/lib/research-state";

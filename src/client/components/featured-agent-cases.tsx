@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/components/ui/bootstrap-icon";
 import Image from "next/image"; // next/image — optimized fill layout thumbnails
 
 const cases = [

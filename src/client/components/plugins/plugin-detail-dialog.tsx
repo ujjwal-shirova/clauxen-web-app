@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Trash2,
   Zap,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
 import {

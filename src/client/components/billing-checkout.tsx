@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ChevronDown, Minus, Plus } from "lucide-react";
+import { ArrowLeft, ChevronDown, Minus, Plus } from "@/components/ui/bootstrap-icon";
 import { appBtn } from "@/lib/app-buttons";
 import {
   createBillingOrder,

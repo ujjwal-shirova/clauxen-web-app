@@ -13,6 +13,7 @@ import {
   ArrowUp,
   Check,
   ChevronDown,
+  Folder,
   FolderKanban,
   LoaderCircle,
   Mic,
@@ -22,7 +23,7 @@ import {
   Star,
   Telescope,
   X,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
 import {
@@ -155,14 +156,6 @@ const COMPOSE_ACTION_META: Record<
 const addMenuTriggerClass =
   "menu-trigger-active no-hover-overlay prompt-control-ghost shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
 
-const WELCOME_HINTS = [
-  "How can I help you today?",
-  "Ask anything",
-  "Type / for skills",
-  "Type @ for files",
-  "Type # for plugins",
-] as const;
-
 const promptFilledControlClass =
   "no-hover-overlay prompt-control-filled shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-app-button";
 
@@ -268,12 +261,13 @@ function ProjectSelectorPopover({
           <button
             type="button"
             aria-label="Select project"
-            className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-zinc-400"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[12.5px] font-medium text-zinc-500 transition-colors outline-none hover:bg-black/[0.04] hover:text-zinc-900 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:text-zinc-400 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100"
           >
-            <span className="truncate max-w-[140px]">
-              {activeProject ? activeProject.name : "Project"}
+            <Folder className="size-3.5 shrink-0" />
+            <span className="max-w-[140px] truncate">
+              {activeProject ? activeProject.name : "Select project"}
             </span>
-            <ChevronDown className="size-3 shrink-0 text-zinc-400" strokeWidth={1.8} />
+            <ChevronDown className="size-3 shrink-0 text-zinc-400" />
           </button>
         </PopoverTrigger>
         <PopoverContent
@@ -550,21 +544,16 @@ export function PromptInput({
   showModelSelector = true,
   chatModel = DEFAULT_CHAT_MODEL_ID,
   onChatModelChange,
-  placeholder = "Ask anything",
+  placeholder = "Ask anything, or task an agent...",
   allowAttachments = true,
   composerVariant = "default",
   projectId = null,
   composerMode: composerModeProp,
-  onComposerModeChange: onComposerModeChangeProp,
 }: PromptInputProps) {
   const activeChatId = useActiveChatId();
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
-  const [internalComposerMode, setInternalComposerMode] = useState<"chat" | "cowork">("chat");
-  const composerMode = composerModeProp ?? internalComposerMode;
-  const setComposerMode = onComposerModeChangeProp ?? setInternalComposerMode;
-  const [hintIndex, setHintIndex] = useState(0);
-  const [hintVisible, setHintVisible] = useState(true);
+  const composerMode = composerModeProp ?? "chat";
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const draftNotifyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -1403,10 +1392,10 @@ export function PromptInput({
   const promptIsExpanded =
     isMultiline || showComposeControls || hasPromptAddons;
   const promptShellClass = cn(
-    "relative w-full max-w-full bg-white transition-[min-height,border-color,background-color,box-shadow] duration-200 ease-out rounded-[20px] border border-black/[0.08] shadow-[0_2px_10px_-2px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)] focus-within:border-black/[0.18] focus-within:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.07),0_2px_6px_-1px_rgba(0,0,0,0.03)]",
+    "relative w-full max-w-full bg-white transition-[min-height,border-color,background-color,box-shadow] duration-200 ease-out rounded-[26px] border border-black/[0.08] shadow-[0_1px_2px_rgba(20,21,26,0.03),0_12px_32px_-24px_rgba(20,21,26,0.18)] focus-within:border-black/[0.14] focus-within:shadow-[0_1px_2px_rgba(20,21,26,0.04),0_16px_40px_-24px_rgba(20,21,26,0.22)] dark:bg-zinc-900 dark:border-white/[0.1] dark:focus-within:border-white/[0.16]",
     showComposeControls && "min-h-[40px]",
     composerVariant === "incognito" &&
-      "border border-dashed border-zinc-300/90 shadow-none",
+      "border border-dashed border-zinc-300/90 shadow-none dark:border-zinc-600/80",
   );
 
   const renderMicButton = () => (
@@ -1564,18 +1553,6 @@ export function PromptInput({
     );
   };
 
-  useEffect(() => {
-    if (isConversationStarted || hasDraft) return;
-    const cycle = window.setInterval(() => {
-      setHintVisible(false);
-      window.setTimeout(() => {
-        setHintIndex((index) => (index + 1) % WELCOME_HINTS.length);
-        setHintVisible(true);
-      }, 280);
-    }, 3400);
-    return () => window.clearInterval(cycle);
-  }, [hasDraft, isConversationStarted]);
-
   const renderAddMenuButton = () => (
     <div
       className="relative flex shrink-0 items-center gap-1"
@@ -1652,12 +1629,13 @@ export function PromptInput({
       return (
         <div className="prompt-welcome" data-prompt-welcome="true">
           <div className="prompt-welcome__input">
-            {renderTextareaField(placeholder, "py-1")}
+            {renderTextareaField(placeholder, "py-0")}
           </div>
           <div className="prompt-welcome__bar">
             {renderAddMenuButton()}
             <div className="min-w-0 flex-1" />
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              {renderModelSelector()}
               {renderMicButton()}
               {renderTrailingActions(true)}
             </div>
@@ -1699,27 +1677,11 @@ export function PromptInput({
       ? ""
       : listeningEmpty
         ? "Listening…"
-        : !isConversationStarted && !hasDraft && !activeInlineMode
-          ? ""
+        : !isConversationStarted && composerMode === "cowork"
+          ? "What should we work on together?"
           : placeholder;
     return (
       <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-0">
-        {!isConversationStarted &&
-        !hasDraft &&
-        !listeningEmpty &&
-        !activeInlineMode ? (
-          <span
-            aria-hidden
-            className={cn(
-              "pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-[14.5px] font-normal leading-[22px] text-zinc-400 transition-opacity duration-300",
-              hintVisible ? "opacity-100" : "opacity-0",
-            )}
-          >
-            {composerMode === "cowork" && hintIndex === 0
-              ? "What should we work on together?"
-              : WELCOME_HINTS[hintIndex]}
-          </span>
-        ) : null}
         {activeInlineMode ? (
           <PromptInlineModeChip mode={activeInlineMode} />
         ) : null}
@@ -1749,7 +1711,7 @@ export function PromptInput({
           onPaste={scheduleResizeTextarea}
           onCompositionEnd={scheduleResizeTextarea}
           className={cn(
-            "prompt-textarea block min-w-[3rem] min-h-0 flex-1 resize-none overflow-x-hidden border-0 bg-transparent text-[14.5px] font-normal leading-[22px] text-zinc-900 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-0 focus:outline-none focus:ring-0 sm:text-[14.5px] sm:leading-[22px]",
+            "prompt-textarea block min-w-[3rem] min-h-0 flex-1 resize-none overflow-x-hidden border-0 bg-transparent text-[15.5px] font-normal leading-[24px] text-zinc-900 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-0 focus:outline-none focus:ring-0 sm:text-[15.5px] sm:leading-[24px] dark:text-zinc-100 dark:placeholder:text-zinc-500",
             showComposeControls ? "px-1 py-2" : "px-0 py-2",
             className,
           )}
@@ -1963,18 +1925,14 @@ export function PromptInput({
             </AnimatePresence>
           </div>
           {!isConversationStarted ? (
-            <div
-              data-prompt-toolbar="true"
-              className="flex items-center justify-between px-1 pt-2.5 pb-0 text-zinc-600 bg-transparent border-0 shadow-none rounded-none"
-            >
-              <div className="flex items-center">
+            <div data-prompt-toolbar="true" className="prompt-welcome-toolbar">
+              <div className="flex min-w-0 items-center gap-1">
                 <ProjectSelectorPopover
                   projectId={projectId}
                   canOpen={requireAuthGate}
                 />
               </div>
-              <div className="flex items-center gap-1 sm:gap-1.5">
-                {renderModelSelector()}
+              <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
                 <ReasoningEffortSelector
                   effort={homerReasoningEffort}
                   onEffortChange={onHomerReasoningEffortChange}

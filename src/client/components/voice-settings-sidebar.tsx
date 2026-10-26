@@ -9,7 +9,7 @@ import {
   Play,
   ChevronsUpDown,
   Plus,
-} from "lucide-react"; // scope/component block end
+} from "@/components/ui/bootstrap-icon"; // scope/component block end
 import {
   Sheet,
   SheetContent,

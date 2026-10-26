@@ -6,7 +6,7 @@ import {
   Download,
   FileArchive,
   Trash2,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import {
   SettingsButton,
   SettingsConfirmDialog,

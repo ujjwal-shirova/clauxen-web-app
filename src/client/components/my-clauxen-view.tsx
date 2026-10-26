@@ -3,7 +3,7 @@
 import { sessionFetch } from "@/lib/api/client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { BookLock, Loader2 } from "lucide-react";
+import { BookLock, Loader2 } from "@/components/ui/bootstrap-icon";
 import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
 import { useDocumentTitle } from "@/hooks/use-document-title";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, ImageIcon, Telescope, type LucideIcon } from "lucide-react";
+import { Globe, ImageIcon, Telescope, type LucideIcon } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 
 export type PromptInlineMode = "web-search" | "create-image" | "deep-research";

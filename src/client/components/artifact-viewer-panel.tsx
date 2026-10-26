@@ -11,7 +11,7 @@ import {
   FileText,
   Share,
   X,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { HighlightCode } from "@/lib/syntax-highlight";

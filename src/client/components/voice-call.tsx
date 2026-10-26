@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Settings, Blocks, ArrowLeft, AudioWaveform } from "lucide-react"; // header icons — back, integrations placeholder, settings, call CTA
+import { Settings, Blocks, ArrowLeft, AudioWaveform } from "@/components/ui/bootstrap-icon"; // header icons — back, integrations placeholder, settings, call CTA
 import { VoiceSettingsSidebar } from "./voice-settings-sidebar";
 
 interface VoiceCallProps {

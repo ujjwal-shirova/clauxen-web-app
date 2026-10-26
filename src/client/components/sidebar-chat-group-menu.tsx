@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, SlidersVertical } from "lucide-react";
+import { Check, SlidersVertical } from "@/components/ui/bootstrap-icon";
 import {
   DropdownMenu,
   DropdownMenuContent,

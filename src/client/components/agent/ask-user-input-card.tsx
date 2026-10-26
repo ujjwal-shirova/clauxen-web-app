@@ -7,7 +7,7 @@ import {
   ChevronRight,
   Edit2,
   X,
-} from "lucide-react";
+} from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import {
   dispatchChatSendMessage,

@@ -10682,3 +10682,586 @@ button.agent-ledger__row-head:hover {
     14% 19%, 18% 10%, 27% 10%, 33% 2%, 42% 5%
   );
 }
+
+/* ==========================================================================
+   2026 app redesign — warm canvas, floating white sheet, reference composer.
+   This final layer intentionally owns the shipped visual state.
+   ========================================================================== */
+
+:root {
+  --app-sidebar-bg: #fbfaf9;
+  --app-frame-bg: #fbfaf9;
+  --app-shell-bg: #fbfaf9;
+  --app-panel-bg: #ffffff;
+  --chat-canvas-bg: #ffffff;
+  --chat-column-max-width: 760px;
+  --chat-reading-column-max-width: 744px;
+  --cx-sidebar-bg: #fbfaf9;
+  --cx-sidebar-fg: #1b1b1d;
+  --cx-sidebar-muted: #74747a;
+  --cx-sidebar-faint: #a3a3a8;
+  --cx-sidebar-hover: rgba(20, 21, 26, 0.045);
+  --cx-sidebar-active: #efeeef;
+  --cx-sidebar-line: rgba(20, 21, 26, 0.06);
+}
+
+.dark {
+  --app-sidebar-bg: #111113;
+  --app-frame-bg: #111113;
+  --app-shell-bg: #111113;
+  --app-panel-bg: #18181b;
+  --chat-canvas-bg: #18181b;
+  --cx-sidebar-bg: #111113;
+  --cx-sidebar-fg: #fafafa;
+  --cx-sidebar-muted: #a1a1aa;
+  --cx-sidebar-faint: #71717a;
+  --cx-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --cx-sidebar-active: rgba(255, 255, 255, 0.09);
+  --cx-sidebar-line: rgba(255, 255, 255, 0.07);
+}
+
+/* Bootstrap icon font — align glyph boxes with the icon utilities. */
+.bi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-style: normal;
+  flex: none;
+}
+
+.bi.icon-xs { font-size: 12px; }
+.bi.icon-sm { font-size: 14px; }
+.bi.icon-md { font-size: 16px; }
+.bi.icon-lg { font-size: 18px; }
+.bi.icon-xl { font-size: 20px; }
+.bi.icon-2xl { font-size: 24px; }
+
+/* --------------------------------------------------------------------------
+   Sidebar
+   -------------------------------------------------------------------------- */
+.cx-sidebar {
+  border-right: 1px solid rgba(20, 21, 26, 0.055) !important;
+}
+
+.dark .cx-sidebar {
+  border-right-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.cx-sidebar .ui-sidebar-top-bar {
+  height: 56px !important;
+  min-height: 56px !important;
+  padding: 0 14px !important;
+}
+
+.cx-sidebar .cx-logo-tile {
+  transition: transform 0.18s ease;
+}
+
+.cx-sidebar .cx-hide-sidebar {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  border-radius: 8px !important;
+  color: var(--cx-sidebar-faint) !important;
+}
+
+.cx-sidebar .cx-hide-sidebar:hover {
+  background: var(--cx-sidebar-hover) !important;
+  color: var(--cx-sidebar-fg) !important;
+}
+
+.cx-sidebar .cx-hide-sidebar svg {
+  width: 19px !important;
+  height: 19px !important;
+}
+
+.cx-sidebar:not(.is-collapsed) .cx-nav {
+  gap: 4px !important;
+  padding: 4px 10px 8px !important;
+}
+
+.cx-sidebar:not(.is-collapsed) a.cx-nav-btn,
+.cx-sidebar:not(.is-collapsed) button.cx-nav-btn {
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 10px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--cx-sidebar-muted) !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  line-height: 20px !important;
+  letter-spacing: -0.005em !important;
+  gap: 10px !important;
+}
+
+.cx-sidebar:not(.is-collapsed) a.cx-nav-btn:hover,
+.cx-sidebar:not(.is-collapsed) button.cx-nav-btn:hover,
+.cx-sidebar:not(.is-collapsed) a.cx-nav-btn:focus-visible {
+  background: var(--cx-sidebar-hover) !important;
+  color: var(--cx-sidebar-fg) !important;
+}
+
+.cx-sidebar a.cx-nav-btn.is-active,
+.cx-sidebar a.cx-nav-btn[aria-current="page"] {
+  background: var(--cx-sidebar-active) !important;
+  color: var(--cx-sidebar-fg) !important;
+}
+
+/* New chat reads as the one raised control in the sidebar. */
+.cx-sidebar:not(.is-collapsed) a.cx-nav-btn.cx-nav-btn--new {
+  height: 38px !important;
+  min-height: 38px !important;
+  border: 1px solid rgba(20, 21, 26, 0.075) !important;
+  border-radius: 11px !important;
+  background: #ffffff !important;
+  color: #27272a !important;
+  box-shadow: 0 1px 2px rgba(20, 21, 26, 0.04) !important;
+  font-weight: 500 !important;
+}
+
+.cx-sidebar:not(.is-collapsed) a.cx-nav-btn.cx-nav-btn--new:hover {
+  background: #fbfbfa !important;
+  border-color: rgba(20, 21, 26, 0.12) !important;
+  color: #18181b !important;
+}
+
+.dark .cx-sidebar:not(.is-collapsed) a.cx-nav-btn.cx-nav-btn--new {
+  background: #27272a !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  color: #fafafa !important;
+  box-shadow: none !important;
+}
+
+.dark .cx-sidebar:not(.is-collapsed) a.cx-nav-btn.cx-nav-btn--new:hover {
+  background: #2f2f33 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+.cx-sidebar .cx-nav-icon {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+}
+
+.cx-nav-btn .bi {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.cx-nav-btn .cx-kbd {
+  height: 18px !important;
+  min-width: 18px !important;
+  padding: 0 4px !important;
+  border: 1px solid rgba(20, 21, 26, 0.06) !important;
+  border-radius: 5px !important;
+  background: #f4f3f2 !important;
+  color: #9a9a9f !important;
+  font-family: var(--font-inter), Inter, system-ui, sans-serif !important;
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  line-height: 16px !important;
+  box-shadow: none !important;
+}
+
+.dark .cx-nav-btn .cx-kbd {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #a1a1aa !important;
+}
+
+.cx-sidebar .cx-section-head {
+  padding: 12px 10px 4px !important;
+  height: 34px !important;
+}
+
+.cx-sidebar .cx-section-head button span,
+.cx-sidebar .cx-section-head .cx-section-toggle span {
+  color: #8e8e93 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.dark .cx-sidebar .cx-section-head button span,
+.dark .cx-sidebar .cx-section-head .cx-section-toggle span {
+  color: #71717a !important;
+}
+
+.cx-sidebar .cx-chat-row {
+  height: 34px !important;
+  border-radius: 8px !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  font-size: 13.5px !important;
+  color: var(--cx-sidebar-muted) !important;
+}
+
+.cx-sidebar .cx-chat-row:hover {
+  background: var(--cx-sidebar-hover) !important;
+  color: var(--cx-sidebar-fg) !important;
+}
+
+.cx-sidebar .cx-chat-row[data-active="true"] {
+  background: var(--cx-sidebar-active) !important;
+  color: var(--cx-sidebar-fg) !important;
+}
+
+.cx-sidebar .cx-chat-title {
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  line-height: 20px !important;
+}
+
+.cx-sidebar .cx-chat-row[data-active="true"] .cx-chat-title {
+  font-weight: 500 !important;
+}
+
+.cx-sidebar .cx-chat-group-label {
+  color: #a3a3a8 !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+}
+
+.cx-sidebar .sidebar-account-footer {
+  border-top-color: var(--cx-sidebar-line) !important;
+  padding: 8px 10px 12px !important;
+}
+
+.cx-sidebar .cx-account-name {
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+}
+
+.cx-sidebar .cx-account-plan {
+  font-size: 11px !important;
+}
+
+/* --------------------------------------------------------------------------
+   Landing header
+   -------------------------------------------------------------------------- */
+.content-pane-top-bar--landing {
+  height: 64px !important;
+  min-height: 64px !important;
+  padding: 0 !important;
+}
+
+.landing-upgrade-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid rgba(26, 115, 232, 0.1);
+  border-radius: 999px;
+  background: #ebf2fe;
+  color: #1a73e8;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.landing-upgrade-pill:hover {
+  background: #e1ecfe;
+  color: #0f5fd7;
+}
+
+.dark .landing-upgrade-pill {
+  border-color: rgba(147, 197, 253, 0.12);
+  background: rgba(59, 130, 246, 0.16);
+  color: #93c5fd;
+}
+
+.dark .landing-upgrade-pill:hover {
+  background: rgba(59, 130, 246, 0.24);
+}
+
+@media (max-width: 640px) {
+  .content-pane-top-bar--landing {
+    height: 56px !important;
+    min-height: 56px !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Welcome hero
+   -------------------------------------------------------------------------- */
+.new-chat-hero__inner {
+  max-width: var(--chat-column-max-width, 760px);
+  gap: 28px;
+}
+
+.new-chat-logo {
+  transition: transform 0.2s ease;
+}
+
+.new-chat-greeting {
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 38px;
+  letter-spacing: -0.025em;
+  color: #1c1c1e;
+  text-wrap: balance;
+}
+
+.dark .new-chat-greeting {
+  color: #fafafa;
+}
+
+@media (min-width: 640px) {
+  .new-chat-greeting {
+    font-size: 34px;
+    line-height: 43px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Prompt composer
+   -------------------------------------------------------------------------- */
+[data-prompt-welcome="true"].prompt-welcome {
+  gap: 0;
+  padding: 0;
+}
+
+.prompt-welcome__input {
+  min-height: 62px;
+  padding: 20px 22px 0;
+  align-items: flex-start;
+}
+
+.prompt-welcome__bar {
+  padding: 4px 14px 14px 16px;
+  gap: 8px;
+}
+
+[data-prompt-shell] {
+  position: relative;
+  z-index: 2;
+}
+
+[data-prompt-root] .prompt-control-filled {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 9999px !important;
+  background: #1c1c1e !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+[data-prompt-root] .prompt-control-filled:hover:not(:disabled),
+[data-prompt-root] .prompt-control-filled:focus-visible:not(:disabled) {
+  background: #3a3a3d !important;
+  color: #ffffff !important;
+}
+
+[data-prompt-root] .prompt-control-filled:disabled {
+  background: #ececea !important;
+  color: #b3b2ad !important;
+  opacity: 1 !important;
+}
+
+.dark [data-prompt-root] .prompt-control-filled {
+  background: #f4f4f5 !important;
+  color: #18181b !important;
+}
+
+.dark [data-prompt-root] .prompt-control-filled:hover:not(:disabled) {
+  background: #ffffff !important;
+}
+
+.dark [data-prompt-root] .prompt-control-filled:disabled {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #71717a !important;
+}
+
+[data-prompt-root] .prompt-control-ghost,
+[data-prompt-root] .prompt-add-nav-match {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  border-radius: 9999px !important;
+  color: #5f5f63 !important;
+}
+
+[data-prompt-root] .prompt-control-ghost:hover:not(:disabled),
+[data-prompt-root] .prompt-add-nav-match:hover:not(:disabled),
+[data-prompt-root] .prompt-control-ghost[aria-expanded="true"] {
+  background: rgba(20, 21, 26, 0.05) !important;
+  color: #18181b !important;
+}
+
+.dark [data-prompt-root] .prompt-control-ghost,
+.dark [data-prompt-root] .prompt-add-nav-match {
+  color: #a1a1aa !important;
+}
+
+.dark [data-prompt-root] .prompt-control-ghost:hover:not(:disabled),
+.dark [data-prompt-root] .prompt-add-nav-match:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #fafafa !important;
+}
+
+.prompt-model-selector {
+  height: 32px !important;
+  padding: 0 8px !important;
+  border-radius: 8px !important;
+  color: #3f3f46 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.prompt-model-selector:hover {
+  background: rgba(20, 21, 26, 0.045) !important;
+  color: #18181b !important;
+}
+
+.dark .prompt-model-selector {
+  color: #d4d4d8 !important;
+}
+
+.dark .prompt-model-selector:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #fafafa !important;
+}
+
+/* Attached utility strip under the welcome composer. */
+.prompt-welcome-toolbar {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: -16px;
+  padding: 26px 12px 7px;
+  border: 1px solid rgba(20, 21, 26, 0.055);
+  border-top: 0;
+  border-radius: 0 0 24px 24px;
+  background: #f5f4f3;
+  color: #6f6f75;
+  box-shadow: 0 1px 1px rgba(20, 21, 26, 0.02);
+}
+
+.dark .prompt-welcome-toolbar {
+  border-color: rgba(255, 255, 255, 0.07);
+  background: #202023;
+  color: #a1a1aa;
+}
+
+@media (max-width: 640px) {
+  .prompt-welcome__input {
+    padding: 16px 16px 0;
+    min-height: 54px;
+  }
+
+  .prompt-welcome__bar {
+    padding: 4px 10px 10px 12px;
+  }
+
+  .prompt-welcome-toolbar {
+    padding: 24px 8px 6px;
+  }
+
+  .new-chat-hero__inner {
+    gap: 22px;
+  }
+}
+
+/* Final composer geometry — owns the shell radius and attached strip. */
+[data-prompt-root] [data-prompt-shell],
+[data-prompt-root] [data-prompt-shell][data-prompt-expanded="true"],
+[data-prompt-root] [data-prompt-shell]:focus-within {
+  border-radius: 26px !important;
+}
+
+[data-prompt-root] [data-prompt-shell] {
+  border-color: rgba(20, 21, 26, 0.09) !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 1px 2px rgba(20, 21, 26, 0.03),
+    0 24px 48px -32px rgba(20, 21, 26, 0.2) !important;
+}
+
+[data-prompt-root] [data-prompt-shell]:focus-within {
+  border-color: rgba(20, 21, 26, 0.16) !important;
+  box-shadow:
+    0 1px 2px rgba(20, 21, 26, 0.04),
+    0 28px 56px -32px rgba(20, 21, 26, 0.24) !important;
+}
+
+.dark [data-prompt-root] [data-prompt-shell] {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: #1c1c1f !important;
+  box-shadow: none !important;
+}
+
+.dark [data-prompt-root] [data-prompt-shell]:focus-within {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+[data-prompt-root] .prompt-welcome-toolbar {
+  background: #f5f4f3 !important;
+  border: 1px solid rgba(20, 21, 26, 0.055) !important;
+  border-top: 0 !important;
+  border-radius: 0 0 26px 26px !important;
+  box-shadow: 0 1px 1px rgba(20, 21, 26, 0.02) !important;
+}
+
+.dark [data-prompt-root] .prompt-welcome-toolbar {
+  border-color: rgba(255, 255, 255, 0.07) !important;
+  background: #202023 !important;
+}
+
+/* Class-based dark fallbacks for redesigned chrome. */
+.dark .cx-logo-tile,
+.dark .new-chat-logo {
+  background: #f4f4f5 !important;
+  color: #18181b !important;
+}
+
+.dark .app-agent-panel {
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+.dark .content-pane-top-bar--landing [role="tablist"] {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #a1a1aa !important;
+}
+
+.dark .content-pane-top-bar--landing [role="tab"][aria-selected="true"] {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
+
+.dark .prompt-textarea {
+  color: #f4f4f5 !important;
+}
+
+.dark .prompt-textarea::placeholder {
+  color: #71717a !important;
+}
+
+.dark [data-prompt-root] .prompt-welcome-toolbar button {
+  color: #a1a1aa !important;
+}
+
+.dark [data-prompt-root] .prompt-welcome-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #fafafa !important;
+}

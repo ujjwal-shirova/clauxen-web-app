@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUpRight, CornerDownRight } from "lucide-react";
+import { ArrowUpRight, CornerDownRight } from "@/components/ui/bootstrap-icon";
 import { cn } from "@/lib/utils";
 import { useFollowUpPrompt } from "@/contexts/follow-up-prompt-context";
 

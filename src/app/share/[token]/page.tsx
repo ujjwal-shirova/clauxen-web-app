@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "@/components/ui/bootstrap-icon";
 import type { SharedChatSnapshot } from "@/lib/share-public";
 
 type TurnstileApi = {

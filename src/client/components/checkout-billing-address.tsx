@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/components/ui/bootstrap-icon";
 import { checkoutUi } from "@/lib/checkout-ui";
 import { cn } from "@/lib/utils";
 import { INDIA_STATES } from "@/lib/india-states";

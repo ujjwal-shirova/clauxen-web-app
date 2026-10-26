@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { Brain, Check, ChevronRight, Copy } from "lucide-react";
+import { Brain, Check, ChevronRight, Copy } from "@/components/ui/bootstrap-icon";
 import type {
   AgentNarrationStep,
   AgentStep,
