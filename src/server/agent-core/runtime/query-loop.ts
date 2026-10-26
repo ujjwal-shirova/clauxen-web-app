@@ -46,6 +46,7 @@ import {
   executeMcpToolCall,
   resolveMcpToolCall,
 } from "@/server/plugins/plugin-runtime";
+import { PLUGIN_SAFETY_INSTRUCTIONS } from "@/server/plugins/plugin-firewall";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
 import { inferLanguage } from "@/server/inference/language";
 import { parse as parsePartialJson, Allow } from "partial-json";
@@ -428,14 +429,19 @@ export async function runAutonomousAgent(
     sse.writeStart(true);
   }
 
-  const systemPrompt = initialSystemPrompt;
-
   // Connected-plugin MCP tools (mcp__<slug>__<tool>) are appended to the
   // built-in catalog so the assistant can use every plugin the user has
   // authorized from the marketplace.
   const mcpAgentTools =
     options.mcpAgentTools ??
     (userId ? await buildAgentMcpTools(userId).catch(() => []) : []);
+
+  const systemPrompt =
+    mcpAgentTools.length > 0 &&
+    initialSystemPrompt &&
+    !initialSystemPrompt.includes("<connected_plugins>")
+      ? `${initialSystemPrompt}\n\n${PLUGIN_SAFETY_INSTRUCTIONS}`
+      : initialSystemPrompt;
 
   const openAITools = toOpenAITools([
     ...autonomousAgentTools
@@ -864,14 +870,9 @@ export async function runAutonomousAgent(
               ? await resolveMcpToolCall(userId, tc.name, rawArgs)
               : null;
 
-          if (mcpTarget) {
-            const mcpOutcome = await executeMcpToolCall(mcpTarget);
-            outcomeOutput = {
-              plugin: mcpOutcome.pluginName,
-              tool: mcpTarget.toolName,
-              output: mcpOutcome.output,
-              ...(mcpOutcome.isError ? { error: true } : {}),
-            };
+          if (mcpTarget && userId) {
+            const mcpOutcome = await executeMcpToolCall(userId, mcpTarget);
+            outcomeOutput = mcpOutcome.output;
           } else {
             const healingTool = healingTools.get(tc.name);
 

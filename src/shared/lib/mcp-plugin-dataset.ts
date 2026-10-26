@@ -106,68 +106,6 @@ export type McpServerSummary = {
   args: string[] | null;
 };
 
-/**
- * What the "Add to Clauxen" flow needs to start an MCP authorization: the
- * remote Streamable HTTP endpoint plus the identity shown in the dialog.
- */
-export type PluginMcpTarget = {
-  pluginId: string;
-  name: string;
-  iconUrl: string | null;
-  mcpUrl: string;
-  authType: "mcp_oauth2" | "none";
-  serverName: string;
-};
-
-/** First usable Streamable HTTP MCP endpoint declared by a plugin. */
-function firstHttpServerUrl(plugin: McpPlugin): string | null {
-  for (const server of plugin.mcp.servers) {
-    const url = server.url?.trim();
-    if (!url) continue;
-    if (server.type === "http" || server.type === "sse") return url;
-  }
-  // Some datasets record the endpoint only in the rollup.
-  for (const url of plugin.mcp.endpoints.urls ?? []) {
-    if (/^https?:\/\//i.test(url)) return url;
-  }
-  return null;
-}
-
-function displayNameOf(plugin: McpPlugin): string {
-  return (
-    plugin.displayName?.trim() ||
-    plugin.name?.trim() ||
-    plugin.fullRef ||
-    "Plugin"
-  );
-}
-
-/**
- * Resolve a marketplace catalog id to the MCP endpoint the chat agent will
- * call. Returns null for plugins that publish no reachable HTTP MCP server
- * (e.g. stdio-only plugins) — those cannot be connected through OAuth.
- */
-export async function resolvePluginMcpTarget(
-  catalogId: string,
-): Promise<PluginMcpTarget | null> {
-  const plugin = await findMcpPluginBySlug(catalogId).catch(() => null);
-  if (!plugin) return null;
-
-  const mcpUrl = firstHttpServerUrl(plugin);
-  if (!mcpUrl) return null;
-
-  return {
-    pluginId: catalogId,
-    name: displayNameOf(plugin),
-    iconUrl: plugin.logoUrl ?? null,
-    mcpUrl,
-    // Every remote HTTP MCP server follows the MCP OAuth 2.1 profile; a server
-    // that never 401s simply skips the consent screen on the provider side.
-    authType: "mcp_oauth2",
-    serverName: plugin.mcp.servers.find((server) => server.url === mcpUrl)?.name ?? "",
-  };
-}
-
 type DatasetCache = {
   promise?: Promise<McpPluginDataset>;
 };

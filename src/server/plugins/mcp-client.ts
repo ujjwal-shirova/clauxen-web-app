@@ -34,8 +34,7 @@ export type McpClientErrorCode =
   | "not_found"
   | "timeout"
   | "protocol_error"
-  | "unavailable"
-  | "no_tools";
+  | "unavailable";
 
 export type McpClientOutcome<T> =
   | { ok: true; value: T }
@@ -189,15 +188,94 @@ async function openSession(
   return { ok: true, value: session };
 }
 
-/** Discover the tool surface of a connected MCP server. */
-export async function listMcpTools(
+export type McpToolAnnotations = {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+};
+
+export type McpDiscoveredTool = McpToolDefinition & {
+  title: string;
+  annotations: McpToolAnnotations;
+};
+
+export type McpNamedCapability = {
+  name: string;
+  title: string;
+  description: string;
+  uri: string | null;
+};
+
+export type McpCapabilities = {
+  tools: McpDiscoveredTool[];
+  resources: McpNamedCapability[];
+  prompts: McpNamedCapability[];
+};
+
+const MAX_LIST_PAGES = 5;
+
+/** Page through an MCP list method, returning every item under `key`. */
+async function listAll(
   url: string,
   accessToken: string,
-): Promise<McpClientOutcome<McpToolDefinition[]>> {
-  let parsed: URL;
+  session: Session,
+  method: string,
+  key: string,
+): Promise<McpClientOutcome<Record<string, unknown>[]>> {
+  const items: Record<string, unknown>[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < MAX_LIST_PAGES; page += 1) {
+    const reply = await rpcPost(
+      url,
+      {
+        jsonrpc: "2.0",
+        id: 10 + page,
+        method,
+        params: cursor ? { cursor } : {},
+      },
+      accessToken,
+      session,
+    ).catch(() => null);
+
+    if (!reply) return { ok: false, code: "unavailable", message: "Server unreachable." };
+    if (reply.status === 401 || reply.status === 403) {
+      return {
+        ok: false,
+        code: mapStatus(reply.status),
+        message: "The plugin's server rejected the stored credentials.",
+      };
+    }
+    if (!reply.status || reply.status >= 400 || reply.rpc?.error) {
+      return {
+        ok: false,
+        code: reply.status === 404 ? "not_found" : "protocol_error",
+        message: reply.rpc?.error?.message ?? `Server responded ${reply.status}.`,
+      };
+    }
+    const result = isRecord(reply.rpc?.result) ? reply.rpc.result : null;
+    const pageItems = result && Array.isArray(result[key]) ? result[key] : [];
+    for (const item of pageItems) if (isRecord(item)) items.push(item);
+    cursor = typeof result?.nextCursor === "string" ? result.nextCursor : undefined;
+    if (!cursor) break;
+  }
+  return { ok: true, value: items };
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Discover everything a connected MCP server exposes in one session. Tools
+ * are required; resources and prompts are optional MCP features, so a server
+ * that does not implement them simply returns none.
+ */
+export async function discoverMcpCapabilities(
+  url: string,
+  accessToken: string,
+): Promise<McpClientOutcome<McpCapabilities>> {
   try {
-    parsed = new URL(url);
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") throw new Error();
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") throw new Error();
   } catch {
     return { ok: false, code: "unavailable", message: "Invalid MCP server URL." };
   }
@@ -206,48 +284,61 @@ export async function listMcpTools(
   if (!opened.ok) return opened;
   const session = opened.value;
 
-  const list = await rpcPost(
-    url,
-    { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
-    accessToken,
-    session,
-  ).catch(() => null);
+  const rawTools = await listAll(url, accessToken, session, "tools/list", "tools");
+  if (!rawTools.ok) return rawTools;
 
-  if (!list) return { ok: false, code: "unavailable", message: "Server unreachable." };
-  if (list.status === 401 || list.status === 403) {
-    return {
-      ok: false,
-      code: mapStatus(list.status),
-      message: "The plugin's server rejected the stored credentials.",
-    };
-  }
-  if (!list.status || list.status >= 400 || list.rpc?.error) {
-    return {
-      ok: false,
-      code: list.status === 404 ? "not_found" : "unavailable",
-      message:
-        list.rpc?.error?.message ?? `Server responded ${list.status ?? "unknown"}.`,
-    };
-  }
-
-  const result = isRecord(list.rpc?.result) ? list.rpc?.result : null;
-  const rawTools = result && Array.isArray(result.tools) ? result.tools : [];
-  const tools: McpToolDefinition[] = [];
-  for (const raw of rawTools) {
-    if (!isRecord(raw) || typeof raw.name !== "string") continue;
+  const tools: McpDiscoveredTool[] = [];
+  for (const raw of rawTools.value) {
+    if (typeof raw.name !== "string" || !raw.name) continue;
+    const annotations = isRecord(raw.annotations) ? raw.annotations : {};
     tools.push({
       name: raw.name,
-      description: typeof raw.description === "string" ? raw.description : "",
+      title: text(raw.title) || text(annotations.title) || raw.name,
+      description: text(raw.description),
       inputSchema: isRecord(raw.inputSchema)
         ? (raw.inputSchema as Record<string, unknown>)
         : { type: "object", properties: {} },
+      annotations: {
+        readOnlyHint:
+          typeof annotations.readOnlyHint === "boolean"
+            ? annotations.readOnlyHint
+            : undefined,
+        destructiveHint:
+          typeof annotations.destructiveHint === "boolean"
+            ? annotations.destructiveHint
+            : undefined,
+      },
     });
   }
 
-  if (tools.length === 0) {
-    return { ok: false, code: "no_tools", message: "This plugin exposes no tools." };
-  }
-  return { ok: true, value: tools };
+  const [rawResources, rawPrompts] = await Promise.all([
+    listAll(url, accessToken, session, "resources/list", "resources"),
+    listAll(url, accessToken, session, "prompts/list", "prompts"),
+  ]);
+
+  const resources: McpNamedCapability[] = rawResources.ok
+    ? rawResources.value
+        .filter((raw) => typeof raw.name === "string" || typeof raw.uri === "string")
+        .map((raw) => ({
+          name: text(raw.name) || text(raw.uri),
+          title: text(raw.title) || text(raw.name) || text(raw.uri),
+          description: text(raw.description),
+          uri: text(raw.uri) || null,
+        }))
+    : [];
+
+  const prompts: McpNamedCapability[] = rawPrompts.ok
+    ? rawPrompts.value
+        .filter((raw) => typeof raw.name === "string" && raw.name)
+        .map((raw) => ({
+          name: text(raw.name),
+          title: text(raw.title) || text(raw.name),
+          description: text(raw.description),
+          uri: null,
+        }))
+    : [];
+
+  return { ok: true, value: { tools, resources, prompts } };
 }
 
 /** Invoke a single tool on a connected MCP server. */

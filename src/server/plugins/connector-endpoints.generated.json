@@ -1,0 +1,954 @@
+{
+  "gmail": {
+    "transport": "http",
+    "url": "https://gmailmcp.googleapis.com/mcp/v1"
+  },
+  "google-calendar": {
+    "transport": "http",
+    "url": "https://calendarmcp.googleapis.com/mcp/v1"
+  },
+  "profound": {
+    "transport": "http",
+    "url": "https://mcp.tryprofound.com/mcp"
+  },
+  "quiverai": {
+    "transport": "http",
+    "url": "https://app.quiver.ai/mcp"
+  },
+  "quo": {
+    "transport": "http",
+    "url": "https://mcp.quo.com/mcp"
+  },
+  "raisely": {
+    "transport": "http",
+    "url": "https://mcp.raisely.com/mcp"
+  },
+  "ramp": {
+    "transport": "http",
+    "url": "https://mcp.ramp.com/mcp"
+  },
+  "readme": {
+    "transport": "http",
+    "url": "https://docs.readme.com/mcp"
+  },
+  "granola": {
+    "transport": "http",
+    "url": "https://mcp.granola.ai/mcp"
+  },
+  "notion": {
+    "transport": "http",
+    "url": "https://mcp.notion.com/mcp"
+  },
+  "slack": {
+    "transport": "http",
+    "url": "https://mcp.slack.com/mcp"
+  },
+  "aws-databases": {
+    "transport": "http",
+    "url": "https://knowledge-mcp.global.api.aws"
+  },
+  "aws-deployments": {
+    "transport": "http",
+    "url": "https://knowledge-mcp.global.api.aws"
+  },
+  "browserless": {
+    "transport": "http",
+    "url": "https://mcp.browserless.io/mcp"
+  },
+  "clerk": {
+    "transport": "http",
+    "url": "https://mcp.clerk.dev/mcp"
+  },
+  "cloudflare": {
+    "transport": "http",
+    "url": "https://docs.mcp.cloudflare.com/mcp"
+  },
+  "cockroachdb": {
+    "transport": "http",
+    "url": "https://cockroachlabs.cloud/mcp"
+  },
+  "godaddy": {
+    "transport": "http",
+    "url": "https://api.godaddy.com/v1/domains/mcp"
+  },
+  "incident-io": {
+    "transport": "http",
+    "url": "https://mcp.incident.io/mcp"
+  },
+  "lightrun": {
+    "transport": "http",
+    "url": "https://app.lightrun.com/mcp"
+  },
+  "neon-postgres": {
+    "transport": "http",
+    "url": "https://mcp.neon.tech/mcp"
+  },
+  "netlify": {
+    "transport": "http",
+    "url": "https://netlify-mcp.netlify.app/mcp"
+  },
+  "paradedb": {
+    "transport": "http",
+    "url": "https://docs.paradedb.com/mcp"
+  },
+  "planetscale": {
+    "transport": "http",
+    "url": "https://mcp.pscale.dev/mcp/planetscale"
+  },
+  "railway": {
+    "transport": "http",
+    "url": "https://mcp.railway.com"
+  },
+  "render": {
+    "transport": "http",
+    "url": "https://mcp.render.com/mcp"
+  },
+  "sentry": {
+    "transport": "http",
+    "url": "https://mcp.sentry.dev/mcp?utm_source=plugin"
+  },
+  "supabase": {
+    "transport": "http",
+    "url": "https://mcp.supabase.com/mcp"
+  },
+  "turbopuffer": {
+    "transport": "http",
+    "url": "https://turbopuffer.stlmcp.com"
+  },
+  "turso": {
+    "transport": "http",
+    "url": "https://mcp.turso.ai/mcp"
+  },
+  "twilio": {
+    "transport": "http",
+    "url": "https://mcp.twilio.com/docs"
+  },
+  "vantage": {
+    "transport": "http",
+    "url": "https://mcp.vantage.sh/mcp"
+  },
+  "vercel": {
+    "transport": "http",
+    "url": "https://mcp.vercel.com"
+  },
+  "workos": {
+    "transport": "http",
+    "url": "https://mcp.workos.com/mcp"
+  },
+  "amplitude": {
+    "transport": "http",
+    "url": "https://mcp.amplitude.com/mcp"
+  },
+  "antimetal": {
+    "transport": "http",
+    "url": "https://mcp.antimetal.com"
+  },
+  "apify": {
+    "transport": "http",
+    "url": "https://mcp.apify.com"
+  },
+  "braintrust": {
+    "transport": "http",
+    "url": "https://api.braintrust.dev/mcp"
+  },
+  "clickhouse": {
+    "transport": "http",
+    "url": "https://mcp.clickhouse.cloud/mcp"
+  },
+  "confidence-by-spotify": {
+    "transport": "http",
+    "url": "https://mcp.confidence.dev/mcp/flags"
+  },
+  "customer-io": {
+    "transport": "http",
+    "url": "https://mcp.customer.io/mcp"
+  },
+  "elastic": {
+    "transport": "http",
+    "url": "https://www.elastic.co/docs/_mcp/"
+  },
+  "exa": {
+    "transport": "http",
+    "url": "https://mcp.exa.ai/mcp"
+  },
+  "fullstory": {
+    "transport": "http",
+    "url": "https://api.fullstory.com/mcp/fullstory"
+  },
+  "grafana-cloud": {
+    "transport": "http",
+    "url": "https://mcp.grafana.com/mcp"
+  },
+  "hex": {
+    "transport": "http",
+    "url": "https://app.hex.tech/mcp"
+  },
+  "hugging-face": {
+    "transport": "http",
+    "url": "https://huggingface.co/mcp?login"
+  },
+  "pendo": {
+    "transport": "http",
+    "url": "https://app.pendo.io/mcp/v0/shttp"
+  },
+  "posthog": {
+    "transport": "http",
+    "url": "https://mcp.posthog.com/mcp"
+  },
+  "postman": {
+    "transport": "http",
+    "url": "https://mcp.postman.com/mcp"
+  },
+  "prisma": {
+    "transport": "http",
+    "url": "https://mcp.prisma.io/mcp"
+  },
+  "semrush": {
+    "transport": "http",
+    "url": "https://mcp.semrush.com/v2/mcp"
+  },
+  "similarweb": {
+    "transport": "http",
+    "url": "https://mcp.similarweb.com"
+  },
+  "smartsheet": {
+    "transport": "http",
+    "url": "https://mcp.smartsheet.com"
+  },
+  "statsig": {
+    "transport": "http",
+    "url": "https://api.statsig.com/v1/mcp"
+  },
+  "thoughtspot": {
+    "transport": "http",
+    "url": "https://spottercode.thoughtspot.app/mcp"
+  },
+  "airtable": {
+    "transport": "http",
+    "url": "https://mcp.airtable.com/mcp"
+  },
+  "asana": {
+    "transport": "http",
+    "url": "https://mcp.asana.com/v2/mcp"
+  },
+  "atlassian-forge": {
+    "transport": "http",
+    "url": "https://mcp.atlassian.com/v1/forge/mcp"
+  },
+  "atlassian-mcp": {
+    "transport": "http",
+    "url": "https://mcp.atlassian.com/v2/mcp"
+  },
+  "canva": {
+    "transport": "http",
+    "url": "https://mcp.canva.com/mcp"
+  },
+  "chatprd": {
+    "transport": "http",
+    "url": "https://app.chatprd.ai/mcp"
+  },
+  "clickup": {
+    "transport": "http",
+    "url": "https://mcp.clickup.com/mcp"
+  },
+  "fathom": {
+    "transport": "http",
+    "url": "https://api.fathom.ai/mcp"
+  },
+  "figma": {
+    "transport": "http",
+    "url": "https://mcp.figma.com/mcp"
+  },
+  "fireflies": {
+    "transport": "http",
+    "url": "https://api.fireflies.ai/mcp"
+  },
+  "gitbook": {
+    "transport": "http",
+    "url": "https://mcp.gitbook.com/mcp"
+  },
+  "gitlab": {
+    "transport": "http",
+    "url": "https://gitlab.com/api/v4/mcp"
+  },
+  "guru": {
+    "transport": "http",
+    "url": "https://mcp.api.getguru.com/mcp"
+  },
+  "harness": {
+    "transport": "http",
+    "url": "https://mcp.harness.io/mcp"
+  },
+  "icepanel": {
+    "transport": "http",
+    "url": "https://mcp.icepanel.io/mcp"
+  },
+  "jam": {
+    "transport": "http",
+    "url": "https://mcp.jam.dev/mcp"
+  },
+  "jotform": {
+    "transport": "http",
+    "url": "https://mcp.jotform.com"
+  },
+  "juicebox": {
+    "transport": "http",
+    "url": "https://mcp.juicebox.ai/v1"
+  },
+  "launchdarkly": {
+    "transport": "http",
+    "url": "https://mcp.launchdarkly.com/mcp/fm"
+  },
+  "mem": {
+    "transport": "http",
+    "url": "https://mcp.mem.ai/mcp"
+  },
+  "mintlify": {
+    "transport": "http",
+    "url": "https://mintlify.com/docs/mcp"
+  },
+  "miro": {
+    "transport": "http",
+    "url": "https://mcp.miro.com/"
+  },
+  "monday-com": {
+    "transport": "http",
+    "url": "https://mcp.monday.com/mcp"
+  },
+  "otter-ai": {
+    "transport": "http",
+    "url": "https://mcp.otter.ai/mcp"
+  },
+  "readwise": {
+    "transport": "http",
+    "url": "https://mcp2.readwise.io/mcp"
+  },
+  "riverside": {
+    "transport": "http",
+    "url": "https://mcp.riverside.com/mcp"
+  },
+  "runway": {
+    "transport": "http",
+    "url": "https://mcp.runwayml.com/mcp"
+  },
+  "sanity": {
+    "transport": "http",
+    "url": "https://mcp.sanity.io"
+  },
+  "svelte": {
+    "transport": "http",
+    "url": "https://mcp.svelte.dev/mcp"
+  },
+  "tierzero": {
+    "transport": "http",
+    "url": "https://api.tierzero.ai/mcp/"
+  },
+  "tldraw": {
+    "transport": "http",
+    "url": "https://tldraw-mcp-app.tldraw.workers.dev/mcp"
+  },
+  "todoist": {
+    "transport": "http",
+    "url": "https://ai.todoist.net/mcp"
+  },
+  "typeform": {
+    "transport": "http",
+    "url": "https://api.typeform.com/mcp"
+  },
+  "upwork": {
+    "transport": "http",
+    "url": "https://mcp.upwork.com/mcp"
+  },
+  "webflow": {
+    "transport": "http",
+    "url": "https://mcp.webflow.com/mcp"
+  },
+  "wix": {
+    "transport": "http",
+    "url": "https://mcp.wix.com/mcp"
+  },
+  "workable": {
+    "transport": "http",
+    "url": "https://mcp.workable.com/mcp"
+  },
+  "wrike": {
+    "transport": "http",
+    "url": "https://mcp.wrike.com/v2"
+  },
+  "zapier": {
+    "transport": "http",
+    "url": "https://mcp.zapier.com/api/v1/connect"
+  },
+  "1inch": {
+    "transport": "http",
+    "url": "https://api.1inch.com/mcp/protocol"
+  },
+  "aave": {
+    "transport": "http",
+    "url": "https://mcp.aave.com"
+  },
+  "airwallex-agentos": {
+    "transport": "http",
+    "url": "https://mcp.sandbox.airwallex.com/developer"
+  },
+  "airwallex-developer": {
+    "transport": "http",
+    "url": "https://mcp.sandbox.airwallex.com/developer"
+  },
+  "brex": {
+    "transport": "http",
+    "url": "https://api.brex.com/mcp"
+  },
+  "circle": {
+    "transport": "http",
+    "url": "https://api.circle.com/v1/codegen/mcp"
+  },
+  "mercury": {
+    "transport": "http",
+    "url": "https://mcp.mercury.com/mcp"
+  },
+  "natural": {
+    "transport": "http",
+    "url": "https://mcp.natural.com"
+  },
+  "paybox": {
+    "transport": "http",
+    "url": "https://api.paybox.sh/mcp"
+  },
+  "phantom": {
+    "transport": "sse",
+    "url": "https://docs.phantom.com/mcp"
+  },
+  "revenuecat": {
+    "transport": "http",
+    "url": "https://mcp.revenuecat.ai/mcp"
+  },
+  "stripe": {
+    "transport": "http",
+    "url": "https://mcp.stripe.com"
+  },
+  "whop": {
+    "transport": "http",
+    "url": "https://mcp.whop.com/mcp"
+  },
+  "adapter": {
+    "transport": "http",
+    "url": "https://api.adapter.com/v1/mcp/mind/http"
+  },
+  "artie": {
+    "transport": "http",
+    "url": "https://mcp.artie.com/mcp"
+  },
+  "atlan": {
+    "transport": "http",
+    "url": "https://mcp.atlan.com/mcp"
+  },
+  "aws-agents": {
+    "transport": "http",
+    "url": "https://knowledge-mcp.global.api.aws"
+  },
+  "composio": {
+    "transport": "http",
+    "url": "https://connect.composio.dev/mcp"
+  },
+  "context7": {
+    "transport": "http",
+    "url": "https://mcp.context7.com/mcp"
+  },
+  "firetiger": {
+    "transport": "http",
+    "url": "https://api.cloud.firetiger.com/mcp/v1"
+  },
+  "opsera": {
+    "transport": "http",
+    "url": "https://agent.opsera.ai/mcp"
+  },
+  "subtext": {
+    "transport": "http",
+    "url": "https://api.fullstory.com/mcp/subtext"
+  },
+  "agentmail": {
+    "transport": "http",
+    "url": "https://mcp.agentmail.to/mcp"
+  },
+  "brevo": {
+    "transport": "http",
+    "url": "https://mcp.brevo.com/v1/brevo/mcp"
+  },
+  "calendly": {
+    "transport": "http",
+    "url": "https://mcp.calendly.com/"
+  },
+  "infobip": {
+    "transport": "http",
+    "url": "https://mcp.infobip.com/sms"
+  },
+  "inkbox": {
+    "transport": "http",
+    "url": "https://inkbox.ai/mcp/cursor"
+  },
+  "klaviyo": {
+    "transport": "http",
+    "url": "https://mcp.klaviyo.com/mcp"
+  },
+  "mailerlite": {
+    "transport": "http",
+    "url": "https://mcp.mailerlite.com/mcp"
+  },
+  "migma": {
+    "transport": "http",
+    "url": "https://migma.ai/mcp"
+  },
+  "nitrosend": {
+    "transport": "http",
+    "url": "https://api.nitrosend.com/mcp"
+  },
+  "postiz": {
+    "transport": "http",
+    "url": "https://mcp.postiz.com/mcp-oauth-dynamic"
+  },
+  "superhuman-mail": {
+    "transport": "http",
+    "url": "https://mcp.mail.superhuman.com/mcp"
+  },
+  "x": {
+    "transport": "http",
+    "url": "https://api.x.com/mcp"
+  },
+  "zoom": {
+    "transport": "http",
+    "url": "https://mcp.zoom.us/mcp/zoom/streamable"
+  },
+  "coda": {
+    "transport": "http",
+    "url": "https://docs.superhuman.com/apis/mcp"
+  },
+  "craft": {
+    "transport": "http",
+    "url": "https://mcp.craft.do/my/mcp"
+  },
+  "amplemarket": {
+    "transport": "http",
+    "url": "https://mcp.amplemarket.com/mcp"
+  },
+  "apollo-io": {
+    "transport": "http",
+    "url": "https://mcp.apollo.io/mcp"
+  },
+  "clay": {
+    "transport": "http",
+    "url": "https://api.clay.com/v3/mcp"
+  },
+  "gong": {
+    "transport": "http",
+    "url": "https://mcp.gong.io/mcp"
+  },
+  "hubspot": {
+    "transport": "http",
+    "url": "https://mcp.hubspot.com"
+  },
+  "monaco": {
+    "transport": "http",
+    "url": "https://mcp.monaco.com/mcp"
+  },
+  "outreach": {
+    "transport": "http",
+    "url": "https://api.outreach.io/mcp"
+  },
+  "zoominfo": {
+    "transport": "http",
+    "url": "https://mcp.zoominfo.com/mcp"
+  },
+  "intercom": {
+    "transport": "http",
+    "url": "https://mcp.intercom.com/mcp"
+  },
+  "docusign": {
+    "transport": "http",
+    "url": "https://mcp.docusign.com/mcp"
+  },
+  "ahrefs": {
+    "transport": "http",
+    "url": "https://api.ahrefs.com/mcp/mcp"
+  },
+  "context-dev": {
+    "transport": "http",
+    "url": "https://mcp.context.dev/mcp"
+  },
+  "crustdata": {
+    "transport": "http",
+    "url": "https://install.crustdata.com/mcp"
+  },
+  "treg": {
+    "transport": "http",
+    "url": "https://treg.to/mcp/"
+  },
+  "mobbin": {
+    "transport": "http",
+    "url": "https://api.mobbin.com/mcp"
+  },
+  "refero": {
+    "transport": "http",
+    "url": "https://api.refero.design/mcp"
+  },
+  "wonder": {
+    "transport": "http",
+    "url": "https://mcp.wonder.so/mcp"
+  },
+  "adspirer": {
+    "transport": "http",
+    "url": "https://mcp.adspirer.com/mcp"
+  },
+  "aleph": {
+    "transport": "http",
+    "url": "https://mcp.getaleph.com/mcp"
+  },
+  "algolia-productivity": {
+    "transport": "http",
+    "url": "https://mcp.algolia.com/mcp"
+  },
+  "antom": {
+    "transport": "http",
+    "url": "https://mcp.antom.com"
+  },
+  "ashby": {
+    "transport": "http",
+    "url": "https://mcp.ashbyhq.com/mcp/v1"
+  },
+  "attio": {
+    "transport": "http",
+    "url": "https://mcp.attio.com/mcp"
+  },
+  "basedash": {
+    "transport": "http",
+    "url": "https://charts.basedash.com/api/public/mcp"
+  },
+  "beehiiv": {
+    "transport": "http",
+    "url": "https://mcp.beehiiv.com/mcp"
+  },
+  "buffer": {
+    "transport": "http",
+    "url": "https://mcp.buffer.com/mcp"
+  },
+  "buildkite": {
+    "transport": "http",
+    "url": "https://mcp.buildkite.com/mcp"
+  },
+  "cartesia": {
+    "transport": "http",
+    "url": "https://mcp.cartesia.ai/mcp"
+  },
+  "cello": {
+    "transport": "http",
+    "url": "https://mcp.cello.so/mcp"
+  },
+  "chainguard": {
+    "transport": "http",
+    "url": "https://console-api.enforce.dev/mcp"
+  },
+  "circleback": {
+    "transport": "http",
+    "url": "https://circleback.ai/api/mcp"
+  },
+  "circleci": {
+    "transport": "http",
+    "url": "https://mcp.circleci.com/v1/mcp"
+  },
+  "cisco-thousandeyes": {
+    "transport": "http",
+    "url": "https://api.thousandeyes.com/mcp"
+  },
+  "cloudinary": {
+    "transport": "http",
+    "url": "https://asset-management.mcp.cloudinary.com/mcp"
+  },
+  "coinbase": {
+    "transport": "http",
+    "url": "https://agents.coinbase.com/mcp"
+  },
+  "d-b-commercial-graph": {
+    "transport": "http",
+    "url": "https://plus.dnb.com/v2/mcp"
+  },
+  "d-b-risk-analytics": {
+    "transport": "http",
+    "url": "https://agents.riskanalytics.dnb.com/mcp"
+  },
+  "daloopa": {
+    "transport": "http",
+    "url": "https://mcp.daloopa.com/server/mcp"
+  },
+  "dash-security": {
+    "transport": "http",
+    "url": "https://mcp.dash.security/mcp"
+  },
+  "dropbox": {
+    "transport": "http",
+    "url": "https://mcp.dropbox.com/cursor_app_mcp"
+  },
+  "elevenlabs": {
+    "transport": "http",
+    "url": "https://api.us.elevenlabs.io/v1/mcp"
+  },
+  "etoro": {
+    "transport": "http",
+    "url": "https://api-portal.etoro.com/mcp"
+  },
+  "euler-for-partner-managers": {
+    "transport": "http",
+    "url": "https://mcp.eulerapp.com/mcp"
+  },
+  "euler-for-partners": {
+    "transport": "http",
+    "url": "https://mcp.eulerapp.com/mcp"
+  },
+  "excalidraw": {
+    "transport": "http",
+    "url": "https://mcp.excalidraw.com/mcp"
+  },
+  "executor": {
+    "transport": "http",
+    "url": "https://executor.sh/mcp"
+  },
+  "extend": {
+    "transport": "http",
+    "url": "https://mcp.extend.ai/mcp"
+  },
+  "falconer": {
+    "transport": "http",
+    "url": "https://falconer.com/api/mcp"
+  },
+  "flexport": {
+    "transport": "http",
+    "url": "https://mcp.flexport.com/mcp"
+  },
+  "githits": {
+    "transport": "http",
+    "url": "https://mcp.githits.com"
+  },
+  "github": {
+    "transport": "http",
+    "url": "https://api.githubcopilot.com/mcp/"
+  },
+  "gojiberry-ai": {
+    "transport": "http",
+    "url": "https://mcp.gojiberry.ai/mcp"
+  },
+  "golf-intelligence-by-stracka": {
+    "transport": "http",
+    "url": "https://mcp.golfintelligence.com/mcp"
+  },
+  "gumloop": {
+    "transport": "http",
+    "url": "https://mcp.gumloop.com/gumloop/mcp"
+  },
+  "harmonic": {
+    "transport": "http",
+    "url": "https://mcp.api.harmonic.ai"
+  },
+  "heygen": {
+    "transport": "http",
+    "url": "https://mcp.heygen.com/mcp/v1/"
+  },
+  "higgsfield": {
+    "transport": "http",
+    "url": "https://mcp.higgsfield.ai/mcp"
+  },
+  "html-css-to-image": {
+    "transport": "http",
+    "url": "https://mcp.hcti.io"
+  },
+  "hunter": {
+    "transport": "http",
+    "url": "https://mcp.hunter.io/mcp"
+  },
+  "ifttt": {
+    "transport": "http",
+    "url": "https://ifttt.com/mcp"
+  },
+  "kody": {
+    "transport": "http",
+    "url": "https://kody.codes/mcp"
+  },
+  "lovable": {
+    "transport": "http",
+    "url": "https://mcp.lovable.dev"
+  },
+  "lucid": {
+    "transport": "http",
+    "url": "https://mcp.lucid.app/mcp"
+  },
+  "macaly-cloud": {
+    "transport": "http",
+    "url": "https://www.macaly.com/api/cloud/mcp"
+  },
+  "magic-patterns": {
+    "transport": "http",
+    "url": "https://mcp.magicpatterns.com/mcp"
+  },
+  "mainframe": {
+    "transport": "http",
+    "url": "https://mcp.mainframe.app/mcp"
+  },
+  "manufact": {
+    "transport": "http",
+    "url": "https://mcp.manufact.com/mcp"
+  },
+  "mem0": {
+    "transport": "http",
+    "url": "https://mcp.mem0.ai/mcp/"
+  },
+  "meticulous": {
+    "transport": "http",
+    "url": "https://app.meticulous.ai/api/mcp"
+  },
+  "modem": {
+    "transport": "http",
+    "url": "https://mcp.modem.dev/mcp"
+  },
+  "mongodb-atlas": {
+    "transport": "http",
+    "url": "https://mcp.mongodb.com/"
+  },
+  "navan": {
+    "transport": "http",
+    "url": "https://mcp.navan.com/mcp"
+  },
+  "omneky": {
+    "transport": "http",
+    "url": "https://mcp.omneky.com/mcp"
+  },
+  "onesignal": {
+    "transport": "http",
+    "url": "https://api.onesignal.com/mcp/oauth"
+  },
+  "opusclip": {
+    "transport": "http",
+    "url": "https://mcp.opus.pro/mcp"
+  },
+  "orthogonal": {
+    "transport": "http",
+    "url": "https://mcp.orthogonal.com"
+  },
+  "pascal": {
+    "transport": "http",
+    "url": "https://editor.pascal.app/api/mcp"
+  },
+  "perspective-ai": {
+    "transport": "http",
+    "url": "https://getperspective.ai/mcp"
+  },
+  "pi-security": {
+    "transport": "http",
+    "url": "https://mcp.pi.security/mcp"
+  },
+  "picsart": {
+    "transport": "http",
+    "url": "https://mcp.picsart.io/v1"
+  },
+  "plaud": {
+    "transport": "http",
+    "url": "https://mcp.plaud.ai/mcp"
+  },
+  "port": {
+    "transport": "http",
+    "url": "https://mcp.port.io/v1"
+  },
+  "posthog-mcp": {
+    "transport": "http",
+    "url": "https://mcp.posthog.com/mcp"
+  },
+  "resolve-ai": {
+    "transport": "http",
+    "url": "https://app0.resolve.ai/mcp/v2"
+  },
+  "restream": {
+    "transport": "http",
+    "url": "https://mcp.restream.io/mcp"
+  },
+  "robinhood": {
+    "transport": "http",
+    "url": "https://agent.robinhood.com/mcp/trading"
+  },
+  "roboflow": {
+    "transport": "http",
+    "url": "https://mcp.roboflow.com/mcp"
+  },
+  "ryze-ai": {
+    "transport": "http",
+    "url": "https://connector.get-ryze.ai/mcp"
+  },
+  "s-p-global": {
+    "transport": "http",
+    "url": "https://kfinance.kensho.com/integrations/mcp"
+  },
+  "scandit": {
+    "transport": "http",
+    "url": "https://ssl.scandit.com/mcp"
+  },
+  "senselab": {
+    "transport": "http",
+    "url": "https://mcp.sense-lab.ai/mcp"
+  },
+  "sideshift": {
+    "transport": "http",
+    "url": "https://app.sideshift.app/api/mcp"
+  },
+  "sonatype": {
+    "transport": "http",
+    "url": "https://mcp.guide.sonatype.com/mcp"
+  },
+  "superme": {
+    "transport": "http",
+    "url": "https://mcp.superme.ai"
+  },
+  "tavily": {
+    "transport": "http",
+    "url": "https://mcp.tavily.com/mcp"
+  },
+  "tinyfish": {
+    "transport": "http",
+    "url": "https://agent.tinyfish.ai/mcp"
+  },
+  "token-security": {
+    "transport": "http",
+    "url": "https://mcp.app.token.security/mcp"
+  },
+  "trello": {
+    "transport": "http",
+    "url": "https://mcp.trello.com/v1"
+  },
+  "tuist": {
+    "transport": "http",
+    "url": "https://tuist.dev/mcp"
+  },
+  "usertesting": {
+    "transport": "http",
+    "url": "https://ai.usertesting.com/mcp"
+  },
+  "windmill-hr": {
+    "transport": "http",
+    "url": "https://mcp.gowindmill.com/mcp"
+  },
+  "wispr-flow": {
+    "transport": "http",
+    "url": "https://api.wisprflow.ai/connect/mcp"
+  },
+  "wordpress": {
+    "transport": "http",
+    "url": "https://gateway.miniorange.ai/v2/mcp"
+  },
+  "wordpress-com": {
+    "transport": "http",
+    "url": "https://public-api.wordpress.com/wpcom/v2/mcp/v1"
+  },
+  "x-ads": {
+    "transport": "http",
+    "url": "https://ads-api.x.com/mcp"
+  },
+  "zernio": {
+    "transport": "http",
+    "url": "https://mcp.zernio.com/mcp"
+  }
+}

@@ -30,6 +30,7 @@ import {
   type HomerReasoningEffort,
 } from "@/lib/model-effort";
 import { buildAgentMcpTools } from "@/server/plugins/plugin-runtime";
+import { PLUGIN_SAFETY_INSTRUCTIONS } from "@/server/plugins/plugin-firewall";
 import { loadProjectPromptAppend } from "@/server/services/project-context";
 import { toUserFacingChatError } from "@/lib/assistant-generation-error";
 
@@ -264,6 +265,7 @@ export async function createChatStream(
         incognitoInstr,
         titleInstr,
         followUpInstr,
+        mcpAgentTools.length > 0 ? PLUGIN_SAFETY_INSTRUCTIONS : "",
       ]
         .map((part) => part.trim())
         .filter(Boolean)

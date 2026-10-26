@@ -1,1025 +1,568 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft,
-  Check,
-  ChevronDown,
+  AlertTriangle,
   ChevronRight,
-  ExternalLink,
-  Info,
-  Layers,
   Loader2,
-  Lock,
-  MoreHorizontal,
-  Plus,
   Search,
-  Settings,
   ShieldCheck,
-  Trash2,
-  UserCheck,
-  Wrench,
   X,
 } from "@/components/ui/bootstrap-icon";
-import { useRouter } from "next/navigation";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
-import { appBtn } from "@/lib/app-buttons";
+import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  marketplaceCatalog,
-  pluginMatches,
-  pluginsByIds,
-} from "./catalog";
-import { PluginDetailDialog } from "./plugin-detail-dialog";
-import { AddPluginDialog } from "./add-plugin-dialog";
-import { PluginDetailPage } from "./plugin-detail-page";
+import { marketplaceCatalog, pluginMatches, pluginsByIds } from "./catalog";
 import { PluginMark } from "./plugin-mark";
-import { stripCursorText } from "./plugin-copy";
+import { cardDescription, stripCursorText } from "./plugin-copy";
+import { PluginDetailPage } from "./plugin-detail-page";
 import {
-  startPluginAuthorization,
   usePluginConnections,
+  type ConnectEvent,
+  type PluginAvailability,
   type PluginConnection,
 } from "./use-plugin-connections";
 import type { MarketplacePlugin } from "./types";
 
-type TopTab = "plugins" | "skills";
-type ViewMode = "marketplace" | "installed" | "detail";
-type FilterScope = "public" | "personal";
+type Tab = "discover" | "installed";
 
-interface InstalledItemDefinition {
-  id: string;
-  name: string;
-  iconUrl: string;
+const SECTION_TITLES: Record<string, string> = {
+  featured: "Featured",
+  "inbox-and-collaboration": "Inbox & collaboration",
+  "documents-and-files": "Documents & files",
+  "data-analytics": "Data & analytics",
+  "agent-orchestration": "Agent orchestration",
+  "finance-and-legal": "Finance & legal",
+  "customer-support": "Customer support",
+  sales: "Sales & CRM",
+  plugins: "Developer tools",
+};
+
+const SECTION_PREVIEW = 6;
+
+function sectionTitle(id: string, raw: string): string {
+  return SECTION_TITLES[id] ?? raw.replace(/\s+Plugins$/i, "").trim();
 }
 
-const DEFAULT_INSTALLED_ROW_ICONS: InstalledItemDefinition[] = [
-  { id: "1password", name: "1Password", iconUrl: "https://cdn.clauxen.com/plugins/icons/1password.png" },
-  { id: "hugging-face", name: "Hugging Face", iconUrl: "https://cdn.clauxen.com/plugins/icons/hugging-face.png" },
-  { id: "linear", name: "Linear", iconUrl: "https://cdn.clauxen.com/plugins/icons/linear.png" },
-  { id: "vercel", name: "Vercel", iconUrl: "https://cdn.clauxen.com/plugins/icons/vercel.png" },
-  { id: "supabase", name: "Supabase", iconUrl: "https://cdn.clauxen.com/plugins/icons/supabase.png" },
-  { id: "notion", name: "Notion", iconUrl: "https://cdn.clauxen.com/plugins/icons/notion.png" },
-  { id: "github", name: "GitHub", iconUrl: "https://cdn.clauxen.com/plugins/icons/github.png" },
-  { id: "mixpanel", name: "Mixpanel", iconUrl: "https://cdn.clauxen.com/plugins/icons/mixpanel.png" },
-  { id: "health", name: "Health", iconUrl: "https://cdn.clauxen.com/plugins/icons/health.png" },
-  { id: "gmail", name: "Gmail", iconUrl: "https://cdn.clauxen.com/plugins/icons/gmail.png" },
-];
+function readSelectedFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("p") || params.get("id");
+}
 
-const CATEGORY_TABS = [
-  { id: "all", label: "All" },
-  { id: "featured", label: "Popular" },
-  { id: "productivity", label: "Productivity" },
-  { id: "infrastructure", label: "Infrastructure" },
-  { id: "data-analytics", label: "Data & Analytics" },
-  { id: "inbox-and-collaboration", label: "Inbox" },
-  { id: "agent-orchestration", label: "Agent Orchestration" },
-  { id: "payments", label: "Payments" },
-  { id: "sales", label: "Sales" },
-  { id: "design", label: "Design" },
-  { id: "plugins", label: "Developer Tools" },
-] as const;
-
-function getDisplayTitle(id: string, rawTitle: string): string {
-  if (id === "featured") return "Popular";
-  if (id === "inbox-and-collaboration") return "Inbox & Collaboration";
-  if (id === "documents-and-files") return "Documents & Files";
-  if (id === "sales") return "Sales & CRM";
-  if (id === "plugins") return "Developer Tools & Extensions";
-  return rawTitle.replace(/\s+Plugins$/i, "").trim();
+function writeSelectedToUrl(pluginId: string | null) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("id");
+  if (pluginId) url.searchParams.set("p", pluginId);
+  else url.searchParams.delete("p");
+  window.history.pushState(null, "", `${url.pathname}${url.search}`);
 }
 
 export function MarketplaceView() {
-  const router = useRouter();
   const isMobile = useIsMobile();
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
   const { toast } = useToast();
+  const authGate = useOptionalAuthGate();
 
-  const [topTab, setTopTab] = useState<TopTab>("plugins");
-  const [viewMode, setViewMode] = useState<ViewMode>("marketplace");
-  const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
-  const [filterScope, setFilterScope] = useState<FilterScope>("public");
+  const [tab, setTab] = useState<Tab>("discover");
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("all");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Sync URL query (?p=... or ?id=...) on mount & popstate
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const p =
-        new URLSearchParams(window.location.search).get("p") ||
-        new URLSearchParams(window.location.search).get("id");
-      if (p) {
-        setSelectedPluginId(p);
-        setViewMode("detail");
-      }
-    }
-
-    const onPopState = () => {
-      const p =
-        new URLSearchParams(window.location.search).get("p") ||
-        new URLSearchParams(window.location.search).get("id");
-      if (p) {
-        setSelectedPluginId(p);
-        setViewMode("detail");
-      } else {
-        setSelectedPluginId(null);
-        setViewMode("marketplace");
-      }
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
-
-  const [detailPlugin, setDetailPlugin] = useState<MarketplacePlugin | null>(null);
-  const [customAddPlugin, setCustomAddPlugin] = useState<MarketplacePlugin | null>(null);
-  const [startingPluginId, setStartingPluginId] = useState<string | null>(null);
-  const [addError, setAddError] = useState<string | null>(null);
-
-  const {
-    connections,
-    loading: connectionsLoading,
-    refresh: refreshConnections,
-    revoke,
-  } = usePluginConnections();
-
-  // Listen for OAuth completion
-  useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      const data = event.data as {
-        type?: string;
-        pluginId?: string;
-        pluginName?: string;
-      } | null;
-      if (data?.type === "clauxen:plugin-connected") {
-        void refreshConnections();
-        setDetailPlugin(null);
+  const onEvent = useCallback(
+    (event: ConnectEvent) => {
+      if (event.type === "connected") {
         toast({
-          title: "Plugin connected",
-          description: `${data.pluginName || "Integration"} has been added to Clauxen.`,
+          title: `${event.pluginName} connected`,
+          description: "Clauxen can now use it in your chats.",
         });
-      }
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, [refreshConnections, toast]);
-
-  const connectedIds = useMemo(
-    () => new Set(connections.map((c) => c.pluginId)),
-    [connections],
-  );
-
-  const allPlugins = useMemo<MarketplacePlugin[]>(
-    () => Object.values(marketplaceCatalog.plugins),
-    [],
-  );
-
-  // Search filtered plugins across catalog
-  const filteredSearchPlugins = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return [];
-    return allPlugins.filter((plugin) => pluginMatches(plugin, needle));
-  }, [allPlugins, query]);
-
-  // User added custom plugins
-  const [customPlugins, setCustomPlugins] = useState<MarketplacePlugin[]>([]);
-
-  // Personal/custom plugins: only custom ones created/added by user
-  const personalPlugins = useMemo(() => {
-    return customPlugins;
-  }, [customPlugins]);
-
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
-
-  const toggleSection = useCallback((sectionId: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [sectionId]: !prev[sectionId],
-    }));
-  }, []);
-
-  const sectionsData = useMemo(() => {
-    return marketplaceCatalog.sections
-      .map((section) => {
-        const plugins = pluginsByIds(section.pluginIds);
-        return {
-          id: section.id,
-          rawTitle: section.title,
-          displayTitle: getDisplayTitle(section.id, section.title),
-          plugins,
-        };
-      })
-      .filter((s) => s.plugins.length > 0);
-  }, []);
-
-  const displayedSections = useMemo(() => {
-    if (selectedCategory === "all") {
-      return sectionsData;
-    }
-    return sectionsData.filter((s) => s.id === selectedCategory);
-  }, [sectionsData, selectedCategory]);
-
-  const openPluginById = useCallback(
-    (pluginId: string, fallbackName?: string, fallbackDescription?: string) => {
-      setAddError(null);
-      setSelectedPluginId(pluginId);
-      setViewMode("detail");
-      if (typeof window !== "undefined") {
-        const url = new URL(window.location.href);
-        url.searchParams.set("p", pluginId);
-        window.history.pushState(null, "", url.toString());
-      }
-    },
-    [],
-  );
-
-  const handleBackToMarketplace = useCallback(() => {
-    setSelectedPluginId(null);
-    setViewMode("marketplace");
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("p");
-      url.searchParams.delete("id");
-      window.history.pushState(null, "", url.pathname);
-    }
-  }, []);
-
-  const handleAuthorize = useCallback(
-    async (plugin: MarketplacePlugin) => {
-      const authTab = window.open("about:blank", "_blank");
-      setStartingPluginId(plugin.id);
-      setAddError(null);
-
-      try {
-        const result = await startPluginAuthorization(plugin.id);
-        if (result.ok && result.authorizeUrl) {
-          if (authTab) {
-            authTab.location.href = result.authorizeUrl;
-          } else {
-            window.open(result.authorizeUrl, "_blank", "noopener,noreferrer");
-          }
-        } else {
-          if (authTab) authTab.close();
-          const msg = result.ok
-            ? "Could not start authorization."
-            : result.message;
-          setAddError(msg);
-          toast({
-            variant: "destructive",
-            title: "Authorization failed",
-            description: msg,
-          });
-        }
-      } catch {
-        if (authTab) authTab.close();
-        const msg = "Unable to connect to authorization service.";
-        setAddError(msg);
+      } else if (event.type === "failed") {
         toast({
           variant: "destructive",
-          title: "Connection error",
-          description: msg,
+          title: "Connection failed",
+          description: event.message,
         });
-      } finally {
-        setStartingPluginId(null);
       }
     },
     [toast],
   );
 
-  const handleRemoveConnection = useCallback(
-    async (connection: PluginConnection) => {
-      try {
-        await revoke(connection.id);
-        toast({
-          title: "Plugin disconnected",
-          description: `${connection.pluginName || "Plugin"} was removed.`,
-        });
-      } catch {
-        toast({
-          variant: "destructive",
-          title: "Action failed",
-          description: "Could not remove this plugin.",
-        });
-      }
-    },
-    [revoke, toast],
-  );
+  const {
+    connections,
+    availability,
+    loading,
+    connectingId,
+    refresh,
+    connect,
+    disconnect,
+  } = usePluginConnections({ onEvent });
 
-  const handleRemoveByPluginId = useCallback(
-    async (pluginId: string) => {
-      const target = connections.find((c) => c.pluginId === pluginId);
-      if (target) {
-        await handleRemoveConnection(target);
-        setDetailPlugin(null);
-      }
-    },
-    [connections, handleRemoveConnection],
-  );
+  useEffect(() => {
+    setSelectedId(readSelectedFromUrl());
+    const onPop = () => setSelectedId(readSelectedFromUrl());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
-  // Installed view list
-  const installedList = useMemo(() => {
-    if (connections.length > 0) {
-      return connections.map((conn) => {
-        const catalogItem = marketplaceCatalog.plugins[conn.pluginId];
-        return {
-          id: conn.pluginId,
-          name: conn.pluginName || conn.pluginId,
-          description: catalogItem?.description || "Connected to your workspace.",
-          iconUrl: conn.pluginIconUrl ?? catalogItem?.iconUrl ?? "",
-          conn,
-        };
-      });
-    }
-    // Fallback display list for empty state
-    return DEFAULT_INSTALLED_ROW_ICONS.slice(0, 6).map((item) => {
-      const catalogItem = marketplaceCatalog.plugins[item.id];
-      return {
-        id: item.id,
-        name: item.name,
-        description: catalogItem?.description || "Ready to connect to your workspace.",
-        iconUrl: item.iconUrl || catalogItem?.iconUrl || "",
-        conn: null,
-      };
-    });
+  const connectionByPlugin = useMemo(() => {
+    const map = new Map<string, PluginConnection>();
+    for (const connection of connections) map.set(connection.pluginId, connection);
+    return map;
   }, [connections]);
 
+  const openPlugin = useCallback((pluginId: string) => {
+    setSelectedId(pluginId);
+    writeSelectedToUrl(pluginId);
+    document.querySelector("[data-plugins-scroll]")?.scrollTo({ top: 0 });
+  }, []);
+
+  const closePlugin = useCallback(() => {
+    setSelectedId(null);
+    writeSelectedToUrl(null);
+  }, []);
+
+  const handleConnect = useCallback(
+    (pluginId: string) => {
+      if (authGate && !authGate.requireAuth()) return;
+      connect(pluginId);
+    },
+    [authGate, connect],
+  );
+
+  const sections = useMemo(
+    () =>
+      marketplaceCatalog.sections
+        .map((section) => ({
+          id: section.id,
+          title: sectionTitle(section.id, section.title),
+          plugins: pluginsByIds(section.pluginIds),
+        }))
+        .filter((section) => section.plugins.length > 0),
+    [],
+  );
+
+  const searchResults = useMemo(() => {
+    const needle = query.trim();
+    if (!needle) return null;
+    return Object.values(marketplaceCatalog.plugins).filter((plugin) =>
+      pluginMatches(plugin, needle),
+    );
+  }, [query]);
+
+  const visibleSections =
+    category === "all" ? sections : sections.filter((section) => section.id === category);
+
+  const installed = connections.filter((connection) => connection.status !== "revoked");
+
+  const cardProps = (plugin: MarketplacePlugin) => ({
+    plugin,
+    connection: connectionByPlugin.get(plugin.id) ?? null,
+    availability: availability[plugin.id] ?? null,
+    connecting: connectingId === plugin.id,
+    onOpen: () => openPlugin(plugin.id),
+    onConnect: () => handleConnect(plugin.id),
+  });
+
   return (
-    <div className="plugin-marketplace relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg,#ffffff)] text-neutral-900 dark:text-neutral-100 font-sans select-none">
+    <div className="plugins-page relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg,#fff)] font-sans text-zinc-900 dark:text-zinc-100">
       {isMobile ? (
         <MobilePageHeader
-          title={
-            viewMode === "detail"
-              ? "Plugin Details"
-              : viewMode === "installed"
-                ? "Installed Plugins"
-                : "Plugins"
-          }
+          title={selectedId ? "Plugin" : "Plugins"}
           onOpenMobileNav={openMobileNav}
           isNavOpen={!isSidebarCollapsed}
         />
       ) : null}
 
-      {/* Main Inner Container */}
       <div
-        className="app-scrollbar flex-1 min-h-0 overflow-y-auto px-5 sm:px-10 pt-5 pb-20"
+        className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-6 sm:px-8 sm:pt-10"
         data-scroll-region=""
+        data-plugins-scroll=""
       >
-        {viewMode === "detail" && selectedPluginId ? (
+        {selectedId ? (
           <PluginDetailPage
-            pluginId={selectedPluginId}
-            onBack={handleBackToMarketplace}
-            connected={connectedIds.has(selectedPluginId)}
-            isStarting={startingPluginId === selectedPluginId}
-            onConnect={handleAuthorize}
-            onDisconnect={handleRemoveByPluginId}
+            pluginId={selectedId}
+            connection={connectionByPlugin.get(selectedId) ?? null}
+            availability={availability[selectedId] ?? null}
+            connecting={connectingId === selectedId}
+            onBack={closePlugin}
+            onConnect={() => handleConnect(selectedId)}
+            onDisconnect={async (connection) => {
+              try {
+                await disconnect(connection.id);
+                toast({
+                  title: `${connection.pluginName} disconnected`,
+                  description: "Clauxen's access was revoked and its tokens deleted.",
+                });
+              } catch (error) {
+                toast({
+                  variant: "destructive",
+                  title: "Couldn't disconnect",
+                  description: error instanceof Error ? error.message : "Try again.",
+                });
+              }
+            }}
+            onChanged={refresh}
           />
         ) : (
-          <div className="mx-auto w-full max-w-[860px]">
-            {/* Top Bar Header */}
-          <div className="flex items-center justify-between pb-6">
-            {/* Top Switcher: Plugins | Skills */}
-            <div className="inline-flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setTopTab("plugins");
-                  setViewMode("marketplace");
-                }}
-                className={cn(
-                  "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors outline-none",
-                  topTab === "plugins"
-                    ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 shadow-none"
-                    : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100",
-                )}
-              >
-                Plugins
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setTopTab("skills");
-                  router.push("/customize/skills");
-                }}
-                className={cn(
-                  "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors outline-none",
-                  topTab === "skills"
-                    ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 shadow-none"
-                    : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100",
-                )}
-              >
-                Skills
-              </button>
-            </div>
-
-            {/* Top Right Controls: Settings & Add Button */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => router.push("/settings")}
-                aria-label="Settings"
-                className="grid size-8 place-items-center rounded-full text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
-              >
-                <Settings className="size-4" />
-              </button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 px-3.5 py-1.5 text-xs font-semibold shadow-xs hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors outline-none"
-                  >
-                    <span>Add</span>
-                    <ChevronDown className="size-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-48 rounded-xl border border-neutral-200/80 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1 shadow-lg text-xs"
-                >
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setCustomAddPlugin({
-                        id: "custom-mcp",
-                        name: "Custom MCP Plugin",
-                        description: "Connect to a custom Model Context Protocol server via remote endpoint.",
-                        author: "Custom Endpoint",
-                        iconUrl: "",
-                        category: "Developer Tools",
-                        installed: false,
-                      });
-                    }}
-                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 cursor-pointer font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                  >
-                    <Plus className="size-3.5" />
-                    <span>Add MCP Server</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => router.push("/customize/skills")}
-                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 cursor-pointer font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                  >
-                    <Wrench className="size-3.5" />
-                    <span>Create Custom Skill</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-
-          {/* Installed Drill-Down View */}
-          {viewMode === "installed" ? (
-            <div className="space-y-6 pt-2">
-              <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-4">
-                <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("marketplace")}
-                    aria-label="Back to plugins"
-                    className="grid size-8 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 transition-colors"
-                  >
-                    <ArrowLeft className="size-4" />
-                  </button>
-                  <div>
-                    <h1 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-                      Installed Plugins
-                    </h1>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                      {connections.length}{" "}
-                      {connections.length === 1 ? "plugin" : "plugins"} active on your workspace
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="divide-y divide-neutral-100 dark:divide-neutral-800/80">
-                {installedList.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between py-3.5 px-1 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="size-10 rounded-xl flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                        <PluginMark name={item.name} iconUrl={item.iconUrl} size={28} />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
-                            {item.name}
-                          </h3>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>Active</span>
-                          </span>
-                        </div>
-                        <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
-                          {item.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openPluginById(item.id, item.name, item.description)}
-                        className="rounded-lg border border-neutral-200 dark:border-neutral-800 px-3 py-1 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                      >
-                        Details
-                      </button>
-                      {item.conn ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveConnection(item.conn)}
-                          aria-label={`Disconnect ${item.name}`}
-                          className="grid size-7 place-items-center rounded-lg text-neutral-400 hover:bg-red-500/10 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            /* Main Marketplace Screen */
-            <div className="space-y-6">
-              {/* Title & Subtitle */}
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-                  Plugins
-                </h1>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                  Connect plugins to let Clauxen work across your tools
+          <div className="mx-auto w-full max-w-[960px]">
+            <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <h1 className="text-[26px] font-semibold leading-8 tracking-[-0.02em]">Plugins</h1>
+                <p className="mt-1.5 max-w-[520px] text-[14px] leading-[22px] text-zinc-500 dark:text-zinc-400">
+                  Connect the apps you use so Clauxen can work with them. You sign in on each
+                  app&apos;s own page, and Clauxen never sees your password.
                 </p>
               </div>
-
-              {/* Rounded-full Search Bar */}
-              <div className="relative flex items-center w-full rounded-full border border-neutral-200/90 dark:border-neutral-800 bg-white/70 dark:bg-neutral-900/60 px-4 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] focus-within:border-neutral-400 dark:focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-200/50 dark:focus-within:ring-neutral-800 transition-all">
-                <Search className="size-4 text-neutral-400 shrink-0 mr-2.5" />
+              <label className="relative flex h-10 w-full items-center sm:w-[280px]">
+                <Search className="pointer-events-none absolute left-3.5 text-[14px] text-zinc-400" />
                 <input
-                  type="text"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search plugins"
                   aria-label="Search plugins"
-                  className="w-full bg-transparent text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none"
+                  className="h-10 w-full rounded-full border border-black/[0.08] bg-white pl-10 pr-9 text-[13.5px] outline-none transition-colors placeholder:text-zinc-400 focus:border-black/[0.18] dark:border-white/10 dark:bg-zinc-900 dark:focus:border-white/25"
                 />
                 {query ? (
                   <button
                     type="button"
-                    onClick={() => setQuery("")}
                     aria-label="Clear search"
-                    className="grid size-5 place-items-center rounded-full text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+                    onClick={() => setQuery("")}
+                    className="absolute right-2 flex size-6 items-center justify-center rounded-full text-zinc-400 hover:bg-black/[0.05] hover:text-zinc-700 dark:hover:bg-white/10"
                   >
-                    <X className="size-3.5" />
+                    <X className="text-[11px]" />
                   </button>
                 ) : null}
-              </div>
+              </label>
+            </header>
 
-              {/* Search Active View */}
-              {query.trim() ? (
-                <div className="space-y-4 pt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-neutral-500">
-                      Search results ({filteredSearchPlugins.length})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setQuery("")}
-                      className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
-                    >
-                      Clear search
-                    </button>
-                  </div>
-
-                  {filteredSearchPlugins.length === 0 ? (
-                    <div className="py-16 text-center text-neutral-500 text-sm">
-                      No plugins found matching &ldquo;{query}&rdquo;.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3.5">
-                      {filteredSearchPlugins.map((plugin) => (
-                        <div
-                          key={plugin.id}
-                          onClick={() => openPluginById(plugin.id, plugin.name, plugin.description)}
-                          className="flex items-center justify-between py-2 px-1 cursor-pointer group transition-colors"
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
-                            <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                              <PluginMark name={plugin.name} iconUrl={plugin.iconUrl} size={24} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate group-hover:text-black dark:group-hover:text-white transition-colors">
-                                {stripCursorText(plugin.name) || plugin.name}
-                              </h3>
-                              <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
-                                {stripCursorText(plugin.description)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="shrink-0 flex items-center" onClick={(e) => e.stopPropagation()}>
-                            {connectedIds.has(plugin.id) ? (
-                              <button
-                                type="button"
-                                aria-label={`Manage ${plugin.name}`}
-                                onClick={() => openPluginById(plugin.id, plugin.name, plugin.description)}
-                                className="grid size-7 place-items-center text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                              >
-                                <MoreHorizontal className="size-4" />
-                              </button>
-                            ) : startingPluginId === plugin.id ? (
-                              <Loader2 className="size-4 animate-spin text-neutral-400" />
-                            ) : (
-                              <button
-                                type="button"
-                                aria-label={`Add ${plugin.name}`}
-                                onClick={() => void handleAuthorize(plugin)}
-                                className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:scale-110 active:scale-95 transition-all"
-                              >
-                                <Plus className="size-4" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+            <div
+              className="mt-7 flex items-center gap-6 border-b border-black/[0.06] dark:border-white/[0.08]"
+              role="tablist"
+            >
+              {(
+                [
+                  ["discover", "Discover"],
+                  ["installed", `Installed${installed.length ? ` · ${installed.length}` : ""}`],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === id}
+                  onClick={() => setTab(id)}
+                  className={cn(
+                    "-mb-px border-b-2 pb-2.5 text-[13.5px] font-medium transition-colors",
+                    tab === id
+                      ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
+                      : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200",
                   )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {searchResults ? (
+              <section className="mt-6">
+                <p className="mb-3 text-[13px] text-zinc-500">
+                  {searchResults.length} result{searchResults.length === 1 ? "" : "s"} for “{query.trim()}”
+                </p>
+                {searchResults.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {searchResults.map((plugin) => (
+                      <PluginCard key={plugin.id} {...cardProps(plugin)} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="No plugins found"
+                    body="Try a different name, or browse the categories."
+                  />
+                )}
+              </section>
+            ) : tab === "installed" ? (
+              <InstalledList
+                loading={loading}
+                connections={installed}
+                onOpen={openPlugin}
+                onBrowse={() => setTab("discover")}
+              />
+            ) : (
+              <>
+                <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+                  {[{ id: "all", title: "All" }, ...sections].map((section) => (
+                    <button
+                      key={section.id}
+                      type="button"
+                      onClick={() => setCategory(section.id)}
+                      className={cn(
+                        "h-8 shrink-0 rounded-full border px-3.5 text-[12.5px] font-medium transition-colors",
+                        category === section.id
+                          ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                          : "border-black/[0.08] bg-white text-zinc-600 hover:border-black/[0.16] hover:text-zinc-900 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300",
+                      )}
+                    >
+                      {section.title}
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                /* Default View: Installed Row, Filters & Categorized Sections */
-                <>
-                  {/* Installed Header & Icons Row */}
-                  <div className="space-y-3 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setViewMode("installed")}
-                      className="inline-flex items-center gap-1 text-base font-semibold text-neutral-900 dark:text-neutral-100 hover:opacity-80 transition-opacity group"
-                    >
-                      <span>Installed</span>
-                      <ChevronRight className="size-4 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-200 transition-colors" />
-                    </button>
 
-                    {/* Horizontal Squircle App Icons Row */}
-                    <div className="flex items-center gap-3 overflow-x-auto py-2 scrollbar-hide">
-                      {(connections.length > 0
-                        ? connections.map((conn) => ({
-                            id: conn.pluginId,
-                            name: conn.pluginName || conn.pluginId,
-                            iconUrl:
-                              conn.pluginIconUrl ||
-                              `https://cdn.clauxen.com/plugins/icons/${conn.pluginId}.png`,
-                          }))
-                        : DEFAULT_INSTALLED_ROW_ICONS
-                      ).map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => openPluginById(item.id, item.name)}
-                          aria-label={`View ${item.name}`}
-                          className="size-10 rounded-xl flex items-center justify-center shrink-0 border border-neutral-200/70 dark:border-neutral-800/80 bg-white dark:bg-neutral-900 hover:shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] overflow-hidden"
-                        >
-                          <img
-                            src={item.iconUrl}
-                            alt={item.name}
-                            className="size-full object-contain"
-                            loading="lazy"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src = `/cdn/plugins/icons/${item.id}.png`;
-                            }}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                <TrustStrip />
 
-                  {/* Filter Scope Pills: Public | Personal */}
-                  <div className="flex items-center gap-1.5 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setFilterScope("public")}
-                      className={cn(
-                        "rounded-full px-3.5 py-1 text-xs font-semibold transition-colors outline-none",
-                        filterScope === "public"
-                          ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
-                          : "text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200",
-                      )}
-                    >
-                      Public
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFilterScope("personal")}
-                      className={cn(
-                        "rounded-full px-3.5 py-1 text-xs font-medium transition-colors outline-none",
-                        filterScope === "personal"
-                          ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
-                          : "text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200",
-                      )}
-                    >
-                      Personal
-                    </button>
-                  </div>
-
-                  {filterScope === "public" ? (
-                    <>
-                      {/* Category Quick Chips */}
-                      <div className="flex items-center gap-1.5 overflow-x-auto py-2 scrollbar-hide">
-                        {CATEGORY_TABS.map((cat) => (
+                {visibleSections.map((section) => {
+                  const isOpen = category !== "all" || expanded[section.id];
+                  const shown = isOpen ? section.plugins : section.plugins.slice(0, SECTION_PREVIEW);
+                  return (
+                    <section key={section.id} className="mt-9">
+                      <div className="mb-3 flex items-baseline justify-between">
+                        <h2 className="text-[15px] font-semibold tracking-[-0.01em]">{section.title}</h2>
+                        {category === "all" && section.plugins.length > SECTION_PREVIEW ? (
                           <button
-                            key={cat.id}
                             type="button"
-                            onClick={() => setSelectedCategory(cat.id)}
-                            className={cn(
-                              "rounded-full px-3 py-1 text-xs transition-colors whitespace-nowrap shrink-0 outline-none",
-                              selectedCategory === cat.id
-                                ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs"
-                                : "bg-neutral-100 dark:bg-neutral-800/80 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 font-medium",
-                            )}
+                            onClick={() =>
+                              setExpanded((current) => ({ ...current, [section.id]: !current[section.id] }))
+                            }
+                            className="text-[12.5px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
                           >
-                            {cat.label}
+                            {isOpen ? "Show less" : `Show all ${section.plugins.length}`}
                           </button>
+                        ) : null}
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {shown.map((plugin) => (
+                          <PluginCard key={`${section.id}-${plugin.id}`} {...cardProps(plugin)} />
                         ))}
                       </div>
-
-                      {/* Categorized Sections List */}
-                      <div className="space-y-8 pt-2">
-                        {displayedSections.map((section) => {
-                          const isExpanded =
-                            Boolean(expandedSections[section.id]) ||
-                            selectedCategory !== "all";
-                          const visiblePlugins = isExpanded
-                            ? section.plugins
-                            : section.plugins.slice(0, 6);
-                          const hasMore = section.plugins.length > 6;
-
-                          return (
-                            <div key={section.id} className="space-y-3">
-                              {/* Section Header */}
-                              <div className="flex items-center justify-between">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleSection(section.id)}
-                                  className="inline-flex items-center gap-1.5 text-base font-semibold text-neutral-900 dark:text-neutral-100 hover:opacity-80 transition-opacity group"
-                                >
-                                  <span>{section.displayTitle}</span>
-                                  <ChevronRight
-                                    className={cn(
-                                      "size-4 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-200 transition-transform duration-200",
-                                      isExpanded && "rotate-90",
-                                    )}
-                                  />
-                                </button>
-                                {hasMore && selectedCategory === "all" ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleSection(section.id)}
-                                    className="text-xs font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
-                                  >
-                                    {isExpanded
-                                      ? "Show less"
-                                      : `See all (${section.plugins.length})`}
-                                  </button>
-                                ) : null}
-                              </div>
-
-                              {/* 2-Column Grid */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3.5">
-                                {visiblePlugins.map((plugin) => {
-                                  const isConnected = connectedIds.has(plugin.id);
-                                  const isStarting = startingPluginId === plugin.id;
-
-                                  return (
-                                    <div
-                                      key={plugin.id}
-                                      onClick={() =>
-                                        openPluginById(plugin.id, plugin.name, plugin.description)
-                                      }
-                                      className="flex items-center justify-between py-2 px-1 cursor-pointer group transition-colors"
-                                    >
-                                      {/* Left: Logo & Text */}
-                                      <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
-                                        <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                                          <PluginMark
-                                            name={plugin.name}
-                                            iconUrl={plugin.iconUrl}
-                                            size={24}
-                                          />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate group-hover:text-black dark:group-hover:text-white transition-colors">
-                                            {stripCursorText(plugin.name) || plugin.name}
-                                          </h3>
-                                          <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
-                                            {stripCursorText(plugin.description)}
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      {/* Right: Action or Status */}
-                                      <div
-                                        className="shrink-0 flex items-center"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        {isConnected ? (
-                                          <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                              <button
-                                                type="button"
-                                                aria-label={`Options for ${plugin.name}`}
-                                                className="grid size-7 place-items-center text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                                              >
-                                                <MoreHorizontal className="size-4" />
-                                              </button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent
-                                              align="end"
-                                              className="w-40 rounded-xl"
-                                            >
-                                              <DropdownMenuItem
-                                                onClick={() =>
-                                                  openPluginById(
-                                                    plugin.id,
-                                                    plugin.name,
-                                                    plugin.description,
-                                                  )
-                                                }
-                                              >
-                                                Details
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem
-                                                onClick={() => handleRemoveByPluginId(plugin.id)}
-                                                className="text-red-600 focus:text-red-600"
-                                              >
-                                                Disconnect
-                                              </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        ) : isStarting ? (
-                                          <Loader2 className="size-4 animate-spin text-neutral-400" />
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            aria-label={`Add ${plugin.name}`}
-                                            onClick={() => void handleAuthorize(plugin)}
-                                            className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:scale-110 active:scale-95 transition-all"
-                                          >
-                                            <Plus className="size-4" />
-                                          </button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  ) : (
-                    /* Personal View */
-                    <div className="space-y-6 pt-4">
-                      <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-4">
-                        <div>
-                          <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                            Personal & Custom Plugins
-                          </h2>
-                          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                            Connect custom integrations, enterprise MCP endpoints, and workspace tools
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCustomAddPlugin({
-                              id: "",
-                              name: "",
-                              description: "",
-                              author: "",
-                              iconUrl: "",
-                              category: "Custom",
-                              installed: false,
-                            })
-                          }
-                          className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3.5 py-1.5 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:opacity-80 shadow-xs transition-opacity"
-                        >
-                          <Plus className="size-3.5" />
-                          <span>Add custom</span>
-                        </button>
-                      </div>
-
-                      {personalPlugins.length === 0 ? (
-                        <div className="py-20 text-center">
-                          <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
-                            No Plugins Found
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3.5">
-                          {personalPlugins.map((plugin) => {
-                            const isConnected = connectedIds.has(plugin.id);
-                            const isStarting = startingPluginId === plugin.id;
-
-                            return (
-                              <div
-                                key={plugin.id}
-                                onClick={() =>
-                                  openPluginById(plugin.id, plugin.name, plugin.description)
-                                }
-                                className="flex items-center justify-between py-2 px-1 cursor-pointer group transition-colors"
-                              >
-                                <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
-                                  <div className="size-9 rounded-lg flex items-center justify-center shrink-0 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-1.5 shadow-xs overflow-hidden">
-                                    <PluginMark
-                                      name={plugin.name}
-                                      iconUrl={plugin.iconUrl}
-                                      size={24}
-                                    />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate group-hover:text-black dark:group-hover:text-white transition-colors">
-                                      {stripCursorText(plugin.name) || plugin.name}
-                                    </h3>
-                                    <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
-                                      {stripCursorText(plugin.description)}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div
-                                  className="shrink-0 flex items-center"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {isConnected ? (
-                                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                                      Active
-                                    </span>
-                                  ) : isStarting ? (
-                                    <Loader2 className="size-4 animate-spin text-neutral-400" />
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      aria-label={`Add ${plugin.name}`}
-                                      onClick={() => void handleAuthorize(plugin)}
-                                      className="grid size-7 place-items-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:scale-110 active:scale-95 transition-all"
-                                    >
-                                      <Plus className="size-4" />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+                    </section>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
 
-      {/* Pop-up Container Dialog: Details & Connect Modal */}
-      <PluginDetailDialog
-        plugin={detailPlugin}
-        connected={detailPlugin ? connectedIds.has(detailPlugin.id) : false}
-        starting={startingPluginId === detailPlugin?.id}
-        error={detailPlugin?.id === startingPluginId ? addError : null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDetailPlugin(null);
-            setAddError(null);
-          }
-        }}
-        onAdd={handleAuthorize}
-        onRemove={handleRemoveByPluginId}
-      />
+function TrustStrip() {
+  return (
+    <div className="mt-6 flex items-start gap-3 rounded-2xl border border-black/[0.06] bg-[#fbfaf9] px-4 py-3.5 dark:border-white/[0.08] dark:bg-white/[0.03]">
+      <ShieldCheck className="mt-0.5 text-[16px] text-emerald-600 dark:text-emerald-400" />
+      <p className="text-[13px] leading-5 text-zinc-600 dark:text-zinc-400">
+        <span className="font-medium text-zinc-900 dark:text-zinc-100">Your accounts, your rules.</span>{" "}
+        Tokens are encrypted and used only on Clauxen&apos;s servers, instructions hidden in emails or
+        pages are filtered before the assistant reads them, and every action is logged on the
+        plugin&apos;s page.
+      </p>
+    </div>
+  );
+}
 
-      {/* Add Custom MCP Dialog */}
-      <AddPluginDialog
-        plugin={customAddPlugin}
-        mcpUrl={null}
-        connected={false}
-        error={null}
-        onOpenChange={(open) => {
-          if (!open) setCustomAddPlugin(null);
-        }}
-        onConfirm={handleAuthorize}
+function StatusPill({
+  connection,
+  availability,
+  connecting,
+  onConnect,
+}: {
+  connection: PluginConnection | null;
+  availability: PluginAvailability | null;
+  connecting: boolean;
+  onConnect: () => void;
+}) {
+  if (connection?.status === "active") {
+    return (
+      <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 text-[12px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+        <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+        Connected
+      </span>
+    );
+  }
+  if (connection?.status === "reauthorization_required") {
+    return (
+      <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 text-[12px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+        <AlertTriangle className="text-[11px]" />
+        Reconnect
+      </span>
+    );
+  }
+  if (availability && !availability.available) {
+    return (
+      <span className="inline-flex h-7 items-center rounded-full bg-zinc-100 px-2.5 text-[12px] font-medium text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400">
+        {availability.reason === "local_only" ? "Local only" : "Coming soon"}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onConnect();
+      }}
+      disabled={connecting}
+      className="inline-flex h-7 items-center gap-1.5 rounded-full border border-black/[0.1] bg-white px-3 text-[12px] font-medium text-zinc-800 transition-colors hover:border-black/[0.2] hover:bg-zinc-50 disabled:opacity-70 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+    >
+      {connecting ? <Loader2 className="animate-spin text-[11px]" /> : null}
+      {connecting ? "Connecting" : "Connect"}
+    </button>
+  );
+}
+
+function PluginCard({
+  plugin,
+  connection,
+  availability,
+  connecting,
+  onOpen,
+  onConnect,
+}: {
+  plugin: MarketplacePlugin;
+  connection: PluginConnection | null;
+  availability: PluginAvailability | null;
+  connecting: boolean;
+  onOpen: () => void;
+  onConnect: () => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="group flex min-h-[132px] cursor-pointer flex-col rounded-2xl border border-black/[0.07] bg-white p-4 text-left transition-[border-color,box-shadow] duration-150 hover:border-black/[0.14] hover:shadow-[0_10px_30px_-22px_rgba(20,21,26,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:border-white/[0.08] dark:bg-zinc-900 dark:hover:border-white/[0.16]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <PluginMark name={plugin.name} iconUrl={plugin.iconUrl} size={40} className="rounded-xl" />
+        <StatusPill
+          connection={connection}
+          availability={availability}
+          connecting={connecting}
+          onConnect={onConnect}
+        />
+      </div>
+      <div className="mt-3 min-w-0">
+        <p className="truncate text-[14px] font-semibold tracking-[-0.01em]">
+          {stripCursorText(plugin.name) || plugin.name}
+        </p>
+        <p className="mt-1 line-clamp-2 text-[12.5px] leading-[18px] text-zinc-500 dark:text-zinc-400">
+          {cardDescription(plugin.description, 100)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function InstalledList({
+  loading,
+  connections,
+  onOpen,
+  onBrowse,
+}: {
+  loading: boolean;
+  connections: PluginConnection[];
+  onOpen: (pluginId: string) => void;
+  onBrowse: () => void;
+}) {
+  if (loading) {
+    return (
+      <div className="mt-10 flex justify-center text-zinc-400">
+        <Loader2 className="animate-spin text-[18px]" />
+      </div>
+    );
+  }
+  if (connections.length === 0) {
+    return (
+      <EmptyState
+        title="No plugins connected yet"
+        body="Connect Gmail, GitHub, Slack, Notion and more to let Clauxen work across your apps."
+        action={{ label: "Browse plugins", onClick: onBrowse }}
       />
+    );
+  }
+  return (
+    <ul className="mt-5 divide-y divide-black/[0.06] overflow-hidden rounded-2xl border border-black/[0.07] bg-white dark:divide-white/[0.06] dark:border-white/[0.08] dark:bg-zinc-900">
+      {connections.map((connection) => {
+        const catalogEntry = marketplaceCatalog.plugins[connection.pluginId];
+        const needsReconnect = connection.status === "reauthorization_required";
+        return (
+          <li key={connection.id}>
+            <button
+              type="button"
+              onClick={() => onOpen(connection.pluginId)}
+              className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
+            >
+              <PluginMark
+                name={connection.pluginName}
+                iconUrl={connection.pluginIconUrl ?? catalogEntry?.iconUrl}
+                size={38}
+                className="rounded-xl"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14px] font-semibold">{connection.pluginName}</p>
+                <p className="truncate text-[12.5px] text-zinc-500 dark:text-zinc-400">
+                  {[
+                    connection.accountLabel,
+                    connection.toolCount != null ? `${connection.toolCount} tools` : null,
+                    connection.permissionMode === "read_only" ? "Read only" : "Read & write",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              {needsReconnect ? (
+                <span className="inline-flex h-6 items-center gap-1 rounded-full bg-amber-50 px-2 text-[11.5px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                  <AlertTriangle className="text-[10px]" />
+                  Reconnect
+                </span>
+              ) : (
+                <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-emerald-50 px-2 text-[11.5px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+                  <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+                  Active
+                </span>
+              )}
+              <ChevronRight className="text-[12px] text-zinc-400" />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function EmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body: string;
+  action?: { label: string; onClick: () => void };
+}) {
+  return (
+    <div className="mt-6 flex flex-col items-center rounded-2xl border border-dashed border-black/[0.1] px-6 py-14 text-center dark:border-white/10">
+      <p className="text-[15px] font-semibold">{title}</p>
+      <p className="mt-1.5 max-w-[360px] text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">{body}</p>
+      {action ? (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="mt-5 inline-flex h-9 items-center rounded-full bg-zinc-900 px-4 text-[13px] font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+        >
+          {action.label}
+        </button>
+      ) : null}
     </div>
   );
 }

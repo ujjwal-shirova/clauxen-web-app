@@ -45,7 +45,8 @@
     "predev": "node scripts/bundle-research-exports.mjs",
     "pretypecheck": "node scripts/bundle-research-exports.mjs",
     "cf:release": "npm run cf:build && npm run cf:deploy",
-    "test:cloudflare:build": "node --test tests/cloudflare-build.test.mjs"
+    "test:cloudflare:build": "node --test tests/cloudflare-build.test.mjs",
+    "plugins:endpoints": "node scripts/build-connector-endpoints.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",
