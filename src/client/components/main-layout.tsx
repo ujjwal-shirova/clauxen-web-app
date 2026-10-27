@@ -419,15 +419,19 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         </div>
       ) : null}
 
+      {!isIncognito && !isMobile && isSidebarCollapsed && !overlayOpen ? (
+        <div
+          aria-hidden
+          className="fixed inset-y-0 left-0 z-30 w-2"
+          onMouseEnter={openSidebarPeek}
+        />
+      ) : null}
+
       {!isIncognito && !isMobile && isSidebarCollapsed ? (
         <button
           type="button"
           aria-label="Show sidebar"
           aria-controls="app-primary-nav"
-          onMouseEnter={openSidebarPeek}
-          onMouseLeave={closeSidebarPeekSoon}
-          onFocus={openSidebarPeek}
-          onBlur={closeSidebarPeekSoon}
           onClick={() => setSidebarCollapsedFromNav(false)}
           className={cn(
             "app-sidebar-peek-toggle fixed z-50 flex items-center justify-center border-0 bg-transparent text-[var(--cx-sidebar-fg,#52514e)] shadow-none transition-[background-color,color,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--cx-sidebar-hover,rgba(0,0,0,0.05))] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07] motion-reduce:transition-none",

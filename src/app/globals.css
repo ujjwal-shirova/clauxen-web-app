@@ -5230,18 +5230,18 @@ button[data-speed-toggle][data-state="open"] {
   padding: 8px 10px 4px;
 }
 
-/* Collapsed toggle matches .cx-hide-sidebar inside the 44px top bar:
-   24×24, 8px from the left, vertically centered under 4px top padding. */
+/* Collapsed trigger matches the sidebar header control:
+   32×32, 16px from the left, sitting on the 15px header top padding. */
 .app-sidebar-peek-toggle {
   box-sizing: border-box;
-  left: 8px;
-  top: calc(12px + env(safe-area-inset-top, 0px));
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  min-height: 24px;
+  left: 16px;
+  top: calc(15px + env(safe-area-inset-top, 0px));
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
   padding: 0;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .app-sidebar-peek-toggle svg {
@@ -5251,19 +5251,19 @@ button[data-speed-toggle][data-state="open"] {
 
 @media (min-width: 1024px) {
   .app-sidebar-peek-toggle {
-    left: 8px !important;
-    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
-    width: 24px !important;
-    min-width: 24px !important;
-    height: 24px !important;
-    min-height: 24px !important;
+    left: 16px !important;
+    top: calc(15px + env(safe-area-inset-top, 0px)) !important;
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
     padding: 0 !important;
-    border-radius: 6px !important;
+    border-radius: 8px !important;
   }
 }
 
 .glass-sidebar-docked .ui-sidebar-content {
-  padding: 12px 0 0;
+  padding: 8px 8px 0;
 }
 
 .glass-sidebar-docked .clauxen-wordmark {
@@ -5290,10 +5290,10 @@ button[data-speed-toggle][data-state="open"] {
 
 .glass-sidebar-docked .ui-sidebar-menu-button,
 .glass-sidebar-docked .glass-sidebar-agent-menu-btn {
-  height: 34px;
-  min-height: 34px;
-  border-radius: 10px;
-  padding-inline: 10px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 12px;
+  padding-inline: 8px;
   font-weight: 450;
 }
 
@@ -9390,8 +9390,8 @@ body:has([data-radix-portal]) .cx-pin-tip {
 }
 
 .cx-sidebar .cx-nav-btn svg {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
 }
 
 .cx-sidebar .cx-nav-icon svg {
@@ -9471,9 +9471,9 @@ body:has([data-radix-portal]) .cx-pin-tip {
 .cx-sidebar .cx-section-toggle,
 .cx-sidebar .cx-section-head button {
   color: var(--cx-sidebar-muted) !important;
-  font-size: 11.5px !important;
+  font-size: 14px !important;
   font-weight: 500 !important;
-  line-height: 16px !important;
+  line-height: 20px !important;
   background: transparent !important;
   border-radius: 6px !important;
 }
@@ -10767,9 +10767,9 @@ button.agent-ledger__row-head:hover {
 }
 
 .cx-sidebar .ui-sidebar-top-bar {
-  height: 48px !important;
-  min-height: 48px !important;
-  padding: 0 10px !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  padding: 15px 10px 9px 16px !important;
 }
 
 .cx-sidebar .cx-logo-tile {
@@ -10777,10 +10777,10 @@ button.agent-ledger__row-head:hover {
 }
 
 .cx-sidebar .cx-hide-sidebar {
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
-  min-height: 28px !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
   border-radius: 8px !important;
   color: var(--cx-sidebar-faint) !important;
 }
@@ -10791,30 +10791,30 @@ button.agent-ledger__row-head:hover {
 }
 
 .cx-sidebar .cx-hide-sidebar svg {
-  width: 19px !important;
-  height: 19px !important;
+  width: 20px !important;
+  height: 20px !important;
 }
 
 .cx-sidebar:not(.is-collapsed) .cx-nav {
-  gap: 4px !important;
-  padding: 4px 10px 8px !important;
+  gap: 1px !important;
+  padding: 6px 8px 8px !important;
 }
 
 .cx-sidebar:not(.is-collapsed) a.cx-nav-btn,
 .cx-sidebar:not(.is-collapsed) button.cx-nav-btn {
-  height: 34px !important;
-  min-height: 34px !important;
-  padding: 0 10px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 8px !important;
   border: 0 !important;
   border-radius: 10px !important;
   background: transparent !important;
   box-shadow: none !important;
   color: var(--cx-sidebar-muted) !important;
-  font-size: 13.5px !important;
-  font-weight: 500 !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
   line-height: 20px !important;
   letter-spacing: -0.005em !important;
-  gap: 10px !important;
+  gap: 6px !important;
 }
 
 .cx-sidebar:not(.is-collapsed) a.cx-nav-btn:hover,
@@ -10832,13 +10832,15 @@ button.agent-ledger__row-head:hover {
 
 /* New chat reads as the one raised control in the sidebar. */
 .cx-sidebar:not(.is-collapsed) a.cx-nav-btn.cx-nav-btn--new {
-  height: 38px !important;
-  min-height: 38px !important;
-  border: 1px solid rgba(20, 21, 26, 0.075) !important;
-  border-radius: 11px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 8px !important;
+  border: 0.5px solid rgba(20, 21, 26, 0.13) !important;
+  border-radius: 12px !important;
   background: #ffffff !important;
   color: #27272a !important;
-  box-shadow: 0 1px 2px rgba(20, 21, 26, 0.04) !important;
+  box-shadow: none !important;
+  font-size: 14px !important;
   font-weight: 500 !important;
 }
 
@@ -10894,14 +10896,14 @@ button.agent-ledger__row-head:hover {
 }
 
 .cx-sidebar .cx-section-head {
-  padding: 12px 10px 4px !important;
-  height: 34px !important;
+  padding: 0 8px !important;
+  height: 36px !important;
 }
 
 .cx-sidebar .cx-section-head button span,
 .cx-sidebar .cx-section-head .cx-section-toggle span {
   color: #8e8e93 !important;
-  font-size: 12px !important;
+  font-size: 14px !important;
   font-weight: 500 !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
@@ -10913,11 +10915,11 @@ button.agent-ledger__row-head:hover {
 }
 
 .cx-sidebar .cx-chat-row {
-  height: 34px !important;
-  border-radius: 8px !important;
-  padding-left: 10px !important;
-  padding-right: 10px !important;
-  font-size: 13.5px !important;
+  height: 36px !important;
+  border-radius: 12px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  font-size: 14px !important;
   color: var(--cx-sidebar-muted) !important;
 }
 
@@ -10932,7 +10934,7 @@ button.agent-ledger__row-head:hover {
 }
 
 .cx-sidebar .cx-chat-title {
-  font-size: 13.5px !important;
+  font-size: 14px !important;
   font-weight: 400 !important;
   line-height: 20px !important;
 }
@@ -10950,11 +10952,11 @@ button.agent-ledger__row-head:hover {
 
 .cx-sidebar .sidebar-account-footer {
   border-top-color: var(--cx-sidebar-line) !important;
-  padding: 8px 10px 12px !important;
+  padding: 8px !important;
 }
 
 .cx-sidebar .cx-account-name {
-  font-size: 13.5px !important;
+  font-size: 14px !important;
   font-weight: 500 !important;
 }
 

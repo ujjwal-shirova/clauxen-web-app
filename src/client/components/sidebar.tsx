@@ -211,7 +211,7 @@ function SidebarSectionLabel({
   trailing?: React.ReactNode;
 }) {
   return (
-    <div className="cx-section-head group/section flex h-7 items-center justify-between px-2.5 pt-3 pb-1 select-none">
+    <div className="cx-section-head group/section flex h-9 items-center justify-between px-2 select-none">
       <button
         type="button"
         onClick={(event) => {
@@ -221,7 +221,7 @@ function SidebarSectionLabel({
         aria-expanded={expanded}
         className="cx-section-toggle no-hover-overlay flex min-w-0 flex-1 items-center gap-1.5 bg-transparent p-0 text-left cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 rounded"
       >
-        <span className="truncate text-[12px] font-medium tracking-normal text-zinc-400 group-hover/section:text-zinc-600 transition-colors dark:text-zinc-500 dark:group-hover/section:text-zinc-300">
+        <span className="truncate text-[14px] font-medium tracking-normal text-zinc-400 group-hover/section:text-zinc-600 transition-colors dark:text-zinc-500 dark:group-hover/section:text-zinc-300">
           {label}
         </span>
         <ChevronRight
@@ -553,7 +553,7 @@ export function Sidebar({
           setUnpinDropHot(false);
         }}
         className={cn(
-          "group/chat cx-chat-row glass-sidebar-agent-menu-btn relative flex h-8.5 w-full items-center rounded-lg px-2.5 select-none transition-colors duration-150 text-[13.5px] text-zinc-600 hover:bg-black/[0.04] hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50",
+          "group/chat cx-chat-row glass-sidebar-agent-menu-btn relative flex h-9 w-full items-center rounded-xl px-2 select-none transition-colors duration-150 text-[14px] text-zinc-600 hover:bg-black/[0.04] hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50",
           isActive &&
             "bg-[#efeeef] font-medium text-zinc-950 dark:bg-zinc-800 dark:text-zinc-50",
         )}
@@ -569,7 +569,7 @@ export function Sidebar({
             onSelectChat(chat);
             if (isMobileLayout) onNavigate?.();
           }}
-          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-md"
+          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left text-inherit outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-md"
         >
           {showSidebarSpinner ? (
             <span
@@ -580,7 +580,7 @@ export function Sidebar({
               <span className="chat-gen-spinner size-3 animate-spin rounded-full border-[1.5px] border-zinc-400 border-t-zinc-900" />
             </span>
           ) : null}
-          <span className="cx-chat-title min-w-0 flex-1 truncate text-[13px] font-normal leading-normal text-inherit">
+          <span className="cx-chat-title min-w-0 flex-1 truncate text-[14px] font-normal leading-normal text-inherit">
             {chat.isTitleStreaming ? (
               <StreamingChatTitle title={chat.name || "New Chat"} isStreaming />
             ) : (
@@ -647,7 +647,7 @@ export function Sidebar({
           !isMobileLayout && !isCollapsed && "h-full w-full min-w-0",
         )}
       >
-        <div className="ui-sidebar-top-bar relative flex h-12 shrink-0 items-center justify-between px-2.5">
+        <div className="ui-sidebar-top-bar relative flex h-14 shrink-0 items-center justify-between px-2.5">
           <span
             role="img"
             aria-label="Clauxen"
@@ -665,7 +665,7 @@ export function Sidebar({
               <button
                 type="button"
                 aria-label={isPeekPreview ? "Expand sidebar" : "Hide sidebar"}
-                className="cx-hide-sidebar flex size-7 shrink-0 items-center justify-center rounded-lg p-0 text-zinc-400 transition-colors hover:bg-black/[0.04] hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
+                className="cx-hide-sidebar flex size-8 shrink-0 items-center justify-center rounded-lg p-0 text-zinc-400 transition-colors hover:bg-black/[0.04] hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
                 onClick={(event) => {
                   event.stopPropagation();
                   // The hover preview is already the full sidebar. Pin it open
@@ -686,7 +686,7 @@ export function Sidebar({
                 setIsCollapsed(true);
               }}
               aria-label="Close menu"
-              className="flex size-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900"
             >
               <X className="size-4" />
             </button>
@@ -694,7 +694,7 @@ export function Sidebar({
         </div>
 
         <nav
-          className="cx-nav cx-nav-sticky shrink-0 flex flex-col gap-1 px-2.5 pt-1 pb-1.5"
+          className="cx-nav cx-nav-sticky shrink-0 flex flex-col gap-px px-2 pt-1.5 pb-2"
           aria-label="Primary"
           data-keynav-list="sidebar-nav"
         >
@@ -712,7 +712,7 @@ export function Sidebar({
               aria-label="New chat"
               aria-current={newChatActive ? "page" : undefined}
               className={cn(
-                "cx-nav-btn cx-nav-btn--new group flex h-9.5 w-full items-center gap-2.5 rounded-[11px] border border-black/[0.07] bg-white px-2.5 text-[13.5px] font-medium tracking-[-0.01em] text-zinc-800 shadow-[0_1px_2px_rgba(20,21,26,0.04)] transition-all duration-150 outline-none select-none hover:border-black/[0.1] hover:bg-zinc-50 hover:text-zinc-950 dark:border-white/[0.09] dark:bg-zinc-800 dark:text-zinc-100 dark:hover:border-white/[0.14] dark:hover:bg-zinc-700/80 dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
+                "cx-nav-btn cx-nav-btn--new group flex h-10 w-full items-center gap-1.5 rounded-xl border border-black/[0.07] bg-white px-2 text-[14px] font-medium tracking-[-0.01em] text-zinc-800 shadow-[0_1px_2px_rgba(20,21,26,0.04)] transition-all duration-150 outline-none select-none hover:border-black/[0.1] hover:bg-zinc-50 hover:text-zinc-950 dark:border-white/[0.09] dark:bg-zinc-800 dark:text-zinc-100 dark:hover:border-white/[0.14] dark:hover:bg-zinc-700/80 dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
                 newChatActive &&
                   "is-active ring-1 ring-black/[0.05] dark:ring-white/[0.08]",
                 isCollapsed &&
@@ -724,7 +724,7 @@ export function Sidebar({
                 <MessageSquare className="size-4" />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
-                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal">
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[14px] leading-normal">
                   New chat
                 </span>
               )}
@@ -746,7 +746,7 @@ export function Sidebar({
               aria-label="Library"
               aria-current={activeView === "library" ? "page" : undefined}
               className={cn(
-                "cx-nav-btn group flex h-8.5 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium tracking-[-0.01em] text-zinc-600 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
+                "cx-nav-btn group flex h-9 w-full items-center gap-1.5 rounded-lg px-2 text-[14px] font-medium tracking-[-0.01em] text-zinc-600 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
                 activeView === "library" &&
                   "is-active bg-[#efeeef] font-medium text-zinc-950 dark:bg-zinc-800 dark:text-zinc-50",
                 isCollapsed &&
@@ -758,7 +758,7 @@ export function Sidebar({
                 <Library className="size-4" />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
-                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal">
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[14px] leading-normal">
                   Library
                 </span>
               )}
@@ -778,7 +778,7 @@ export function Sidebar({
                 aria-label="Projects"
                 aria-current={activeView === "projects" ? "page" : undefined}
                 className={cn(
-                  "cx-nav-btn group flex h-8.5 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium tracking-[-0.01em] text-zinc-600 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
+                  "cx-nav-btn group flex h-9 w-full items-center gap-1.5 rounded-lg px-2 text-[14px] font-medium tracking-[-0.01em] text-zinc-600 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
                   activeView === "projects" &&
                     "is-active bg-[#efeeef] font-medium text-zinc-950 dark:bg-zinc-800 dark:text-zinc-50",
                   isCollapsed &&
@@ -791,7 +791,7 @@ export function Sidebar({
                   <FolderKanban className="size-4" />
                 </span>
                 {isCollapsed && !isMobileLayout ? null : (
-                  <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal">
+                  <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[14px] leading-normal">
                     Projects
                   </span>
                 )}
@@ -826,7 +826,7 @@ export function Sidebar({
             aria-label="Plugins"
             aria-current={activeView === "plugins" ? "page" : undefined}
             className={cn(
-              "cx-nav-btn group flex h-8.5 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium tracking-[-0.01em] text-zinc-600 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
+              "cx-nav-btn group flex h-9 w-full items-center gap-1.5 rounded-lg px-2 text-[14px] font-medium tracking-[-0.01em] text-zinc-600 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
               activeView === "plugins" &&
                 "is-active bg-[#efeeef] font-medium text-zinc-950 dark:bg-zinc-800 dark:text-zinc-50",
               isCollapsed &&
@@ -838,7 +838,7 @@ export function Sidebar({
               <Puzzle className="size-4" />
             </span>
             {isCollapsed && !isMobileLayout ? null : (
-              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal">
+              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[14px] leading-normal">
                 Plugins
               </span>
             )}
@@ -857,7 +857,7 @@ export function Sidebar({
             }}
             aria-label="Code"
             className={cn(
-              "cx-nav-btn group flex h-8.5 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium tracking-[-0.01em] text-zinc-600 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
+              "cx-nav-btn group flex h-9 w-full items-center gap-1.5 rounded-lg px-2 text-[14px] font-medium tracking-[-0.01em] text-zinc-600 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
               isCollapsed &&
                 !isMobileLayout &&
                 "size-9 justify-center rounded-lg px-0",
@@ -867,7 +867,7 @@ export function Sidebar({
               <Code2 className="size-4" />
             </span>
             {isCollapsed && !isMobileLayout ? null : (
-              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[13.5px] leading-normal">
+              <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[14px] leading-normal">
                 Code
               </span>
             )}
@@ -883,14 +883,14 @@ export function Sidebar({
           <div
             className={cn(
               "space-y-px pb-1",
-              isCollapsed ? "flex flex-col items-center px-0" : "px-2.5",
+              isCollapsed ? "flex flex-col items-center px-0" : "px-0",
             )}
           >
             {/* Order: Pinned → Recent */}
             {!isCollapsed &&
             (hasPinnedSection || (draggingChatId && !draggingPinned)) ? (
               <div
-                className="relative mt-2.5 mb-1 px-0"
+                className="relative mb-1 px-0"
                 onDragOver={(event) => {
                   if (!draggingChatId || draggingPinned) return;
                   event.preventDefault();
@@ -929,10 +929,7 @@ export function Sidebar({
             {!isCollapsed && (
               <div
                 ref={chatsSectionRef}
-                className={cn(
-                  "relative mb-2 px-0",
-                  !hasPinnedSection && "mt-2.5",
-                )}
+                className="relative mb-2 px-0"
                 onDragOver={(event) => {
                   if (!draggingChatId || !draggingPinned) return;
                   event.preventDefault();
@@ -994,7 +991,7 @@ export function Sidebar({
                       {[72, 58, 84, 64, 50, 76, 60].map((width, index) => (
                         <div
                           key={index}
-                          className="flex h-8 items-center px-2.5"
+                          className="flex h-9 items-center px-2"
                         >
                           <Skeleton
                             variant="text"
@@ -1012,7 +1009,7 @@ export function Sidebar({
                     ? groupedChats.map((group) => (
                         <div key={group.label || "all"}>
                           {group.label ? (
-                            <p className="cx-chat-group-label px-2.5 pb-0.5 pt-1.5">
+                            <p className="cx-chat-group-label px-2 pb-0.5 pt-1.5">
                               {group.label}
                             </p>
                           ) : null}
@@ -1034,7 +1031,7 @@ export function Sidebar({
               "sidebar-account-footer mt-auto shrink-0 border-t border-black/[0.055] bg-transparent dark:border-white/[0.06]",
               isCollapsed
                 ? "flex flex-col items-center gap-1.5 p-2"
-                : "flex flex-col items-stretch gap-1 px-2.5 py-2.5",
+                : "flex flex-col items-stretch gap-1 px-2 py-2",
             )}
           >
             <div
@@ -1057,7 +1054,7 @@ export function Sidebar({
                     "menu-trigger-active group/login flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-black/[0.035] focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-lg",
                     isCollapsed
                       ? "size-8 shrink-0 justify-center !p-0"
-                      : "h-9.5 min-w-0 flex-1 justify-start gap-2.5 px-2.5",
+                      : "h-11 min-w-0 flex-1 justify-start gap-2 px-2",
                   )}
                 >
                   <span className="flex size-5 shrink-0 items-center justify-center text-zinc-500">
@@ -1073,7 +1070,7 @@ export function Sidebar({
                       isCollapsed && "hidden",
                     )}
                   >
-                    <span className="cx-account-name text-[13px] font-medium text-zinc-800">
+                    <span className="cx-account-name text-[14px] font-medium text-zinc-800">
                       Log in
                     </span>
                   </div>
@@ -1093,14 +1090,14 @@ export function Sidebar({
                         "menu-trigger-active group/account flex items-center border-0 bg-transparent outline-none transition-colors duration-150 hover:bg-black/[0.035] data-[state=open]:bg-black/[0.05] focus-visible:ring-1 focus-visible:ring-zinc-400 rounded-lg",
                         isCollapsed
                           ? "size-8 shrink-0 justify-center !p-0"
-                          : "h-9.5 min-w-0 flex-1 justify-start gap-2.5 px-2.5",
+                          : "h-11 min-w-0 flex-1 justify-start gap-2 px-2",
                       )}
                     >
                       <UserAvatarDisplay
                         name={userDisplayName || "?"}
                         avatarUrl={userAvatarUrl}
                         size="sm"
-                        className="size-6 shrink-0 rounded-full bg-zinc-200 text-[10px] font-semibold leading-none text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100"
+                        className="size-7 shrink-0 rounded-full bg-zinc-200 text-[10px] font-semibold leading-none text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100"
                       />
                       <div
                         className={cn(
@@ -1109,7 +1106,7 @@ export function Sidebar({
                         )}
                       >
                         {!accountLoading && userDisplayName ? (
-                          <span className="cx-account-name truncate text-[13.5px] font-medium text-zinc-800 dark:text-zinc-100">
+                          <span className="cx-account-name truncate text-[14px] font-medium text-zinc-800 dark:text-zinc-100">
                             {userDisplayName}
                           </span>
                         ) : null}
