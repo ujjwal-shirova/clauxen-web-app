@@ -1,0 +1,82 @@
+# ---------------------------------------------------------------------------
+# Qoder workspace index exclusions
+#
+# Applied on top of .gitignore (Settings → Coding → Workspace index → Manage
+# ignore files). Excluded files are not uploaded for indexing.
+#
+# Keep application source (src/, workers/*/src/, supabase/migrations/, tests/,
+# scripts/, docs/) indexable — excluded content cannot be retrieved by the
+# workspace index.
+# ---------------------------------------------------------------------------
+
+# --- Secrets and environment ------------------------------------------------
+.env*
+*.env
+.envrc
+.dev.vars*
+*.secrets
+*.secret
+**/*secret*.json
+**/*secrets*.json
+**/credentials*.json
+**/service-account*.json
+**/*service-account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.p8
+id_rsa*
+id_ed25519*
+.netrc
+.git-credentials
+
+# Package-manager auth (npm tokens live here)
+.npmrc
+.yarnrc*
+.pnpmrc
+
+# --- Local tool state and cloud credentials ---------------------------------
+.vercel/
+.wrangler/
+.supabase/
+.claude/settings.local.json
+.tools/
+.playwright-cli/
+
+# --- Local runtime data, logs, and scratch output ---------------------------
+tmp/
+.tmp/
+output/
+storage/
+.autonomous-agent-files/
+.venv-*/
+*.log
+*.cpuprofile
+*.sqlite
+*.sqlite3
+*.db
+
+# --- Build output and generated artifacts -----------------------------------
+node_modules/
+.next/
+.open-next/
+dist/
+build/
+out/
+coverage/
+.turbo/
+*.tsbuildinfo
+**/__pycache__/
+*.py[cod]
+public/research-export-*.worker.js
+/src/client/generated/research-export-manifest.ts
+public/cdn/plugin-icons-bundle.tar
+
+# --- OS / editor noise ------------------------------------------------------
+.DS_Store
+.idea/
+*.swp
+*.swo
