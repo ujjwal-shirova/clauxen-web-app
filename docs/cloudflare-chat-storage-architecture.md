@@ -1,5 +1,11 @@
 # Cloudflare-only chat storage architecture
 
+> Implementation update, 29 October 2026: the deployed design keeps Supabase as
+> the system of record for auth, ownership and chat metadata, and moves message
+> bodies, generation-job payloads and share snapshots to private R2 objects. D1
+> is not used. See `supabase/migrations/20261029120000_r2_first_chat_storage.sql`
+> and `src/server/chat/message-payload-store.ts`.
+
 Design decision, 10 October 2026: consolidate chat storage onto Workers, D1, R2 and Durable Objects. This is a design document, not a deployed migration. It supersedes the destination ambiguity and hybrid text-storage recommendation in chat-storage-migration-assessment.md.
 
 ## Service responsibilities

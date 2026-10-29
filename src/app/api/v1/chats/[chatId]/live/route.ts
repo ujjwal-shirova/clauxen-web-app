@@ -2,6 +2,7 @@ import { withApiRouteParams } from "@/server/http/route-params";
 import { jsonData } from "@/server/http/api-response";
 import { requireSession } from "@/server/auth/require-session";
 import * as chatsRepo from "@/server/repositories/chats.repository";
+import * as messagesRepo from "@/server/repositories/messages.repository";
 import { readLiveTurn } from "@/server/chat/chat-coord-client";
 import { getActiveGenerationJobForChat } from "@/server/repositories/generation-jobs.repository";
 import { buildAssistantTranscriptRecord } from "@/server/training/transcript-format";
@@ -27,17 +28,13 @@ export const GET = withApiRouteParams<{ chatId: string }>(
     ]);
     if (!job) {
       if (turn?.userId !== user.id) return jsonData({ turn: null });
-      const saved = await queryOne<{
-        content: string;
-        content_json: unknown;
-        status: string;
-        updated_at: string;
-      }>(
-        `select content, content_json, status, updated_at from public.chat_messages
-         where id = $1 and chat_id = $2 and user_id = $3 and role = 'assistant'`,
-        [turn.assistantId, params.chatId, user.id],
-      );
-      // Terminal Postgres state always wins over a stale live mirror.
+      const saved = await messagesRepo.getMessageForUser({
+        messageId: turn.assistantId,
+        chatId: params.chatId,
+        userId: user.id,
+      });
+      // Terminal state always wins over a stale live mirror. The body is
+      // hydrated from its R2 payload by the repository.
       if (saved && ["complete", "failed", "cancelled"].includes(saved.status)) {
         return jsonData({
           turn: {
@@ -45,7 +42,9 @@ export const GET = withApiRouteParams<{ chatId: string }>(
             answer: saved.content ?? "",
             contentJson: saved.content_json,
             status: saved.status,
-            updatedAt: new Date(saved.updated_at).getTime(),
+            updatedAt: new Date(
+              saved.updated_at ?? saved.created_at,
+            ).getTime(),
           },
         });
       }

@@ -1,5 +1,6 @@
 import { queryOne, query } from "@/server/db/pool";
 import { putObject, getObject } from "@/server/storage/object-store";
+import * as messagesRepo from "@/server/repositories/messages.repository";
 import type { ResearchRow } from "@/server/repositories/deep-research.repository";
 import {
   reportMarkdown,
@@ -30,18 +31,25 @@ export async function researchReportFile(plan: ResearchRow) {
 export async function saveResearchReport(plan: ResearchRow) {
   if (plan.status !== "complete" || !plan.assistant_message_id) return;
   if (await researchReportFile(plan)) return;
-  const row = await queryOne<{
-    content: string;
-    content_json: { agent_ui?: { sources?: ResearchCitation[] } };
-    elapsed: number;
-  }>(
-    `select m.content,m.content_json,greatest(0,extract(epoch from coalesce(j.completed_at,m.updated_at)-j.created_at)) elapsed from public.chat_messages m join public.chat_generation_jobs j on j.id=$3 where m.id=$1 and m.chat_id=$2 and m.user_id=$4 and m.status='complete'`,
-    [plan.assistant_message_id, plan.chat_id, plan.job_id, plan.user_id],
-  );
-  if (!row?.content?.trim())
+  const message = await messagesRepo.getMessageForUser({
+    messageId: plan.assistant_message_id,
+    chatId: plan.chat_id,
+    userId: plan.user_id,
+  });
+  if (!message?.content?.trim())
     throw new Error("The completed research report is empty.");
-  const sources = Array.isArray(row.content_json?.agent_ui?.sources)
-    ? row.content_json.agent_ui!.sources!.filter((s) => {
+  const timing = await queryOne<{ elapsed: number }>(
+    `select greatest(0, extract(epoch from coalesce(j.completed_at, m.updated_at) - j.created_at)) as elapsed
+     from public.chat_generation_jobs j
+     join public.chat_messages m on m.id = j.assistant_message_id
+     where j.id = $1`,
+    [plan.job_id],
+  );
+  const contentJson = (message.content_json ?? {}) as {
+    agent_ui?: { sources?: ResearchCitation[] };
+  };
+  const sources = Array.isArray(contentJson?.agent_ui?.sources)
+    ? contentJson.agent_ui!.sources!.filter((s) => {
         try {
           return ["http:", "https:"].includes(new URL(s.url).protocol);
         } catch {
@@ -49,7 +57,7 @@ export async function saveResearchReport(plan: ResearchRow) {
         }
       })
     : [];
-  const markdown = reportMarkdown(row.content, sources);
+  const markdown = reportMarkdown(message.content, sources);
   const title = researchReportTitle(markdown, plan.title);
   const citations = reportCitations(markdown, sources);
   const fileName = `${
@@ -82,7 +90,7 @@ export async function saveResearchReport(plan: ResearchRow) {
         researchPlanId: plan.id,
         title,
         citations,
-        elapsedSeconds: Math.round(Number(row.elapsed)),
+        elapsedSeconds: Math.round(Number(timing?.elapsed ?? 0)),
       }),
     ],
   );

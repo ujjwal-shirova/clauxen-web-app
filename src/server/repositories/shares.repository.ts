@@ -1,9 +1,14 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes, randomUUID } from "crypto";
 import { env } from "@/server/config/env"; // trusted app origin — Host header spoofing avoid
 import { queryOne } from "@/server/db/pool"; // parameterized single-row SQL
 import { AppError } from "@/server/db/errors"; // invalid visibility → 400
 import type { SharedChatSnapshot } from "@/lib/share-public";
 import { sealShareToken } from "@/server/chat/share-token";
+import {
+  buildChatShareSnapshotKey,
+  putJsonPayload,
+  readJsonPayload,
+} from "@/server/chat/message-payload-store";
 
 const SHARE_VISIBILITIES = ["link", "workspace", "public"] as const;
 type ShareVisibility = (typeof SHARE_VISIBILITIES)[number];
@@ -18,6 +23,7 @@ export type ConversationShareRow = {
   revoked_at: string | null; // null = active; timestamp = revoked
   metadata: Record<string, unknown>; // sealed token only — never the raw link secret
   share_token_hash: string;
+  snapshot_object_key?: string | null;
 };
 
 function hashShareToken(token: string) {
@@ -73,20 +79,42 @@ export async function createConversationShare(input: {
   const sealedToken = sealShareToken(token);
   const visibility = resolveShareVisibility(input.visibility);
   const baseUrl = trustedShareBaseUrl(input.baseUrl);
+  const shareId = randomUUID();
+
+  // Snapshot objects are immutable and owner-scoped; Postgres keeps only the
+  // pointer so shared conversations never duplicate bodies in the database.
+  const snapshotKey = buildChatShareSnapshotKey(
+    input.userId,
+    input.chatId,
+    shareId,
+  );
+  const snapshotRef = await putJsonPayload({
+    key: snapshotKey,
+    value: input.snapshot,
+    metadata: {
+      userId: input.userId,
+      chatId: input.chatId,
+      shareId,
+      kind: "share-snapshot",
+    },
+  });
 
   const row = await queryOne<ConversationShareRow>(
     `insert into public.conversation_shares (
-       chat_id, user_id, share_token_hash, visibility, metadata, snapshot
-     ) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
+       id, chat_id, user_id, share_token_hash, visibility, metadata, snapshot,
+       snapshot_object_key
+     ) values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
      returning id, chat_id, user_id, visibility, created_at, revoked_at, metadata,
-               share_token_hash`,
+               share_token_hash, snapshot_object_key`,
     [
+      shareId,
       input.chatId,
       input.userId,
       shareTokenHash,
       visibility,
       JSON.stringify({ sealedToken }),
-      JSON.stringify(input.snapshot),
+      snapshotRef ? null : JSON.stringify(input.snapshot),
+      snapshotRef?.key ?? null,
     ],
   );
 
@@ -107,16 +135,23 @@ export async function revokeConversationShare(shareId: string, userId: string) {
 
 export async function getPublicShareSnapshot(token: string) {
   const shareTokenHash = hashShareToken(token);
-  return queryOne<{
+  const row = await queryOne<{
     visibility: string;
     expires_at: string | null;
     snapshot: unknown;
+    snapshot_object_key: string | null;
   }>(
-    `select visibility, expires_at, snapshot
+    `select visibility, expires_at, snapshot, snapshot_object_key
      from public.conversation_shares
      where share_token_hash = $1 and revoked_at is null
      limit 1`,
     [shareTokenHash],
   );
+  if (!row) return null;
+  if (row.snapshot_object_key) {
+    const snapshot = await readJsonPayload<unknown>(row.snapshot_object_key);
+    if (snapshot) return { ...row, snapshot };
+  }
+  return row;
 }
 

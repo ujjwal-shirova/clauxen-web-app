@@ -538,7 +538,8 @@ export async function listScheduledRunCompletions(limit: number) {
       update public.scheduled_tasks t set lease_until=now()+interval '15 minutes'
       from active a where t.id=a.task_id and t.lease_run_id=a.id returning t.id
     )
-    select row_to_json(r)::jsonb as run,j.status as job_status,j.error as job_error,m.content as answer
+    select row_to_json(r)::jsonb as run,j.status as job_status,j.error as job_error,
+           coalesce(m.preview, m.content, '') as answer
     from public.scheduled_task_runs r join public.chat_generation_jobs j on j.chat_id=r.chat_id
       and j.input->'turn'->>'assistantClientId'='sched-a-'||r.id::text
     left join public.chat_messages m on m.id=j.assistant_message_id

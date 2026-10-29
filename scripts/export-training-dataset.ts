@@ -42,6 +42,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 // ---------------------------------------------------------------------------
 // Env loading (no extra deps)
@@ -71,6 +72,52 @@ function loadDotEnvFiles(): void {
 }
 
 loadDotEnvFiles();
+
+const r2Bucket =
+  process.env.R2_CHAT_ARCHIVES_BUCKET?.trim() || "clauxen-chat-archives";
+let r2Client: S3Client | null | undefined;
+
+function getR2Client(): S3Client | null {
+  if (r2Client !== undefined) return r2Client;
+  const account = process.env.R2_ACCOUNT_ID?.trim();
+  const endpoint =
+    process.env.R2_S3_ENDPOINT?.trim() ||
+    (account ? `https://${account}.r2.cloudflarestorage.com` : "");
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY?.trim();
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    r2Client = null;
+    return null;
+  }
+  r2Client = new S3Client({
+    region: "auto",
+    endpoint,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+  return r2Client;
+}
+
+type StoredMessagePayload = {
+  content?: string;
+  contentJson?: Record<string, unknown>;
+};
+
+async function readStoredPayload(
+  key: string,
+): Promise<StoredMessagePayload | null> {
+  const client = getR2Client();
+  if (!client) return null;
+  try {
+    const response = await client.send(
+      new GetObjectCommand({ Bucket: r2Bucket, Key: key }),
+    );
+    const bytes = await response.Body?.transformToByteArray();
+    if (!bytes) return null;
+    return JSON.parse(Buffer.from(bytes).toString("utf8"));
+  } catch {
+    return null;
+  }
+}
 
 const connectionString =
   process.env.DATABASE_URL?.trim() ||
@@ -794,55 +841,48 @@ async function main() {
         continue;
       }
 
-      // Prefer the durable transcript table; fall back to chat_messages
-      // content_json (legacy rows / older chats).
-      const lineRows = await pool.query<RawRow>(
-        `select l.chat_id, l.user_id, c.title as chat_title,
-                c.created_at as chat_created_at, c.updated_at as chat_updated_at,
-                l.message_id::text as message_id, m.client_id,
-                l.created_at as row_created_at, l.training_eligible, l.record
-           from public.chat_transcript_lines l
-           join public.chats c on c.id = l.chat_id
-           left join public.chat_messages m on m.id = l.message_id
-          where l.chat_id = $1
-          order by l.seq asc`,
+      // Canonical bodies live in R2; chat_messages supplies ordering, ids and
+      // status. Rows without a payload keep their inline legacy content.
+      const messageRows = await pool.query<{
+        id: string;
+        client_id: string | null;
+        created_at: Date | string;
+        role: string;
+        content: string | null;
+        content_json: TranscriptRecord | null;
+        training_eligible: boolean;
+        r2_key: string | null;
+      }>(
+        `select m.id::text as id, m.client_id, m.created_at, m.role,
+                m.content, m.content_json, m.training_eligible, p.r2_key
+           from public.chat_messages m
+           left join public.chat_message_payloads p on p.message_id = m.id
+          where m.chat_id = $1
+            and (m.status != 'cancelled' or coalesce(trim(m.content), '') != '')
+          order by m.created_at asc,
+                   case when m.role = 'user' then 0 else 1 end asc,
+                   m.id asc`,
         [chat.id],
       );
 
-      let rows: RawRow[] = lineRows.rows;
-      if (rows.length === 0) {
-        const messageRows = await pool.query<{
-          id: string;
-          client_id: string | null;
-          created_at: Date | string;
-          record: TranscriptRecord;
-        }>(
-          `select m.id::text as id, m.client_id, m.created_at,
-                  case
-                    when m.content_json ? 'message' then m.content_json
-                    when m.role = 'user'
-                      then jsonb_build_object(
-                        'role', 'user',
-                        'message', jsonb_build_array(
-                          jsonb_build_object('type', 'text', 'text', coalesce(m.content, ''))
-                        )
-                      )
-                    else jsonb_build_object(
-                      'role', 'assistant',
-                      'message', jsonb_build_array(
-                        jsonb_build_object('type', 'text', 'text', coalesce(m.content, ''))
-                      )
-                    )
-                  end as record
-             from public.chat_messages m
-            where m.chat_id = $1
-              and (m.status != 'cancelled' or coalesce(trim(m.content), '') != '')
-            order by m.created_at asc,
-                     case when m.role = 'user' then 0 else 1 end asc,
-                     m.id asc`,
-          [chat.id],
-        );
-        rows = messageRows.rows.map((row) => ({
+      const rows: RawRow[] = [];
+      for (const row of messageRows.rows) {
+        const stored = row.r2_key ? await readStoredPayload(row.r2_key) : null;
+        const content = stored?.content ?? row.content ?? "";
+        const contentJson = (stored?.contentJson ??
+          row.content_json) as TranscriptRecord | null;
+        const record =
+          contentJson &&
+          typeof contentJson === "object" &&
+          "message" in contentJson
+            ? contentJson
+            : ({
+                role: row.role === "user" ? "user" : "assistant",
+                message: {
+                  content: [{ type: "text", text: content }],
+                },
+              } as TranscriptRecord);
+        rows.push({
           chat_id: chat.id,
           user_id: chat.user_id,
           chat_title: chat.title,
@@ -851,11 +891,9 @@ async function main() {
           message_id: row.id,
           client_id: row.client_id,
           row_created_at: row.created_at,
-          // Rebuilt legacy rows carry no per-line flag — same policy as
-          // chat.service.getChatTranscript (treat as eligible).
-          training_eligible: true,
-          record: row.record,
-        }));
+          training_eligible: row.training_eligible !== false,
+          record,
+        });
       }
 
       if (rows.length === 0) {

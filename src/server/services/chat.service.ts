@@ -2,11 +2,7 @@ import { AppError, notFound } from "@/server/db/errors";
 import * as chatsRepo from "@/server/repositories/chats.repository";
 import * as pinnedChatsRepo from "@/server/repositories/pinned-chats.repository";
 import * as messagesRepo from "@/server/repositories/messages.repository";
-import type {
-  MessageTranscriptLine,
-  TurnFork,
-} from "@/server/repositories/messages.repository";
-import * as transcriptRepo from "@/server/repositories/transcript.repository";
+import type { TurnFork } from "@/server/repositories/messages.repository";
 import {
   createChatStream,
   loadChatStreamPersonalization,
@@ -76,36 +72,6 @@ import {
   EMPTY_ASSISTANT_RESPONSE_FALLBACK,
 } from "@/lib/assistant-generation-error";
 import { durableFileContentUrl } from "@/lib/composer-attachments";
-
-/**
- * Build all export/training lines for one assistant turn. The repository
- * commits these beside chat_messages.content_json in one transaction.
- */
-function buildAssistantTranscriptLines(input: {
-  assistantRecord: ReturnType<typeof buildAssistantTranscriptRecord>;
-  tools: CapturedToolCall[];
-  status: "success" | "error" | "cancelled";
-}): MessageTranscriptLine[] {
-  const lines: MessageTranscriptLine[] = [
-    {
-      role: "assistant",
-      record: input.assistantRecord,
-    },
-  ];
-  const toolResults = buildToolResultUserRecord(input.tools);
-  if (toolResults) lines.push({ role: "user", record: toolResults });
-  lines.push({
-    role: "meta",
-    record: buildTurnEndedRecord(
-      input.status === "success"
-        ? "success"
-        : input.status === "cancelled"
-          ? "cancelled"
-          : "error",
-    ),
-  });
-  return lines;
-}
 
 function transcriptSourcesFrom(value: unknown): TranscriptSource[] {
   const rows = Array.isArray(value)
@@ -1528,11 +1494,6 @@ export async function streamChatGeneration(input: {
           status: completionStatus,
           contentJson,
           tools,
-          transcriptLines: buildAssistantTranscriptLines({
-            assistantRecord: contentJson,
-            tools,
-            status: wasCancelled ? "cancelled" : failed ? "error" : "success",
-          }),
         });
       }
       const latencyMs = Date.now() - started;
@@ -1777,11 +1738,6 @@ export async function streamChatGeneration(input: {
         status: "failed",
         contentJson,
         tools,
-        transcriptLines: buildAssistantTranscriptLines({
-          assistantRecord: contentJson,
-          tools,
-          status: "error",
-        }),
       });
     }
     await logInferenceTelemetry({
@@ -1881,25 +1837,7 @@ export async function switchThreadBranch(
 export async function getChatTranscript(chatId: string, userId: string) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
-  const aggregated = await transcriptRepo.getChatTranscriptJsonl(
-    chatId,
-    userId,
-  );
-  if (aggregated?.jsonl?.trim()) return aggregated;
-
-  const lines = await transcriptRepo.listTranscriptLines(chatId, userId);
-  if (lines.length > 0) {
-    return {
-      chat_id: chatId,
-      user_id: userId,
-      chat_title: chat.title,
-      line_count: lines.length,
-      training_eligible: lines.every((line) => line.training_eligible),
-      jsonl: lines.map((line) => JSON.stringify(line.record)).join("\n"),
-    };
-  }
-
-  // Fallback: rebuild JSONL from durable content_json when export table is empty.
+  // Rebuild JSONL from the canonical R2 payloads (hydrated by the repository).
   const messages = await messagesRepo.listMessagesForChat(chatId);
   const rebuilt: TranscriptRecord[] = [];
   for (const row of messages) {

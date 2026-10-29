@@ -2,20 +2,25 @@ import { query, queryOne, withTransaction } from "@/server/db/pool";
 import { deriveTurnIdFromClientId } from "@/lib/chat-turn-id";
 import { AppError, notFound } from "@/server/db/errors";
 import type { PoolClient } from "pg";
+import type { TranscriptRecord } from "@/server/training/transcript-format";
 import {
-  TRANSCRIPT_SCHEMA_VERSION,
-  type TranscriptRecord,
-} from "@/server/training/transcript-format";
+  deleteJsonPayload,
+  readMessagePayload,
+  storeMessagePayload,
+  type MessagePayload,
+} from "@/server/chat/message-payload-store";
 
 export type MessageRow = {
   id: string;
   chat_id: string;
+  user_id?: string | null;
   role: string; // user | assistant | system
   content: string | null;
   status: string; // complete | streaming | failed | cancelled
   metadata: Record<string, unknown>;
   content_json: Record<string, unknown>;
   created_at: string;
+  updated_at?: string;
   client_id?: string | null;
   parent_message_id?: string | null;
 };
@@ -55,9 +60,126 @@ export type ThreadPageResult = {
 const DEFAULT_PAGE_LIMIT = 500;
 const MAX_PAGE_LIMIT = 500;
 
+type PayloadHydratable = {
+  id: string;
+  content: string | null;
+  content_json: Record<string, unknown>;
+};
+
+async function loadPayloadMap(
+  messageIds: string[],
+): Promise<Map<string, MessagePayload>> {
+  const unique = [...new Set(messageIds.filter(Boolean))];
+  const map = new Map<string, MessagePayload>();
+  if (unique.length === 0) return map;
+
+  const refs = await query<{ message_id: string; r2_key: string }>(
+    `select message_id, r2_key
+     from public.chat_message_payloads
+     where message_id = any($1::uuid[])`,
+    [unique],
+  );
+  for (let offset = 0; offset < refs.length; offset += 16) {
+    await Promise.all(
+      refs.slice(offset, offset + 16).map(async (ref) => {
+        const payload = await readMessagePayload(ref.r2_key);
+        if (payload) map.set(ref.message_id, payload);
+      }),
+    );
+  }
+  return map;
+}
+
+async function hydrateMessageRows<T extends PayloadHydratable>(
+  rows: T[],
+): Promise<T[]> {
+  if (rows.length === 0) return rows;
+  const payloads = await loadPayloadMap(rows.map((row) => row.id));
+  return rows.map((row) => {
+    const payload = payloads.get(row.id);
+    if (!payload) return row;
+    return {
+      ...row,
+      content: payload.content,
+      content_json: payload.contentJson,
+    };
+  });
+}
+
+/**
+ * Move a completed body to R2 and clear the Postgres hot buffer. If R2 is
+ * unavailable the row keeps its content so nothing is lost.
+ */
+async function offloadMessageBody(input: {
+  messageId: string;
+  chatId: string;
+  userId: string | null | undefined;
+  role: string;
+  status: string;
+  content: string | null | undefined;
+  contentJson: Record<string, unknown> | null | undefined;
+}): Promise<boolean> {
+  if (!input.userId) return false;
+  const content = input.content ?? "";
+  const contentJson = input.contentJson ?? {};
+  const hasBody = content.trim().length > 0 || Object.keys(contentJson).length > 0;
+  if (!hasBody) return false;
+
+  try {
+    const ref = await storeMessagePayload({
+      userId: input.userId,
+      chatId: input.chatId,
+      messageId: input.messageId,
+      role: input.role,
+      status: input.status,
+      content,
+      contentJson,
+    });
+    if (!ref) return false;
+
+    await query(
+      `with cleared as (
+         update public.chat_messages
+         set content = '',
+             content_json = '{}'::jsonb,
+             preview = left($3, 400),
+             search_vector = to_tsvector('simple', left($3, 100000))
+         where id = $1 and chat_id = $2
+         returning id
+       )
+       insert into public.chat_message_payloads (
+         message_id, chat_id, user_id, r2_key, sha256, byte_size
+       )
+       select $1, $2, $4::uuid, $5, $6, $7
+       from cleared
+       on conflict (message_id) do update set
+         r2_key = excluded.r2_key,
+         sha256 = excluded.sha256,
+         byte_size = excluded.byte_size,
+         created_at = now()`,
+      [
+        input.messageId,
+        input.chatId,
+        content,
+        input.userId,
+        ref.key,
+        ref.sha256,
+        ref.byteSize,
+      ],
+    );
+    return true;
+  } catch (error) {
+    console.warn("[chat-payload] offload failed; keeping Postgres fallback", {
+      messageId: input.messageId,
+      error,
+    });
+    return false;
+  }
+}
+
 /** Full history — archive snapshot / training export only. Prefer listThreadPage. */
 export async function listMessagesForChat(chatId: string) {
-  return query<MessageRow>(
+  const rows = await query<MessageRow>(
     `select id, chat_id, role, coalesce(content, '') as content, status, metadata,
             coalesce(content_json, '{}'::jsonb) as content_json, created_at, client_id
      from public.chat_messages
@@ -68,6 +190,7 @@ export async function listMessagesForChat(chatId: string) {
               id asc`,
     [chatId],
   );
+  return hydrateMessageRows(rows);
 }
 
 /**
@@ -116,7 +239,7 @@ export async function listThreadPage(input: {
     throw error;
   }
 
-  const messages: ThreadMessageRow[] = rows.map(
+  const baseMessages: ThreadMessageRow[] = rows.map(
     ({ has_more: _hasMore, next_depth: _next, ...message }) => {
       const meta = (message.metadata ?? {}) as Record<string, unknown>;
       const sibling_ids = Array.isArray(meta.sibling_ids)
@@ -136,6 +259,36 @@ export async function listThreadPage(input: {
       };
     },
   );
+
+  // Page bodies and sibling previews come from R2 in one batch.
+  const payloads = await loadPayloadMap([
+    ...baseMessages.map((message) => message.id),
+    ...baseMessages.flatMap((message) => message.sibling_ids ?? []),
+  ]);
+  const messages: ThreadMessageRow[] = baseMessages.map((message) => {
+    const payload = payloads.get(message.id);
+    const existingVariants = message.sibling_variants ?? [];
+    const sibling_variants =
+      message.sibling_ids && message.sibling_ids.length > 0
+        ? message.sibling_ids.map((id, index) => {
+            const existing = existingVariants.find(
+              (variant) => variant.id === id,
+            );
+            return {
+              id,
+              index: existing?.index ?? index,
+              content:
+                payloads.get(id)?.content ?? existing?.content ?? "",
+            };
+          })
+        : message.sibling_variants;
+    return {
+      ...message,
+      content: payload?.content ?? message.content,
+      content_json: payload?.contentJson ?? message.content_json,
+      sibling_variants,
+    };
+  });
   const hasMore = rows.some((row) => row.has_more) || false;
   const deepest = messages.reduce(
     (max, row) => (row.depth > max ? row.depth : max),
@@ -341,7 +494,7 @@ export async function listRecentMessagesForChat(
   limit = 40,
 ): Promise<MessageRow[]> {
   const safeLimit = Math.min(MAX_PAGE_LIMIT * 2, Math.max(1, limit));
-  return query<MessageRow>(
+  const rows = await query<MessageRow>(
     `select id, chat_id, role, coalesce(content, '') as content, status, metadata,
             coalesce(content_json, '{}'::jsonb) as content_json, created_at, client_id
      from (
@@ -359,6 +512,26 @@ export async function listRecentMessagesForChat(
               id asc`,
     [chatId, safeLimit],
   );
+  return hydrateMessageRows(rows);
+}
+
+/** Single message with its R2 body hydrated (research, live resume, tools). */
+export async function getMessageForUser(input: {
+  messageId: string;
+  chatId: string;
+  userId: string;
+}): Promise<MessageRow | null> {
+  const row = await queryOne<MessageRow>(
+    `select id, chat_id, user_id, role, coalesce(content, '') as content, status,
+            metadata, coalesce(content_json, '{}'::jsonb) as content_json,
+            created_at, updated_at, client_id, parent_message_id
+     from public.chat_messages
+     where id = $1 and chat_id = $2 and user_id = $3`,
+    [input.messageId, input.chatId, input.userId],
+  );
+  if (!row) return null;
+  const [hydrated] = await hydrateMessageRows([row]);
+  return hydrated ?? null;
 }
 
 export async function createMessage(input: {
@@ -373,7 +546,7 @@ export async function createMessage(input: {
   /** Parent node for tree branching; resolved to the active leaf when absent. */
   parentMessageId?: string | null;
 }) {
-  return queryOne<MessageRow>(
+  const created = await queryOne<MessageRow>(
     `with inserted as (
        insert into public.chat_messages (
          chat_id, user_id, role, content, status, metadata, content_json,
@@ -433,15 +606,21 @@ export async function createMessage(input: {
       input.parentMessageId ?? null,
     ],
   );
+  if (created) {
+    await offloadMessageBody({
+      messageId: created.id,
+      chatId: input.chatId,
+      userId: input.userId,
+      role: created.role,
+      status: created.status,
+      content: created.content,
+      contentJson: created.content_json,
+    });
+  }
+  return created;
 }
 
 type InsertedMessageRow = MessageRow & { inserted: boolean };
-
-export type MessageTranscriptLine = {
-  role: "user" | "assistant" | "system" | "tool" | "meta";
-  record: TranscriptRecord;
-  trainingEligible?: boolean;
-};
 
 export type DurableToolCall = {
   id: string;
@@ -452,58 +631,6 @@ export type DurableToolCall = {
   startedAtMs?: number;
   completedAtMs?: number;
 };
-
-async function upsertMessageTranscriptLines(
-  client: PoolClient,
-  input: {
-    chatId: string;
-    userId: string;
-    messageId: string;
-    lines: MessageTranscriptLine[];
-  },
-): Promise<void> {
-  if (input.lines.length === 0) return;
-  const payload = input.lines.map((line) => ({
-    role: line.role,
-    record: line.record,
-    schema_version: TRANSCRIPT_SCHEMA_VERSION,
-    training_eligible: line.trainingEligible ?? true,
-  }));
-  await client.query(
-    `with next_seq as (
-       select coalesce(max(seq), 0) as base
-       from public.chat_transcript_lines
-       where chat_id = $1
-     )
-     insert into public.chat_transcript_lines (
-       chat_id, user_id, message_id, seq, role, record, schema_version,
-       training_eligible
-     )
-     select
-       $1,
-       $2::uuid,
-       $3::uuid,
-       next_seq.base + line.ordinality::integer,
-       line.value->>'role',
-       line.value->'record',
-       coalesce(nullif(line.value->>'schema_version', ''), $5),
-       coalesce((line.value->>'training_eligible')::boolean, true)
-     from jsonb_array_elements($4::jsonb) with ordinality as line(value, ordinality)
-     cross join next_seq
-     on conflict (message_id, role) where message_id is not null
-     do update set
-       record = excluded.record,
-       schema_version = excluded.schema_version,
-       training_eligible = excluded.training_eligible`,
-    [
-      input.chatId,
-      input.userId,
-      input.messageId,
-      JSON.stringify(payload),
-      TRANSCRIPT_SCHEMA_VERSION,
-    ],
-  );
-}
 
 async function insertIdempotentMessage(
   client: PoolClient,
@@ -657,7 +784,7 @@ export async function beginChatTurn(input: {
   user: InsertedMessageRow;
   assistant: InsertedMessageRow;
 }> {
-  return withTransaction(async (client) => {
+  const result = await withTransaction(async (client) => {
     let ownedChat = await client.query<{ id: string }>(
       `select id
        from public.chats
@@ -747,23 +874,6 @@ export async function beginChatTurn(input: {
       if (recovered.rows[0]) assistant = recovered.rows[0];
     }
 
-    // The user row and its training/export line commit together. Repeating a
-    // client turn repairs a missing line through the message/role unique key.
-    await upsertMessageTranscriptLines(client, {
-      chatId: input.chatId,
-      userId: input.userId,
-      messageId: user.id,
-      lines: [
-        {
-          role: "user",
-          record: (input.userContentJson as TranscriptRecord | undefined) ?? {
-            role: "user",
-            message: { content: [{ type: "text", text: input.userContent }] },
-          },
-        },
-      ],
-    });
-
     if (user.inserted || assistant.inserted) {
       await client.query(
         `update public.chats
@@ -808,9 +918,20 @@ export async function beginChatTurn(input: {
     );
     return { user, assistant };
   });
+
+  await offloadMessageBody({
+    messageId: result.user.id,
+    chatId: input.chatId,
+    userId: input.userId,
+    role: result.user.role,
+    status: result.user.status,
+    content: result.user.content,
+    contentJson: result.user.content_json,
+  });
+  return result;
 }
 
-/** Create a standalone user message and transcript line in one transaction. */
+/** Create a standalone user message and offload its body to R2. */
 export async function createUserMessageWithTranscript(input: {
   chatId: string;
   userId: string;
@@ -820,7 +941,7 @@ export async function createUserMessageWithTranscript(input: {
   fileIds?: string[];
   parentMessageId?: string | null;
 }) {
-  return withTransaction(async (client) => {
+  const created = await withTransaction(async (client) => {
     const ownedChat = await client.query<{ id: string }>(
       `select id from public.chats
        where id = $1 and user_id = $2 and status != 'deleted'
@@ -871,12 +992,6 @@ export async function createUserMessageWithTranscript(input: {
       input.fileIds ?? [],
       input.userId,
     );
-    await upsertMessageTranscriptLines(client, {
-      chatId: input.chatId,
-      userId: input.userId,
-      messageId: message.id,
-      lines: [{ role: "user", record: input.contentJson }],
-    });
     await client.query(
       `update public.chats
        set updated_at = now(),
@@ -893,9 +1008,20 @@ export async function createUserMessageWithTranscript(input: {
     );
     return message;
   });
+
+  await offloadMessageBody({
+    messageId: created.id,
+    chatId: input.chatId,
+    userId: input.userId,
+    role: created.role,
+    status: created.status,
+    content: created.content,
+    contentJson: created.content_json,
+  });
+  return created;
 }
 
-/** Final assistant payload + complete agent timeline + JSONL lines, atomically. */
+/** Final assistant payload + complete agent timeline, then offload the body to R2. */
 export async function finalizeAssistantTurn(input: {
   generationLease?: { jobId: string; lockedBy: string };
   messageId: string;
@@ -904,10 +1030,9 @@ export async function finalizeAssistantTurn(input: {
   content: string;
   status: "complete" | "failed" | "cancelled";
   contentJson: TranscriptRecord;
-  transcriptLines: MessageTranscriptLine[];
   tools?: DurableToolCall[];
 }) {
-  return withTransaction(async (client) => {
+  const finalized = await withTransaction(async (client) => {
     if (input.generationLease) {
       const lease = await client.query(
         `select id from public.chat_generation_jobs
@@ -950,12 +1075,6 @@ export async function finalizeAssistantTurn(input: {
     const message = updated.rows[0];
     if (!message) throw notFound("Assistant message not found.");
 
-    await upsertMessageTranscriptLines(client, {
-      chatId: input.chatId,
-      userId: input.userId,
-      messageId: input.messageId,
-      lines: input.transcriptLines,
-    });
     if (input.tools?.length) {
       const toolPayload = input.tools.map((tool) => ({
         provider_call_id: tool.id,
@@ -1036,6 +1155,17 @@ export async function finalizeAssistantTurn(input: {
     );
     return message;
   });
+
+  await offloadMessageBody({
+    messageId: finalized.id,
+    chatId: input.chatId,
+    userId: input.userId,
+    role: finalized.role,
+    status: input.status,
+    content: input.content,
+    contentJson: input.contentJson,
+  });
+  return finalized;
 }
 
 export type ChatSearchHit = {
@@ -1060,19 +1190,23 @@ export async function searchMessagesForUser(
        m.chat_id,
        c.title,
        m.role,
-       coalesce(m.content, '') as content,
+       coalesce(m.preview, left(m.content, 400), '') as content,
        m.created_at,
        ts_rank(
-         coalesce(m.content_search, to_tsvector('simple', coalesce(m.content, ''))),
+         coalesce(
+           m.search_vector,
+           to_tsvector('simple', coalesce(m.preview, left(m.content, 400), ''))
+         ),
          plainto_tsquery('simple', $2)
        ) as rank
      from public.chat_messages m
      join public.chats c on c.id = m.chat_id
      where c.user_id = $1
        and c.status != 'deleted'
-       and m.content is not null
-       and coalesce(m.content_search, to_tsvector('simple', coalesce(m.content, '')))
-           @@ plainto_tsquery('simple', $2)
+       and coalesce(
+         m.search_vector,
+         to_tsvector('simple', coalesce(m.preview, left(m.content, 400), ''))
+       ) @@ plainto_tsquery('simple', $2)
      order by rank desc, m.created_at desc
      limit $3`,
     [userId, queryText, safeLimit],
@@ -1120,7 +1254,7 @@ export async function updateMessageContent(
   status = "complete",
   contentJson?: Record<string, unknown>,
 ) {
-  return queryOne<MessageRow>(
+  const updated = await queryOne<MessageRow>(
     `with updated as (
        update public.chat_messages
        set content = $3,
@@ -1128,7 +1262,7 @@ export async function updateMessageContent(
            content_json = coalesce($5::jsonb, content_json),
            updated_at = now()
        where id = $1 and chat_id = $2
-       returning id, chat_id, role, content, status, metadata, content_json, created_at
+       returning id, chat_id, role, content, status, metadata, content_json, created_at, user_id
      ),
      touch as (
        update public.chats
@@ -1136,7 +1270,7 @@ export async function updateMessageContent(
        where id = $2
        returning id
      )
-     select id, chat_id, role, content, status, metadata, content_json, created_at
+     select id, chat_id, role, content, status, metadata, content_json, created_at, user_id
      from updated`,
     [
       messageId,
@@ -1146,10 +1280,26 @@ export async function updateMessageContent(
       contentJson ? JSON.stringify(contentJson) : null,
     ],
   ); // composite key — message UUID alone insufficient; prevents cross-chat IDOR
+  if (updated) {
+    await offloadMessageBody({
+      messageId: updated.id,
+      chatId,
+      userId: updated.user_id,
+      role: updated.role,
+      status,
+      content: updated.content,
+      contentJson: updated.content_json,
+    });
+  }
+  return updated;
 }
 
-/** Purge all messages for a chat after an R2 archive/delete snapshot. */
+/** Purge all messages for a chat after archiving or deleting it. */
 export async function deleteMessagesForChat(chatId: string): Promise<number> {
+  const payloads = await query<{ r2_key: string }>(
+    `select r2_key from public.chat_message_payloads where chat_id = $1`,
+    [chatId],
+  );
   const rows = await query<{ id: string }>(
     `with deleted as (
        delete from public.chat_messages
@@ -1158,6 +1308,9 @@ export async function deleteMessagesForChat(chatId: string): Promise<number> {
      )
      select id from deleted`,
     [chatId],
+  );
+  await Promise.all(
+    payloads.map((payload) => deleteJsonPayload(payload.r2_key)),
   );
   return rows.length;
 }
@@ -1229,6 +1382,15 @@ export async function replaceMessagesFromSnapshot(input: {
         createdAt,
       ],
     );
+    await offloadMessageBody({
+      messageId: id,
+      chatId: input.chatId,
+      userId: input.userId,
+      role,
+      status,
+      content,
+      contentJson,
+    });
     inserted += 1;
   }
   // R2 snapshots predate the message tree — re-chain so the active-leaf
@@ -1239,6 +1401,7 @@ export async function replaceMessagesFromSnapshot(input: {
 
 type StaleStreamingRow = {
   id: string;
+  user_id: string | null;
   content: string | null;
   content_json: Record<string, unknown>;
   created_at: string;
@@ -1324,7 +1487,7 @@ export async function finalizeStaleStreamingMessages(
   olderThanSeconds = 90,
 ): Promise<number> {
   const stale = await query<StaleStreamingRow>(
-    `select id, content, coalesce(content_json, '{}'::jsonb) as content_json,
+    `select id, user_id, content, coalesce(content_json, '{}'::jsonb) as content_json,
             created_at
      from public.chat_messages m
      where m.chat_id = $1
@@ -1348,6 +1511,11 @@ export async function finalizeStaleStreamingMessages(
       ? Date.now()
       : new Date(row.created_at).getTime();
     const contentJson = asRecord(row.content_json) ?? {};
+    const settledJson = settleAbandonedContentJson(
+      contentJson,
+      createdAtMs,
+      failed,
+    );
     try {
       await query(
         `update public.chat_messages
@@ -1359,11 +1527,18 @@ export async function finalizeStaleStreamingMessages(
           row.id,
           chatId,
           failed ? "failed" : "complete",
-          JSON.stringify(
-            settleAbandonedContentJson(contentJson, createdAtMs, failed),
-          ),
+          JSON.stringify(settledJson),
         ],
       );
+      await offloadMessageBody({
+        messageId: row.id,
+        chatId,
+        userId: row.user_id,
+        role: "assistant",
+        status: failed ? "failed" : "complete",
+        content: row.content,
+        contentJson: settledJson,
+      });
       settled += 1;
     } catch {
       // Best-effort sweep — a concurrent finalize owns the row.
@@ -1414,7 +1589,7 @@ export async function backfillLiveTurn(input: {
   status: "complete" | "failed" | "cancelled";
   contentJson?: Record<string, unknown>;
 }): Promise<boolean> {
-  const rows = await query<{ id: string }>(
+  const rows = await query<{ id: string; user_id: string | null }>(
     `update public.chat_messages
      set content = $3,
          status = $4,
@@ -1427,7 +1602,7 @@ export async function backfillLiveTurn(input: {
          status in ('streaming', 'queued')
          or (status = 'failed' and coalesce(trim(content), '') = '' and length(trim($3)) > 0)
        )
-     returning id`,
+     returning id, user_id`,
     [
       input.messageId,
       input.chatId,
@@ -1436,5 +1611,16 @@ export async function backfillLiveTurn(input: {
       input.contentJson ? JSON.stringify(input.contentJson) : null,
     ],
   );
-  return rows.length > 0;
+  const backfilled = rows[0];
+  if (!backfilled) return false;
+  await offloadMessageBody({
+    messageId: backfilled.id,
+    chatId: input.chatId,
+    userId: backfilled.user_id,
+    role: "assistant",
+    status: input.status,
+    content: input.content,
+    contentJson: input.contentJson,
+  });
+  return true;
 }

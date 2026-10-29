@@ -589,7 +589,6 @@ async function finalizeMessageAs(
     status,
     contentJson: buildAssistantTranscriptRecord({ answer: content }),
     tools: [],
-    transcriptLines: [],
   });
 }
 

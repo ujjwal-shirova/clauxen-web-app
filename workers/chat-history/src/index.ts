@@ -42,6 +42,8 @@ type MessageRow = {
   depth: number;
   variant_index: number;
   variant_count: number;
+  /** Pointer to the canonical body in R2. */
+  r2_key?: string | null;
 };
 
 type PagePayload = {
@@ -202,6 +204,44 @@ function sqlClient(env: Env, fresh = false) {
   });
 }
 
+/** Merge R2 transcript bodies into Postgres metadata rows. */
+async function hydrateMessageBodies(
+  env: Env,
+  messages: MessageRow[],
+): Promise<MessageRow[]> {
+  const bucket = env.CHAT_ARCHIVES;
+  if (!bucket) return messages;
+
+  const withKeys = messages.filter((message) => Boolean(message.r2_key));
+  for (let offset = 0; offset < withKeys.length; offset += 16) {
+    await Promise.all(
+      withKeys.slice(offset, offset + 16).map(async (message) => {
+        try {
+          const object = await bucket.get(message.r2_key!);
+          if (!object) return;
+          const payload = (await object.json()) as {
+            content?: unknown;
+            contentJson?: unknown;
+          };
+          if (typeof payload.content === "string") {
+            message.content = payload.content;
+          }
+          if (
+            payload.contentJson &&
+            typeof payload.contentJson === "object" &&
+            !Array.isArray(payload.contentJson)
+          ) {
+            message.content_json = payload.contentJson as Record<string, unknown>;
+          }
+        } catch {
+          // Missing/corrupt payloads fall back to the Postgres hot buffer.
+        }
+      }),
+    );
+  }
+  return messages;
+}
+
 /**
  * Active branch path page via the tree RPC — depth-paged from the chat's
  * active leaf. Inactive sibling rows never leak into the visible thread.
@@ -220,20 +260,25 @@ async function fetchThreadPage(
   const sql = sqlClient(env, true);
   try {
     const rows = (await sql`
-      select id, chat_id, role, coalesce(content, '') as content, status, metadata,
-             coalesce(content_json, '{}'::jsonb) as content_json, created_at,
-             client_id, parent_message_id, depth, variant_index, variant_count,
-             has_more
+      select t.id, t.chat_id, t.role, coalesce(t.content, '') as content,
+             t.status, t.metadata,
+             coalesce(t.content_json, '{}'::jsonb) as content_json, t.created_at,
+             t.client_id, t.parent_message_id, t.depth, t.variant_index,
+             t.variant_count, t.has_more, p.r2_key
       from public.fetch_chat_thread_page(
         ${input.chatId},
         ${input.userId}::uuid,
         null::uuid,
         ${input.cursorDepth}::bigint,
         ${input.limit}
-      )
+      ) t
+      left join public.chat_message_payloads p on p.message_id = t.id
     `) as (MessageRow & { has_more: boolean })[];
 
-    const messages = rows.map(({ has_more: _h, ...message }) => message);
+    const messages = await hydrateMessageBodies(
+      env,
+      rows.map(({ has_more: _h, ...message }) => message),
+    );
     const hasMore = rows.some((row) => row.has_more);
     const deepest = messages.reduce(
       (max, message) => (message.depth > max ? message.depth : max),
@@ -255,18 +300,21 @@ async function fetchRecentMessages(
   const sql = sqlClient(env, false);
   try {
     const rows = (await sql`
-      select id, chat_id, role, coalesce(content, '') as content, status, metadata,
-             coalesce(content_json, '{}'::jsonb) as content_json, created_at,
-             client_id, parent_message_id, depth, variant_index, variant_count
+      select t.id, t.chat_id, t.role, coalesce(t.content, '') as content,
+             t.status, t.metadata,
+             coalesce(t.content_json, '{}'::jsonb) as content_json, t.created_at,
+             t.client_id, t.parent_message_id, t.depth, t.variant_index,
+             t.variant_count, p.r2_key
       from public.fetch_chat_thread_page(
         ${input.chatId},
         ${input.userId}::uuid,
         null::uuid,
         null::bigint,
         ${Math.min(500, Math.max(1, input.limit))}
-      )
+      ) t
+      left join public.chat_message_payloads p on p.message_id = t.id
     `) as MessageRow[];
-    return rows;
+    return hydrateMessageBodies(env, rows);
   } finally {
     await sql.end({ timeout: 1 });
   }

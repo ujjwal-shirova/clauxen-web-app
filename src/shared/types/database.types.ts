@@ -1,5 +1,3 @@
-// Generated from Supabase project schema. Do not edit by hand — regenerate via MCP generate_typescript_types.
-
 export type Json =
   | string
   | number
@@ -13,6 +11,500 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
+  }
+  private: {
+    Tables: {
+      connector_credentials: {
+        Row: {
+          access_token_nonce: string
+          created_at: string
+          encrypted_access_token: string
+          encrypted_refresh_token: string | null
+          encryption_key_version: number
+          expires_at: string | null
+          installation_id: string
+          provider_account_id: string | null
+          provider_metadata: Json
+          refresh_expires_at: string | null
+          refresh_lock_id: string | null
+          refresh_locked_until: string | null
+          refresh_token_nonce: string | null
+          token_type: string
+          updated_at: string
+        }
+        Insert: {
+          access_token_nonce: string
+          created_at?: string
+          encrypted_access_token: string
+          encrypted_refresh_token?: string | null
+          encryption_key_version?: number
+          expires_at?: string | null
+          installation_id: string
+          provider_account_id?: string | null
+          provider_metadata?: Json
+          refresh_expires_at?: string | null
+          refresh_lock_id?: string | null
+          refresh_locked_until?: string | null
+          refresh_token_nonce?: string | null
+          token_type?: string
+          updated_at?: string
+        }
+        Update: {
+          access_token_nonce?: string
+          created_at?: string
+          encrypted_access_token?: string
+          encrypted_refresh_token?: string | null
+          encryption_key_version?: number
+          expires_at?: string | null
+          installation_id?: string
+          provider_account_id?: string | null
+          provider_metadata?: Json
+          refresh_expires_at?: string | null
+          refresh_lock_id?: string | null
+          refresh_locked_until?: string | null
+          refresh_token_nonce?: string | null
+          token_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      connector_oauth_configs: {
+        Row: {
+          api_base_url: string | null
+          authorization_endpoint: string
+          authorization_params: Json
+          client_auth_method: string
+          client_id: string
+          client_secret_nonce: string | null
+          connector_id: string
+          created_at: string
+          enabled: boolean
+          encrypted_client_secret: string | null
+          encryption_key_version: number
+          revocation_endpoint: string | null
+          scopes: string[]
+          supports_pkce: boolean
+          token_endpoint: string
+          token_params: Json
+          updated_at: string
+        }
+        Insert: {
+          api_base_url?: string | null
+          authorization_endpoint: string
+          authorization_params?: Json
+          client_auth_method?: string
+          client_id: string
+          client_secret_nonce?: string | null
+          connector_id: string
+          created_at?: string
+          enabled?: boolean
+          encrypted_client_secret?: string | null
+          encryption_key_version?: number
+          revocation_endpoint?: string | null
+          scopes?: string[]
+          supports_pkce?: boolean
+          token_endpoint: string
+          token_params?: Json
+          updated_at?: string
+        }
+        Update: {
+          api_base_url?: string | null
+          authorization_endpoint?: string
+          authorization_params?: Json
+          client_auth_method?: string
+          client_id?: string
+          client_secret_nonce?: string | null
+          connector_id?: string
+          created_at?: string
+          enabled?: boolean
+          encrypted_client_secret?: string | null
+          encryption_key_version?: number
+          revocation_endpoint?: string | null
+          scopes?: string[]
+          supports_pkce?: boolean
+          token_endpoint?: string
+          token_params?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      connector_oauth_transactions: {
+        Row: {
+          code_verifier_nonce: string
+          connector_id: string
+          consumed_at: string | null
+          created_at: string
+          encrypted_code_verifier: string
+          expires_at: string
+          id: string
+          redirect_uri: string
+          requested_scopes: string[]
+          return_url: string
+          state_hash: string
+          status: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          code_verifier_nonce: string
+          connector_id: string
+          consumed_at?: string | null
+          created_at?: string
+          encrypted_code_verifier: string
+          expires_at?: string
+          id?: string
+          redirect_uri: string
+          requested_scopes?: string[]
+          return_url: string
+          state_hash: string
+          status?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          code_verifier_nonce?: string
+          connector_id?: string
+          consumed_at?: string | null
+          created_at?: string
+          encrypted_code_verifier?: string
+          expires_at?: string
+          id?: string
+          redirect_uri?: string
+          requested_scopes?: string[]
+          return_url?: string
+          state_hash?: string
+          status?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
+      github_agent_app: {
+        Row: {
+          app_id: number
+          client_id: string
+          created_at: string
+          credentials_sealed: string
+          singleton: boolean
+          slug: string
+        }
+        Insert: {
+          app_id: number
+          client_id: string
+          created_at?: string
+          credentials_sealed: string
+          singleton?: boolean
+          slug: string
+        }
+        Update: {
+          app_id?: number
+          client_id?: string
+          created_at?: string
+          credentials_sealed?: string
+          singleton?: boolean
+          slug?: string
+        }
+        Relationships: []
+      }
+      github_agent_changes: {
+        Row: {
+          branch: string
+          created_at: string
+          id: string
+          repository: string
+          request_id: string
+          result: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          branch: string
+          created_at?: string
+          id?: string
+          repository: string
+          request_id: string
+          result?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          branch?: string
+          created_at?: string
+          id?: string
+          repository?: string
+          request_id?: string
+          result?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      github_agent_connections: {
+        Row: {
+          github_user_id: number
+          login: string
+          tokens_sealed: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          github_user_id: number
+          login: string
+          tokens_sealed: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          github_user_id?: number
+          login?: string
+          tokens_sealed?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      github_agent_deliveries: {
+        Row: {
+          delivery_id: string
+          event: string
+          received_at: string
+        }
+        Insert: {
+          delivery_id: string
+          event: string
+          received_at?: string
+        }
+        Update: {
+          delivery_id?: string
+          event?: string
+          received_at?: string
+        }
+        Relationships: []
+      }
+      github_agent_installations: {
+        Row: {
+          account_login: string
+          deleted: boolean
+          installation_id: number
+          suspended: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_login: string
+          deleted?: boolean
+          installation_id: number
+          suspended?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_login?: string
+          deleted?: boolean
+          installation_id?: number
+          suspended?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      github_agent_states: {
+        Row: {
+          data_sealed: string
+          expires_at: string
+          hash: string
+          purpose: string
+          user_id: string | null
+        }
+        Insert: {
+          data_sealed: string
+          expires_at: string
+          hash: string
+          purpose: string
+          user_id?: string | null
+        }
+        Update: {
+          data_sealed?: string
+          expires_at?: string
+          hash?: string
+          purpose?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      internal_callback_secrets: {
+        Row: {
+          name: string
+          secret: string
+          updated_at: string
+        }
+        Insert: {
+          name: string
+          secret: string
+          updated_at?: string
+        }
+        Update: {
+          name?: string
+          secret?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      plugin_mcp_api_keys: {
+        Row: {
+          api_key_nonce: string
+          created_at: string
+          encrypted_api_key: string
+          encryption_key_version: number
+          installation_id: string
+          updated_at: string
+        }
+        Insert: {
+          api_key_nonce: string
+          created_at?: string
+          encrypted_api_key: string
+          encryption_key_version?: number
+          installation_id: string
+          updated_at?: string
+        }
+        Update: {
+          api_key_nonce?: string
+          created_at?: string
+          encrypted_api_key?: string
+          encryption_key_version?: number
+          installation_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      plugin_oauth_tokens: {
+        Row: {
+          access_token_sealed: string
+          connection_id: string
+          created_at: string
+          expires_at: string | null
+          raw_extras: Json
+          refresh_token_sealed: string | null
+          scopes: string[]
+          token_type: string
+          updated_at: string
+        }
+        Insert: {
+          access_token_sealed: string
+          connection_id: string
+          created_at?: string
+          expires_at?: string | null
+          raw_extras?: Json
+          refresh_token_sealed?: string | null
+          scopes?: string[]
+          token_type?: string
+          updated_at?: string
+        }
+        Update: {
+          access_token_sealed?: string
+          connection_id?: string
+          created_at?: string
+          expires_at?: string | null
+          raw_extras?: Json
+          refresh_token_sealed?: string | null
+          scopes?: string[]
+          token_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      watchdog_heartbeats: {
+        Row: {
+          last_poke_at: string
+          last_result: Json | null
+          source: string
+        }
+        Insert: {
+          last_poke_at?: string
+          last_result?: Json | null
+          source: string
+        }
+        Update: {
+          last_poke_at?: string
+          last_result?: Json | null
+          source?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      slow_query_report: {
+        Row: {
+          calls: number | null
+          max_exec_ms: number | null
+          mean_exec_ms: number | null
+          query_sample: string | null
+          rows: number | null
+          total_exec_ms: number | null
+        }
+        Relationships: []
+      }
+      table_health_report: {
+        Row: {
+          dead_tuple_pct: number | null
+          last_analyze: string | null
+          last_autoanalyze: string | null
+          last_autovacuum: string | null
+          last_vacuum: string | null
+          n_dead_tup: number | null
+          n_live_tup: number | null
+          relname: unknown
+          schemaname: unknown
+        }
+        Relationships: []
+      }
+    }
+    Functions: {
+      acquire_connector_refresh_lease: {
+        Args: {
+          p_installation_id: string
+          p_lease_seconds?: number
+          p_lock_id: string
+        }
+        Returns: boolean
+      }
+      claim_connector_oauth_transaction: {
+        Args: { p_connector_key: string; p_state_hash: string }
+        Returns: {
+          code_verifier_nonce: string
+          connector_id: string
+          encrypted_code_verifier: string
+          id: string
+          redirect_uri: string
+          requested_scopes: string[]
+          return_url: string
+          user_id: string
+          workspace_id: string
+        }[]
+      }
+      enqueue_clauxen_job: {
+        Args: {
+          p_delay_seconds?: number
+          p_payload: Json
+          p_queue_name: string
+        }
+        Returns: number
+      }
+      prewarm_clauxen_hot_indexes: {
+        Args: { p_max_index_bytes?: number }
+        Returns: number
+      }
+      release_connector_refresh_lease: {
+        Args: { p_installation_id: string; p_lock_id: string }
+        Returns: undefined
+      }
+      run_clauxen_analyze_maintenance: { Args: never; Returns: Json }
+      run_clauxen_operational_maintenance: { Args: never; Returns: Json }
+      run_connector_cost_maintenance: { Args: never; Returns: Json }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -955,80 +1447,20 @@ export type Database = {
           },
         ]
       }
-      chat_branches: {
-        Row: {
-          chat_id: string
-          created_at: string
-          created_by: string | null
-          created_from_message_id: string | null
-          id: string
-          parent_branch_id: string | null
-          root_message_id: string | null
-          title: string | null
-        }
-        Insert: {
-          chat_id: string
-          created_at?: string
-          created_by?: string | null
-          created_from_message_id?: string | null
-          id?: string
-          parent_branch_id?: string | null
-          root_message_id?: string | null
-          title?: string | null
-        }
-        Update: {
-          chat_id?: string
-          created_at?: string
-          created_by?: string | null
-          created_from_message_id?: string | null
-          id?: string
-          parent_branch_id?: string | null
-          root_message_id?: string | null
-          title?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_branches_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_branches_created_from_message_fk"
-            columns: ["created_from_message_id"]
-            isOneToOne: false
-            referencedRelation: "chat_messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_branches_parent_branch_id_fkey"
-            columns: ["parent_branch_id"]
-            isOneToOne: false
-            referencedRelation: "chat_branches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_branches_root_message_fk"
-            columns: ["root_message_id"]
-            isOneToOne: false
-            referencedRelation: "chat_messages"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       chat_generation_jobs: {
         Row: {
           assistant_message_id: string | null
           attempt: number
           chat_id: string
           checkpoint: Json
+          checkpoint_object_key: string | null
           completed_at: string | null
           created_at: string
           error: string | null
           heartbeat_at: string
           id: string
           input: Json
+          input_object_key: string | null
           locked_at: string | null
           locked_by: string | null
           result: Json | null
@@ -1043,12 +1475,14 @@ export type Database = {
           attempt?: number
           chat_id: string
           checkpoint?: Json
+          checkpoint_object_key?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
           heartbeat_at?: string
           id?: string
           input?: Json
+          input_object_key?: string | null
           locked_at?: string | null
           locked_by?: string | null
           result?: Json | null
@@ -1063,12 +1497,14 @@ export type Database = {
           attempt?: number
           chat_id?: string
           checkpoint?: Json
+          checkpoint_object_key?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
           heartbeat_at?: string
           id?: string
           input?: Json
+          input_object_key?: string | null
           locked_at?: string | null
           locked_by?: string | null
           result?: Json | null
@@ -1170,33 +1606,49 @@ export type Database = {
           },
         ]
       }
-      chat_message_reactions: {
+      chat_message_payloads: {
         Row: {
+          byte_size: number
+          chat_id: string
           created_at: string
-          id: string
+          format_version: number
           message_id: string
-          reaction: string
-          user_id: string
+          r2_key: string
+          sha256: string
+          user_id: string | null
         }
         Insert: {
+          byte_size: number
+          chat_id: string
           created_at?: string
-          id?: string
+          format_version?: number
           message_id: string
-          reaction: string
-          user_id: string
+          r2_key: string
+          sha256: string
+          user_id?: string | null
         }
         Update: {
+          byte_size?: number
+          chat_id?: string
           created_at?: string
-          id?: string
+          format_version?: number
           message_id?: string
-          reaction?: string
-          user_id?: string
+          r2_key?: string
+          sha256?: string
+          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "chat_message_reactions_message_id_fkey"
-            columns: ["message_id"]
+            foreignKeyName: "chat_message_payloads_chat_id_fkey"
+            columns: ["chat_id"]
             isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_payloads_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: true
             referencedRelation: "chat_messages"
             referencedColumns: ["id"]
           },
@@ -1204,14 +1656,11 @@ export type Database = {
       }
       chat_messages: {
         Row: {
-          branch_id: string | null
           chat_id: string
           client_id: string | null
           contains_pii: boolean
           content: string | null
           content_json: Json
-          content_search: unknown
-          content_search_unaccent: unknown
           created_at: string
           error: Json | null
           finish_reason: string | null
@@ -1221,8 +1670,10 @@ export type Database = {
           model_id: string | null
           output_tokens: number
           parent_message_id: string | null
+          preview: string | null
           redaction_status: string
           role: string
+          search_vector: unknown
           status: string
           token_count: number
           total_tokens: number | null
@@ -1231,14 +1682,11 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          branch_id?: string | null
           chat_id: string
           client_id?: string | null
           contains_pii?: boolean
           content?: string | null
           content_json?: Json
-          content_search?: unknown
-          content_search_unaccent?: unknown
           created_at?: string
           error?: Json | null
           finish_reason?: string | null
@@ -1248,8 +1696,10 @@ export type Database = {
           model_id?: string | null
           output_tokens?: number
           parent_message_id?: string | null
+          preview?: string | null
           redaction_status?: string
           role: string
+          search_vector?: unknown
           status?: string
           token_count?: number
           total_tokens?: number | null
@@ -1258,14 +1708,11 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          branch_id?: string | null
           chat_id?: string
           client_id?: string | null
           contains_pii?: boolean
           content?: string | null
           content_json?: Json
-          content_search?: unknown
-          content_search_unaccent?: unknown
           created_at?: string
           error?: Json | null
           finish_reason?: string | null
@@ -1275,8 +1722,10 @@ export type Database = {
           model_id?: string | null
           output_tokens?: number
           parent_message_id?: string | null
+          preview?: string | null
           redaction_status?: string
           role?: string
+          search_vector?: unknown
           status?: string
           token_count?: number
           total_tokens?: number | null
@@ -1285,13 +1734,6 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "chat_messages_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "chat_branches"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "chat_messages_chat_id_fkey"
             columns: ["chat_id"]
@@ -1302,60 +1744,6 @@ export type Database = {
           {
             foreignKeyName: "chat_messages_parent_message_id_fkey"
             columns: ["parent_message_id"]
-            isOneToOne: false
-            referencedRelation: "chat_messages"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_transcript_lines: {
-        Row: {
-          chat_id: string
-          created_at: string
-          id: number
-          message_id: string | null
-          record: Json
-          role: string
-          schema_version: string
-          seq: number
-          training_eligible: boolean
-          user_id: string
-        }
-        Insert: {
-          chat_id: string
-          created_at?: string
-          id?: never
-          message_id?: string | null
-          record: Json
-          role: string
-          schema_version?: string
-          seq: number
-          training_eligible?: boolean
-          user_id: string
-        }
-        Update: {
-          chat_id?: string
-          created_at?: string
-          id?: never
-          message_id?: string | null
-          record?: Json
-          role?: string
-          schema_version?: string
-          seq?: number
-          training_eligible?: boolean
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_transcript_lines_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_transcript_lines_message_id_fkey"
-            columns: ["message_id"]
             isOneToOne: false
             referencedRelation: "chat_messages"
             referencedColumns: ["id"]
@@ -1871,6 +2259,7 @@ export type Database = {
           revoked_at: string | null
           share_token_hash: string
           snapshot: Json | null
+          snapshot_object_key: string | null
           user_id: string
           visibility: string
         }
@@ -1884,6 +2273,7 @@ export type Database = {
           revoked_at?: string | null
           share_token_hash: string
           snapshot?: Json | null
+          snapshot_object_key?: string | null
           user_id: string
           visibility?: string
         }
@@ -1897,6 +2287,7 @@ export type Database = {
           revoked_at?: string | null
           share_token_hash?: string
           snapshot?: Json | null
+          snapshot_object_key?: string | null
           user_id?: string
           visibility?: string
         }
@@ -2093,6 +2484,81 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deep_research_plans: {
+        Row: {
+          auto_start_at: string | null
+          chat_id: string
+          created_at: string
+          error: string | null
+          execution_origin: string
+          id: string
+          job_id: string | null
+          model: string | null
+          search_count: number
+          source_urls: string[]
+          status: string
+          task_statuses: Json
+          tasks: Json
+          title: string
+          tool_call_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_start_at?: string | null
+          chat_id: string
+          created_at?: string
+          error?: string | null
+          execution_origin: string
+          id?: string
+          job_id?: string | null
+          model?: string | null
+          search_count?: number
+          source_urls?: string[]
+          status?: string
+          task_statuses?: Json
+          tasks: Json
+          title: string
+          tool_call_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_start_at?: string | null
+          chat_id?: string
+          created_at?: string
+          error?: string | null
+          execution_origin?: string
+          id?: string
+          job_id?: string | null
+          model?: string | null
+          search_count?: number
+          source_urls?: string[]
+          status?: string
+          task_statuses?: Json
+          tasks?: Json
+          title?: string
+          tool_call_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deep_research_plans_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deep_research_plans_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "chat_generation_jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -4569,6 +5035,104 @@ export type Database = {
         }
         Relationships: []
       }
+      plugin_connection_tools: {
+        Row: {
+          connection_id: string
+          description: string
+          discovered_at: string
+          input_schema: Json
+          is_enabled: boolean
+          title: string
+          tool_name: string
+        }
+        Insert: {
+          connection_id: string
+          description?: string
+          discovered_at?: string
+          input_schema?: Json
+          is_enabled?: boolean
+          title?: string
+          tool_name: string
+        }
+        Update: {
+          connection_id?: string
+          description?: string
+          discovered_at?: string
+          input_schema?: Json
+          is_enabled?: boolean
+          title?: string
+          tool_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plugin_connection_tools_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "plugin_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plugin_connections: {
+        Row: {
+          auth_type: string
+          authorization_server: string | null
+          connected_at: string | null
+          created_at: string
+          granted_scopes: string[]
+          id: string
+          last_error_at: string | null
+          last_error_code: string | null
+          last_used_at: string | null
+          mcp_url: string
+          plugin_icon_url: string | null
+          plugin_id: string
+          plugin_name: string
+          provider_account_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth_type?: string
+          authorization_server?: string | null
+          connected_at?: string | null
+          created_at?: string
+          granted_scopes?: string[]
+          id?: string
+          last_error_at?: string | null
+          last_error_code?: string | null
+          last_used_at?: string | null
+          mcp_url: string
+          plugin_icon_url?: string | null
+          plugin_id: string
+          plugin_name?: string
+          provider_account_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth_type?: string
+          authorization_server?: string | null
+          connected_at?: string | null
+          created_at?: string
+          granted_scopes?: string[]
+          id?: string
+          last_error_at?: string | null
+          last_error_code?: string | null
+          last_used_at?: string | null
+          mcp_url?: string
+          plugin_icon_url?: string | null
+          plugin_id?: string
+          plugin_name?: string
+          provider_account_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           account_kind: string
@@ -6405,6 +6969,9 @@ export type Database = {
           email_notifications: boolean
           language: string
           memory_enabled: boolean
+          onboarding_answers: Json
+          onboarding_completed_at: string | null
+          onboarding_step: string | null
           personalization_training_enabled: boolean
           privacy_review_reason: string | null
           privacy_review_required: boolean
@@ -6441,6 +7008,9 @@ export type Database = {
           email_notifications?: boolean
           language?: string
           memory_enabled?: boolean
+          onboarding_answers?: Json
+          onboarding_completed_at?: string | null
+          onboarding_step?: string | null
           personalization_training_enabled?: boolean
           privacy_review_reason?: string | null
           privacy_review_required?: boolean
@@ -6477,6 +7047,9 @@ export type Database = {
           email_notifications?: boolean
           language?: string
           memory_enabled?: boolean
+          onboarding_answers?: Json
+          onboarding_completed_at?: string | null
+          onboarding_step?: string | null
           personalization_training_enabled?: boolean
           privacy_review_reason?: string | null
           privacy_review_required?: boolean
@@ -6914,104 +7487,9 @@ export type Database = {
       }
     }
     Views: {
-      chat_transcripts_jsonl: {
-        Row: {
-          chat_id: string | null
-          chat_title: string | null
-          jsonl: string | null
-          line_count: number | null
-          started_at: string | null
-          training_eligible: boolean | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_transcript_lines_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
-      append_chat_message: {
-        Args: {
-          p_branch_id?: string
-          p_chat_id: string
-          p_content: string
-          p_content_json?: Json
-          p_input_tokens?: number
-          p_model_id?: string
-          p_output_tokens?: number
-          p_parent_message_id?: string
-          p_role: string
-        }
-        Returns: {
-          branch_id: string | null
-          chat_id: string
-          client_id: string | null
-          contains_pii: boolean
-          content: string | null
-          content_json: Json
-          content_search: unknown
-          content_search_unaccent: unknown
-          created_at: string
-          error: Json | null
-          finish_reason: string | null
-          id: string
-          input_tokens: number
-          metadata: Json
-          model_id: string | null
-          output_tokens: number
-          parent_message_id: string | null
-          redaction_status: string
-          role: string
-          status: string
-          token_count: number
-          total_tokens: number | null
-          training_eligible: boolean
-          updated_at: string
-          user_id: string | null
-        }
-        SetofOptions: {
-          from: "*"
-          to: "chat_messages"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
-      append_chat_transcript_line: {
-        Args: {
-          p_chat_id: string
-          p_message_id: string
-          p_record: Json
-          p_role: string
-          p_schema_version?: string
-          p_training_eligible?: boolean
-          p_user_id: string
-        }
-        Returns: {
-          chat_id: string
-          created_at: string
-          id: number
-          message_id: string | null
-          record: Json
-          role: string
-          schema_version: string
-          seq: number
-          training_eligible: boolean
-          user_id: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "chat_transcript_lines"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
       bootstrap_existing_auth_users: { Args: never; Returns: number }
       chat_id_exists: { Args: { p_id: string }; Returns: boolean }
       claim_chat_generation_job: {
@@ -7025,12 +7503,14 @@ export type Database = {
           attempt: number
           chat_id: string
           checkpoint: Json
+          checkpoint_object_key: string | null
           completed_at: string | null
           created_at: string
           error: string | null
           heartbeat_at: string
           id: string
           input: Json
+          input_object_key: string | null
           locked_at: string | null
           locked_by: string | null
           result: Json | null
@@ -7195,27 +7675,6 @@ export type Database = {
         Returns: undefined
       }
       expire_old_gift_codes: { Args: never; Returns: number }
-      fetch_chat_messages_page: {
-        Args: {
-          p_chat_id: string
-          p_cursor_created_at?: string
-          p_cursor_id?: string
-          p_limit?: number
-          p_user_id?: string
-        }
-        Returns: {
-          chat_id: string
-          client_id: string
-          content: string
-          content_json: Json
-          created_at: string
-          has_more: boolean
-          id: string
-          metadata: Json
-          role: string
-          status: string
-        }[]
-      }
       fetch_chat_thread_page: {
         Args: {
           p_chat_id: string
@@ -7323,12 +7782,14 @@ export type Database = {
           attempt: number
           chat_id: string
           checkpoint: Json
+          checkpoint_object_key: string | null
           completed_at: string | null
           created_at: string
           error: string | null
           heartbeat_at: string
           id: string
           input: Json
+          input_object_key: string | null
           locked_at: string | null
           locked_by: string | null
           result: Json | null
@@ -7355,6 +7816,49 @@ export type Database = {
           source_id: string
           source_type: string
         }[]
+      }
+      plugin_oauth_complete: {
+        Args: {
+          p_access_token_sealed: string
+          p_auth_type: string
+          p_authorization_server: string
+          p_expires_at: string
+          p_granted_scopes: string[]
+          p_mcp_url: string
+          p_plugin_icon_url: string
+          p_plugin_id: string
+          p_plugin_name: string
+          p_provider_account_id: string
+          p_refresh_token_sealed: string
+          p_status: string
+          p_token_scopes: string[]
+          p_token_type: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      plugin_oauth_read_refresh: {
+        Args: { p_connection_id: string }
+        Returns: {
+          authorization_server: string
+          connection_id: string
+          granted_scopes: string[]
+          mcp_url: string
+          plugin_id: string
+          refresh_token_sealed: string
+          user_id: string
+        }[]
+      }
+      plugin_oauth_rotate: {
+        Args: {
+          p_access_token_sealed: string
+          p_connection_id: string
+          p_expires_at: string
+          p_refresh_token_sealed: string
+          p_token_scopes: string[]
+          p_token_type: string
+        }
+        Returns: undefined
       }
       poke_generations_watchdog: { Args: never; Returns: number }
       queue_file_processing_job: {
@@ -7404,29 +7908,26 @@ export type Database = {
           tokens_added: number
         }[]
       }
-      replace_chat_transcript_lines: {
-        Args: { p_chat_id: string; p_lines: Json; p_user_id: string }
-        Returns: number
-      }
       rollup_model_usage: {
         Args: { p_from?: string; p_to?: string }
         Returns: number
       }
-      search_user_messages: {
-        Args: { p_limit?: number; p_query: string }
-        Returns: {
-          chat_id: string
-          content: string
-          created_at: string
-          message_id: string
-          role: string
-          title: string
-        }[]
-      }
-      switch_chat_branch: {
-        Args: { p_chat_id: string; p_target?: string; p_user_id?: string }
-        Returns: string
-      }
+      switch_chat_branch:
+        | {
+            Args: { p_chat_id: string; p_target?: string; p_user_id?: string }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_chat_id: string
+              p_direction?: string
+              p_target?: string
+              p_target_index?: number
+              p_target_message_id?: string
+              p_user_id?: string
+            }
+            Returns: string
+          }
     }
     Enums: {
       artifact_kind:
@@ -7598,6 +8099,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  private: {
+    Enums: {},
+  },
   public: {
     Enums: {
       artifact_kind: [
@@ -7652,4 +8156,3 @@ export const Constants = {
     },
   },
 } as const
-

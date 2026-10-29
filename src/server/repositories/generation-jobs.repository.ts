@@ -1,9 +1,15 @@
+import { randomUUID } from "node:crypto";
 import { query, queryOne } from "@/server/db/pool";
 import type { AgentPendingToolRound } from "@/server/agent-core/runtime/query-loop";
 import type { PoolClient } from "pg";
 import type { TurnFork } from "@/server/repositories/messages.repository";
 import { AppError } from "@/server/db/errors";
 import type { OpenAIInputItem } from "@/server/inference/openai-responses-client";
+import {
+  buildChatJobPayloadKey,
+  putJsonPayload,
+  readJsonPayload,
+} from "@/server/chat/message-payload-store";
 import type {
   CapturedToolCall,
   TranscriptAgentModelTurn,
@@ -39,6 +45,8 @@ export type GenerationJobRow = {
   heartbeat_at: string;
   input: GenerationJobInput;
   checkpoint: GenerationCheckpoint;
+  input_object_key?: string | null;
+  checkpoint_object_key?: string | null;
   result: Record<string, unknown> | null;
   error: string | null;
   created_at: string;
@@ -172,14 +180,91 @@ const JOB_COLUMNS = `id, chat_id, user_id, assistant_message_id, user_message_id
   status, slice_index, attempt, locked_by, locked_at, heartbeat_at,
   coalesce(input, '{}'::jsonb) as input,
   coalesce(checkpoint, '{}'::jsonb) as checkpoint,
+  input_object_key, checkpoint_object_key,
   result, error, created_at, updated_at, completed_at`;
 
-function normalizeJob(row: GenerationJobRow): GenerationJobRow {
-  return {
-    ...row,
-    input: (isRecord(row.input) ? row.input : {}) as GenerationJobInput,
-    checkpoint: asCheckpoint(row.checkpoint),
+async function normalizeJob(row: GenerationJobRow): Promise<GenerationJobRow> {
+  const input = (isRecord(row.input) ? row.input : {}) as GenerationJobInput;
+  let checkpoint = asCheckpoint(row.checkpoint);
+
+  if (row.input_object_key) {
+    const stored = await readJsonPayload<{
+      messages?: GenerationJobInput["messages"];
+    }>(row.input_object_key);
+    if (stored && Array.isArray(stored.messages)) {
+      input.messages = stored.messages;
+    }
+  }
+
+  if (row.checkpoint_object_key) {
+    const stored = await readJsonPayload<GenerationCheckpoint>(
+      row.checkpoint_object_key,
+    );
+    if (stored) {
+      const dbPointers = asCheckpoint(row.checkpoint);
+      checkpoint = asCheckpoint({
+        ...stored,
+        userMessageId:
+          dbPointers.userMessageId ?? stored.userMessageId,
+        assistantMessageId:
+          dbPointers.assistantMessageId ?? stored.assistantMessageId,
+      });
+    }
+  }
+
+  return { ...row, input, checkpoint };
+}
+
+async function jobOwnerId(
+  jobId: string,
+  lockedBy: string,
+): Promise<string | null> {
+  const row = await queryOne<{ user_id: string }>(
+    `select user_id from public.chat_generation_jobs
+     where id = $1 and locked_by = $2 and status = 'running'`,
+    [jobId, lockedBy],
+  );
+  return row?.user_id ?? null;
+}
+
+async function offloadCheckpoint(input: {
+  jobId: string;
+  userId: string | null;
+  checkpoint: GenerationCheckpoint;
+}): Promise<{ key: string | null; inline: Record<string, unknown> }> {
+  const full = {
+    ...input.checkpoint,
+    version: GENERATION_CHECKPOINT_VERSION,
   };
+  if (input.userId) {
+    try {
+      const ref = await putJsonPayload({
+        key: buildChatJobPayloadKey(input.userId, input.jobId, "checkpoint"),
+        value: full,
+        metadata: {
+          userId: input.userId,
+          jobId: input.jobId,
+          kind: "job-checkpoint",
+        },
+      });
+      if (ref) {
+        return {
+          key: ref.key,
+          inline: {
+            version: GENERATION_CHECKPOINT_VERSION,
+            userMessageId: input.checkpoint.userMessageId,
+            assistantMessageId: input.checkpoint.assistantMessageId,
+          },
+        };
+      }
+    } catch (error) {
+      console.warn(
+        "[chat-payload] checkpoint offload failed; storing inline",
+        { jobId: input.jobId, error },
+      );
+    }
+  }
+  return { key: null, inline: full };
 }
 
 /**
@@ -199,19 +284,49 @@ export async function createGenerationJob(input: {
   client?: PoolClient;
 }): Promise<GenerationJobRow> {
   try {
+    const jobId = randomUUID();
+    const messages = input.jobInput.messages ?? [];
+    let messagesKey: string | null = null;
+    if (messages.length > 0) {
+      try {
+        const ref = await putJsonPayload({
+          key: buildChatJobPayloadKey(input.userId, jobId, "input"),
+          value: { messages },
+          metadata: {
+            userId: input.userId,
+            chatId: input.chatId,
+            jobId,
+            kind: "job-input",
+          },
+        });
+        messagesKey = ref?.key ?? null;
+      } catch (error) {
+        console.warn(
+          "[chat-payload] job input offload failed; storing inline",
+          { jobId, error },
+        );
+      }
+    }
+    const storedInput = messagesKey
+      ? { ...input.jobInput, messages: [] }
+      : input.jobInput;
+
     const sql = `insert into public.chat_generation_jobs
-         (chat_id, user_id, input, status, locked_by, locked_at, heartbeat_at,
-          user_message_id, assistant_message_id, checkpoint)
-       values ($1, $2, $3::jsonb,
-         case when $4::text is null then 'queued' else 'running' end,
-         $4, case when $4::text is null then null else now() end, now(),
-         $5::uuid, $6::uuid, $7::jsonb)
+         (id, chat_id, user_id, input, input_object_key, status, locked_by,
+          locked_at, heartbeat_at, user_message_id, assistant_message_id,
+          checkpoint)
+       values ($1, $2, $3, $4::jsonb, $5,
+         case when $6::text is null then 'queued' else 'running' end,
+         $6, case when $6::text is null then null else now() end, now(),
+         $7::uuid, $8::uuid, $9::jsonb)
        on conflict do nothing
        returning ${JOB_COLUMNS}`;
     const values = [
+      jobId,
       input.chatId,
       input.userId,
-      JSON.stringify(input.jobInput ?? {}),
+      JSON.stringify(storedInput ?? {}),
+      messagesKey,
       input.lockedBy ?? null,
       input.messageIds?.userMessageId ?? null,
       input.messageIds?.assistantMessageId ?? null,
@@ -243,14 +358,16 @@ export async function createGenerationJob(input: {
               clientId,
             )
         : null;
-      if (accepted) return normalizeJob(accepted);
+      if (accepted) return await normalizeJob(accepted);
       throw new AppError(
         "The previous reply is still finishing. Please retry shortly.",
         409,
         "generation_in_progress",
       );
     }
-    return normalizeJob(row);
+    const normalized = await normalizeJob(row);
+    normalized.input = input.jobInput;
+    return normalized;
   } catch (error) {
     if (error instanceof AppError && error.code === "conflict") {
       // The browser may retry after losing the acknowledgement. Return the
@@ -286,7 +403,7 @@ export async function getGenerationJobByAssistantClientId(
      order by created_at desc limit 1`,
     [chatId, userId, assistantClientId],
   );
-  return row ? normalizeJob(row) : null;
+  return row ? await normalizeJob(row) : null;
 }
 
 export async function getGenerationJob(
@@ -296,7 +413,7 @@ export async function getGenerationJob(
     `select ${JOB_COLUMNS} from public.chat_generation_jobs where id = $1`,
     [jobId],
   );
-  return row ? normalizeJob(row) : null;
+  return row ? await normalizeJob(row) : null;
 }
 
 export async function getActiveGenerationJobForChat(
@@ -310,7 +427,7 @@ export async function getActiveGenerationJobForChat(
      limit 1`,
     [chatId, ACTIVE_JOB_STATUSES],
   );
-  return row ? normalizeJob(row) : null;
+  return row ? await normalizeJob(row) : null;
 }
 
 /**
@@ -328,7 +445,7 @@ export async function claimGenerationJob(
   // A NULL composite returned by PL/pgSQL is expanded into a row containing
   // only NULLs by `select * from function()`, not an empty result set.
   const row = rows.find((candidate) => candidate.id) ?? null;
-  return row ? normalizeJob(row) : null;
+  return row ? await normalizeJob(row) : null;
 }
 
 export async function heartbeatGenerationJob(
@@ -412,18 +529,18 @@ export async function saveGenerationCheckpoint(
   checkpoint: GenerationCheckpoint,
   lockedBy: string,
 ): Promise<void> {
+  const userId = await jobOwnerId(jobId, lockedBy);
+  if (!userId) throw leaseLost();
+  const stored = await offloadCheckpoint({ jobId, userId, checkpoint });
   const rows = await query<{ id: string }>(
     `update public.chat_generation_jobs
      set checkpoint = $2::jsonb,
+         checkpoint_object_key = coalesce($4, checkpoint_object_key),
          heartbeat_at = now(),
          updated_at = now()
      where id = $1 and locked_by = $3 and status = 'running'
      returning id`,
-    [
-      jobId,
-      JSON.stringify({ ...checkpoint, version: GENERATION_CHECKPOINT_VERSION }),
-      lockedBy,
-    ],
+    [jobId, JSON.stringify(stored.inline), lockedBy, stored.key],
   );
   if (rows.length === 0) throw leaseLost();
 }
@@ -434,10 +551,14 @@ export async function markJobContinuing(
   checkpoint: GenerationCheckpoint,
   lockedBy: string,
 ): Promise<void> {
+  const userId = await jobOwnerId(jobId, lockedBy);
+  if (!userId) throw leaseLost();
+  const stored = await offloadCheckpoint({ jobId, userId, checkpoint });
   const rows = await query<{ id: string }>(
     `update public.chat_generation_jobs
      set status = 'continuing',
          checkpoint = $2::jsonb,
+         checkpoint_object_key = coalesce($4, checkpoint_object_key),
          slice_index = slice_index + 1,
          locked_by = null,
          locked_at = null,
@@ -445,11 +566,7 @@ export async function markJobContinuing(
          updated_at = now()
      where id = $1 and locked_by = $3 and status = 'running'
      returning id`,
-    [
-      jobId,
-      JSON.stringify({ ...checkpoint, version: GENERATION_CHECKPOINT_VERSION }),
-      lockedBy,
-    ],
+    [jobId, JSON.stringify(stored.inline), lockedBy, stored.key],
   );
   if (rows.length === 0) throw leaseLost();
 }
@@ -462,12 +579,35 @@ export async function finishGenerationJob(input: {
   error?: string | null;
   checkpoint?: GenerationCheckpoint;
 }): Promise<boolean> {
+  let checkpointInline: string | null = null;
+  let checkpointKey: string | null = null;
+  if (input.checkpoint) {
+    const userId = await jobOwnerId(input.jobId, input.lockedBy).catch(
+      () => null,
+    );
+    if (userId) {
+      const stored = await offloadCheckpoint({
+        jobId: input.jobId,
+        userId,
+        checkpoint: input.checkpoint,
+      });
+      checkpointInline = JSON.stringify(stored.inline);
+      checkpointKey = stored.key;
+    } else {
+      checkpointInline = JSON.stringify({
+        ...input.checkpoint,
+        version: GENERATION_CHECKPOINT_VERSION,
+      });
+    }
+  }
+
   const rows = await query<{ id: string }>(
     `update public.chat_generation_jobs
      set status = $2,
          result = coalesce($3::jsonb, result),
          error = coalesce($4, error),
          checkpoint = coalesce($5::jsonb, checkpoint),
+         checkpoint_object_key = coalesce($7, checkpoint_object_key),
          locked_by = null,
          locked_at = null,
          completed_at = now(),
@@ -482,13 +622,9 @@ export async function finishGenerationJob(input: {
       input.status,
       input.result ? JSON.stringify(input.result) : null,
       input.error ?? null,
-      input.checkpoint
-        ? JSON.stringify({
-            ...input.checkpoint,
-            version: GENERATION_CHECKPOINT_VERSION,
-          })
-        : null,
+      checkpointInline,
       input.lockedBy,
+      checkpointKey,
     ],
   );
   return rows.length > 0;
@@ -525,7 +661,7 @@ export async function listStalledGenerationJobs(
      )`,
     [Math.min(Math.max(1, limit), 25)],
   );
-  return rows.map(normalizeJob);
+  return Promise.all(rows.map((row) => normalizeJob(row)));
 }
 
 /** Lightweight status read for slice cancel watchers (no checkpoint fetch). */

@@ -158,7 +158,7 @@ export async function listProjectChats(projectId: string, userId: string) {
   return query<ProjectChatRow>(
     `select c.id, c.title, c.starred, c.updated_at,
        (
-         select left(coalesce(m.content, ''), 160)
+         select left(coalesce(m.preview, m.content, ''), 160)
          from public.chat_messages m
          where m.chat_id = c.id and m.role = 'user'
          order by m.created_at asc
