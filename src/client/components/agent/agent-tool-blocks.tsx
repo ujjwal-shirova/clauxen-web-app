@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { DeepResearchPlanCard } from "../deep-research-plan-card";
 import { AgentFileBlock } from "./agent-file-block";
 import { AgentTraceBlock, AgentShimmerText } from "./agent-trace-primitives";
+import { ConnectorApprovalCard } from "../plugins/plugin-connection-panel";
+import { PRIORITY_CONNECTORS, type ConnectorApproval } from "@/lib/plugin-connectors";
 
 function CodePane({
   children,
@@ -411,9 +413,17 @@ export function AgentWebSearchBlock({
   const query =
     tool.searchQuery ||
     (typeof tool.args?.query === "string" ? tool.args.query : "") ||
+    (typeof tool.args?.url === "string" ? tool.args.url : "") ||
+    (typeof tool.args?.domain === "string" ? tool.args.domain : "") ||
     "";
   const results = useMemo(() => tool.searchResults ?? [], [tool.searchResults]);
   const resultCount = results.length;
+  const verbs = {
+    web_search: ["Searching the web", "Searched the web"],
+    web_scrape: ["Scraping the page", "Scraped the page"],
+    web_map: ["Mapping site URLs", "Mapped site URLs"],
+    web_crawl: ["Crawling the website", "Crawled the website"],
+  }[tool.name] ?? ["Reading the web", "Read the web"];
 
   const title =
     variant === "query" ? (
@@ -429,7 +439,7 @@ export function AgentWebSearchBlock({
       </AgentShimmerText>
     ) : (
       <AgentStepTitle
-        verb={isRunning ? "Searching the web" : "Searched the web"}
+        verb={isRunning ? verbs[0] : verbs[1]}
         detail={query || undefined}
         streaming={isRunning}
         streamKey={`ws-live-${tool.toolCallId}`}
@@ -441,7 +451,7 @@ export function AgentWebSearchBlock({
       <div
         className="agent-web-search flex min-w-0 items-center gap-1.5 text-[13px] font-[430] leading-5 tracking-[-0.01em]"
         data-agent-web-search="running"
-        data-agent-step="web_search"
+        data-agent-step={tool.name}
       >
         {title}
       </div>
@@ -452,7 +462,7 @@ export function AgentWebSearchBlock({
     <div
       className="agent-web-search w-full min-w-0"
       data-agent-web-search="row"
-      data-agent-step="web_search"
+      data-agent-step={tool.name}
     >
       <AgentTraceBlock
         title={
@@ -1120,6 +1130,29 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolStep }) {
   );
 }
 
+function AgentConnectorToolBlock({ tool }: { tool: AgentToolStep }) {
+  const output = tool.result ? tryParseJson(tool.result) : null;
+  const candidate = output?.type === "connector_approval" ? output.approval : null;
+  if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+    const approval = candidate as Record<string, unknown>;
+    if (
+      typeof approval.id === "string" &&
+      typeof approval.pluginId === "string" &&
+      PRIORITY_CONNECTORS.some((item) => item.id === approval.pluginId) &&
+      typeof approval.toolName === "string" &&
+      typeof approval.title === "string" &&
+      typeof approval.expiresAt === "string" &&
+      Number.isFinite(Date.parse(approval.expiresAt)) &&
+      typeof approval.status === "string" &&
+      ["pending", "approved", "running", "complete", "failed", "unknown"].includes(approval.status) &&
+      approval.arguments && typeof approval.arguments === "object" && !Array.isArray(approval.arguments)
+    ) {
+      return <ConnectorApprovalCard key={approval.id} approval={approval as ConnectorApproval} />;
+    }
+  }
+  return <AgentGenericToolBlock tool={tool} />;
+}
+
 /* ─────────────────────────── dispatcher ────────────────────────── */
 
 export function AgentToolBlock({
@@ -1130,6 +1163,8 @@ export function AgentToolBlock({
   previousFileContent?: string;
 }) {
   switch (tool.name) {
+    case "connector_call_tool":
+      return <AgentConnectorToolBlock tool={tool} />;
     case "create_file":
     case "file_write":
     case "present_files":
@@ -1141,6 +1176,9 @@ export function AgentToolBlock({
     case "execute_code":
       return <AgentExecuteCodeBlock tool={tool} />;
     case "web_search":
+    case "web_scrape":
+    case "web_map":
+    case "web_crawl":
       return <AgentWebSearchBlock tool={tool} />;
     case "file_read":
       return <AgentFileReadBlock tool={tool} />;

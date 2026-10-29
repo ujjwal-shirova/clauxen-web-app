@@ -1072,9 +1072,12 @@ export async function streamChatGeneration(input: {
             clientImages,
             fileIds: clientImages?.length
               ? input.vision?.fileIds
-              : input.vision?.fileIds ?? input.turn?.fileIds,
+              : (input.vision?.fileIds ?? input.turn?.fileIds),
           });
-          conversationForAgent = applyVisionToLastUserMessage(conversationForAgent, images);
+          conversationForAgent = applyVisionToLastUserMessage(
+            conversationForAgent,
+            images,
+          );
         }
 
         contextReadyAtMs = Date.now();
@@ -1324,7 +1327,11 @@ export async function streamChatGeneration(input: {
           segment.result = tool.result;
           segment.status = tool.isError === true ? "error" : "done";
           segment.completedAtMs = Date.now();
-          if (segment.name === "web_search") {
+          if (
+            ["web_search", "web_scrape", "web_map", "web_crawl"].includes(
+              segment.name,
+            )
+          ) {
             try {
               segment.sources = transcriptSourcesFrom(JSON.parse(tool.result));
             } catch {

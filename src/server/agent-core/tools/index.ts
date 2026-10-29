@@ -1,6 +1,6 @@
 /**
  * Agent-core tool surface — same catalog the chat agent loop executes.
- * Implementations live under inference/autonomous-tools (sandbox, Exa, files).
+ * Implementations live under inference/autonomous-tools (sandbox, Context.dev, files).
  */
 
 export { autonomousAgentTools } from "@/server/inference/autonomous-tools/definitions";

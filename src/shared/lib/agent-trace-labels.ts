@@ -8,7 +8,9 @@ import type { AgentStep, AgentToolStep } from "@/lib/agent-trace";
 
 export const SEARCH_TOOLS = new Set([
   "web_search",
-  "web_fetch",
+  "web_scrape",
+  "web_map",
+  "web_crawl",
   "image_search",
 ]);
 export const EDIT_TOOLS = new Set(["create_file", "file_write"]);
@@ -39,8 +41,8 @@ export type ToolTraceFamily =
 
 /** Bucket a tool so consecutive calls of the same kind share one trace. */
 export function toolTraceFamily(name: string): ToolTraceFamily {
-  if (name === "web_search") return "search";
-  if (name === "web_fetch") return "fetch";
+  if (name === "web_search" || name === "web_map") return "search";
+  if (name === "web_scrape" || name === "web_crawl") return "fetch";
   if (name === "image_search") return "image";
   if (name === "places_search") return "places";
   if (name === "weather_fetch") return "weather";
@@ -130,12 +132,18 @@ export function toolObjectLabel(tool: AgentToolStep): string {
     return tool.searchQuery.trim();
   }
   const args = tool.args ?? {};
-  if (tool.name === "web_fetch" && typeof args.url === "string") {
+  if (
+    (tool.name === "web_scrape" || tool.name === "web_crawl") &&
+    typeof args.url === "string"
+  ) {
     try {
       return new URL(args.url).hostname.replace(/^www\./, "") || args.url;
     } catch {
       return args.url;
     }
+  }
+  if (tool.name === "web_map" && typeof args.domain === "string") {
+    return args.domain;
   }
   if (typeof args.path === "string" && args.path.trim()) {
     return args.path.split("/").pop() || args.path;
@@ -161,12 +169,26 @@ export function toolObjectLabel(tool: AgentToolStep): string {
 export function completedToolLabel(tool: AgentToolStep): string {
   if (tool.status === "error") return "Hit an issue";
   switch (tool.name) {
+    case "connector_list":
+      return "Checked connections";
+    case "connector_search_tools":
+      return "Searched connector tools";
+    case "connector_call_tool": {
+      try {
+        if (tool.result && JSON.parse(tool.result)?.type === "connector_approval") return "Action approval requested";
+      } catch { /* Incomplete output is not a confirmed action. */ }
+      return "Checked connector action";
+    }
     case "web_search":
       return `Searched for "${truncate(toolObjectLabel(tool), 48)}"`;
-    case "web_fetch": {
+    case "web_scrape": {
       const host = toolObjectLabel(tool);
-      return host ? `Read ${host}` : "Read a page";
+      return host ? `Scraped ${host}` : "Scraped a page";
     }
+    case "web_map":
+      return `Mapped ${toolObjectLabel(tool) || "site URLs"}`;
+    case "web_crawl":
+      return `Crawled ${toolObjectLabel(tool) || "a website"}`;
     case "image_search":
       return "Searched images";
     case "places_search":
@@ -204,10 +226,20 @@ function truncate(value: string, max: number): string {
 /** Present-tense label while a tool runs — shown in the Working-for row. */
 export function runningToolLabel(tool: AgentToolStep): string {
   switch (tool.name) {
+    case "connector_list":
+      return "Checking connections";
+    case "connector_search_tools":
+      return "Searching connector tools";
+    case "connector_call_tool":
+      return "Preparing connector action";
     case "web_search":
       return `Searching for "${truncate(toolObjectLabel(tool), 42)}"`;
-    case "web_fetch":
-      return `Reading ${toolObjectLabel(tool) || "a page"}`;
+    case "web_scrape":
+      return `Scraping ${toolObjectLabel(tool) || "a page"}`;
+    case "web_map":
+      return `Mapping ${toolObjectLabel(tool) || "site URLs"}`;
+    case "web_crawl":
+      return `Crawling ${toolObjectLabel(tool) || "a website"}`;
     case "image_search":
       return "Searching images";
     case "places_search":
@@ -426,8 +458,10 @@ export function traceStepIcon(step: AgentStep): TraceStepIcon {
   if (step.kind !== "tool") return "thinking";
   switch (step.name) {
     case "web_search":
+    case "web_map":
       return "search";
-    case "web_fetch":
+    case "web_scrape":
+    case "web_crawl":
       return "fetch";
     case "bash_tool":
       return "terminal";

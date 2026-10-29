@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sessionFetch } from "@/lib/api/client";
-import type { DictationLanguageCode } from "@/shared/lib/dictation-languages";
+import {
+  DICTATION_LANGUAGE_CODES,
+  type DictationLanguageCode,
+} from "@/shared/lib/dictation-languages";
 import { MicrophoneCapture } from "@/features/dictation/microphone-capture";
 import {
   insertTranscriptAtCaret,
@@ -126,7 +129,12 @@ export function useDictation({
       const storedDevice = localStorage.getItem(DEVICE_STORAGE_KEY);
       const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
       if (storedDevice) setSelectedDeviceId(storedDevice);
-      if (storedLanguage) {
+      if (
+        storedLanguage === "auto" ||
+        (DICTATION_LANGUAGE_CODES as readonly string[]).includes(
+          storedLanguage ?? "",
+        )
+      ) {
         setLanguageCode(storedLanguage as "auto" | DictationLanguageCode);
       }
     } catch {

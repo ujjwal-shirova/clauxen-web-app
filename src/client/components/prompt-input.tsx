@@ -1664,7 +1664,7 @@ export function PromptInput({
           placeholder={editorPlaceholder}
           defaultValue={draftValueRef.current}
           onInput={(event) => {
-            if (dictation.isListening && !applyingDictationRef.current) {
+            if (dictation.isActive && !applyingDictationRef.current) {
               const target = event.currentTarget;
               dictation.rebaseToCaret({
                 start: target.selectionStart ?? target.value.length,
@@ -1674,7 +1674,7 @@ export function PromptInput({
             handleInput();
           }}
           onSelect={(event) => {
-            if (!dictation.isListening || applyingDictationRef.current) return;
+            if (!dictation.isActive || applyingDictationRef.current) return;
             const target = event.currentTarget;
             dictation.rebaseToCaret({
               start: target.selectionStart ?? target.value.length,

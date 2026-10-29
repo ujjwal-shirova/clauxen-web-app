@@ -109,7 +109,9 @@ export function applyAgentStreamEvent(
   switch (event.type) {
     case "start": {
       const isAgent =
-        event.agentMode !== undefined ? event.agentMode : (message.agentMode ?? true);
+        event.agentMode !== undefined
+          ? event.agentMode
+          : (message.agentMode ?? true);
       if (!isAgent) {
         return {
           ...message,
@@ -136,7 +138,11 @@ export function applyAgentStreamEvent(
           steps: isRetry ? [] : (prev?.steps ?? []),
           complete: isRetry ? undefined : prev?.complete,
           startedAtMs,
-          ...(isRetry ? {} : prev?.completedAtMs ? { completedAtMs: prev.completedAtMs } : {}),
+          ...(isRetry
+            ? {}
+            : prev?.completedAtMs
+              ? { completedAtMs: prev.completedAtMs }
+              : {}),
         },
         agentFrameComplete: false,
         isStreaming: true,
@@ -160,7 +166,10 @@ export function applyAgentStreamEvent(
         isThinkingStreaming: true,
         thinkingStartedAtMs: message.thinkingStartedAtMs ?? Date.now(),
         agentTrace: {
-          ...(message.agentTrace ?? { steps: [], startedAtMs: message.createdAt ?? Date.now() }),
+          ...(message.agentTrace ?? {
+            steps: [],
+            startedAtMs: message.createdAt ?? Date.now(),
+          }),
           steps: upsertStep(steps, {
             kind: "thinking",
             id: existing?.id ?? segmentId,
@@ -200,7 +209,10 @@ export function applyAgentStreamEvent(
       return {
         ...next,
         agentTrace: {
-          ...(next.agentTrace ?? { steps: [], startedAtMs: next.createdAt ?? Date.now() }),
+          ...(next.agentTrace ?? {
+            steps: [],
+            startedAtMs: next.createdAt ?? Date.now(),
+          }),
           steps: steps.map((step) =>
             step.kind === "thinking" && step.id === targetId
               ? { ...step, content: `${step.content ?? ""}${event.delta}` }
@@ -282,7 +294,10 @@ export function applyAgentStreamEvent(
         isThinkingStreaming: false,
         isStreaming: true,
         agentTrace: {
-          ...(message.agentTrace ?? { steps: [], startedAtMs: message.createdAt ?? Date.now() }),
+          ...(message.agentTrace ?? {
+            steps: [],
+            startedAtMs: message.createdAt ?? Date.now(),
+          }),
           steps: nextSteps,
         },
       };
@@ -308,7 +323,10 @@ export function applyAgentStreamEvent(
             agentMode: true,
             isStreaming: true,
             agentTrace: {
-              ...(message.agentTrace ?? { steps: [], startedAtMs: message.createdAt ?? Date.now() }),
+              ...(message.agentTrace ?? {
+                steps: [],
+                startedAtMs: message.createdAt ?? Date.now(),
+              }),
               steps: upsertStep(steps, {
                 kind: "narration",
                 id: event.segmentId,
@@ -425,7 +443,10 @@ export function applyAgentStreamEvent(
         isStreaming: true,
         agentFrameComplete: false,
         agentTrace: {
-          ...(message.agentTrace ?? { steps: [], startedAtMs: message.createdAt ?? Date.now() }),
+          ...(message.agentTrace ?? {
+            steps: [],
+            startedAtMs: message.createdAt ?? Date.now(),
+          }),
           steps: upsertStep(steps, {
             kind: "tool",
             id: existing?.id ?? `tool-${event.toolCallId}`,
@@ -436,11 +457,20 @@ export function applyAgentStreamEvent(
             args:
               Object.keys(mergedArgs).length > 0 ? mergedArgs : existing?.args,
             argsComplete: event.argsComplete ?? existing?.argsComplete,
-            searchQuery:
-              event.name === "web_search" &&
-              typeof mergedArgs.query === "string"
-                ? mergedArgs.query
-                : existing?.searchQuery,
+            searchQuery: [
+              "web_search",
+              "web_scrape",
+              "web_map",
+              "web_crawl",
+            ].includes(event.name)
+              ? String(
+                  mergedArgs.query ??
+                    mergedArgs.url ??
+                    mergedArgs.domain ??
+                    existing?.searchQuery ??
+                    "",
+                )
+              : existing?.searchQuery,
             searchResults: existing?.searchResults,
             filePath,
             fileContent,

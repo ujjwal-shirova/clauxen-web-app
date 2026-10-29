@@ -13,11 +13,12 @@ export function researchToolOutput(name: string, output: unknown): unknown {
   if (name === "web_search" && Array.isArray(data.results)) {
     return {
       query: data.query,
-      searchType: data.searchType,
+      provider: data.provider,
       results: data.results.slice(0, 30).map((raw, index) => {
         const hit = raw as Record<string, unknown>;
         const text = [
           hit.snippet,
+          hit.markdown,
           ...(Array.isArray(hit.highlights) ? hit.highlights : []),
         ].filter(
           (value): value is string =>
@@ -36,16 +37,73 @@ export function researchToolOutput(name: string, output: unknown): unknown {
             : {}),
         };
       }),
-      note: "Search excerpts are evidence previews. Use web_fetch for full details before making claims.",
+      note: "Search excerpts are evidence previews. Use web_scrape for full details before making claims.",
     };
   }
-  if (name === "web_fetch" && typeof data.snippet === "string") {
+  if (name === "web_scrape") {
+    const evidence: string[] = [];
+    for (const format of [
+      "markdown",
+      "highlights",
+      "json",
+      "parse",
+      "product",
+      "html",
+    ]) {
+      const output = data[format];
+      if (!output || typeof output !== "object" || Array.isArray(output))
+        continue;
+      const value = (output as Record<string, unknown>).data;
+      if (typeof value === "string") evidence.push(value);
+      else if (Array.isArray(value)) {
+        evidence.push(
+          value
+            .filter((item): item is string => typeof item === "string")
+            .join("\n"),
+        );
+      } else if (value && typeof value === "object") {
+        evidence.push(JSON.stringify(value));
+      }
+    }
+    const excerpt = evidence.filter(Boolean).join("\n\n");
+    if (!excerpt) return output;
+    const metadata =
+      data.metadata &&
+      typeof data.metadata === "object" &&
+      !Array.isArray(data.metadata)
+        ? (data.metadata as Record<string, unknown>)
+        : {};
     return {
-      ...data,
-      snippet: data.snippet.slice(0, FETCH_EXCERPT_CHARS),
-      ...(data.snippet.length > FETCH_EXCERPT_CHARS
+      url: metadata.finalUrl ?? data.url,
+      title: metadata.title,
+      snippet: excerpt.slice(0, FETCH_EXCERPT_CHARS),
+      ...(excerpt.length > FETCH_EXCERPT_CHARS
         ? { excerptTruncated: true }
         : {}),
+    };
+  }
+  if (name === "web_crawl" && Array.isArray(data.results)) {
+    return {
+      ...data,
+      results: data.results.slice(0, 30).map((raw, index) => {
+        const page = raw as Record<string, unknown>;
+        const metadata =
+          page.metadata &&
+          typeof page.metadata === "object" &&
+          !Array.isArray(page.metadata)
+            ? (page.metadata as Record<string, unknown>)
+            : {};
+        const markdown = typeof page.markdown === "string" ? page.markdown : "";
+        return {
+          index: index + 1,
+          title: String(metadata.title ?? metadata.url ?? ""),
+          url: metadata.finalUrl ?? metadata.url,
+          snippet: markdown.slice(0, SEARCH_EXCERPT_CHARS),
+          ...(markdown.length > SEARCH_EXCERPT_CHARS
+            ? { excerptTruncated: true }
+            : {}),
+        };
+      }),
     };
   }
   return output;
@@ -68,7 +126,8 @@ export function budgetResearchEvidence(conversation: OpenAIInputItem[]) {
   for (const item of conversation) {
     if (item.role !== "tool" || typeof item.content !== "string") continue;
     const name = names.get(item.tool_call_id);
-    if (name !== "web_search" && name !== "web_fetch") continue;
+    if (!name || !["web_search", "web_scrape", "web_crawl"].includes(name))
+      continue;
     try {
       const data = researchToolOutput(name, JSON.parse(item.content)) as Record<
         string,

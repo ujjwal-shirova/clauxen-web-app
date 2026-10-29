@@ -9,7 +9,11 @@ import { marketplaceCatalog, pluginMatches, pluginsByIds } from "./catalog";
 import { PluginMark } from "./plugin-mark";
 import { cardDescription, stripCursorText } from "./plugin-copy";
 import { PluginDetailPage } from "./plugin-detail-page";
+import { usePluginConnections } from "./use-plugin-connections";
+import { PRIORITY_CONNECTORS } from "@/lib/plugin-connectors";
 import type { MarketplacePlugin } from "./types";
+
+const CONNECTOR_IDS = new Set<string>(PRIORITY_CONNECTORS.map((connector) => connector.id));
 
 const SECTION_TITLES: Record<string, string> = {
   featured: "Featured",
@@ -38,6 +42,7 @@ function readSelectedFromUrl(): string | null {
 function writeSelectedToUrl(pluginId: string | null) {
   const url = new URL(window.location.href);
   url.searchParams.delete("id");
+  url.searchParams.delete("connection");
   if (pluginId) url.searchParams.set("p", pluginId);
   else url.searchParams.delete("p");
   window.history.pushState(null, "", `${url.pathname}${url.search}`);
@@ -48,8 +53,20 @@ export function MarketplaceView() {
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
 
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "connectors" | "connected">("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const connections = usePluginConnections();
+  const accountStatus = new Map<string, string>(connections.connections.map((account) => [account.pluginId, account.status]));
+  const availableById = new Map<string, (typeof connections.availability)[number]>(connections.availability.map((item) => [item.pluginId, item]));
+  const connectionBadge = (pluginId: string) => {
+    const status = accountStatus.get(pluginId);
+    if (status === "active") return "Connected";
+    if (status === "reauthorization_required") return "Reconnect required";
+    if (!CONNECTOR_IDS.has(pluginId)) return "Connector not available yet";
+    const availability = availableById.get(pluginId);
+    return availability ? availability.ready ? "Connect account" : "Setup pending" : "Account connector";
+  };
 
   useEffect(() => {
     setSelectedId(readSelectedFromUrl());
@@ -83,11 +100,14 @@ export function MarketplaceView() {
 
   const searchResults = useMemo(() => {
     const needle = query.trim();
-    if (!needle) return null;
+    if (!needle && filter === "all") return null;
+    const connectedIds = new Set<string>(connections.connections.map((account) => account.pluginId));
     return Object.values(marketplaceCatalog.plugins).filter((plugin) =>
-      pluginMatches(plugin, needle),
+      (!needle || pluginMatches(plugin, needle)) &&
+      (filter !== "connectors" || CONNECTOR_IDS.has(plugin.id)) &&
+      (filter !== "connected" || connectedIds.has(plugin.id)),
     );
-  }, [query]);
+  }, [query, filter, connections.connections]);
 
   return (
     <div className="plugins-page relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg,#fff)] font-sans text-zinc-900 dark:text-zinc-100">
@@ -105,7 +125,7 @@ export function MarketplaceView() {
         data-plugins-scroll=""
       >
         {selectedId ? (
-          <PluginDetailPage pluginId={selectedId} onBack={closePlugin} />
+          <PluginDetailPage pluginId={selectedId} onBack={closePlugin} connections={connections} />
         ) : (
           <div className="mx-auto w-full max-w-[960px]">
             <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -138,19 +158,34 @@ export function MarketplaceView() {
               </label>
             </header>
 
+            <div className="mt-5 flex flex-wrap gap-2" aria-label="Filter plugins">
+              {([ ["all", "All"], ["connectors", "Account connectors"], ["connected", "Connected"] ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={filter === value}
+                  onClick={() => setFilter(value)}
+                  className={`min-h-9 rounded-full border px-4 text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 ${filter === value ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900" : "border-black/10 text-zinc-500 dark:border-white/10 dark:text-zinc-400"}`}
+                >{label}</button>
+              ))}
+            </div>
+            {connections.error ? <p role="alert" className="mt-3 text-[13px] text-zinc-500">{connections.error} <button type="button" className="underline" onClick={() => { void connections.refresh(); }}>Retry</button></p> : null}
+            {filter === "connected" && connections.loading ? <p role="status" className="mt-3 text-[13px] text-zinc-500">Checking connections…</p> : null}
+            {filter === "connected" && connections.unauthorized ? <a href="/login?redirectTo=%2Fplugins" className="mt-3 inline-block text-[13px] underline">Sign in to connect</a> : null}
+
             {searchResults ? (
               <section className="mt-7">
                 <p className="mb-3 text-[13px] text-zinc-500">
-                  {searchResults.length} result{searchResults.length === 1 ? "" : "s"} for “{query.trim()}”
+                  {searchResults.length} result{searchResults.length === 1 ? "" : "s"}{query.trim() ? ` for “${query.trim()}”` : ""}
                 </p>
                 {searchResults.length > 0 ? (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {searchResults.map((plugin) => (
-                      <PluginCard key={plugin.id} plugin={plugin} onOpen={() => openPlugin(plugin.id)} />
+                      <PluginCard key={plugin.id} plugin={plugin} connectionBadge={connectionBadge(plugin.id)} onOpen={() => openPlugin(plugin.id)} />
                     ))}
                   </div>
                 ) : (
-                  <EmptyState title="No plugins found" body="Try a different name." />
+                  <EmptyState title={filter === "connected" ? "No connected plugins" : "No plugins found"} body={filter === "connected" ? "Connect an account from its plugin page to use it with the assistant." : "Try a different name."} />
                 )}
               </section>
             ) : (
@@ -169,6 +204,7 @@ export function MarketplaceView() {
                           <PluginCard
                             key={`${section.id}-${plugin.id}`}
                             plugin={plugin}
+                            connectionBadge={connectionBadge(plugin.id)}
                             onOpen={() => openPlugin(plugin.id)}
                           />
                         ))}
@@ -206,9 +242,11 @@ export function MarketplaceView() {
 
 function PluginCard({
   plugin,
+  connectionBadge,
   onOpen,
 }: {
   plugin: MarketplacePlugin;
+  connectionBadge: string;
   onOpen: () => void;
 }) {
   return (
@@ -237,6 +275,9 @@ function PluginCard({
         </p>
         <p className="mt-1 line-clamp-2 text-[12.5px] leading-[18px] text-zinc-500 dark:text-zinc-400">
           {cardDescription(plugin.description, 100)}
+        </p>
+        <p className={`mt-2 text-[11px] ${connectionBadge === "Connected" ? "font-medium text-emerald-700 dark:text-emerald-400" : "text-zinc-500 dark:text-zinc-400"}`}>
+          {connectionBadge}
         </p>
       </div>
     </div>

@@ -135,7 +135,7 @@ const securityHeaders = [
       "child-src 'self' https://checkout.razorpay.com https://*.razorpay.com https://*.rzp.io https://challenges.cloudflare.com https://accounts.google.com/gsi/",
       "object-src 'none'",
       "base-uri 'self'",
-      "form-action 'self' https://checkout.razorpay.com https://api.razorpay.com",
+      "form-action 'self' https://checkout.razorpay.com https://api.razorpay.com https://github.com https://accounts.google.com https://login.microsoftonline.com https://slack.com https://linear.app https://airtable.com https://app.asana.com https://todoist.com https://www.dropbox.com https://dropbox.com https://zoom.us https://app.hubspot.com https://mcp.notion.com https://auth.notion.com https://www.notion.so https://notion.so https://auth.atlassian.com https://mcp.atlassian.com https://www.figma.com https://mcp.figma.com",
     ].join("; "),
   },
 ];
@@ -181,7 +181,6 @@ const nextConfig: NextConfig = {
     "mammoth",
     "openai",
     "ws",
-    "exa-js",
     "parallel-web",
     "jsqr",
     "pngjs",

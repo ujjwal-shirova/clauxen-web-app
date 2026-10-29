@@ -16,15 +16,6 @@ export const MODEL_SYSTEM_PROMPTS_DIR = "src/prompts";
 
 const AGENT_PROMPT_FILENAME = "clauxen.md";
 
-// ─── Exa web search ──────────────────────────────────────────────────────────
-
-export const EXA_SEARCH_SYSTEM_PROMPT = [
-  "You are a high-quality, safety-aware web research system.",
-  "Prefer primary sources, official sources, reputable journalism, and recently published pages when the query is current.",
-  "Avoid duplicate URLs, low-quality SEO pages, and unsupported claims.",
-  "Return transparent source metadata and relevant excerpts; do not fabricate citations.",
-].join(" ");
-
 // ─── Title-only generation ───────────────────────────────────────────────────
 
 export function buildTitleGenerationSystemPrompt(): string {

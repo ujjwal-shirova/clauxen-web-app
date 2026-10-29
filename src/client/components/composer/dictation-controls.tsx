@@ -43,7 +43,6 @@ export function DictationControls({
   }, [search]);
 
   const setPopoverOpen = (next: boolean) => {
-    if (next && canOpen && !canOpen()) return;
     setOpen(next);
     if (next) void dictation.refreshDevices();
     if (!next) {

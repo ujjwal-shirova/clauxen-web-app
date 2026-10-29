@@ -75,16 +75,41 @@ function stripChatTitleMarkup(text: string): string {
 // ── Zod schemas for autonomous tools (self-healing validation) ──────────────
 
 const autonomousZodByName: Record<string, z.ZodTypeAny> = {
+  connector_list: z.object({}),
+  connector_search_tools: z.object({
+    query: z.string().trim().min(1).max(500),
+    plugin_id: z.string().trim().min(1).max(100).nullish(),
+  }),
+  connector_call_tool: z.object({
+    plugin_id: z.string().trim().min(1).max(100),
+    tool_name: z.string().trim().min(1).max(200),
+    arguments_json: z.string().max(32768),
+  }),
   read_skill: z.object({
     skill_id: z.string(),
   }),
-  web_search: z.object({
-    query: z.string(),
-    num_results: z.number().int().min(1).max(30).optional(),
-  }),
-  web_fetch: z.object({
-    url: z.string(),
-  }),
+  web_search: z
+    .object({
+      query: z.string(),
+      numResults: z.number().int().min(1).max(100).optional(),
+    })
+    .passthrough(),
+  web_scrape: z
+    .object({
+      url: z.string(),
+      formats: z.record(z.string(), z.boolean()),
+    })
+    .passthrough(),
+  web_map: z
+    .object({
+      domain: z.string(),
+    })
+    .passthrough(),
+  web_crawl: z
+    .object({
+      url: z.string(),
+    })
+    .passthrough(),
   execute_code: z.object({
     code: z.string(),
     description: z.string(),
@@ -429,6 +454,8 @@ export async function runAutonomousAgent(
       .filter(
         (tool) =>
           tool.name !== "present_files" &&
+          (options.userId ||
+            !["connector_list", "connector_search_tools", "connector_call_tool"].includes(tool.name)) &&
           !(options.researchPlanId && tool.name === "ask_user_input_v0"),
       )
       .map((tool) => ({
@@ -542,9 +569,13 @@ export async function runAutonomousAgent(
         // Repeating a search/read/progress update is safe. External writes remain protected.
         if (
           call &&
-          ["web_search", "web_fetch", "research_task_update"].includes(
-            call.name,
-          )
+          [
+            "web_search",
+            "web_scrape",
+            "web_map",
+            "web_crawl",
+            "research_task_update",
+          ].includes(call.name)
         )
           delete recoveringRound.executingCallId;
       }

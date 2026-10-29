@@ -14,46 +14,80 @@ export function enrichToolFromResult(
     completedAtMs: tool.completedAtMs ?? Date.now(),
   };
 
-  if (tool.name === "web_search" || tool.name === "web_fetch") {
+  if (
+    ["web_search", "web_scrape", "web_map", "web_crawl"].includes(tool.name)
+  ) {
     if (Array.isArray(parsed)) {
       next.searchResults = parsed as WebSearchResult[];
-      const query =
-        typeof tool.args?.query === "string"
-          ? tool.args.query
-          : typeof tool.args?.url === "string"
-            ? tool.args.url
-            : undefined;
-      if (query) next.searchQuery = query;
     } else if (parsed && typeof parsed === "object") {
-      const record = parsed as {
-        error?: string;
-        query?: string;
-        url?: string;
-        results?: unknown;
-        title?: string;
-        content?: string;
-      };
-      if (record.error) next.status = "error";
-      if (record.query) next.searchQuery = record.query;
-      else if (record.url) next.searchQuery = record.url;
-      if (Array.isArray(record.results)) {
+      const record = parsed as Record<string, unknown>;
+      if (typeof record.error === "string") next.status = "error";
+      const query = record.query ?? record.url ?? record.domain;
+      if (typeof query === "string") next.searchQuery = query;
+
+      if (tool.name === "web_search" && Array.isArray(record.results)) {
         next.searchResults = record.results as WebSearchResult[];
-      } else if (
-        tool.name === "web_fetch" &&
-        typeof record.url === "string" &&
-        (typeof record.title === "string" || typeof record.content === "string")
-      ) {
-        next.searchResults = [
-          {
-            url: record.url,
-            title: record.title || record.url,
-            snippet:
-              typeof record.content === "string"
-                ? record.content.slice(0, 240)
-                : "",
-          },
-        ];
-        next.searchQuery = record.url;
+      } else if (tool.name === "web_scrape") {
+        const metadata =
+          record.metadata &&
+          typeof record.metadata === "object" &&
+          !Array.isArray(record.metadata)
+            ? (record.metadata as Record<string, unknown>)
+            : {};
+        const url = String(metadata.finalUrl ?? record.url ?? "");
+        if (url) {
+          const markdown =
+            record.markdown &&
+            typeof record.markdown === "object" &&
+            !Array.isArray(record.markdown)
+              ? (record.markdown as Record<string, unknown>).data
+              : undefined;
+          next.searchResults = [
+            {
+              url,
+              title: String(metadata.title ?? url),
+              snippet:
+                typeof markdown === "string" ? markdown.slice(0, 240) : "",
+            },
+          ];
+        }
+      } else if (tool.name === "web_map" && Array.isArray(record.urls)) {
+        next.searchResults = record.urls.flatMap((raw) => {
+          if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+          const item = raw as Record<string, unknown>;
+          if (typeof item.url !== "string") return [];
+          return [
+            {
+              url: item.url,
+              title: typeof item.title === "string" ? item.title : item.url,
+              snippet:
+                typeof item.description === "string" ? item.description : "",
+            },
+          ];
+        });
+      } else if (tool.name === "web_crawl" && Array.isArray(record.results)) {
+        next.searchResults = record.results.flatMap((raw) => {
+          if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+          const page = raw as Record<string, unknown>;
+          const metadata =
+            page.metadata &&
+            typeof page.metadata === "object" &&
+            !Array.isArray(page.metadata)
+              ? (page.metadata as Record<string, unknown>)
+              : {};
+          const url = String(metadata.finalUrl ?? metadata.url ?? "");
+          if (!url) return [];
+          return [
+            {
+              url,
+              title: String(metadata.title ?? url),
+              snippet:
+                typeof page.markdown === "string"
+                  ? page.markdown.slice(0, 240)
+                  : "",
+            },
+          ];
+        });
       }
     }
   }

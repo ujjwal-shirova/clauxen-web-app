@@ -204,8 +204,11 @@ test("interrupted research reads recover their saved result, while writes remain
   const sse = new ClauxenSseStream();
   const call = {
     id: "read-1",
-    name: "web_fetch",
-    arguments: JSON.stringify({ url: "https://example.test" }),
+    name: "web_scrape",
+    arguments: JSON.stringify({
+      url: "https://example.test",
+      formats: { markdown: true },
+    }),
   };
   const result = await runAutonomousAgent(sse, {
     researchPlanId: "fixture",
@@ -233,7 +236,15 @@ test("interrupted research reads recover their saved result, while writes remain
         [call.id]: {
           output: {
             url: "https://example.test",
-            snippet: "Saved primary evidence",
+            markdown: {
+              requested: true,
+              success: true,
+              data: "Saved primary evidence",
+            },
+            metadata: {
+              finalUrl: "https://example.test",
+              title: "Example",
+            },
           },
           pause: false,
         },

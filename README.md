@@ -18,7 +18,7 @@ Clauxen is a full-stack AI chat platform built with Next.js (App Router), React 
 | Styling    | Tailwind CSS 4, shadcn/radix primitives, tw-animate-css |
 | Data       | Supabase (Postgres + pgvector, Auth incl. magic links/WebAuthn, Storage) |
 | State      | Zustand store, React Query |
-| AI         | OpenAI Responses API, Exa search, Novita sandbox, MCP connectors, BullMQ + Redis queues |
+| AI         | OpenAI Responses API, Context.dev web data, Novita sandbox, MCP connectors, BullMQ + Redis queues |
 | Edge       | Cloudflare Workers: auth-email, billing (invoice PDFs), chat-coord, chat-history, R2 gateway, scheduled tasks |
 | Payments   | Razorpay |
 

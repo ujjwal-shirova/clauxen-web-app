@@ -63,9 +63,17 @@ export const POST = withApiHandler(
         "dictation_audio_too_large",
       );
     }
-    const languageCode = languageSchema.parse(
+    const parsedLanguage = languageSchema.safeParse(
       form.get("languageCode") || undefined,
     );
+    if (!parsedLanguage.success) {
+      throw new AppError(
+        "The selected dictation language is not supported.",
+        400,
+        "dictation_invalid_language",
+      );
+    }
+    const languageCode = parsedLanguage.data;
     const result = await transcribeDictation({
       audio: await audio.arrayBuffer(),
       languageCode,

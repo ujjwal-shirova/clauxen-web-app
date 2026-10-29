@@ -158,7 +158,7 @@ try {
     "complete",
     `research finished: ${plan.error || plan.status}`,
   );
-  assert(plan.source_count > 0, "actual Exa sources recorded");
+  assert(plan.source_count > 0, "actual Context.dev sources recorded");
   assert(plan.search_count > 0, "actual searches ran");
   const detail = await api(`${path}?activity=1`);
   assert(

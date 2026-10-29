@@ -37,7 +37,7 @@ interface __BaseEnv_CloudflareEnv {
   SHIROVA_THINKING_TYPE: string;
   Provider_SANDBOX_TIMEOUT_MS: string;
   E2B_DOMAIN: string;
-  EXA_API_KEY: string;
+  CONTEXT_DEV_API_KEY: string;
   FAL_KEY: string;
   PARALLEL_API_KEY: string;
   NEXT_PUBLIC_RAZORPAY_KEY_ID: string;
@@ -119,7 +119,7 @@ declare namespace NodeJS {
       | "SHIROVA_THINKING_TYPE"
       | "Provider_SANDBOX_TIMEOUT_MS"
       | "E2B_DOMAIN"
-      | "EXA_API_KEY"
+      | "CONTEXT_DEV_API_KEY"
       | "FAL_KEY"
       | "PARALLEL_API_KEY"
       | "NEXT_PUBLIC_RAZORPAY_KEY_ID"

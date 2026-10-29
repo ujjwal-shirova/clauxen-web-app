@@ -16,7 +16,7 @@ The existing runner bounds research to 96 model rounds per run and 48 execution 
 
 - `npx tsx --test tests/durable-research.test.ts tests/deep-research.test.ts tests/cloudflare-runtime.test.ts tests/background-generation.test.ts tests/chat-latency.test.ts`
 - `npx tsx tests/durable-research.integration.ts`: disposable identity, real persistence, local continuation stub. Covers deadline suspension/reset, racing starts, source deduplication, pause/orphan preservation, resume, cancellation, and watchdog recovery.
-- `node scripts/verify-cloudflare-research.mjs https://www.clauxen.com`: disposable identity, real model and Exa, server auto-start without a connected stream, pause/reconnect/resume and persisted cited report. This invokes paid provider/search APIs.
+- `node scripts/verify-cloudflare-research.mjs https://www.clauxen.com`: disposable identity, real model and Context.dev, server auto-start without a connected stream, pause/reconnect/resume and persisted cited report. This invokes paid provider/search APIs.
 
 Apply `supabase/migrations/20261010160000_durable_deep_research.sql` before deploying the new Worker. Build with `npm run cf:build` and deploy with `npm run cf:deploy`. No new queue or browser automation is required.
 
@@ -32,7 +32,7 @@ The owner-authenticated report endpoint reads the private R2 object and returns 
 
 ## Source delivery and failure recovery
 
-Research uses one bounded Exa search request for up to 30 source previews, with no synthesized-answer wait, second fallback search, or per-result reveal delay. Every returned source is handed to the next model round with its URL and title. Previews are bounded to 1,800 characters; full source reads use up to 8,000 characters. Accumulated tool evidence has a shared excerpt budget, preserving URLs and tool call/result pairing and explicitly marking shortened excerpts. The same normalization repairs oversized saved checkpoints when resumed.
+Research uses one bounded Context.dev search request for up to 30 source previews, with no synthesized-answer wait, second fallback search, or per-result reveal delay. Every returned source is handed to the next model round with its URL and title. Previews are bounded to 1,800 characters; full source reads use up to 8,000 characters. Accumulated tool evidence has a shared excerpt budget, preserving URLs and tool call/result pairing and explicitly marking shortened excerpts. The same normalization repairs oversized saved checkpoints when resumed.
 
 Temporary provider failures retry the current model round at most twice, before any tools execute. Research allows up to 120 seconds of provider silence inside the existing bounded execution slice. Interrupted searches, reads, and task updates can recover; unknown outcomes for external writes still stop safely. Retry research atomically requeues the same failed job, assistant row and checkpoint, preserving source counts and completed work. Raw failures stay in private job diagnostics and telemetry; public status uses safe actionable copy.
 

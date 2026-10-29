@@ -5,10 +5,13 @@ import { pluginById } from "./catalog";
 import { PluginMark } from "./plugin-mark";
 import { stripCursorText } from "./plugin-copy";
 import { pluginDetails } from "./plugin-details";
+import { PluginConnectionPanel } from "./plugin-connection-panel";
+import type { PluginConnections } from "./use-plugin-connections";
 
 type Props = {
   pluginId: string;
   onBack: () => void;
+  connections: PluginConnections;
 };
 
 function Section({
@@ -33,7 +36,7 @@ function Section({
   );
 }
 
-export function PluginDetailPage({ pluginId, onBack }: Props) {
+export function PluginDetailPage({ pluginId, onBack, connections }: Props) {
   const plugin = pluginById(pluginId);
   const info = pluginDetails(pluginId);
   const name = stripCursorText(info?.name ?? plugin?.name ?? pluginId) || pluginId;
@@ -73,6 +76,8 @@ export function PluginDetailPage({ pluginId, onBack }: Props) {
           </div>
         </div>
       </header>
+
+      <PluginConnectionPanel key={pluginId} pluginId={pluginId} connections={connections} />
 
       {overview ? (
         <Section title="About">

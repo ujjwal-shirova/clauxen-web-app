@@ -5,8 +5,13 @@ import {
 } from "@/server/sandbox/sandbox-manager";
 import { env } from "@/server/config/env";
 import { researchSearchLimit } from "@/lib/research-state";
-import { searchWebWithExa } from "@/server/search/exa";
-import { fetchUrlContentsWithExa } from "@/server/search/exa";
+import {
+  crawlWebsiteWithContextDev,
+  mapUrlsWithContextDev,
+  scrapeUrlWithContextDev,
+  searchWebWithContextDev,
+  type ContextDevRequest,
+} from "@/server/search/context-dev";
 import { assertSafeBashCommand } from "@/server/inference/bash-safety";
 import {
   fetchWeatherForecast,
@@ -69,6 +74,40 @@ export type ToolExecutionOutcome = {
   pauseForUser?: boolean;
   clarificationQuestion?: string;
 };
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+export function parseConnectorArgumentsJson(value: unknown): Record<string, unknown> {
+  if (
+    typeof value !== "string" ||
+    new TextEncoder().encode(value).byteLength > 32768
+  ) {
+    throw new Error("arguments_json must be a JSON object string no larger than 32 KiB.");
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error("arguments_json is not valid JSON.");
+  }
+  const parameters = asRecord(parsed);
+  if (!parameters) throw new Error("arguments_json must contain a JSON object, not an array or primitive.");
+  return parameters;
+}
+
+async function addContextDevResearchSources(
+  ctx: ToolExecutionContext,
+  urls: string[],
+) {
+  if (!ctx.researchPlanId || urls.length === 0) return;
+  const { addResearchSources } =
+    await import("@/server/repositories/deep-research.repository");
+  await addResearchSources(ctx.researchPlanId, urls);
+}
 
 type PublishedSandboxArtifact = {
   id: string;
@@ -166,14 +205,73 @@ export async function executeAutonomousTool(
   args: Record<string, unknown>,
   ctx: ToolExecutionContext,
 ): Promise<ToolExecutionOutcome> {
+  if (
+    name === "connector_list" ||
+    name === "connector_search_tools" ||
+    name === "connector_call_tool"
+  ) {
+    if (!ctx.userId) {
+      return { output: { error: "Sign in to connect and use marketplace apps." } };
+    }
+    try {
+      // Validate before loading the service or touching any provider.
+      const pluginId = args.plugin_id ?? undefined;
+      if (
+        (name === "connector_call_tool" || pluginId != null) &&
+        (typeof pluginId !== "string" || !pluginId.trim() || pluginId.length > 100)
+      ) {
+        throw new Error("plugin_id must be a non-empty string of at most 100 characters.");
+      }
+      if (name === "connector_search_tools") {
+        if (typeof args.query !== "string" || !args.query.trim() || args.query.length > 500) {
+          throw new Error("query must be a non-empty string of at most 500 characters.");
+        }
+        const { searchConnectorTools } = await import("@/server/plugins/service");
+        return { output: await searchConnectorTools(ctx.userId, args.query, pluginId as string | undefined) };
+      }
+      if (name === "connector_call_tool") {
+        if (typeof args.tool_name !== "string" || !args.tool_name.trim() || args.tool_name.length > 200) {
+          throw new Error("tool_name must be a non-empty string of at most 200 characters.");
+        }
+        const parameters = parseConnectorArgumentsJson(args.arguments_json);
+        const { callConnectorTool } = await import("@/server/plugins/service");
+        // Preserve the existing pause-for-user outcome for approval-gated actions.
+        return await callConnectorTool(ctx.userId, pluginId as string, args.tool_name, parameters);
+      }
+      const { getConnectorOverview } = await import("@/server/plugins/service");
+      return { output: await getConnectorOverview(ctx.userId) };
+    } catch (error) {
+      return {
+        output: {
+          error: error instanceof Error ? error.message : "Connector operation failed.",
+          ...(typeof args.plugin_id === "string" && /^[a-z0-9-]{1,100}$/.test(args.plugin_id)
+            ? { connectionPage: `/plugins?p=${encodeURIComponent(args.plugin_id)}` }
+            : {}),
+        },
+      };
+    }
+  }
+
   if (name === "github_agent") {
-    if (!ctx.userId) return { output: { error: "Sign in to Clauxen before using GitHub." } };
+    if (!ctx.userId)
+      return { output: { error: "Sign in to Clauxen before using GitHub." } };
     const { executeGitHubAgent } = await import("@/server/github/agent");
     const { operation, ...parameters } = args;
     try {
-      return { output: await executeGitHubAgent(ctx.userId, String(operation), parameters) };
+      return {
+        output: await executeGitHubAgent(
+          ctx.userId,
+          String(operation),
+          parameters,
+        ),
+      };
     } catch (error) {
-      return { output: { error: error instanceof Error ? error.message : "GitHub operation failed." } };
+      return {
+        output: {
+          error:
+            error instanceof Error ? error.message : "GitHub operation failed.",
+        },
+      };
     }
   }
 
@@ -202,98 +300,161 @@ export async function executeAutonomousTool(
   }
 
   if (name === "web_search") {
-    const query = String(args.query ?? "");
-    const searchLimit = researchSearchLimit(
-      args.num_results,
-      Boolean(ctx.researchPlanId),
-    );
-    // Signal search start immediately so the UI is not blank while Exa connects.
+    const query = String(args.query ?? "").trim();
+    if (!query) throw new Error("query is required");
+    const requestedLimit = args.numResults;
+    const searchLimit = ctx.researchPlanId
+      ? researchSearchLimit(requestedLimit, true)
+      : typeof requestedLimit === "number" && Number.isFinite(requestedLimit)
+        ? Math.max(1, Math.min(100, Math.floor(requestedLimit)))
+        : 10;
+    const request: ContextDevRequest = {
+      ...args,
+      query,
+      numResults: searchLimit,
+    };
+    if (!request.country && ctx.userCountryCode) {
+      request.country = ctx.userCountryCode.toLowerCase();
+    }
+
     ctx.onToolProgress?.({
       query,
       tool_call_id: ctx.toolCallId,
       status: "searching",
     });
-    const hits = await searchWebWithExa(query, {
-      userLocation: ctx.userCountryCode,
-      numResults: searchLimit,
-      directResults: Boolean(ctx.researchPlanId),
-      onStreamContent: (delta) => {
-        if (!delta) return;
-        ctx.onToolProgress?.({
-          query,
-          tool_call_id: ctx.toolCallId,
-          status: "streaming",
-          content_delta: delta,
-        });
-      },
-      onPartialResults: (partial) => {
-        ctx.onToolProgress?.({
-          query,
-          tool_call_id: ctx.toolCallId,
-          status: "results",
-          results: partial.slice(0, searchLimit).map((h, i) => ({
-            index: i + 1,
-            title: h.title,
-            url: h.url,
-            snippet: h.snippet,
-            publishedDate: h.publishedDate,
-            favicon: h.favicon,
-            highlights: h.highlights,
-          })),
-        });
-      },
+    const response = await searchWebWithContextDev(request);
+    const results = (Array.isArray(response.results) ? response.results : [])
+      .slice(0, searchLimit)
+      .map((raw, index) => {
+        const hit = asRecord(raw) ?? {};
+        const highlightData = asRecord(hit.highlights);
+        const highlights = Array.isArray(highlightData?.highlights)
+          ? highlightData.highlights.filter(
+              (value): value is string => typeof value === "string",
+            )
+          : undefined;
+        const markdownData = asRecord(hit.markdown);
+        const markdown =
+          typeof markdownData?.markdown === "string"
+            ? markdownData.markdown
+            : undefined;
+        const description =
+          typeof hit.description === "string" ? hit.description : "";
+        return {
+          index: index + 1,
+          title: String(hit.title ?? hit.url ?? ""),
+          url: String(hit.url ?? ""),
+          snippet:
+            description ||
+            highlights?.join("\n") ||
+            markdown?.slice(0, 1800) ||
+            "",
+          description,
+          relevance: hit.relevance,
+          ...(markdown !== undefined ? { markdown } : {}),
+          ...(highlights !== undefined ? { highlights } : {}),
+          contentStatus: {
+            markdown: markdownData?.code,
+            highlights: highlightData?.code,
+          },
+        };
+      });
+
+    ctx.onToolProgress?.({
+      query,
+      tool_call_id: ctx.toolCallId,
+      status: "results",
+      results,
     });
-    if (ctx.researchPlanId) {
-      const { addResearchSources } =
-        await import("@/server/repositories/deep-research.repository");
-      await addResearchSources(
-        ctx.researchPlanId,
-        hits.slice(0, searchLimit).map((hit) => hit.url),
-      );
-    }
+    await addContextDevResearchSources(
+      ctx,
+      results.map((hit) => hit.url).filter(Boolean),
+    );
     return {
       output: {
-        query,
-        results: hits.slice(0, searchLimit).map((h, i) => ({
-          index: i + 1,
-          title: h.title,
-          url: h.url,
-          snippet: h.snippet,
-          publishedDate: h.publishedDate,
-          favicon: h.favicon,
-          highlights: h.highlights,
-        })),
-        searchType: "auto",
+        query: typeof response.query === "string" ? response.query : query,
+        provider: "context.dev",
+        results,
+        partial: response.partial,
+        request_id: response.request_id,
       },
     };
   }
 
-  if (name === "web_fetch") {
+  if (name === "web_scrape") {
     const url = String(args.url ?? "").trim();
     if (!url) throw new Error("url is required");
-
-    // Exa-only — never fall back to raw fetch (SSRF risk to private/metadata IPs).
+    const formats = asRecord(args.formats);
+    if (!formats || !Object.values(formats).some((value) => value === true)) {
+      throw new Error("formats must enable at least one scrape output");
+    }
+    const request: ContextDevRequest = { ...args, url };
+    if (ctx.userCountryCode) {
+      const sharedParams = asRecord(request.sharedParams) ?? {};
+      request.sharedParams = {
+        ...sharedParams,
+        country: sharedParams.country ?? ctx.userCountryCode.toLowerCase(),
+      };
+    }
     try {
-      const [hit] = await fetchUrlContentsWithExa([url]);
-      if (hit?.snippet) {
-        return {
-          output: {
-            url: hit.url,
-            title: hit.title,
-            snippet: hit.snippet,
-          },
-        };
-      }
+      const response = await scrapeUrlWithContextDev(request);
+      const metadata = asRecord(response.metadata);
+      await addContextDevResearchSources(ctx, [
+        String(metadata?.finalUrl ?? response.url ?? url),
+      ]);
+      return { output: response };
+    } catch (error) {
       return {
         output: {
           url,
-          error: "No fetchable content returned for this URL.",
+          error: error instanceof Error ? error.message : "URL scrape failed",
         },
       };
+    }
+  }
+
+  if (name === "web_map") {
+    const domain = String(args.domain ?? "").trim();
+    if (!domain) throw new Error("domain is required");
+    try {
+      return {
+        output: await mapUrlsWithContextDev({ ...args, domain }),
+      };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "URL fetch failed";
-      return { output: { url, error: message } };
+      return {
+        output: {
+          domain,
+          error: error instanceof Error ? error.message : "URL mapping failed",
+        },
+      };
+    }
+  }
+
+  if (name === "web_crawl") {
+    const url = String(args.url ?? "").trim();
+    if (!url) throw new Error("url is required");
+    const request: ContextDevRequest = { ...args, url };
+    if (!request.country && ctx.userCountryCode) {
+      request.country = ctx.userCountryCode.toLowerCase();
+    }
+    try {
+      const response = await crawlWebsiteWithContextDev(request);
+      const sourceUrls = (
+        Array.isArray(response.results) ? response.results : []
+      )
+        .map((page) => asRecord(asRecord(page)?.metadata))
+        .map((metadata) => String(metadata?.finalUrl ?? metadata?.url ?? ""))
+        .filter(Boolean);
+      await addContextDevResearchSources(ctx, sourceUrls);
+      return { output: response };
+    } catch (error) {
+      return {
+        output: {
+          url,
+          error:
+            error instanceof Error ? error.message : "Website crawl failed",
+        },
+      };
     }
   }
 

@@ -351,7 +351,7 @@ export function UserMessageInlineEditor({
         value={value}
         disabled={disabled || isSubmitting}
         onChange={(event) => {
-          if (dictation.isListening && !applyingDictationRef.current) {
+          if (dictation.isActive && !applyingDictationRef.current) {
             dictation.rebaseToCaret({
               start:
                 event.currentTarget.selectionStart ?? event.target.value.length,
@@ -362,7 +362,7 @@ export function UserMessageInlineEditor({
           onValueChange(event.target.value);
         }}
         onSelect={(event) => {
-          if (!dictation.isListening || applyingDictationRef.current) return;
+          if (!dictation.isActive || applyingDictationRef.current) return;
           dictation.rebaseToCaret({
             start:
               event.currentTarget.selectionStart ??
