@@ -8749,7 +8749,7 @@ textarea.cx-field {
 
 /* Sidebar width, edge fade, plan scroller, gift preview, search ellipsis. */
 :root {
-  --app-sidebar-width: 240px;
+  --app-sidebar-width: 264px;
 }
 
 html[data-sidebar-resizing="1"] .app-sidebar-slot,
