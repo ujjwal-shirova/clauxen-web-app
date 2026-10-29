@@ -204,7 +204,7 @@ export async function withMcpClient<T>(definition: Definition, provider: Connect
     },
   });
   const transport = new StreamableHTTPClientTransport(validateMcpUrl(definition.mcpUrl!, definition), {
-    authProvider: provider, fetch: createSafeMcpFetch(definition), requestInit: { redirect: "error" },
+    authProvider: provider, fetch: createSafeMcpFetch(definition), requestInit: { redirect: "manual" },
     reconnectionOptions: { maxRetries: 0, maxReconnectionDelay: 0, initialReconnectionDelay: 0, reconnectionDelayGrowFactor: 1 },
   });
   try {

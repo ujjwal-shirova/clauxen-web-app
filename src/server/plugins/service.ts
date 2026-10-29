@@ -190,7 +190,7 @@ export function createConnectorService(overrides: Partial<Dependencies> = {}) {
     const latest = await requiredConnection(userId, definition);
     if (latest.id !== connection.id || String(latest.revision) !== String(connection.revision)) throw connectorError("Connection changed. Request a new approval.", 409);
     if (definition.transport === "github") {
-      try { return sanitizeResult(await deps.executeGitHub(userId, tool.name, args)); }
+      try { return sanitizeResult(await deps.executeGitHub(userId, tool.name === "change" ? "create_change" : tool.name, args)); }
       catch { throw connectorError("GitHub operation could not complete. Check /github; a write's outcome may be unknown.", 502); }
     }
     if (definition.transport === "mcp") return mcpOperation(userId, connection, async (client, signal, credentials) => {
@@ -200,7 +200,7 @@ export function createConnectorService(overrides: Partial<Dependencies> = {}) {
     });
     const token = await accessCredential(userId, connection);
     const deadline = AbortSignal.timeout(8000);
-    const boundedFetch: typeof fetch = (input, init) => deps.fetch(input, { ...init, redirect: "error", signal: init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline });
+    const boundedFetch: typeof fetch = (input, init) => deps.fetch(input, { ...init, redirect: "manual", signal: init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline });
     try { return sanitizeResult(await deps.executeRest(definition.id, tool.name, args, { accessToken: token.accessToken, fetch: boundedFetch }), [token.accessToken, token.refreshToken ?? ""]); }
     catch { throw connectorError("Provider operation failed. Check account permissions; a write's outcome may be unknown.", 502); }
   }
@@ -241,17 +241,22 @@ export function createConnectorService(overrides: Partial<Dependencies> = {}) {
       requireUser(userId);
       const definition = definitionFor(pluginId); const canonical = origin();
       let success = false;
+      let stage = "validate_callback";
       try {
         const url = new URL(request.url); const state = url.searchParams.get("state") ?? ""; const browser = readFlowCookie(request);
         if (request.method !== "GET" || url.origin !== canonical || url.pathname !== callbackPath(definition.id) || !/^[A-Za-z0-9_-]{43}$/.test(state) || !browser || url.searchParams.getAll("state").length !== 1) throw connectorError("Invalid OAuth callback.");
+        stage = "consume_state";
         const stored = await repo.consumeState(userId, definition.id, hashState(state), hashState(browser));
         if (!stored) throw connectorError("OAuth state expired or was already used.");
+        stage = "decrypt_state";
         const data = unseal<FlowData>(stored.data_sealed, binding(userId, definition.id, "oauth-state", stored.id), deps.key());
         if (data.origin !== canonical || url.searchParams.has("error")) throw connectorError("Provider authorization was declined.");
         const code = url.searchParams.get("code");
         if (!code || code.length > 4096 || /[\r\n\u0000]/.test(code) || url.searchParams.getAll("code").length !== 1) throw connectorError("Missing authorization code.");
+        stage = "load_connection";
         const previous = await repo.getConnection(userId, definition.id); const id = previous?.id ?? randomUUID();
         let credentials: ConnectorCredentials; let label: string; let scopes: string[];
+        stage = "exchange_token";
         if (definition.transport === "mcp" && data.mcp) {
           await deps.authorizeMcp(definition, canonical, state, data.mcp, code);
           if (!data.mcp.tokens) throw connectorError("MCP authorization did not return credentials.");
@@ -263,9 +268,12 @@ export function createConnectorService(overrides: Partial<Dependencies> = {}) {
           credentials = { transport: "rest", rest: exchanged.credential }; scopes = exchanged.credential.scopes;
           label = await accountLabel(definition, exchanged.credential, exchanged.response, deps.fetch);
         } else throw connectorError("Use the existing GitHub authorization flow.");
+        stage = "save_connection";
         await repo.saveConnection(userId, definition.id, id, { account_label: label, status: "active", granted_scopes: scopes, metadata: {}, credentials_sealed: seal(credentials, binding(userId, definition.id, "credentials", id), deps.key()) });
         success = true;
-      } catch { /* Never log callback codes, provider bodies, tokens or raw error details. */ }
+      } catch {
+        console.warn(JSON.stringify({ event: "plugin_oauth_failed", pluginId: definition.id, stage }));
+      }
       const target = new URL("/plugins", canonical); target.search = new URLSearchParams({ p: definition.id, connection: success ? "success" : "error" }).toString();
       return new Response(null, { status: 303, headers: { Location: target.href, "Set-Cookie": flowCookie("", 0), "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
     },

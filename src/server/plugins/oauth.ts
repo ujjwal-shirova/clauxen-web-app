@@ -92,10 +92,16 @@ export async function readBoundedBody(response: Response, limit = 262144): Promi
 
 export async function fetchProviderJson(url: string, init: RequestInit, fetcher: typeof fetch = fetch): Promise<Record<string, unknown>> {
   try {
-    const response = await fetcher(url, { ...init, redirect: "error", signal: AbortSignal.timeout(8000) });
-    // Never parse or include error bodies in exception messages/logging.
+    const response = await fetcher(url, { ...init, redirect: "manual", signal: AbortSignal.timeout(8000) });
     if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
+      let oauthError = "unclassified";
+      if (init.method === "POST" && new URL(url).pathname.endsWith("/token")) {
+        try {
+          const body = JSON.parse(await readBoundedBody(response, 8192));
+          if (["invalid_client", "invalid_grant", "invalid_request", "unauthorized_client", "unsupported_grant_type", "invalid_scope"].includes(body.error)) oauthError = body.error;
+        } catch {}
+        console.warn(JSON.stringify({ event: "plugin_oauth_exchange_failed", status: response.status, oauthError }));
+      } else await response.body?.cancel().catch(() => undefined);
       throw connectorError(response.status === 401 || response.status === 400 ? "Provider authorization failed. Reconnect this account." : "Provider is unavailable. Try again later.", 502);
     }
     const parsed: unknown = JSON.parse(await readBoundedBody(response));
@@ -179,7 +185,7 @@ export async function revokeRestCredential(definition: Definition, credential: O
       init = { method: "POST", headers: { Authorization: `Bearer ${credential.accessToken}` } };
     }
     if (url && init) {
-      const response = await fetcher(url, { ...init, redirect: "error", signal: AbortSignal.timeout(8000) });
+      const response = await fetcher(url, { ...init, redirect: "manual", signal: AbortSignal.timeout(8000) });
       await response.body?.cancel().catch(() => undefined);
     }
   } catch { /* Local credentials are already deleted. Known upstream revocation is best effort. */ }

@@ -1,6 +1,5 @@
 -- Server-only connector runtime. Credentials never enter a Data API RPC.
 create schema if not exists private;
-revoke all on schema private from public, anon, authenticated;
 
 create table private.plugin_connector_connections (
   id uuid primary key default gen_random_uuid(),

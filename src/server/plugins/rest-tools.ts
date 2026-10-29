@@ -1251,7 +1251,7 @@ export async function executeRestTool(
     try {
       const response = await (context.fetch ?? globalThis.fetch)(spec.url, {
         method: spec.method ?? "GET",
-        redirect: "error",
+        redirect: "manual",
         cache: "no-store",
         signal: controller.signal,
         headers: {

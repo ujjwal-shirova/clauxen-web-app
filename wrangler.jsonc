@@ -23,7 +23,6 @@
     { "binding": "BILLING", "service": "clauxen-billing" },
     { "binding": "AUTH_EMAIL", "service": "clauxen-auth-email-app" },
     { "binding": "SHARE_GATE", "service": "clauxen-share-gate" },
-    { "binding": "CONNECTOR_GATEWAY", "service": "clauxen-connector-gateway" },
     {
       "binding": "WORKER_SELF_REFERENCE",
       "service": "clauxen-app",

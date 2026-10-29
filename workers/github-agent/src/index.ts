@@ -460,6 +460,7 @@ export default {
             event: "request_failed",
             path,
             error_type: e instanceof Error ? e.name : "unknown",
+            error_frames: e instanceof Error ? e.stack?.split("\n").slice(1, 5).filter((line) => /^\s+at /.test(line)) : [],
           }),
         );
       return Response.json(

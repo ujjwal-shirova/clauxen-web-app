@@ -537,7 +537,7 @@ for (const example of examples) {
     if (example.body)
       assert.deepEqual(JSON.parse(String(init.body)), example.body);
     for (const call of mock.calls) {
-      assert.equal(call.init.redirect, "error");
+      assert.equal(call.init.redirect, "manual");
       assert.equal(call.init.cache, "no-store");
       assert.ok(call.init.signal instanceof AbortSignal);
       assert.equal(

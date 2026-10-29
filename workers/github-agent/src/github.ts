@@ -21,7 +21,7 @@ export async function github<T>(
       ...(body ? { "Content-Type": "application/json" } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
-    redirect: "error",
+    redirect: "manual",
     signal: AbortSignal.timeout(20000),
   });
   if (!response.ok) {

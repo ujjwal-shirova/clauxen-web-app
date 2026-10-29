@@ -216,6 +216,22 @@ test("GitHub begin delegates to /github and does not create a parallel OAuth sta
   const f = fixture(); const response = await f.service.beginConnectorConnect(USER, "github", beginRequest("github"));
   assert.equal(response.headers.get("location"), ORIGIN + "/github"); assert.equal(f.repository.states.size, 0); assert.equal(response.headers.get("set-cookie"), null);
 });
+
+test("GitHub approved changes call the existing create_change operation exactly once", async () => {
+  const calls: string[] = [];
+  const f = fixture({ executeGitHub: async (_userId, operation) => { calls.push(operation); return { created: true }; } });
+  f.repository.github.login = "fixture-user";
+  const outcome = await f.service.callConnectorTool(USER, "github", "change", {
+    owner: "fixture", repo: "example", request_id: randomUUID(), base_branch: "main",
+    expected_head_sha: "a".repeat(40), title: "Test change", files: [{ path: "example.txt", content: "test" }],
+  });
+  const id = (outcome.output as { approval: { id: string } }).approval.id;
+  assert.deepEqual(calls, []);
+  await f.service.approveConnectorAction(USER, id, "approve");
+  assert.deepEqual(calls, ["create_change"]);
+  await assert.rejects(f.service.approveConnectorAction(USER, id, "approve"));
+  assert.deepEqual(calls, ["create_change"]);
+});
 test("Microsoft requests offline_access; Slack authorization uses user_scope, not bot scopes", () => {
   const f = fixture();
   const microsoft = authorizationUrl(getConnector("outlook")!, ORIGIN, "state", "verifier", f.resolve);
