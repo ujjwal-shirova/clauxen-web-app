@@ -80,9 +80,6 @@ function ChatViewBody({
   const auth = useAuth();
   const isIncognito = incognito || isIncognitoPath(pathname);
 
-  const [localEffort, setLocalEffort] = useState<HomerReasoningEffort>(
-    DEFAULT_HOMER_REASONING_EFFORT,
-  );
   const [localModel, setLocalModel] = useState<ChatModelId>(
     DEFAULT_CHAT_MODEL_ID,
   );
@@ -183,9 +180,6 @@ function ChatViewBody({
     }
   }, [pathname]);
 
-  const homerReasoningEffort = chat.homerReasoningEffort ?? localEffort;
-  const setHomerReasoningEffort =
-    chat.setHomerReasoningEffort ?? setLocalEffort;
   const chatModel = chat.chatModel ?? localModel;
   const setChatModel = chat.setChatModel ?? setLocalModel;
   const extendedThinking = chat.extendedThinking ?? localExtendedThinking;
@@ -530,8 +524,6 @@ function ChatViewBody({
         showMobileMenu={isMobile && isSidebarCollapsed}
         chatModel={chatModel}
         onChatModelChange={setChatModel}
-        homerReasoningEffort={homerReasoningEffort}
-        onHomerReasoningEffortChange={setHomerReasoningEffort}
         extendedThinking={extendedThinking}
         onExtendedThinkingChange={setExtendedThinking}
         incognito={isIncognito}

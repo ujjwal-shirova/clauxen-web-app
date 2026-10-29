@@ -11,7 +11,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDown,
   ArrowUp,
-  Check,
   ChevronDown,
   Folder,
   FolderKanban,
@@ -44,7 +43,6 @@ import { KS_EVENTS } from "@/lib/keyboard-shortcut-events";
 import { useIsClient } from "@/hooks/use-is-client";
 import { MessageQueuePanel } from "./message-queue-panel";
 import { DEFAULT_CHAT_MODEL_ID, type ChatModelId } from "@/lib/chat-models";
-import type { HomerReasoningEffort } from "@/lib/model-effort";
 import { PromptModelSelector } from "./prompt-model-selector";
 import { useActiveChatId, type QueuedChatMessage } from "@/stores/chat-store";
 import {
@@ -74,12 +72,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { CreateProjectDialog } from "./projects/projects-view";
 import {
   listProjects,
@@ -116,8 +108,6 @@ interface PromptInputProps {
   focusKey?: string;
   onUpgradeClick?: () => void;
   isFreePlan?: boolean;
-  homerReasoningEffort?: HomerReasoningEffort;
-  onHomerReasoningEffortChange?: (effort: HomerReasoningEffort) => void;
   /** Live Thinking toggle — forwarded to /generate as extendedThinking. */
   extendedThinking?: boolean;
   onExtendedThinkingChange?: (enabled: boolean) => void;
@@ -374,170 +364,6 @@ function ProjectSelectorPopover({
   );
 }
 
-function PermissionModePopover({ canOpen }: { canOpen?: () => boolean }) {
-  const [open, setOpen] = useState(false);
-  const [permissionMode, setPermissionMode] = useState<"manual" | "auto">(
-    "manual",
-  );
-
-  useEffect(() => {
-    settingsApi
-      .getSettings()
-      .then((res) => {
-        if (res?.general?.toolMode === "auto") {
-          setPermissionMode("auto");
-        } else {
-          setPermissionMode("manual");
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const handleSelectMode = (mode: "manual" | "auto") => {
-    setPermissionMode(mode);
-    setOpen(false);
-    void settingsApi
-      .updateSettings({
-        general: { toolMode: mode },
-      })
-      .catch(() => {});
-  };
-
-  return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        if (next && canOpen && !canOpen()) return;
-        setOpen(next);
-      }}
-    >
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Permission mode"
-          className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors outline-none cursor-pointer"
-        >
-          {permissionMode === "manual" ? "Manual" : "Auto"}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        side="top"
-        sideOffset={8}
-        className="z-[120] w-[275px] rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2 shadow-xl text-[13px]"
-      >
-        <div className="px-1.5 pt-1 pb-1.5 text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-          Permission mode
-        </div>
-
-        <div className="space-y-1">
-          {/* Manual */}
-          <button
-            type="button"
-            onClick={() => handleSelectMode("manual")}
-            className="flex items-start justify-between w-full p-2 rounded-lg text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors group cursor-pointer"
-          >
-            <div className="min-w-0 flex-1 pr-2">
-              <div className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
-                Manual
-              </div>
-              <div className="text-[11.5px] leading-snug text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Clauxen asks before using new tools or opening new sites.
-              </div>
-            </div>
-            {permissionMode === "manual" ? (
-              <Check
-                className="size-4 text-blue-500 shrink-0 mt-0.5"
-                strokeWidth={2.5}
-              />
-            ) : null}
-          </button>
-
-          {/* Auto */}
-          <button
-            type="button"
-            onClick={() => handleSelectMode("auto")}
-            className="flex items-start justify-between w-full p-2 rounded-lg text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors group cursor-pointer"
-          >
-            <div className="min-w-0 flex-1 pr-2">
-              <div className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
-                Auto
-              </div>
-              <div className="text-[11.5px] leading-snug text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Clauxen runs on its own and pauses to ask if anything looks
-                unsafe.
-              </div>
-            </div>
-            {permissionMode === "auto" ? (
-              <Check
-                className="size-4 text-blue-500 shrink-0 mt-0.5"
-                strokeWidth={2.5}
-              />
-            ) : null}
-          </button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function ReasoningEffortSelector({
-  effort = "high",
-  onEffortChange,
-}: {
-  effort?: HomerReasoningEffort;
-  onEffortChange?: (effort: HomerReasoningEffort) => void;
-}) {
-  const [selectedEffort, setSelectedEffort] = useState<string>("Medium");
-
-  const options = ["Low", "Medium", "High", "Max"] as const;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="Reasoning effort"
-          className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors outline-none cursor-pointer"
-        >
-          <span>{selectedEffort}</span>
-          <ChevronDown
-            className="size-3 shrink-0 text-zinc-400"
-            strokeWidth={1.8}
-          />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        side="top"
-        sideOffset={8}
-        className="z-[120] min-w-[140px] rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1 shadow-lg text-[13px]"
-      >
-        <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-          Reasoning effort
-        </div>
-        {options.map((opt) => (
-          <DropdownMenuItem
-            key={opt}
-            onSelect={() => {
-              setSelectedEffort(opt);
-              if (onEffortChange) {
-                onEffortChange(opt === "Max" ? "max" : "high");
-              }
-            }}
-            className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[12.5px] cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
-          >
-            <span>{opt}</span>
-            {selectedEffort === opt ? (
-              <Check className="size-3.5 text-blue-500" strokeWidth={2.2} />
-            ) : null}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export function PromptInput({
   onSendMessage,
   onStopGeneration,
@@ -554,8 +380,6 @@ export function PromptInput({
   onAddMenuOpenChange,
   onUpgradeClick,
   isFreePlan = false,
-  homerReasoningEffort,
-  onHomerReasoningEffortChange,
   extendedThinking: extendedThinkingProp,
   onExtendedThinkingChange,
   showModelSelector = true,
@@ -1915,11 +1739,6 @@ export function PromptInput({
               </div>
               <div className="prompt-welcome-toolbar__controls">
                 {renderModelSelector()}
-                <ReasoningEffortSelector
-                  effort={homerReasoningEffort}
-                  onEffortChange={onHomerReasoningEffortChange}
-                />
-                <PermissionModePopover canOpen={requireAuthGate} />
               </div>
             </div>
           ) : null}

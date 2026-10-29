@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu } from "@/components/ui/bootstrap-icon";
+import { SidebarToggleIcon } from "./icons";
 import { cn } from "@/lib/utils";
 
 interface MobileMenuButtonProps {
@@ -28,7 +28,7 @@ export function MobileMenuButton({
         className,
       )}
     >
-      <Menu className="size-[18px] stroke-[1.75]" aria-hidden />
+      <SidebarToggleIcon className="size-5" aria-hidden />
     </button>
   );
 }

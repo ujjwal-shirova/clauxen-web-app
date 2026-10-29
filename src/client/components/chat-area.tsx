@@ -82,10 +82,6 @@ interface ChatAreaProps {
   onPinChat?: (chatId: string, pinned: boolean) => void;
   onDeleteChat?: (chatId: string) => void;
   onOpenSettings?: () => void;
-  homerReasoningEffort: import("@/lib/model-effort").HomerReasoningEffort;
-  onHomerReasoningEffortChange: (
-    effort: import("@/lib/model-effort").HomerReasoningEffort,
-  ) => void;
   extendedThinking?: boolean;
   onExtendedThinkingChange?: (enabled: boolean) => void;
   chatModel: import("@/lib/chat-models").ChatModelId;
@@ -132,8 +128,6 @@ function ChatAreaLayout({
   onPinChat,
   onDeleteChat,
   onOpenSettings,
-  homerReasoningEffort,
-  onHomerReasoningEffortChange,
   extendedThinking = false,
   onExtendedThinkingChange,
   chatModel,
@@ -373,8 +367,6 @@ function ChatAreaLayout({
       focusKey={activeChatId ?? (incognito ? "incognito" : scheduleSetup ? `new-schedule-${scheduleSetup}` : "new")}
       onUpgradeClick={onUpgradeClick}
       isFreePlan={showFreePlanUpgrade}
-      homerReasoningEffort={homerReasoningEffort}
-      onHomerReasoningEffortChange={onHomerReasoningEffortChange}
       extendedThinking={extendedThinking}
       onExtendedThinkingChange={onExtendedThinkingChange}
       chatModel={chatModel}
