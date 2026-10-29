@@ -239,3 +239,97 @@ export const Telescope = createIcon(
   </>,
 );
 export const X = createIcon("X", <path d="m6 6 12 12M18 6 6 18" />);
+export const Archive = createIcon(
+  "Archive",
+  <>
+    <rect x="3" y="4" width="18" height="4.5" rx="1.25" />
+    <path d="M4.75 8.5v9.75A1.75 1.75 0 0 0 6.5 20h11a1.75 1.75 0 0 0 1.75-1.75V8.5" />
+    <path d="M10 12.5h4" />
+  </>,
+);
+export const ArchiveRestore = createIcon(
+  "ArchiveRestore",
+  <>
+    <rect x="3" y="4" width="18" height="4.5" rx="1.25" />
+    <path d="M4.75 8.5v9.75A1.75 1.75 0 0 0 6.5 20h11a1.75 1.75 0 0 0 1.75-1.75V8.5" />
+    <path d="M12 17v-5.5m-2.25 2.25L12 11.5l2.25 2.25" />
+  </>,
+);
+export const ChevronLeft = createIcon("ChevronLeft", <path d="m15 5-7 7 7 7" />);
+export const Clock = createIcon(
+  "Clock",
+  <>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3.25 2" />
+  </>,
+);
+export const FileText = createIcon(
+  "FileText",
+  <>
+    <path d="M13.5 3H6.75A1.75 1.75 0 0 0 5 4.75v14.5A1.75 1.75 0 0 0 6.75 21h10.5A1.75 1.75 0 0 0 19 19.25V8.5Z" />
+    <path d="M13.5 3v5.5H19M8.5 13h7M8.5 16.5h4.5" />
+  </>,
+);
+export const LayoutGrid = createIcon(
+  "LayoutGrid",
+  <>
+    <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+    <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+    <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+    <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+  </>,
+);
+export const LayoutList = createIcon(
+  "LayoutList",
+  <>
+    <path d="M4 7h16M4 12h16M4 17h16" />
+  </>,
+);
+export const Link2 = createIcon(
+  "Link2",
+  <>
+    <path d="M9.5 12H14.5" />
+    <path d="M10.5 8H8a4 4 0 0 0 0 8h2.5M13.5 8H16a4 4 0 0 1 0 8h-2.5" />
+  </>,
+);
+export const MessageSquare = createIcon(
+  "MessageSquare",
+  <path d="M4 6.75A1.75 1.75 0 0 1 5.75 5h12.5A1.75 1.75 0 0 1 20 6.75v8.5A1.75 1.75 0 0 1 18.25 17H9l-5 4Z" />,
+);
+export const MoreHorizontal = createIcon(
+  "MoreHorizontal",
+  <>
+    <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
+  </>,
+);
+export const PinOff = createIcon(
+  "PinOff",
+  <>
+    <path d="m9 3 6 6m-7.5 1.5L12 6l6 6-4.5 4.5" />
+    <path d="m12 12-7 7m2-7 5 5M4 4l16 16" />
+  </>,
+);
+export const Share = createIcon(
+  "Share",
+  <>
+    <path d="M12 16V4m-3.5 3.5L12 4l3.5 3.5" />
+    <path d="M5 13.5v4.75A1.75 1.75 0 0 0 6.75 20h10.5A1.75 1.75 0 0 0 19 18.25V13.5" />
+  </>,
+);
+export const Trash = createIcon(
+  "Trash",
+  <>
+    <path d="M4.5 7h15M9.5 7V5.25A1.25 1.25 0 0 1 10.75 4h2.5A1.25 1.25 0 0 1 14.5 5.25V7" />
+    <path d="M6.5 7v11.25A1.75 1.75 0 0 0 8.25 20h7.5A1.75 1.75 0 0 0 17.5 18.25V7" />
+    <path d="M10.5 11v5m3-5v5" />
+  </>,
+);
+export const Upload = createIcon(
+  "Upload",
+  <>
+    <path d="M12 4v11m-4-7 4-4 4 4" />
+    <path d="M5 15v3.25A1.75 1.75 0 0 0 6.75 20h10.5A1.75 1.75 0 0 0 19 18.25V15" />
+  </>,
+);

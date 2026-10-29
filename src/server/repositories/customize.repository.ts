@@ -24,11 +24,13 @@ export async function listInstructionProfiles(userId: string) {
   );
 }
 
-// long-term user memories — active only, max 100 rows recent-first
+// long-term user memories — active only, max 100 rows recent-first.
+// Project-scoped notes are excluded; they are owned by the project dashboard.
 export async function listMemories(userId: string) {
   return query<{ id: string; summary: string; created_at: string }>(
     `select id, summary, created_at from public.user_memories
-     where user_id = $1 and status = 'active' order by created_at desc limit 100`,
+     where user_id = $1 and status = 'active' and project_id is null
+     order by created_at desc limit 100`,
     [userId],
   );
 }

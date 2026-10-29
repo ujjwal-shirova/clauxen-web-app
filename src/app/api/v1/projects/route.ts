@@ -3,16 +3,24 @@ import { jsonData } from "@/server/http/api-response";
 import { requireSession } from "@/server/auth/require-session";
 import { AppError } from "@/server/db/errors";
 import * as projectsRepo from "@/server/repositories/projects.repository";
+import {
+  parseProjectPatch,
+  type ProjectBody,
+} from "@/server/projects/project-dto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const GET = withApiHandler(
-  async ({ session }) => {
+  async ({ session, request }) => {
     const user = requireSession(session);
-    const rows = await projectsRepo.listProjects(user.id);
+    const lifecycle =
+      new URL(request.url).searchParams.get("lifecycle") === "archived"
+        ? "archived"
+        : "active";
+    const rows = await projectsRepo.listProjects(user.id, lifecycle);
     return jsonData({
-      projects: rows.map((row) => projectsRepo.mapProject(row)),
+      projects: rows.map((row) => projectsRepo.mapProjectWithCounts(row)),
     });
   },
   { requireAuth: true },
@@ -21,20 +29,18 @@ export const GET = withApiHandler(
 export const POST = withApiHandler(
   async ({ session, request }) => {
     const user = requireSession(session);
-    const body = (await request.json().catch(() => ({}))) as {
-      name?: string;
-      iconId?: string;
-      color?: string;
-      memory?: "default" | "project";
-    };
-    const name = body.name?.trim() ?? "";
-    if (!name) throw new AppError("Project name is required.", 400);
+    const body = (await request.json().catch(() => ({}))) as ProjectBody;
+    const patch = parseProjectPatch(body);
+    if (!patch.name) throw new AppError("Project name is required.", 400);
+
     const row = await projectsRepo.createProject({
       userId: user.id,
-      name: name.slice(0, 120),
-      iconId: (body.iconId || "folder").slice(0, 40),
-      color: /^#[0-9a-fA-F]{6}$/.test(body.color || "") ? body.color! : "#14151a",
-      memory: body.memory === "project" ? "project" : "default",
+      name: patch.name,
+      description: patch.description ?? "",
+      iconId: patch.iconId ?? "folder",
+      color: patch.color ?? "#14151a",
+      instructions: patch.instructions ?? "",
+      memory: patch.memory ?? "default",
     });
     if (!row) throw new AppError("Failed to create project.", 500);
     return jsonData({ project: projectsRepo.mapProject(row) }, 201);

@@ -1,96 +1,59 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "@/components/icons/app-icons";
 import {
-  BookOpen,
-  Brain,
-  Briefcase,
-  Code2,
-  DollarSign,
-  Dumbbell,
-  FlaskConical,
-  Flower2,
-  Folder,
-  Globe,
-  GraduationCap,
-  Heart,
-  Music,
-  Palette,
-  PawPrint,
-  PenLine,
-  PenTool,
-  Plane,
-  Popcorn,
-  Scale,
-  Scissors,
-  Sprout,
-  Stethoscope,
-  Terminal,
-  Wrench,
-  type LucideIcon,
-} from "@/components/ui/bootstrap-icon";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { ProjectIcon } from "@/lib/project-drafts";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import type { ProjectIcon } from "@/lib/api/projects";
 import { cn } from "@/lib/utils";
+import { PROJECT_COLORS, PROJECT_GLYPHS, projectGlyph } from "./project-glyphs";
 
-export const PROJECT_COLORS = [
-  "#14151a",
-  "#ef4444",
-  "#f97316",
-  "#eab308",
-  "#22c55e",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-] as const;
+export { PROJECT_COLORS, PROJECT_GLYPHS } from "./project-glyphs";
 
-export const PROJECT_ICON_SET: Array<{ id: string; label: string; icon: LucideIcon }> = [
-  { id: "folder", label: "Folder", icon: Folder },
-  { id: "dollar", label: "Money", icon: DollarSign },
-  { id: "book", label: "Book", icon: BookOpen },
-  { id: "school", label: "School", icon: GraduationCap },
-  { id: "pen", label: "Pen", icon: PenLine },
-  { id: "nib", label: "Nib", icon: PenTool },
-  { id: "code", label: "Code", icon: Code2 },
-  { id: "terminal", label: "Terminal", icon: Terminal },
-  { id: "music", label: "Music", icon: Music },
-  { id: "popcorn", label: "Popcorn", icon: Popcorn },
-  { id: "cut", label: "Cut", icon: Scissors },
-  { id: "art", label: "Art", icon: Palette },
-  { id: "health", label: "Health", icon: Stethoscope },
-  { id: "flower", label: "Flower", icon: Flower2 },
-  { id: "work", label: "Work", icon: Briefcase },
-  { id: "scale", label: "Scale", icon: Scale },
-  { id: "globe", label: "Globe", icon: Globe },
-  { id: "plane", label: "Travel", icon: Plane },
-  { id: "wrench", label: "Tools", icon: Wrench },
-  { id: "paw", label: "Pet", icon: PawPrint },
-  { id: "lab", label: "Lab", icon: FlaskConical },
-  { id: "brain", label: "Brain", icon: Brain },
-  { id: "heart", label: "Heart", icon: Heart },
-  { id: "plant", label: "Plant", icon: Sprout },
-  { id: "train", label: "Training", icon: Dumbbell },
-];
+export const DEFAULT_PROJECT_ICON: ProjectIcon = {
+  id: "folder",
+  color: "#14151a",
+};
 
-const byId = new Map(PROJECT_ICON_SET.map((item) => [item.id, item]));
-
+/**
+ * The project glyph on its tinted plate. `color` drives both the glyph and a
+ * low-alpha wash of the same hue, so a project reads as one colour chip
+ * instead of a glyph floating on grey.
+ */
 export function ProjectMark({
   icon,
+  size = "md",
   className,
-  glyphClassName,
 }: {
   icon: ProjectIcon;
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
-  glyphClassName?: string;
 }) {
-  const preset = byId.get(icon.id) ?? PROJECT_ICON_SET[0];
-  const Icon = preset.icon;
+  const Glyph = projectGlyph(icon.id).icon;
+  const plate = {
+    sm: "size-7 rounded-lg text-[15px]",
+    md: "size-9 rounded-xl text-[19px]",
+    lg: "size-11 rounded-[14px] text-[23px]",
+    xl: "size-14 rounded-2xl text-[29px]",
+  }[size];
+
   return (
     <span
-      className={cn("inline-flex items-center justify-center", className)}
-      style={{ color: icon.color }}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center",
+        plate,
+        className,
+      )}
+      style={{
+        color: icon.color,
+        background: `color-mix(in srgb, ${icon.color} 12%, transparent)`,
+        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${icon.color} 18%, transparent)`,
+      }}
     >
-      <Icon className={glyphClassName ?? "size-5"} strokeWidth={1.75} aria-hidden />
+      <Glyph />
     </span>
   );
 }
@@ -99,31 +62,38 @@ function hsvToHex(h: number, s: number, v: number) {
   const c = v * s;
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
   const m = v - c;
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  if (h < 60) [r, g, b] = [c, x, 0];
-  else if (h < 120) [r, g, b] = [x, c, 0];
-  else if (h < 180) [r, g, b] = [0, c, x];
-  else if (h < 240) [r, g, b] = [0, x, c];
-  else if (h < 300) [r, g, b] = [x, 0, c];
-  else [r, g, b] = [c, 0, x];
-  const hex = [r, g, b]
-    .map((channel) => Math.round((channel + m) * 255).toString(16).padStart(2, "0"))
-    .join("");
-  return `#${hex.toUpperCase()}`;
+  const [r, g, b] =
+    h < 60
+      ? [c, x, 0]
+      : h < 120
+        ? [x, c, 0]
+        : h < 180
+          ? [0, c, x]
+          : h < 240
+            ? [0, x, c]
+            : h < 300
+              ? [x, 0, c]
+              : [c, 0, x];
+  return `#${[r, g, b]
+    .map((channel) =>
+      Math.round((channel + m) * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")
+    .toUpperCase()}`;
 }
 
 export function ProjectIconPicker({
   icon,
   onChange,
-  triggerClassName,
-  glyphClassName,
+  size = "md",
+  className,
 }: {
   icon: ProjectIcon;
   onChange: (icon: ProjectIcon) => void;
-  triggerClassName?: string;
-  glyphClassName?: string;
+  size?: "sm" | "md" | "lg" | "xl";
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
@@ -136,21 +106,24 @@ export function ProjectIconPicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label="Choose project icon"
+          aria-label="Choose project icon and colour"
           className={cn(
-            "project-name-icon relative z-10 inline-flex items-center justify-center rounded-lg bg-transparent text-[var(--ui-fg)]",
-            triggerClassName,
+            "rounded-xl outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-ring)]",
+            className,
           )}
         >
-          <ProjectMark icon={icon} glyphClassName={glyphClassName} />
+          <ProjectMark icon={icon} size={size} />
         </button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
         sideOffset={8}
-        className="w-[280px] rounded-2xl border-[var(--ui-border)] bg-[var(--ui-field-bg)] p-3 text-[var(--ui-fg)] shadow-lg"
+        className="w-[292px] rounded-2xl border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 text-[var(--ui-fg)] shadow-xl"
       >
-        <div className="grid grid-cols-6 gap-2 px-1">
+        <p className="px-1 pb-2 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--ui-fg-subtle)]">
+          Colour
+        </p>
+        <div className="grid grid-cols-10 gap-1.5 px-1">
           {PROJECT_COLORS.map((color) => {
             const selected = icon.color.toLowerCase() === color.toLowerCase();
             return (
@@ -158,41 +131,55 @@ export function ProjectIconPicker({
                 key={color}
                 type="button"
                 aria-label={color}
+                aria-pressed={selected}
                 onClick={() => onChange({ ...icon, color })}
                 className={cn(
-                  "size-7 rounded-full",
-                  selected && "ring-2 ring-[var(--ui-fg)] ring-offset-2 ring-offset-[var(--ui-field-bg)]",
+                  "flex size-6 items-center justify-center rounded-full text-white",
+                  selected &&
+                    "ring-2 ring-[var(--ui-fg)] ring-offset-2 ring-offset-[var(--ui-card-bg)]",
                 )}
                 style={{ background: color }}
-              />
+              >
+                {selected ? <Check className="text-[12px]" /> : null}
+              </button>
             );
           })}
         </div>
+
         <button
           type="button"
-          className="mt-3 flex w-full items-center gap-2 rounded-xl px-1 py-1.5 text-left text-[13px] hover:bg-[var(--ui-hover-wash)]"
+          aria-expanded={customOpen}
+          className="mt-2 flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-left text-[13px] hover:bg-[var(--ui-hover-wash)]"
           onClick={() => setCustomOpen((value) => !value)}
         >
           <span
             className="size-5 rounded-full"
-            style={{ background: `conic-gradient(red, yellow, lime, cyan, blue, magenta, red)` }}
+            style={{
+              background:
+                "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
+            }}
           />
-          <span className="flex-1">Custom color</span>
-          <span className="text-[var(--ui-fg-muted)]">{customOpen ? "▴" : "▾"}</span>
+          <span className="flex-1">Custom colour</span>
         </button>
         {customOpen ? (
-          <div className="mt-2 px-1">
+          <div className="mt-1 px-1">
             <button
               type="button"
-              aria-label="Pick custom color"
-              className="relative h-24 w-full overflow-hidden rounded-xl"
+              aria-label="Pick saturation and brightness"
+              className="relative h-20 w-full overflow-hidden rounded-xl"
               style={{
                 background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(${hue} 100% 50%))`,
               }}
               onClick={(event) => {
                 const rect = event.currentTarget.getBoundingClientRect();
-                const nextSat = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-                const nextVal = Math.min(1, Math.max(0, 1 - (event.clientY - rect.top) / rect.height));
+                const nextSat = Math.min(
+                  1,
+                  Math.max(0, (event.clientX - rect.left) / rect.width),
+                );
+                const nextVal = Math.min(
+                  1,
+                  Math.max(0, 1 - (event.clientY - rect.top) / rect.height),
+                );
                 setSat(nextSat);
                 setVal(nextVal);
                 onChange({ ...icon, color: hsvToHex(hue, nextSat, nextVal) });
@@ -216,47 +203,35 @@ export function ProjectIconPicker({
               }}
               className="mt-2 w-full accent-[var(--ui-fg)]"
             />
-            <label className="mt-2 flex items-center gap-2 text-[12px] text-[var(--ui-fg-muted)]">
-              Hex
-              <input
-                value={icon.color}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  if (/^#([0-9a-fA-F]{0,6})$/.test(next)) onChange({ ...icon, color: next });
-                }}
-                className="h-8 flex-1 rounded-lg border border-[var(--ui-border)] bg-transparent px-2 text-[13px] text-[var(--ui-fg)] outline-none"
-              />
-            </label>
           </div>
         ) : null}
-        <div className="mt-3 grid grid-cols-6 gap-1 border-t border-[var(--ui-border-subtle)] pt-3">
-          {PROJECT_ICON_SET.map((preset) => {
-            const selected = icon.id === preset.id;
-            const Icon = preset.icon;
+
+        <p className="mt-3 border-t border-[var(--ui-border-subtle)] px-1 pb-2 pt-3 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--ui-fg-subtle)]">
+          Icon
+        </p>
+        <div className="grid max-h-[180px] grid-cols-7 gap-1 overflow-y-auto px-1">
+          {PROJECT_GLYPHS.map((preset) => {
+            const selected = projectGlyph(icon.id).id === preset.id;
+            const Glyph = preset.icon;
             return (
               <button
                 key={preset.id}
                 type="button"
+                title={preset.label}
                 aria-label={preset.label}
                 aria-pressed={selected}
                 onClick={() => onChange({ ...icon, id: preset.id })}
                 className={cn(
-                  "flex size-9 items-center justify-center rounded-xl text-[var(--ui-fg)] hover:bg-[var(--ui-hover-wash)]",
+                  "flex size-9 items-center justify-center rounded-xl text-[18px] text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
                   selected && "bg-[var(--ui-hover-wash)]",
                 )}
+                style={selected ? { color: icon.color } : undefined}
               >
-                <Icon className="size-4" strokeWidth={1.75} />
+                <Glyph />
               </button>
             );
           })}
         </div>
-        <button
-          type="button"
-          className="mt-2 w-full border-t border-[var(--ui-border-subtle)] px-1 pt-2 text-left text-[13px] text-[var(--ui-fg)]"
-          onClick={() => setOpen(false)}
-        >
-          Done
-        </button>
       </PopoverContent>
     </Popover>
   );
