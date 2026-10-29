@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: frontend_app/client_composer_media
+title: Composer 附件预览与流式语音转写
+scope:
+    - src/client/components/composer/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_files_artifacts_audio
+      reason: Composer 附件预览调用文件预签名上传与 Artifacts CRUD，语音转写文本展示基于 AssemblyAI 实时听写会话接口。
+kk_module_id: 6759b99d-0989-4899-a432-06cf7c4c4435
+kk_ordinal: 12
+kk_cards:
+    architecture_design:
+        id: 46372401-7177-45eb-981a-94c9546d2821
+        title: Composer 附件预览与流式语音转写
+    coding_conventions:
+        id: 6f9e9e62-d5a4-483a-afcc-27457935c8cb
+        title: Composer 附件预览与流式语音转写
+    overview:
+        id: 122acb69-ffb9-4991-8d2d-e86b60d74180
+        title: Composer 附件预览与流式语音转写
+    tech_stack:
+        id: 9e219376-f0fa-4e3d-94dd-7225c92807d4
+        title: Composer 附件预览与流式语音转写

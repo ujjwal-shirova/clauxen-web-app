@@ -1,0 +1,26 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/oauth_routes
+title: OAuth/OpenID Connect API 路由层
+scope:
+    - src/app/api/oauth/
+source_files: []
+depends_on: []
+related_to:
+    - path: server_core/auth_identity
+      reason: OAuth/OIDC 标准端点（authorize/token/revoke/userinfo）由 server_core/auth_identity 的 PKCE 授权码流与 JWT 本地验证支撑。
+    - path: cloudflare_workers/auth_workers
+      reason: OAuth Broker Worker 处理 GitHub/GitLab 自定义品牌授权，与 supabase-proxy 共同构成 auth.clauxen.com 上的 OAuth 路由层。
+kk_module_id: ace53290-bff9-4d04-b82a-2a4fce474158
+kk_cards:
+    architecture_design:
+        id: 600cda76-eeeb-4e79-bd0b-d813fc55bc95
+        title: OAuth/OpenID Connect API 路由层
+    coding_conventions:
+        id: adbc27df-fcc5-4707-9615-1adccc91a332
+        title: OAuth/OpenID Connect API 路由层
+    overview:
+        id: 642c3ddd-4103-4c66-a733-76eadafedaba
+        title: OAuth/OpenID Connect API 路由层
+    tech_stack:
+        id: cd952c68-558a-4b6c-a385-0f6cb95315f3
+        title: OAuth/OpenID Connect API 路由层

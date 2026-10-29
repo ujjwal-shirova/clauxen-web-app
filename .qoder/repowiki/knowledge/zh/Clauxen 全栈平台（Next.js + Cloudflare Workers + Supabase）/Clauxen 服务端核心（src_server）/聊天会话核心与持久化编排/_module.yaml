@@ -1,0 +1,29 @@
+schema_version: 1
+module_path: server_core/chat
+title: 聊天会话核心与持久化编排
+scope:
+    - src/server/chat/
+source_files: []
+depends_on: []
+related_to:
+    - path: server_core/integrations
+      reason: server_core/integrations 中的 AssemblyAI/GitHub/搜索客户端被 chat/services 在深度研究与 GitHub 集成中调用。
+    - path: tests
+      reason: tests 套件覆盖 deep-research、scheduled-tasks、cloudflare-workers 运行时与服务端逻辑，与被测模块一一对应。
+    - path: server_core/repositories
+      reason: server_core/repositories 为 chat/billing/plugins/workspaces 等业务域提供 PostgreSQL 持久化封装。
+kk_module_id: d4dc14fc-8105-408b-b26e-3ed6178b61b7
+kk_ordinal: 2
+kk_cards:
+    architecture_design:
+        id: a0862c2a-da13-4ba5-8169-228c7937fd62
+        title: 聊天会话核心与持久化编排
+    coding_conventions:
+        id: e41f7777-fe46-4076-b947-9924eda7a888
+        title: 聊天会话核心与持久化编排
+    overview:
+        id: 38b44ef7-6cac-4b0a-a808-bcb31717183d
+        title: 聊天会话核心与持久化编排
+    tech_stack:
+        id: df6adeec-4376-42b4-a57f-1a0f2477c155
+        title: 聊天会话核心与持久化编排

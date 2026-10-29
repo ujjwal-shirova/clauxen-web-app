@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: frontend_app/client_shared_components
+title: 客户端共享 Markdown 渲染与图标组件
+scope:
+    - src/client/components/markdown-renderer.tsx
+    - src/client/components/code-block.tsx
+    - src/client/components/icons.tsx
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 7a3c6e8e-8ca5-48a6-bc8f-07d5fc7733f8
+kk_ordinal: 17
+kk_cards:
+    architecture_design:
+        id: 4dff1285-4a7e-48a2-b50c-8ad42496b84f
+        title: 客户端共享 Markdown 渲染与图标组件
+    coding_conventions:
+        id: d8ddbb96-2583-4c5a-82a5-77a0b8940223
+        title: 客户端共享 Markdown 渲染与图标组件
+    overview:
+        id: 4f6daa94-0307-4759-93b5-d9a4465bbb32
+        title: 客户端共享 Markdown 渲染与图标组件
+    tech_stack:
+        id: b75e9945-5f16-4020-8161-eb42c645dde2
+        title: 客户端共享 Markdown 渲染与图标组件

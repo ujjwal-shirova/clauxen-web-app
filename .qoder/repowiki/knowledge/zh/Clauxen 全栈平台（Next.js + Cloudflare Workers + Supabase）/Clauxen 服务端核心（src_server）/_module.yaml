@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: server_core
+title: Clauxen 服务端核心（src/server）
+scope:
+    - src/server/
+source_files: []
+depends_on: []
+related_to:
+    - path: shared_lib
+      reason: shared_lib 中的计费结账、MCP 插件纯函数被 server_core 的业务服务复用。
+kk_module_id: 63d41681-b59c-4971-9ecb-37d0382a52f8
+kk_ordinal: 2
+kk_cards:
+    architecture_design:
+        id: c31b86f5-41d8-406e-aa1a-cb929bd9fcd9
+        title: Clauxen 服务端核心（src/server）
+    coding_conventions:
+        id: f980640e-0ab1-44d1-acd3-af645540e6ea
+        title: Clauxen 服务端核心（src/server）
+    overview:
+        id: 8d70bf70-12d4-4803-86c3-5c590569b857
+        title: Clauxen 服务端核心（src/server）
+    tech_stack:
+        id: f0822a79-8dc2-4b93-a172-fdb43bf98ad5
+        title: Clauxen 服务端核心（src/server）

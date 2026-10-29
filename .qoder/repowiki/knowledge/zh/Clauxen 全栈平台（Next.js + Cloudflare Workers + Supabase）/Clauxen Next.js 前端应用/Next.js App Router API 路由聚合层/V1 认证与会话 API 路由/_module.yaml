@@ -1,0 +1,30 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_auth
+title: V1 认证与会话 API 路由
+scope:
+    - src/app/api/v1/auth/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/client_auth_components
+      reason: 登录/注册弹窗与 OTP 验证组件调用 /api/v1/auth/login、/register、/magic/request 等端点完成认证流程。
+    - path: cloudflare_workers/auth_workers
+      reason: OTP/魔法链接认证通过 auth.clauxen.com 域名转发至 Cloudflare Workers 中的 OTP 邮件认证与原生 Auth 代理网关。
+version_of:
+    - path: frontend_app/app_api_routes/oauth_routes
+      reason: v1 认证 API（/api/v1/auth/*）与新版 OAuth/OIDC 标准端点（/api/oauth/*）实现同一认证域的不同版本，前者为 REST v1，后者为标准 OIDC。
+kk_module_id: 1d30f4cc-312d-44f2-90a3-5287d257f4d5
+kk_ordinal: 1
+kk_cards:
+    architecture_design:
+        id: 4d023adb-9000-4143-952c-9da3af755a29
+        title: V1 认证与会话 API 路由
+    coding_conventions:
+        id: 1fe69797-1d18-4b46-8348-284d09e6a93a
+        title: V1 认证与会话 API 路由
+    overview:
+        id: dbe5eac8-756d-4c21-9bd1-752e528ab858
+        title: V1 认证与会话 API 路由
+    tech_stack:
+        id: 8b244dbd-6bd3-4626-9d4a-1bcbcf6306f9
+        title: V1 认证与会话 API 路由

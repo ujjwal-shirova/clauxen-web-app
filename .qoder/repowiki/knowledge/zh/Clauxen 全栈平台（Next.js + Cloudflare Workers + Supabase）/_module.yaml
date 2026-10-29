@@ -1,0 +1,71 @@
+schema_version: 1
+module_path: root
+title: Clauxen 全栈平台（Next.js + Cloudflare Workers + Supabase）
+scope:
+    - README.md
+    - CLAUDE.md
+    - .editorconfig
+    - .gitignore
+    - .prettierignore
+    - .vercelignore
+    - package.json
+    - package-lock.json
+    - tsconfig.json
+    - next.config.ts
+    - open-next.config.ts
+    - tailwind.config.ts
+    - postcss.config.mjs
+    - eslint.config.mjs
+    - components.json
+    - cloudflare-worker.ts
+    - cloudflare-env.d.ts
+    - apphosting.yaml
+    - docker-compose.yml
+    - vercel.json
+    - wrangler.jsonc
+    - skills-lock.json
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: fcaa8e8e-25d2-4e07-b63c-22cff3030094
+kk_cards:
+    architecture_design:
+        id: a2193d02-1ad1-4ba4-a8ec-3e6f146b3cdc
+        title: Clauxen 全栈平台（Next.js + Cloudflare Workers + Supabase）
+    coding_conventions:
+        id: f52792f8-09e5-45ed-ab18-729fbec276c5
+        title: Clauxen 全栈平台（Next.js + Cloudflare Workers + Supabase）
+    overview:
+        id: b97e11f8-e61e-4817-92be-890af0df78dc
+        title: Clauxen 全栈平台（Next.js + Cloudflare Workers + Supabase）
+    tech_stack:
+        id: 9a11314e-2d7f-49af-ba8c-cc0023d8cf0f
+        title: Clauxen 全栈平台（Next.js + Cloudflare Workers + Supabase）
+    unique_setup_and_commands:
+        id: 936cf13e-1478-4344-9c11-9216c1760c8f
+        title: Clauxen 全栈平台（Next.js + Cloudflare Workers + Supabase）
+    build_system:
+        id: 8dd2d551-1e65-4ac4-bbe0-6503e18149f1
+        title: 构建与部署体系：Next.js + Cloudflare Workers + Supabase 多平台流水线
+    configuration_system:
+        id: 429175b1-e4e2-42c5-9860-aca11d003769
+        title: 多环境配置系统：环境变量解析、运行时标志与 Cloudflare 绑定
+    dependency_management:
+        id: 09ac7727-8375-4586-98ab-e41bb507bca2
+        title: npm 单仓 + 多子包 Cloudflare Workers 的依赖管理
+    error_handling:
+        id: a9f4ea07-6287-433a-b7c5-9143292aab52
+        title: Cl auxen 错误处理体系：AppError / ApiError 双层类型与统一 API 网关
+    frontend_style:
+        id: c5cbc091-a9b5-4f0b-b303-60d0cfb366e3
+        title: Cl auxen 前端样式体系：Tailwind + shadcn/ui + CSS 设计令牌
+    logging_system:
+        id: e4123047-5fe2-4551-a03c-d3560fba18a9
+        title: 基于 console 的 JSON Lines 结构化日志系统
+kk_repo_cards:
+    - build_system
+    - configuration_system
+    - dependency_management
+    - error_handling
+    - frontend_style
+    - logging_system

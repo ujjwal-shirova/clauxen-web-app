@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: frontend_app/client_workflows
+title: 客户端工作线程与聊天状态管理
+scope:
+    - src/client/workers/
+    - src/client/stores/
+    - src/client/lib/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/client_chat_ui
+      reason: Zustand store 与 Web Worker 在客户端侧缓存聊天消息、会话状态与流式渲染数据，供 chat-area/conversation-thread 组件消费。
+kk_module_id: 5b68a3bc-7732-4368-a125-65b8b8cf6450
+kk_ordinal: 20
+kk_cards:
+    architecture_design:
+        id: 2e0cd771-21b5-43f7-948b-2cad12b35d00
+        title: 客户端工作线程与聊天状态管理
+    coding_conventions:
+        id: c0539d6c-b332-4e92-ba02-8a85a28e465d
+        title: 客户端工作线程与聊天状态管理
+    overview:
+        id: 42e8da20-8549-4087-bdaa-a0f8beaa7112
+        title: 客户端工作线程与聊天状态管理
+    tech_stack:
+        id: 88658c02-8067-41c1-9f3d-672839671af9
+        title: 客户端工作线程与聊天状态管理

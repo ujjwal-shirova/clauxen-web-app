@@ -1,0 +1,26 @@
+schema_version: 1
+module_path: frontend_app/client_plugins_marketplace
+title: 插件市场与连接管理 UI
+scope:
+    - src/client/components/plugins/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: b46b1547-c9dd-42c9-a9b4-a03468e65d7b
+kk_ordinal: 10
+kk_cards:
+    architecture_design:
+        id: 4c0934f5-4f10-4104-8383-11dfef523e46
+        title: 插件市场与连接管理 UI
+    coding_conventions:
+        id: 55f49e5e-ceca-432f-a86f-273fe84d4469
+        title: 插件市场与连接管理 UI
+    overview:
+        id: 8998c81a-6422-4801-b567-3a7379c651a2
+        title: 插件市场与连接管理 UI
+    tech_stack:
+        id: 17a6f982-3e13-4e70-b046-3ba7b3014b43
+        title: 插件市场与连接管理 UI
+    unique_setup_and_commands:
+        id: 9523fff1-9c8d-4ee9-acb8-a0dca899fb6a
+        title: 插件市场与连接管理 UI

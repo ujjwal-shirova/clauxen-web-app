@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: frontend_app/client_gift_flows
+title: 礼品赠送与领取流程组件
+scope:
+    - src/client/components/gift-animation.tsx
+    - src/client/components/gift-claim-dialog.tsx
+    - src/client/components/gift-payment.tsx
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_misc_small_domains
+      reason: 礼品领取弹窗与购买回退页调用 /api/v1/gifts/purchase、/redeem、/claim/[token] 完成赠送订阅的激活。
+kk_module_id: 3212eb7d-50bd-4be7-b17d-8df5ba146955
+kk_ordinal: 8
+kk_cards:
+    architecture_design:
+        id: 782cd38d-cc95-4e02-817d-53304581106c
+        title: 礼品赠送与领取流程组件
+    coding_conventions:
+        id: d3d708a2-bcf5-48d1-9345-7767c5369cdf
+        title: 礼品赠送与领取流程组件
+    overview:
+        id: 81e01017-307d-4e55-bb5e-97beec34f63d
+        title: 礼品赠送与领取流程组件
+    tech_stack:
+        id: 7710efff-f759-49fa-b06b-081d02cfa150
+        title: 礼品赠送与领取流程组件

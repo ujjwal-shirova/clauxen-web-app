@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: server_core/inference
+title: Inference Engine（推理引擎）
+scope:
+    - src/server/inference/
+source_files: []
+depends_on: []
+related_to:
+    - path: server_core/agent_core
+      reason: server_core/inference 使用 agent-core 的 OpenAI Responses 自治代理循环串联流式推理与工具执行。
+kk_module_id: 694dab07-376a-418f-aa76-fad2640f3387
+kk_ordinal: 3
+kk_cards:
+    architecture_design:
+        id: 1e05d67f-c7f5-4517-92fa-cc2a1a9ecc8d
+        title: Inference Engine（推理引擎）
+    coding_conventions:
+        id: 989a4ba3-968b-4aac-8046-f504be95914d
+        title: Inference Engine（推理引擎）
+    overview:
+        id: 85847f8c-101b-484a-aaa8-2fce773dae81
+        title: Inference Engine（推理引擎）
+    tech_stack:
+        id: 92031f8c-f711-4910-b3e9-6da9014acb16
+        title: Inference Engine（推理引擎）

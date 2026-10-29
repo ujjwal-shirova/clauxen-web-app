@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: frontend_app/app_auth_flow_pages
+title: 认证流程路由与页面
+scope:
+    - src/app/auth/
+    - src/app/login/
+    - src/app/signup/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: ad5c4396-3212-40c8-a4f6-9ed9d4731c01
+kk_ordinal: 3
+kk_cards:
+    architecture_design:
+        id: 1876626d-bb2c-4212-89e9-43585454ed94
+        title: 认证流程路由与页面
+    coding_conventions:
+        id: 0419fe06-b029-4963-ac75-c62cae71de7d
+        title: 认证流程路由与页面
+    overview:
+        id: 0f85b4f7-275b-4223-aaf3-ff77ea2910b7
+        title: 认证流程路由与页面
+    tech_stack:
+        id: 34012ff0-a6aa-4e4d-abad-450a754d6950
+        title: 认证流程路由与页面

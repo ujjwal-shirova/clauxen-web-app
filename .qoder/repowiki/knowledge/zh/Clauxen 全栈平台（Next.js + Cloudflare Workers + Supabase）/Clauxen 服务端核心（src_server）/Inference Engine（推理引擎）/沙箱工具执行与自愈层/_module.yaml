@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: server_core/inference/sandbox_tooling
+title: 沙箱工具执行与自愈层
+scope:
+    - src/server/inference/sandbox-session.ts
+    - src/server/inference/bash-safety.ts
+    - src/server/inference/tool-healer.ts
+source_files: []
+depends_on: []
+related_to:
+    - path: server_core/inference/autonomous_tools
+      reason: server_core/inference/autonomous_tools 与 sandbox_tooling 共同构成 Agent 工具执行层，前者定义工具集后者负责沙箱安全守卫。
+kk_module_id: 4d6cae10-35fe-4753-9bb4-6d3a2840863b
+kk_ordinal: 2
+kk_cards:
+    architecture_design:
+        id: 7e1fda9c-f1fe-420d-8313-3239b1636ed6
+        title: 沙箱工具执行与自愈层
+    coding_conventions:
+        id: 619adcc9-cdf2-4396-ac5e-f08c82acf4be
+        title: 沙箱工具执行与自愈层
+    overview:
+        id: 80ffc6e8-da51-4d38-870f-572ac5194644
+        title: 沙箱工具执行与自愈层
+    tech_stack:
+        id: 16baec7b-2ef2-4744-bc08-f4444d37229a
+        title: 沙箱工具执行与自愈层

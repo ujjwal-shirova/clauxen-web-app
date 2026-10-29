@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: server_core/agent_core
+title: Agent Core — OpenAI Responses 自治代理运行时
+scope:
+    - src/server/agent-core/
+source_files: []
+depends_on: []
+related_to:
+    - path: claude_skills
+      reason: claude_skills 定义的 Agent Skills 元数据与 agent-core/inference 在推理时加载技能目录的行为相呼应。
+kk_module_id: 89d7df4e-db74-4bfb-860d-599229fad83a
+kk_ordinal: 9
+kk_cards:
+    architecture_design:
+        id: 057fc3f3-2664-4dc0-8338-37fc5010d5bf
+        title: Agent Core — OpenAI Responses 自治代理运行时
+    coding_conventions:
+        id: 790074d0-a60c-48c8-a5aa-32e91e08a86c
+        title: Agent Core — OpenAI Responses 自治代理运行时
+    overview:
+        id: f51d2ced-cfeb-453b-bfa0-0b328eb0c6bf
+        title: Agent Core — OpenAI Responses 自治代理运行时
+    tech_stack:
+        id: 92e7968d-872b-4223-8d53-ff214badf06d
+        title: Agent Core — OpenAI Responses 自治代理运行时

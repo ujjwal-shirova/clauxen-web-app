@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_projects_library_research_share
+title: v1 API：项目、资料库与分享路由
+scope:
+    - src/app/api/v1/projects/
+    - src/app/api/v1/library/
+    - src/app/api/v1/share/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: e88a9420-026b-47c5-beee-e65bb187d606
+kk_ordinal: 10
+kk_cards:
+    architecture_design:
+        id: 1cbb9bd5-a4e1-4769-b8ba-fbf154e95930
+        title: v1 API：项目、资料库与分享路由
+    coding_conventions:
+        id: 37e862b5-0165-46fc-8dd3-d9beab48c823
+        title: v1 API：项目、资料库与分享路由
+    overview:
+        id: 323a4b5c-c926-4261-ada3-944e6a5be15f
+        title: v1 API：项目、资料库与分享路由
+    tech_stack:
+        id: 7182e5a6-c47e-44e6-987e-0e598d25d368
+        title: v1 API：项目、资料库与分享路由

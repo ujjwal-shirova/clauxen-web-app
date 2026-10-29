@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: frontend_app/client_chat_ui
+title: 聊天会话与流式渲染层
+scope:
+    - src/client/components/chat-area.tsx
+    - src/client/components/conversation-thread.tsx
+    - src/client/components/streaming-markdown.tsx
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: fb695102-a501-497e-9b93-76302df284db
+kk_ordinal: 6
+kk_cards:
+    architecture_design:
+        id: e54c6a4f-0404-45cd-9c77-5eb555a7058d
+        title: 聊天会话与流式渲染层
+    coding_conventions:
+        id: c560b03f-e1d2-49b7-8425-0a0b44611289
+        title: 聊天会话与流式渲染层
+    overview:
+        id: 22148340-c087-448f-b6b0-52c94528091d
+        title: 聊天会话与流式渲染层
+    tech_stack:
+        id: 1ff7acad-2f7c-42c9-b953-d45774a0c731
+        title: 聊天会话与流式渲染层

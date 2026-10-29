@@ -1,0 +1,28 @@
+schema_version: 1
+module_path: cloudflare_workers/scheduled_tasks_worker
+title: Clauxen 定时任务调度 Worker
+scope:
+    - workers/scheduled-tasks/
+source_files: []
+depends_on: []
+related_to:
+    - path: tests
+      reason: tests 覆盖 scheduled-tasks Worker 运行时代码，与 cloudflare_workers/scheduled_tasks_worker 形成测试-实现对。
+kk_module_id: 76435a33-6258-45b6-9a8a-c4ed296f248c
+kk_ordinal: 7
+kk_cards:
+    architecture_design:
+        id: 063af896-efa7-48d3-9267-8896fa1a2ed1
+        title: Clauxen 定时任务调度 Worker
+    coding_conventions:
+        id: c4751f83-684b-4e5e-990c-286ac739295d
+        title: Clauxen 定时任务调度 Worker
+    overview:
+        id: bfec8b7f-2e74-42c2-8965-cf1b4e1d2960
+        title: Clauxen 定时任务调度 Worker
+    tech_stack:
+        id: b6e73d7a-2c5d-4f29-81d8-5f0255b13a2d
+        title: Clauxen 定时任务调度 Worker
+    unique_setup_and_commands:
+        id: eabb6ed6-b425-47ce-9f68-d64427a4a100
+        title: Clauxen 定时任务调度 Worker

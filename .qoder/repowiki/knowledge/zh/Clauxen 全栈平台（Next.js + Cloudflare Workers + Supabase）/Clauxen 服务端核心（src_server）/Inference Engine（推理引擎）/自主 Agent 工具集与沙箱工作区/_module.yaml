@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: server_core/inference/autonomous_tools
+title: 自主 Agent 工具集与沙箱工作区
+scope:
+    - src/server/inference/autonomous-tools/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 7062bf50-33e6-4458-80a2-bee82788973e
+kk_cards:
+    architecture_design:
+        id: 6651e4b2-4c10-4186-a814-5c21ea9ea541
+        title: 自主 Agent 工具集与沙箱工作区
+    coding_conventions:
+        id: 1c6ad316-2c5e-4107-ba23-3ab9db635b72
+        title: 自主 Agent 工具集与沙箱工作区
+    overview:
+        id: 9ecac823-aff4-46c8-be25-071157070cb3
+        title: 自主 Agent 工具集与沙箱工作区
+    tech_stack:
+        id: a9a4b8e7-a9ef-4179-aeca-1df91db5e40c
+        title: 自主 Agent 工具集与沙箱工作区
+    unique_setup_and_commands:
+        id: b5a2da1b-1735-43b9-9c89-e89ee6461fa6
+        title: 自主 Agent 工具集与沙箱工作区

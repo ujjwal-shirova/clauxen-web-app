@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_sandbox
+title: Sandbox REST API (v1)
+scope:
+    - src/app/api/v1/sandbox/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: d58f9060-de9d-478f-88f7-25e62cdf56ac
+kk_ordinal: 4
+kk_cards:
+    architecture_design:
+        id: 70129996-e368-409f-a7c7-fa1de098336c
+        title: Sandbox REST API (v1)
+    coding_conventions:
+        id: 1b65454f-b01a-4d8c-81f8-2951f02e051e
+        title: Sandbox REST API (v1)
+    overview:
+        id: ae4f9d70-2dcb-45a9-a217-8503ec68e7e0
+        title: Sandbox REST API (v1)
+    tech_stack:
+        id: 776aff09-c8da-4f02-9822-1907fec47627
+        title: Sandbox REST API (v1)

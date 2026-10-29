@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_workspaces
+title: 工作区 API v1 路由
+scope:
+    - src/app/api/v1/workspaces/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: cf370831-38f6-47b4-b2a5-241a59248f10
+kk_ordinal: 6
+kk_cards:
+    architecture_design:
+        id: 0dd935ed-9ac9-4c9b-adb9-2ff78b69a68f
+        title: 工作区 API v1 路由
+    coding_conventions:
+        id: a00edcf0-c77a-40d4-9079-455654dfe0ea
+        title: 工作区 API v1 路由
+    overview:
+        id: f4bec8c6-1049-4c1a-a55f-c51cc3b7943b
+        title: 工作区 API v1 路由
+    tech_stack:
+        id: 0dc11c41-7853-4a93-93cc-f3262609da89
+        title: 工作区 API v1 路由

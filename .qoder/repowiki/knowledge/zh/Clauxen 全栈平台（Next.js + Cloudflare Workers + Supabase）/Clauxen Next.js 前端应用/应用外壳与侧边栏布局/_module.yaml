@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: frontend_app/client_app_shell_and_layout
+title: 应用外壳与侧边栏布局
+scope:
+    - src/client/components/main-layout.tsx
+    - src/client/components/sidebar.tsx
+    - src/client/components/app-route-loading-shell.tsx
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_main_pages
+      reason: 主应用页面（聊天/项目/设置/插件）消费 client_app_shell_and_layout 提供的侧边栏与导航布局。
+kk_module_id: 07b1f439-7604-4858-99cb-bf932b5b6fbb
+kk_ordinal: 5
+kk_cards:
+    architecture_design:
+        id: 3582b3eb-04ee-4739-91f2-8abe29ae05cb
+        title: 应用外壳与侧边栏布局
+    coding_conventions:
+        id: 2bdaab35-f612-4d28-989e-363c13ce6a5a
+        title: 应用外壳与侧边栏布局
+    overview:
+        id: 8dedb968-b732-4022-8e60-3b3708965297
+        title: 应用外壳与侧边栏布局
+    tech_stack:
+        id: 5d957f33-73f1-44ff-983b-f3e668f0ce5f
+        title: 应用外壳与侧边栏布局

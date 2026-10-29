@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: docs
+title: 项目文档与架构说明
+scope:
+    - docs/
+source_files: []
+depends_on: []
+related_to:
+    - path: cloudflare_workers/plugin_oauth_worker
+      reason: docs 包含插件与 Cloudflare Workers 集成指南，记录 plugin_oauth_worker 与 auth_workers 的部署架构。
+kk_module_id: 160e7292-c222-4f6a-bfbf-4853a212eedd
+kk_ordinal: 8
+kk_cards:
+    architecture_design:
+        id: d8a68f6c-cd53-4e7b-910b-743c090aa0a8
+        title: 项目文档与架构说明
+    coding_conventions:
+        id: 0e17739f-8571-46c1-8c7b-72efb34f5615
+        title: 项目文档与架构说明
+    overview:
+        id: d193760e-67fe-4aba-a695-6d95eab68f7f
+        title: 项目文档与架构说明
+    tech_stack:
+        id: aa9438d9-9604-4886-bed8-1e8296a4791a
+        title: 项目文档与架构说明

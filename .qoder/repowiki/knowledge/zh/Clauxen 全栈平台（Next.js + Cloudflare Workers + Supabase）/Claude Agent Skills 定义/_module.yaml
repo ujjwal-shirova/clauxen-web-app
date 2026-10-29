@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: claude_skills
+title: Claude Agent Skills 定义
+scope:
+    - .agents/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: d45fcc6f-30f2-462a-b53c-97e0054f203e
+kk_ordinal: 10
+kk_cards:
+    architecture_design:
+        id: 69280be5-789f-41d4-b868-3e3ff8e4ac5e
+        title: Claude Agent Skills 定义
+    coding_conventions:
+        id: a6750522-c7ef-40fd-9913-ff1500de3bba
+        title: Claude Agent Skills 定义
+    overview:
+        id: c4567ba1-ed60-43b4-bfd6-2af5b4e02796
+        title: Claude Agent Skills 定义
+    tech_stack:
+        id: b22e6daf-d345-493c-bfc4-ed3dc1b58224
+        title: Claude Agent Skills 定义

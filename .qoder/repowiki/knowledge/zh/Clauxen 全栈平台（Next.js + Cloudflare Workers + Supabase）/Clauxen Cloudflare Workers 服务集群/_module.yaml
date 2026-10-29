@@ -1,0 +1,26 @@
+schema_version: 1
+module_path: cloudflare_workers
+title: Clauxen Cloudflare Workers 服务集群
+scope:
+    - workers/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: b91f2763-c221-422f-97ef-6c46c8536773
+kk_ordinal: 5
+kk_cards:
+    architecture_design:
+        id: df4029e1-5ed0-4da7-a03d-196c6280c164
+        title: Clauxen Cloudflare Workers 服务集群
+    coding_conventions:
+        id: 2ce86ba5-1890-4311-a346-173400e7d6df
+        title: Clauxen Cloudflare Workers 服务集群
+    overview:
+        id: 86d5f2eb-ef1c-4819-9860-ee93606efc24
+        title: Clauxen Cloudflare Workers 服务集群
+    tech_stack:
+        id: d05e28ab-2dc7-48b4-b70d-5ed2af278066
+        title: Clauxen Cloudflare Workers 服务集群
+    unique_setup_and_commands:
+        id: b7a4a73f-403d-4c9e-8cd1-e4852e33ee40
+        title: Clauxen Cloudflare Workers 服务集群

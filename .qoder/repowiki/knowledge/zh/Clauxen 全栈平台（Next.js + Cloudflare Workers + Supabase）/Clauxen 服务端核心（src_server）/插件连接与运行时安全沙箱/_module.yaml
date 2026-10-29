@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: server_core/plugins
+title: 插件连接与运行时安全沙箱
+scope:
+    - src/server/plugins/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_plugins
+      reason: /api/v1/plugins/* 路由通过 startPluginConnection 等函数驱动插件 OAuth 连接流程，由 server_core/plugins 实现。
+    - path: server_core/auth_identity
+      reason: server_core/plugins 的 OAuth 流程依赖 server_core/auth_identity 的会话解析与 JWT 验证。
+kk_module_id: 2a498f7f-4999-47ac-af63-8c06588e7964
+kk_ordinal: 4
+kk_cards:
+    architecture_design:
+        id: 80ed7abc-e5da-4d1f-99e8-1ca7710c2479
+        title: 插件连接与运行时安全沙箱
+    coding_conventions:
+        id: 9ea68216-f360-4d9f-b927-51f86b53cc1f
+        title: 插件连接与运行时安全沙箱
+    overview:
+        id: 073c6676-2bab-48f5-bf73-4354340fbf22
+        title: 插件连接与运行时安全沙箱
+    tech_stack:
+        id: f3a981b1-b23b-4a68-98b8-994109d74296
+        title: 插件连接与运行时安全沙箱

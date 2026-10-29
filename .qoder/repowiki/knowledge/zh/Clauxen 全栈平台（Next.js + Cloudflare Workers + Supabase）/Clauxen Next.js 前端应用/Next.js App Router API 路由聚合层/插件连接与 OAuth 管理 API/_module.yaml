@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_plugins
+title: 插件连接与 OAuth 管理 API
+scope:
+    - src/app/api/v1/plugins/
+source_files: []
+depends_on: []
+related_to:
+    - path: cloudflare_workers/plugin_oauth_worker
+      reason: 插件 OAuth 连接流程中，Web 应用将发现/客户端注册/PKCE 交换委托给 plugin-oauth Worker 完成令牌密封持久化。
+    - path: frontend_app/client_plugins_marketplace
+      reason: 插件市场 UI 调用 /api/v1/plugins/connect、/connections、/availability 等端点完成插件浏览、授权连接与权限管理。
+kk_module_id: 3f385a4c-a57b-44e9-8ab8-b2df7d364e9a
+kk_ordinal: 5
+kk_cards:
+    architecture_design:
+        id: 5486da45-1808-4a0f-98d0-6e576daecbc0
+        title: 插件连接与 OAuth 管理 API
+    coding_conventions:
+        id: 3dc1edf7-a6f6-4653-a6bd-6ba4910d4ed2
+        title: 插件连接与 OAuth 管理 API
+    overview:
+        id: 9eade773-a039-41e4-9a0b-98ff64ecb701
+        title: 插件连接与 OAuth 管理 API
+    tech_stack:
+        id: 6eb6acab-ac7f-480a-8c4f-043b5ca25850
+        title: 插件连接与 OAuth 管理 API

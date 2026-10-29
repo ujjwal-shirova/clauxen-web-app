@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: server_core/repositories
+title: 服务器端数据持久化仓库层
+scope:
+    - src/server/repositories/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: f3b1dd5f-05ca-42df-98c9-087925c8d132
+kk_ordinal: 5
+kk_cards:
+    architecture_design:
+        id: 626dc042-c4ae-4445-9cef-e140b73002e7
+        title: 服务器端数据持久化仓库层
+    coding_conventions:
+        id: 415c637b-d7a4-4215-b6a9-16b304fa1030
+        title: 服务器端数据持久化仓库层
+    overview:
+        id: e48c91e4-2fd5-48c2-bc4a-1dcfdcd67471
+        title: 服务器端数据持久化仓库层
+    tech_stack:
+        id: 284def8f-045f-4499-8594-edca50a301dd
+        title: 服务器端数据持久化仓库层

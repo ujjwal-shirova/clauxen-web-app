@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: prompts
+title: Clauxen Agent 提示词与个性化风格模板
+scope:
+    - src/prompts/
+source_files: []
+depends_on: []
+related_to:
+    - path: server_core/agent_core
+      reason: prompts 模块定义的 Agent 系统提示词与个性化风格模板被 agent-core/inference 在推理时注入给模型。
+kk_module_id: 834836d6-3b38-46cb-ba16-539bcdef88da
+kk_ordinal: 4
+kk_cards:
+    architecture_design:
+        id: 9d19724a-f361-4fd9-9b00-5d4af7a0364c
+        title: Clauxen Agent 提示词与个性化风格模板
+    coding_conventions:
+        id: 8588d8c1-b87e-455e-933b-da21c110d8eb
+        title: Clauxen Agent 提示词与个性化风格模板
+    overview:
+        id: eb903262-3008-4cb6-8f91-22af66cdf5f0
+        title: Clauxen Agent 提示词与个性化风格模板
+    tech_stack:
+        id: 4ebd3b1b-dc53-4c2b-87e5-9099bbdc7b62
+        title: Clauxen Agent 提示词与个性化风格模板

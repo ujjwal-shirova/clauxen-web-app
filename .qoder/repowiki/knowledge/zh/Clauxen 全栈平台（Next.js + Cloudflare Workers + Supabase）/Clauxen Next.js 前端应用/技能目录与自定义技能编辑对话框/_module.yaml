@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: frontend_app/client_customization_skills
+title: 技能目录与自定义技能编辑对话框
+scope:
+    - src/client/components/customize/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: edecab0d-ecc7-44f4-b0b7-2637e766833b
+kk_ordinal: 14
+kk_cards:
+    architecture_design:
+        id: fa2acdb8-8839-4271-9daa-17df4a10bf47
+        title: 技能目录与自定义技能编辑对话框
+    coding_conventions:
+        id: 7972c9b6-6871-4d27-96c3-ff6d89e209c0
+        title: 技能目录与自定义技能编辑对话框
+    overview:
+        id: 3a151941-1ae8-4d29-88dc-9e7b44139cf5
+        title: 技能目录与自定义技能编辑对话框
+    tech_stack:
+        id: 503772fe-3d34-4832-9c3e-a17a2e1010f3
+        title: 技能目录与自定义技能编辑对话框

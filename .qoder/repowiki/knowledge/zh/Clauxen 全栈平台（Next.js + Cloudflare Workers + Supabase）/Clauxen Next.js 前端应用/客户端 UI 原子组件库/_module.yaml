@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: frontend_app/client_ui_primitives
+title: 客户端 UI 原子组件库
+scope:
+    - src/client/components/ui/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 03e4201c-7ce0-4e2a-a316-0a02ed9beee8
+kk_ordinal: 16
+kk_cards:
+    architecture_design:
+        id: 8728fe36-8c50-4b71-8627-35c6f65859b9
+        title: 客户端 UI 原子组件库
+    coding_conventions:
+        id: de18cf8f-509c-4e0a-a30d-e4de2b217fbc
+        title: 客户端 UI 原子组件库
+    overview:
+        id: 836f754e-950b-4b14-98bc-af2f9b19d1f6
+        title: 客户端 UI 原子组件库
+    tech_stack:
+        id: f711179f-bbf4-4cf9-986e-c4d344f41527
+        title: 客户端 UI 原子组件库

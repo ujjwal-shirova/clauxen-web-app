@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: frontend_app/client_agent_view
+title: Agent 对话与追踪渲染层
+scope:
+    - src/client/components/agent/
+source_files: []
+depends_on: []
+related_to:
+    - path: server_core/inference
+      reason: Agent 追踪渲染层消费推理引擎产生的 thinking/narration/tool/artifact SSE 事件，将工具调用轨迹以折叠账本形式展示。
+kk_module_id: 4e07365a-5e5c-4adf-b4a3-e83b8fbc7523
+kk_ordinal: 11
+kk_cards:
+    architecture_design:
+        id: 153be6d0-e300-421c-84b2-fcbc3df5e29a
+        title: Agent 对话与追踪渲染层
+    coding_conventions:
+        id: c77e77c8-2b85-4a9f-a8f3-42698ce67f7b
+        title: Agent 对话与追踪渲染层
+    overview:
+        id: e2379aaa-4520-4e68-9bf3-d238ae0301b6
+        title: Agent 对话与追踪渲染层
+    tech_stack:
+        id: 385c3b7b-6c9f-48e0-96a0-030d841c6201
+        title: Agent 对话与追踪渲染层

@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_billing
+title: 计费与订阅 API 路由
+scope:
+    - src/app/api/v1/billing/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 72f5e5ab-c486-4b4e-974a-64bbd8a1f6f1
+kk_ordinal: 3
+kk_cards:
+    architecture_design:
+        id: ada2a010-3f10-459e-bdd7-a7b451e54fe8
+        title: 计费与订阅 API 路由
+    coding_conventions:
+        id: 15b0a871-51e7-44e0-9412-35a646f09989
+        title: 计费与订阅 API 路由
+    overview:
+        id: f02364af-c258-4098-9197-6d232b4a293a
+        title: 计费与订阅 API 路由
+    tech_stack:
+        id: 1338bb57-ce00-4557-97de-7bed4a4aee8f
+        title: 计费与订阅 API 路由

@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: frontend_app/client_checkout_billing
+title: 订阅与计费结账页面
+scope:
+    - src/client/components/billing-checkout.tsx
+    - src/client/components/checkout-page-view.tsx
+    - src/client/components/subscription.tsx
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_billing
+      reason: 结账页面通过 Razorpay/UPI/Apple Pay 调用 /api/v1/billing/checkout-sessions、orders、payment-methods 完成订阅计费流程。
+kk_module_id: 504518fd-acfc-4a1d-bbd9-f27c99d3989b
+kk_ordinal: 7
+kk_cards:
+    architecture_design:
+        id: e462d442-13c8-4e82-8561-712b7abf2c31
+        title: 订阅与计费结账页面
+    coding_conventions:
+        id: 9f74b328-16de-4548-8247-017bc9fe551c
+        title: 订阅与计费结账页面
+    overview:
+        id: 2a78c1b4-438e-4237-bfa3-7e212774b47c
+        title: 订阅与计费结账页面
+    tech_stack:
+        id: 18f1ce5b-71ad-47f9-a69a-709fd81f2616
+        title: 订阅与计费结账页面

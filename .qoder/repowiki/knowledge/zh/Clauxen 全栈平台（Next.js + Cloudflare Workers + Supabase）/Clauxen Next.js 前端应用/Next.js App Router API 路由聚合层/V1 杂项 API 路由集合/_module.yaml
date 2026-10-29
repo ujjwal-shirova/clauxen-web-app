@@ -1,0 +1,36 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_misc_small_domains
+title: V1 杂项 API 路由集合
+scope:
+    - src/app/api/v1/gifts/
+    - src/app/api/v1/incognito/
+    - src/app/api/v1/customize/
+    - src/app/api/v1/integrations/
+    - src/app/api/v1/webhooks/
+    - src/app/api/v1/cookies/
+    - src/app/api/v1/public-profiles/
+    - src/app/api/v1/geo/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_misc_pages
+      reason: 结账、CLI、礼品等杂项页面调用 app_api_routes/v1_misc_small_domains 中的轻量级服务端端点。
+    - path: cloudflare_workers/github_agent_worker
+      reason: GitHub Agent Worker 通过 /api/v1/github/* 端点（manifest/start、webhook、oauth/callback 等）与前端 API 路由协作完成 GitHub App 集成。
+    - path: frontend_app/client_customization_skills
+      reason: client_customization_skills 的技能目录与自定义技能编辑对话框调用 /api/v1/customize/skills 上传与管理技能。
+kk_module_id: 4a1ba7c6-a812-44bc-a7fe-ffb239dc5a18
+kk_ordinal: 11
+kk_cards:
+    architecture_design:
+        id: fff29de3-504a-4515-9685-115bf47603dc
+        title: V1 杂项 API 路由集合
+    coding_conventions:
+        id: 0361c5bf-2abe-46ea-92c5-407a9a696387
+        title: V1 杂项 API 路由集合
+    overview:
+        id: 4c2138f9-214c-4987-8388-0f5ee0a798fe
+        title: V1 杂项 API 路由集合
+    tech_stack:
+        id: c05510f7-7140-4814-9ff4-93d2df724961
+        title: V1 杂项 API 路由集合

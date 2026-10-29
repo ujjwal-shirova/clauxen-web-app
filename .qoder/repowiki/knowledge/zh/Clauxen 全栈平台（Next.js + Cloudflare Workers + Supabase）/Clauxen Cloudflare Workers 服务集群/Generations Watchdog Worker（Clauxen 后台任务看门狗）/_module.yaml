@@ -1,0 +1,28 @@
+schema_version: 1
+module_path: cloudflare_workers/generations_watchdog_worker
+title: Generations Watchdog Worker（Clauxen 后台任务看门狗）
+scope:
+    - workers/generations-watchdog/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_internal_scheduled_tasks
+      reason: watchdog Worker 通过 env.APP.fetch 探测 Vercel 托管的后端 generations-watchdog 端点以续期长轮询会话。
+kk_module_id: 45288501-a1d3-4e43-8d9e-46c60c00f21d
+kk_ordinal: 4
+kk_cards:
+    architecture_design:
+        id: 6723c7aa-31c0-488e-bea1-a6a37ce36a87
+        title: Generations Watchdog Worker（Clauxen 后台任务看门狗）
+    coding_conventions:
+        id: 9c014abc-c617-4beb-b64b-58940028ae83
+        title: Generations Watchdog Worker（Clauxen 后台任务看门狗）
+    overview:
+        id: 6e85a0ad-ad5f-41c7-a3ed-7c6e5bd1e751
+        title: Generations Watchdog Worker（Clauxen 后台任务看门狗）
+    tech_stack:
+        id: 7cfa4039-347e-416b-ab65-03e77ec7e29a
+        title: Generations Watchdog Worker（Clauxen 后台任务看门狗）
+    unique_setup_and_commands:
+        id: 6f0aeeb6-12de-4402-916d-dcfddfef1526
+        title: Generations Watchdog Worker（Clauxen 后台任务看门狗）

@@ -1,0 +1,28 @@
+schema_version: 1
+module_path: server_core/http_framework
+title: HTTP 请求框架与配置层
+scope:
+    - src/server/http/
+    - src/server/config/
+    - src/server/cookies/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 538860ae-4700-421e-b212-33e8f9fadf12
+kk_ordinal: 7
+kk_cards:
+    architecture_design:
+        id: 2b97fa5f-ddfc-438b-88d9-a04b19fcec1e
+        title: HTTP 请求框架与配置层
+    coding_conventions:
+        id: db7d9479-0387-48d0-81ba-c43fb6d2229b
+        title: HTTP 请求框架与配置层
+    overview:
+        id: b238a589-b1cb-4ed8-a321-829787de5320
+        title: HTTP 请求框架与配置层
+    tech_stack:
+        id: 9b5f163b-86ee-4b65-95ef-c9ca392bf8a9
+        title: HTTP 请求框架与配置层
+    unique_setup_and_commands:
+        id: 8bb190fa-ef18-45d8-9727-1f22fa35e58b
+        title: HTTP 请求框架与配置层

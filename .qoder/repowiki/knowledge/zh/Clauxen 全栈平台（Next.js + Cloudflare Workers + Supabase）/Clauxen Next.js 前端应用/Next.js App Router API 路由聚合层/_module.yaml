@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes
+title: Next.js App Router API 路由聚合层
+scope:
+    - src/app/api/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 7b0bc6e5-8685-46f8-b10c-75ffd55f8bf6
+kk_ordinal: 2
+kk_cards:
+    architecture_design:
+        id: d8e20a99-db05-4f06-a627-1d97945b778a
+        title: Next.js App Router API 路由聚合层
+    coding_conventions:
+        id: 7f5f9876-8267-47e8-8e6b-abab05cee933
+        title: Next.js App Router API 路由聚合层
+    overview:
+        id: b96cc0f9-0336-4a2f-aa3a-1b1766caedf1
+        title: Next.js App Router API 路由聚合层
+    tech_stack:
+        id: 571ec955-9247-48c2-bf64-06f09b228dea
+        title: Next.js App Router API 路由聚合层

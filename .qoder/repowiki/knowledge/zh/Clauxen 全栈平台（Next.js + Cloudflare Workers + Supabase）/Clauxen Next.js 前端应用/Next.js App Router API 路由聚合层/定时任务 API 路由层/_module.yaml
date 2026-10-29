@@ -1,0 +1,26 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_internal_scheduled_tasks
+title: 定时任务 API 路由层
+scope:
+    - src/app/api/v1/internal/
+    - src/app/api/v1/scheduled-tasks/
+source_files: []
+depends_on: []
+related_to:
+    - path: cloudflare_workers/scheduled_tasks_worker
+      reason: scheduled-tasks Worker 每分钟轮询 APP.fetch('/api/v1/internal/scheduled-tasks/dispatch') 认领任务，并回调 /execute 触发 Supabase 自动化。
+kk_module_id: 6dd03cfb-c044-4fcc-8c1a-1980c65cf747
+kk_ordinal: 8
+kk_cards:
+    architecture_design:
+        id: e5003a82-5eb2-4ee0-8546-e5e43e2286fd
+        title: 定时任务 API 路由层
+    coding_conventions:
+        id: 6b4d804a-9c95-4cb6-9c45-d8f093952923
+        title: 定时任务 API 路由层
+    overview:
+        id: 87a7bd6b-59a5-4355-9ed2-6a44b711745f
+        title: 定时任务 API 路由层
+    tech_stack:
+        id: 74610f8e-5b0a-40c9-a2e4-306c31aa9861
+        title: 定时任务 API 路由层

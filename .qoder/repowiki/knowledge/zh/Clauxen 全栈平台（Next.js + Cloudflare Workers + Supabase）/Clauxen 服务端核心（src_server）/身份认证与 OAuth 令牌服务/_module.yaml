@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: server_core/auth_identity
+title: 身份认证与 OAuth 令牌服务
+scope:
+    - src/server/auth/
+    - src/server/oauth/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: c9a79923-c139-4f08-b0bd-f3f7d05775ef
+kk_cards:
+    architecture_design:
+        id: 2add20fd-8a4a-4a3b-a69f-3d3d9eb00f39
+        title: 身份认证与 OAuth 令牌服务
+    coding_conventions:
+        id: 73ff9159-cd92-4e8c-bf0a-d66a37180103
+        title: 身份认证与 OAuth 令牌服务
+    overview:
+        id: c7cf8a79-17cc-488c-a877-e3e7cbc499d4
+        title: 身份认证与 OAuth 令牌服务
+    tech_stack:
+        id: b67c2048-ac8e-404b-aa51-75a4da558838
+        title: 身份认证与 OAuth 令牌服务

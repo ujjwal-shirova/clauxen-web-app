@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: cloudflare_workers/chat_workers
+title: 聊天协调与历史 Worker（Cloudflare Workers）
+scope:
+    - workers/chat-coord/
+    - workers/chat-history/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 697e72a5-7b67-4359-b1a7-6b92507d940a
+kk_ordinal: 3
+kk_cards:
+    architecture_design:
+        id: 0519e153-2a6c-4fdb-ae22-1d5abaacd67f
+        title: 聊天协调与历史 Worker（Cloudflare Workers）
+    coding_conventions:
+        id: f6d0fab7-799e-4eb7-900e-d4aad80be714
+        title: 聊天协调与历史 Worker（Cloudflare Workers）
+    overview:
+        id: f67d170f-bfa3-4b9e-962e-b46ddb045d7d
+        title: 聊天协调与历史 Worker（Cloudflare Workers）
+    tech_stack:
+        id: 2c6acf2d-b67a-49f6-8dd5-de63353f653a
+        title: 聊天协调与历史 Worker（Cloudflare Workers）
+    unique_setup_and_commands:
+        id: 449c550d-254a-432f-87c9-9ba2ee1f9f29
+        title: 聊天协调与历史 Worker（Cloudflare Workers）

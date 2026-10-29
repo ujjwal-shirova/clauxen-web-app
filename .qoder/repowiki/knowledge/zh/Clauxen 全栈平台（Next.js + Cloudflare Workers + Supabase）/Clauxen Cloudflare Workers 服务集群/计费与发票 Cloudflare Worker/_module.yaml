@@ -1,0 +1,26 @@
+schema_version: 1
+module_path: cloudflare_workers/billing_worker
+title: 计费与发票 Cloudflare Worker
+scope:
+    - workers/billing/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 966dcae2-0c3b-4032-8970-8ded01d82fae
+kk_ordinal: 1
+kk_cards:
+    architecture_design:
+        id: 4c6ca4f9-4193-4d7a-adfd-291043f97fa9
+        title: 计费与发票 Cloudflare Worker
+    coding_conventions:
+        id: 263b928f-356b-43c4-b7e3-501e1b68b51e
+        title: 计费与发票 Cloudflare Worker
+    overview:
+        id: 726b45a2-23da-4519-b018-7b1d0e80f34e
+        title: 计费与发票 Cloudflare Worker
+    tech_stack:
+        id: 35bf4f64-9e48-44ad-95fa-2eb8701027fd
+        title: 计费与发票 Cloudflare Worker
+    unique_setup_and_commands:
+        id: 13c6befb-b577-400b-a1af-1002e68e01d0
+        title: 计费与发票 Cloudflare Worker

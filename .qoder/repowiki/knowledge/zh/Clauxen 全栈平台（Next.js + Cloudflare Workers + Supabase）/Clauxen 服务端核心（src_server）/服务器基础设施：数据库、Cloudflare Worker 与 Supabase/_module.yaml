@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: server_core/infrastructure
+title: 服务器基础设施：数据库、Cloudflare Worker 与 Supabase
+scope:
+    - src/server/db/
+    - src/server/cloudflare/
+    - src/server/infrastructure/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 860aa7b7-deed-4d11-8af1-593fb5c7362b
+kk_ordinal: 8
+kk_cards:
+    architecture_design:
+        id: 18937f4c-3fc3-4d40-b42d-c36b99c04783
+        title: 服务器基础设施：数据库、Cloudflare Worker 与 Supabase
+    coding_conventions:
+        id: 3ddcc4c3-fc35-4931-9f8b-cde182b5963c
+        title: 服务器基础设施：数据库、Cloudflare Worker 与 Supabase
+    overview:
+        id: 385276f5-562c-4abe-a1d9-5120c3d679a6
+        title: 服务器基础设施：数据库、Cloudflare Worker 与 Supabase
+    tech_stack:
+        id: f1fa27d0-9a24-48b1-a17a-6331b7281b7d
+        title: 服务器基础设施：数据库、Cloudflare Worker 与 Supabase

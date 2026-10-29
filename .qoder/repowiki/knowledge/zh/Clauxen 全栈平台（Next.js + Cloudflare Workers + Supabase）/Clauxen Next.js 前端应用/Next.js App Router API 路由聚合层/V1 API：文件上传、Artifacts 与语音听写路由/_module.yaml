@@ -1,0 +1,29 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_files_artifacts_audio
+title: V1 API：文件上传、Artifacts 与语音听写路由
+scope:
+    - src/app/api/v1/files/
+    - src/app/api/v1/artifacts/
+    - src/app/api/v1/audio/
+source_files: []
+depends_on: []
+related_to:
+    - path: cloudflare_workers/cdn_and_storage_workers
+      reason: 文件上传预签名/直传与 Artifacts 对象下载由 R2 Gateway Worker 提供，CDN Worker 则提供插件图标静态资源。
+    - path: server_core/integrations
+      reason: 语音听写路由基于 AssemblyAI 实时转写，由 server_core/integrations 中的 AssemblyAI 客户端封装第三方 API。
+kk_module_id: 70ac3bf6-9153-4a40-a495-316f7b85f5f6
+kk_ordinal: 7
+kk_cards:
+    architecture_design:
+        id: 5e0f6712-be26-4205-bbf2-46ad32d25765
+        title: V1 API：文件上传、Artifacts 与语音听写路由
+    coding_conventions:
+        id: 0b4f2c25-8309-41b2-8774-abb0605947d1
+        title: V1 API：文件上传、Artifacts 与语音听写路由
+    overview:
+        id: 0309bd62-3037-4f7b-b9bc-4e674252715b
+        title: V1 API：文件上传、Artifacts 与语音听写路由
+    tech_stack:
+        id: 43f46ebd-3d28-47cd-a85d-5adb0f850898
+        title: V1 API：文件上传、Artifacts 与语音听写路由

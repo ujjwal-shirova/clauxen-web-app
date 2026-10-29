@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: server_core/services
+title: 服务器领域服务层
+scope:
+    - src/server/services/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes
+      reason: server_core/services 是 API 路由与 repository 之间的编排层，被 v1_chats/v1_billing/v1_plugins 等路由调用。
+kk_module_id: 4ebe35cc-6c9d-45c7-9fe7-63f58aedbabc
+kk_ordinal: 6
+kk_cards:
+    architecture_design:
+        id: 75c1a064-62ac-40f7-87c8-e746b7d985eb
+        title: 服务器领域服务层
+    coding_conventions:
+        id: 4c154a3a-80a4-4a92-a545-ea0c33be3aa6
+        title: 服务器领域服务层
+    overview:
+        id: 33c80bf2-a1b8-418a-8d61-a2004e8f4892
+        title: 服务器领域服务层
+    tech_stack:
+        id: a8d65796-ddd1-4977-9dc0-987ee66bad9a
+        title: 服务器领域服务层

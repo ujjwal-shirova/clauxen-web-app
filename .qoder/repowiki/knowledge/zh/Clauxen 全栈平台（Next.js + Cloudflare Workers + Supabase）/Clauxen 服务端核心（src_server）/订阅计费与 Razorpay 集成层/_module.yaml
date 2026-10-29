@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: server_core/billing
+title: 订阅计费与 Razorpay 集成层
+scope:
+    - src/server/billing/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_billing
+      reason: 计费 v1 路由（checkout-sessions、orders、invoices）调用 server_core/billing 的 Razorpay 集成与订阅编排。
+    - path: server_core/repositories
+      reason: server_core/billing 通过 Razorpay 网关处理支付回调，与 server_core/repositories 协作写入订单/发票数据。
+kk_module_id: 52c7d482-d228-4bc7-ad0f-e219203fea03
+kk_ordinal: 1
+kk_cards:
+    architecture_design:
+        id: 0dfb2718-b4df-4b51-916f-51f5db9bcd68
+        title: 订阅计费与 Razorpay 集成层
+    coding_conventions:
+        id: 4c1d5411-686b-4972-813e-9668b02efdea
+        title: 订阅计费与 Razorpay 集成层
+    overview:
+        id: 9d2bb3d3-cac8-4c2a-8fee-e570fe1d7bad
+        title: 订阅计费与 Razorpay 集成层
+    tech_stack:
+        id: b9bd50ce-704d-42ef-b1c2-cc99987b46f3
+        title: 订阅计费与 Razorpay 集成层

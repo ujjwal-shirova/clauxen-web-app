@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: frontend_app
+title: Clauxen Next.js 前端应用
+scope:
+    - src/app/
+    - src/client/
+source_files: []
+depends_on: []
+related_to:
+    - path: shared_lib
+      reason: shared_lib 提供跨模块的 Supabase 配置、聊天状态与 MCP 插件类型定义，被 frontend_app 与 server_core 共同使用。
+kk_module_id: d92d34e3-e4cb-4b92-9909-9a220ca98087
+kk_cards:
+    architecture_design:
+        id: c44778b3-f17f-4e38-bccd-a72abd49a16e
+        title: Clauxen Next.js 前端应用
+    coding_conventions:
+        id: a8e69e6b-9bc3-44fa-9474-e96fb7e51e5a
+        title: Clauxen Next.js 前端应用
+    overview:
+        id: 5f5d8df7-f1a6-486c-8327-409b843a8720
+        title: Clauxen Next.js 前端应用
+    tech_stack:
+        id: ddd34319-80fb-47bb-987b-75001b95f897
+        title: Clauxen Next.js 前端应用

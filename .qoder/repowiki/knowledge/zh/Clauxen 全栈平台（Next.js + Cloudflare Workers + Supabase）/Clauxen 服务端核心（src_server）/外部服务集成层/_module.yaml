@@ -1,0 +1,29 @@
+schema_version: 1
+module_path: server_core/integrations
+title: 外部服务集成层
+scope:
+    - src/server/search/
+    - src/server/weather/
+    - src/server/github/
+    - src/server/assemblyai/
+    - src/server/dictation/
+    - src/server/email-verifier/
+    - src/server/training/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: d7d12220-ff11-4858-b7ef-a0f5e92c980c
+kk_ordinal: 11
+kk_cards:
+    architecture_design:
+        id: ec3b1988-612b-47b9-a15c-f74c8b49f59f
+        title: 外部服务集成层
+    coding_conventions:
+        id: e09a0453-ef3c-4e40-832d-3a049b7b885f
+        title: 外部服务集成层
+    overview:
+        id: dcfb16a1-cffe-4b14-99b3-2db3c3136e56
+        title: 外部服务集成层
+    tech_stack:
+        id: bcb30706-14af-4aad-b1c2-3fde36a189b4
+        title: 外部服务集成层

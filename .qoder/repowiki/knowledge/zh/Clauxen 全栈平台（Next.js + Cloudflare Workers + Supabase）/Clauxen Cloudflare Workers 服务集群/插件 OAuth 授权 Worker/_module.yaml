@@ -1,0 +1,26 @@
+schema_version: 1
+module_path: cloudflare_workers/plugin_oauth_worker
+title: 插件 OAuth 授权 Worker
+scope:
+    - workers/plugin-oauth/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: a826f090-8736-4bdb-83c2-c1973baf2f7f
+kk_ordinal: 6
+kk_cards:
+    architecture_design:
+        id: db72c0ff-9c74-43c5-8233-60a072a8ba96
+        title: 插件 OAuth 授权 Worker
+    coding_conventions:
+        id: 1c32fff0-90af-48b3-9431-8228b1919d03
+        title: 插件 OAuth 授权 Worker
+    overview:
+        id: c2bbbab5-7572-480d-89c1-f71b8058e27b
+        title: 插件 OAuth 授权 Worker
+    tech_stack:
+        id: 86aebc00-5b00-4ebe-abea-2c2ddc1323e4
+        title: 插件 OAuth 授权 Worker
+    unique_setup_and_commands:
+        id: 51f53608-a730-4e37-92a0-6710567aec99
+        title: 插件 OAuth 授权 Worker

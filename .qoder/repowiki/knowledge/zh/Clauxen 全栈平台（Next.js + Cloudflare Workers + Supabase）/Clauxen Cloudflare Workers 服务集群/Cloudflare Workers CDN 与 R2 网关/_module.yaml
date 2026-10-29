@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: cloudflare_workers/cdn_and_storage_workers
+title: Cloudflare Workers CDN 与 R2 网关
+scope:
+    - workers/cdn/
+    - workers/r2-gateway/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: a78a2690-61df-4ba0-905e-d22741a5f8a3
+kk_ordinal: 2
+kk_cards:
+    architecture_design:
+        id: 1bd5a64c-8b05-4f9e-bf94-9089804b8ce0
+        title: Cloudflare Workers CDN 与 R2 网关
+    coding_conventions:
+        id: 8c43f298-1793-4577-8da5-7fddc4fa4e8c
+        title: Cloudflare Workers CDN 与 R2 网关
+    overview:
+        id: 703c90e4-d704-4f04-ab7d-c9a9b6ff0f65
+        title: Cloudflare Workers CDN 与 R2 网关
+    tech_stack:
+        id: 44cd3a8f-7efa-4046-9c38-3260abc8b4b7
+        title: Cloudflare Workers CDN 与 R2 网关
+    unique_setup_and_commands:
+        id: 26c5cff0-caed-443c-ac91-12d43a9f1f8b
+        title: Cloudflare Workers CDN 与 R2 网关

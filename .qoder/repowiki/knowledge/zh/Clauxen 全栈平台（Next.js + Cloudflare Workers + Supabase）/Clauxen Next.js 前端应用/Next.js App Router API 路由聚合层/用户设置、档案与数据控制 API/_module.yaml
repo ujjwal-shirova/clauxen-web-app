@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_settings_profile_account
+title: 用户设置、档案与数据控制 API
+scope:
+    - src/app/api/v1/settings/
+    - src/app/api/v1/profile/
+    - src/app/api/v1/my-clauxen/
+source_files: []
+depends_on: []
+related_to:
+    - path: ui_shell_settings
+      reason: settings/profile/account API 路由被 ui_shell_settings 的设置面板与侧边栏表单组件消费。
+kk_module_id: 47106e79-6f3f-4131-9ca3-f5f5a7418236
+kk_ordinal: 9
+kk_cards:
+    architecture_design:
+        id: a1ab6da7-5e3e-4310-926e-37ce2ddbbf80
+        title: 用户设置、档案与数据控制 API
+    coding_conventions:
+        id: 6cacbc75-fac2-4de5-810a-0ba1f2e52ea1
+        title: 用户设置、档案与数据控制 API
+    overview:
+        id: 978524f8-a275-462a-9870-3149be163e62
+        title: 用户设置、档案与数据控制 API
+    tech_stack:
+        id: edada621-594c-4936-bb57-6234e2ae4b90
+        title: 用户设置、档案与数据控制 API

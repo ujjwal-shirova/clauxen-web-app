@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: ui_shell_settings
+title: 设置面板与侧边栏 UI
+scope:
+    - src/ui/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: e8061196-6575-499d-a298-42f950f36609
+kk_ordinal: 1
+kk_cards:
+    architecture_design:
+        id: 4be90737-75fe-443a-b47a-4e029610c236
+        title: 设置面板与侧边栏 UI
+    coding_conventions:
+        id: 07252e60-42e2-4d65-9cad-b23db24295f4
+        title: 设置面板与侧边栏 UI
+    overview:
+        id: 359854e3-9da3-4181-918c-94cb2a551206
+        title: 设置面板与侧边栏 UI
+    tech_stack:
+        id: 2b1c851e-fcdd-4df3-9141-4eea4a1cdf6e
+        title: 设置面板与侧边栏 UI

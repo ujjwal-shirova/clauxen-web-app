@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: frontend_app/client_auth_components
+title: 客户端认证与注册界面组件集
+scope:
+    - src/client/components/auth/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_auth_flow_pages
+      reason: 认证流程路由（login/signup/oauth）由 client_auth_components 提供登录/注册弹窗与 OTP 验证 UI。
+kk_module_id: 2e9b1b85-b29d-4283-ba39-2339d9444db6
+kk_ordinal: 13
+kk_cards:
+    architecture_design:
+        id: 79b2c839-71f6-44a1-937c-6a35ea549924
+        title: 客户端认证与注册界面组件集
+    coding_conventions:
+        id: c4608eaa-5b01-4d2a-a3c5-39cc300f1141
+        title: 客户端认证与注册界面组件集
+    overview:
+        id: f7443f1c-375f-4ad1-912d-805fb4d2c9b5
+        title: 客户端认证与注册界面组件集
+    tech_stack:
+        id: 345568d7-02cd-4e41-a90c-4f934c3a417d
+        title: 客户端认证与注册界面组件集

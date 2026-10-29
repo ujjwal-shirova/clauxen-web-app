@@ -1,0 +1,29 @@
+schema_version: 1
+module_path: frontend_app/app_misc_pages
+title: 杂项路由页面（结账、CLI、礼品、法律声明、分享与手机验证）
+scope:
+    - src/app/checkout/
+    - src/app/cli/
+    - src/app/gift/
+    - src/app/legal/
+    - src/app/share/
+    - src/app/verify-phone/
+    - src/app/v1/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 52b58402-2767-463b-a7ff-b84b2cc244d7
+kk_ordinal: 4
+kk_cards:
+    architecture_design:
+        id: 8f73d47a-633d-4b1f-8b3b-cf35859d843a
+        title: 杂项路由页面（结账、CLI、礼品、法律声明、分享与手机验证）
+    coding_conventions:
+        id: 5709efab-ac9f-48de-a139-358ff0efcccf
+        title: 杂项路由页面（结账、CLI、礼品、法律声明、分享与手机验证）
+    overview:
+        id: e2449b5f-65e7-4468-8610-b45152fd6485
+        title: 杂项路由页面（结账、CLI、礼品、法律声明、分享与手机验证）
+    tech_stack:
+        id: c09f1f12-ffeb-40b0-8651-3915461a0dcd
+        title: 杂项路由页面（结账、CLI、礼品、法律声明、分享与手机验证）

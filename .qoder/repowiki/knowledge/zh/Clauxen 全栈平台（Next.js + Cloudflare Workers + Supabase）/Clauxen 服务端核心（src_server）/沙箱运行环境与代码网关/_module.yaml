@@ -1,0 +1,26 @@
+schema_version: 1
+module_path: server_core/sandbox_runtime
+title: 沙箱运行环境与代码网关
+scope:
+    - src/server/sandbox/
+    - src/server/code-gateway/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_sandbox
+      reason: Sandbox v1 REST 端点创建/列举/命令执行沙箱实例，由 server_core/sandbox_runtime 提供 novita-sandbox 生命周期管理。
+kk_module_id: 3cd9c6b2-63a8-4383-b62e-2fe38aa9dcc5
+kk_ordinal: 10
+kk_cards:
+    architecture_design:
+        id: aaa0c004-71af-494f-be8d-2270e97f142f
+        title: 沙箱运行环境与代码网关
+    coding_conventions:
+        id: 3d575618-92cd-4d86-b281-85d2dfbccf08
+        title: 沙箱运行环境与代码网关
+    overview:
+        id: e788c59c-8c2b-42f9-a749-bf3cc0d89ddc
+        title: 沙箱运行环境与代码网关
+    tech_stack:
+        id: 949cf1a6-5a9a-4767-91f0-901d4f88a483
+        title: 沙箱运行环境与代码网关

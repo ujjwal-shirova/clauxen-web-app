@@ -1,0 +1,28 @@
+schema_version: 1
+module_path: cloudflare_workers/supabase_proxy_worker
+title: Supabase 代理与 OAuth Broker 路由 Worker
+scope:
+    - workers/supabase-proxy/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/oauth_routes
+      reason: supabase-proxy Worker 在 auth.clauxen.com 上转发 /auth、/realtime、/graphql 请求到 Supabase 项目并集成 OAuth Broker。
+kk_module_id: 63baade8-3223-4497-80df-a840a32c293c
+kk_ordinal: 9
+kk_cards:
+    architecture_design:
+        id: afd84eb0-7f6c-4214-b3a0-82999861c072
+        title: Supabase 代理与 OAuth Broker 路由 Worker
+    coding_conventions:
+        id: 7ab8e4d2-42d8-42c5-a8e3-9b719ebfe21c
+        title: Supabase 代理与 OAuth Broker 路由 Worker
+    overview:
+        id: ffe90907-8684-4992-9a9a-ab213d1a70da
+        title: Supabase 代理与 OAuth Broker 路由 Worker
+    tech_stack:
+        id: 4ddf77a9-e780-44a8-83c8-1c6b1a4d055a
+        title: Supabase 代理与 OAuth Broker 路由 Worker
+    unique_setup_and_commands:
+        id: f5c759e7-e060-4871-8a01-27c3631a191e
+        title: Supabase 代理与 OAuth Broker 路由 Worker

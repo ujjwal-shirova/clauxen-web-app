@@ -1,0 +1,22 @@
+schema_version: 1
+module_path: frontend_app/app_main_pages
+title: 主应用路由页面集合
+scope:
+    - src/app/(main)/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 4e21d2d3-4c09-44b4-bad3-8413fe7386f6
+kk_cards:
+    architecture_design:
+        id: df4ef7e2-e225-46c7-be61-731fdf2eb107
+        title: 主应用路由页面集合
+    coding_conventions:
+        id: 88687500-37b6-4d2f-b2bb-917aed7492a4
+        title: 主应用路由页面集合
+    overview:
+        id: 41bb9416-1540-4246-a7fd-e9b58fa96c4b
+        title: 主应用路由页面集合
+    tech_stack:
+        id: 68a44ee2-c8e4-4e78-87c9-b6accd313fd1
+        title: 主应用路由页面集合

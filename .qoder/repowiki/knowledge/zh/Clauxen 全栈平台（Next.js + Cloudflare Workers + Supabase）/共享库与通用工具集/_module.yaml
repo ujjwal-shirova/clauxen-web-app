@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: shared_lib
+title: 共享库与通用工具集
+scope:
+    - src/shared/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: e6c6d7e4-8b0f-47a0-96fe-50198bcda42d
+kk_ordinal: 3
+kk_cards:
+    architecture_design:
+        id: f20c7d00-9597-4866-9f29-0b137c38369c
+        title: 共享库与通用工具集
+    coding_conventions:
+        id: 6b18b006-e09a-42ec-af46-272fa5910b4f
+        title: 共享库与通用工具集
+    overview:
+        id: 57266790-76d0-495f-b595-6d738b48787c
+        title: 共享库与通用工具集
+    tech_stack:
+        id: 7168c518-26da-46d1-bb87-2b333aa92024
+        title: 共享库与通用工具集

@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: frontend_app/client_contexts
+title: 客户端全局上下文与状态提供者
+scope:
+    - src/client/contexts/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/client_hooks
+      reason: 全局 Context（auth/session/preference）由 client/hooks 中的 useAuth/useSession 等 Hook 读取并驱动上层业务组件。
+kk_module_id: 240982da-c568-4e58-9bcb-25865a2e9b4a
+kk_ordinal: 18
+kk_cards:
+    architecture_design:
+        id: d52e8d98-a0c8-4878-8f07-e0266340a5a4
+        title: 客户端全局上下文与状态提供者
+    coding_conventions:
+        id: e45d679c-b715-400b-8622-aa09b466e17c
+        title: 客户端全局上下文与状态提供者
+    overview:
+        id: 8ad13973-8815-472d-95e5-42c72d602eab
+        title: 客户端全局上下文与状态提供者
+    tech_stack:
+        id: 66c5de5f-62bf-4381-a7c0-3c14de16cd2e
+        title: 客户端全局上下文与状态提供者

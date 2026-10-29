@@ -1,0 +1,28 @@
+schema_version: 1
+module_path: cloudflare_workers/github_agent_worker
+title: GitHub Agent Cloudflare Worker
+scope:
+    - workers/github-agent/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_workspaces
+      reason: 工作区 SCIM Token 与 SSO 连接查询依赖 GitHub Agent Worker 提供的仓库同步能力。
+kk_module_id: 57e73a64-0108-4807-913d-3acf517e7e4d
+kk_ordinal: 5
+kk_cards:
+    architecture_design:
+        id: 658f91ae-864d-4829-92df-26fd5bca5f07
+        title: GitHub Agent Cloudflare Worker
+    coding_conventions:
+        id: 3c17140f-479c-4a5e-b9d9-4a8efd01f356
+        title: GitHub Agent Cloudflare Worker
+    overview:
+        id: 3611a596-9373-41cf-b5d9-d7c516af5a26
+        title: GitHub Agent Cloudflare Worker
+    tech_stack:
+        id: a83a3c7c-ad78-4085-aadd-08b9f3e1ad19
+        title: GitHub Agent Cloudflare Worker
+    unique_setup_and_commands:
+        id: 5bdb1067-58ae-44ba-a3d9-0b1864c903c6
+        title: GitHub Agent Cloudflare Worker

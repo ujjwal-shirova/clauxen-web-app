@@ -1,0 +1,26 @@
+schema_version: 1
+module_path: tests
+title: 服务端与共享逻辑测试套件
+scope:
+    - tests/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: ed6662a2-9108-4c90-9879-cd3086645a29
+kk_ordinal: 9
+kk_cards:
+    architecture_design:
+        id: f62c48ed-3a32-4fbc-8b73-9dd64d0fc5b3
+        title: 服务端与共享逻辑测试套件
+    coding_conventions:
+        id: b974d74a-84c8-4ef3-abae-6b4777f52de0
+        title: 服务端与共享逻辑测试套件
+    overview:
+        id: 8c2df850-3e48-4f2a-a5dd-ab645cf89c42
+        title: 服务端与共享逻辑测试套件
+    tech_stack:
+        id: 1a503beb-3575-414e-ba4e-b2339638eb8c
+        title: 服务端与共享逻辑测试套件
+    unique_setup_and_commands:
+        id: e9e85bcd-9040-46ef-9e57-c58ef1c30509
+        title: 服务端与共享逻辑测试套件

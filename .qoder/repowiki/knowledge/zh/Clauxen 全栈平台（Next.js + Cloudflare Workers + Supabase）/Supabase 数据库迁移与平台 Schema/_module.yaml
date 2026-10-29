@@ -1,0 +1,28 @@
+schema_version: 1
+module_path: supabase_migrations
+title: Supabase 数据库迁移与平台 Schema
+scope:
+    - supabase/
+source_files: []
+depends_on: []
+related_to:
+    - path: server_core/repositories
+      reason: supabase_migrations 定义的聊天/消息/插件/计费表结构与 repositories 层的 SQL 查询一一对应。
+kk_module_id: d7b70178-83f9-448d-b892-4fdd47ea4dc0
+kk_ordinal: 6
+kk_cards:
+    architecture_design:
+        id: b2edd339-656a-465d-a6b0-1c8d7f3db662
+        title: Supabase 数据库迁移与平台 Schema
+    coding_conventions:
+        id: 8c939738-c814-44dc-b8d1-0a3dae15d797
+        title: Supabase 数据库迁移与平台 Schema
+    overview:
+        id: 978c78a5-2abe-4b7e-9b26-444572ff1ab7
+        title: Supabase 数据库迁移与平台 Schema
+    tech_stack:
+        id: f9d82c63-b958-4763-a2aa-5d69466d4427
+        title: Supabase 数据库迁移与平台 Schema
+    unique_setup_and_commands:
+        id: 670f5591-42b9-43d6-98b9-1c2ae9a9e723
+        title: Supabase 数据库迁移与平台 Schema

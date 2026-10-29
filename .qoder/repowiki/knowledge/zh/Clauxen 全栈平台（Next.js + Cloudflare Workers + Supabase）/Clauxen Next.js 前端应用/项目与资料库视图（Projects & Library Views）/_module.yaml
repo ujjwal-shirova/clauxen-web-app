@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: frontend_app/client_projects_library_views
+title: 项目与资料库视图（Projects & Library Views）
+scope:
+    - src/client/components/projects/
+    - src/client/components/library-view.tsx
+    - src/client/components/my-clauxen-view.tsx
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_projects_library_research_share
+      reason: projects/library/research/share API 路由为 client_projects_library_views 的项目管理、资料库浏览与 My Clauxen 视图提供数据。
+kk_module_id: 9bb9a0e5-94c8-420a-9950-b09ba5ee863d
+kk_ordinal: 15
+kk_cards:
+    architecture_design:
+        id: b32be78d-8c4f-41b9-bc74-f77a1a4ecd53
+        title: 项目与资料库视图（Projects & Library Views）
+    coding_conventions:
+        id: f015ccb5-be47-4660-917f-8b5671a8e222
+        title: 项目与资料库视图（Projects & Library Views）
+    overview:
+        id: 9346f251-6124-47a2-ae6f-fe3214b43b34
+        title: 项目与资料库视图（Projects & Library Views）
+    tech_stack:
+        id: 57da4600-093a-4da2-9317-e6738d648cd3
+        title: 项目与资料库视图（Projects & Library Views）

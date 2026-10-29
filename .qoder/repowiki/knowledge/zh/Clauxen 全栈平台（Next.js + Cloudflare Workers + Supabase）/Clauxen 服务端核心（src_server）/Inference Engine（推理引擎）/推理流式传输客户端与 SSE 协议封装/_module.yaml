@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: server_core/inference/streaming_clients
+title: 推理流式传输客户端与 SSE 协议封装
+scope:
+    - src/server/inference/clauxen-sse-stream.ts
+    - src/server/inference/clauxen-ui-stream.ts
+    - src/server/inference/openai-responses-client.ts
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 1238ffbb-d0b2-4d47-ae95-1bb06934cb53
+kk_ordinal: 1
+kk_cards:
+    architecture_design:
+        id: 20ccc8a5-67d6-429d-b1e8-1faa3f02178b
+        title: 推理流式传输客户端与 SSE 协议封装
+    coding_conventions:
+        id: 90ef6c65-c935-4570-8963-804172982927
+        title: 推理流式传输客户端与 SSE 协议封装
+    overview:
+        id: 2dc63dda-8218-4257-bb97-629eb0b69ea8
+        title: 推理流式传输客户端与 SSE 协议封装
+    tech_stack:
+        id: 976c695c-d424-4d78-8255-ef926fbd93ae
+        title: 推理流式传输客户端与 SSE 协议封装

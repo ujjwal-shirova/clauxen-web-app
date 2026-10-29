@@ -1,0 +1,28 @@
+schema_version: 1
+module_path: scripts
+title: 构建、部署与运维脚本集
+scope:
+    - scripts/
+source_files: []
+depends_on: []
+related_to:
+    - path: cloudflare_workers
+      reason: scripts 部署脚本校验 Cloudflare Workers 构建产物并同步 Vercel 环境变量，驱动 cloudflare_workers 部署。
+kk_module_id: 6ec3ac05-40cf-462b-ab82-75f8e88a13d7
+kk_ordinal: 7
+kk_cards:
+    architecture_design:
+        id: ecdb6fd6-6467-4ba1-881c-0ec80de33e60
+        title: 构建、部署与运维脚本集
+    coding_conventions:
+        id: 068edc8a-a2ee-472f-80d6-92923e000ded
+        title: 构建、部署与运维脚本集
+    overview:
+        id: ece3be74-5777-4e87-90e0-2d715968cbf2
+        title: 构建、部署与运维脚本集
+    tech_stack:
+        id: e34239e1-013e-4e84-b645-7bc045407caa
+        title: 构建、部署与运维脚本集
+    unique_setup_and_commands:
+        id: d500248b-f151-4587-9357-121e26e221ba
+        title: 构建、部署与运维脚本集

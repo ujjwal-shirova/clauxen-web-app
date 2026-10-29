@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: frontend_app/client_hooks
+title: 客户端 React Hooks 集合
+scope:
+    - src/client/hooks/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: 6a77293a-53f3-45d0-8ae3-657e45c02014
+kk_ordinal: 19
+kk_cards:
+    architecture_design:
+        id: b6c791ea-c1cb-41fa-ad87-e4ea3d7fb878
+        title: 客户端 React Hooks 集合
+    coding_conventions:
+        id: 9ad1f0c3-3535-42fd-a0a8-6f3685a2ae59
+        title: 客户端 React Hooks 集合
+    overview:
+        id: 89674594-7e91-48ec-ab9f-9e46ef6eb37e
+        title: 客户端 React Hooks 集合
+    tech_stack:
+        id: 82d7e612-a004-4b12-aecf-257ebb47fae9
+        title: 客户端 React Hooks 集合

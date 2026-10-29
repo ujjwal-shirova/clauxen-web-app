@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: cloudflare_workers/auth_workers
+title: Cloudflare Workers 认证子服务
+scope:
+    - workers/auth-email/
+    - workers/native-auth/
+    - workers/oauth-broker/
+source_files: []
+depends_on: []
+related_to: []
+kk_module_id: f8638e53-a451-4ce4-b749-6bbc8179610a
+kk_cards:
+    architecture_design:
+        id: 62326da7-3e40-4eb7-ab51-6f9b756491d5
+        title: Cloudflare Workers 认证子服务
+    coding_conventions:
+        id: 0048a536-0d29-4133-8e6a-3a6b3498c521
+        title: Cloudflare Workers 认证子服务
+    overview:
+        id: 75c19f40-eff7-4b4c-923b-65d2cf23225e
+        title: Cloudflare Workers 认证子服务
+    tech_stack:
+        id: 8540de1d-0bc8-4e4a-a328-6fb7c2f1ce0a
+        title: Cloudflare Workers 认证子服务
+    unique_setup_and_commands:
+        id: e3810a2b-4909-4f3b-9b6f-4815affc2479
+        title: Cloudflare Workers 认证子服务

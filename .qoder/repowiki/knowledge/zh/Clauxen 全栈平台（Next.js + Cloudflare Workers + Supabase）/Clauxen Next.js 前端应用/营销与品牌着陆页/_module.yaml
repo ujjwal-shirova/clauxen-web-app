@@ -1,0 +1,25 @@
+schema_version: 1
+module_path: frontend_app/app_marketing_pages
+title: 营销与品牌着陆页
+scope:
+    - src/app/(marketing)/
+source_files: []
+depends_on: []
+related_to:
+    - path: ui_shell_settings
+      reason: marketing_pages 的营销着陆页与主应用共享 ui_primitives 原子组件，但面向公开访客而非已登录用户。
+kk_module_id: 565d8990-6e74-49b9-90e2-3b1e07ec0ccb
+kk_ordinal: 1
+kk_cards:
+    architecture_design:
+        id: f2890a13-32c8-4ad8-8c16-d613f902395c
+        title: 营销与品牌着陆页
+    coding_conventions:
+        id: 4eeb65d5-9557-4ae9-b4cd-be8904274548
+        title: 营销与品牌着陆页
+    overview:
+        id: 7ee4040a-3f61-4fce-897e-3babdd22e2d6
+        title: 营销与品牌着陆页
+    tech_stack:
+        id: aed05d2e-9639-4445-b89a-8cebd23814de
+        title: 营销与品牌着陆页

@@ -1,0 +1,902 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+commit: 5331affb7c1f8e55d5456994d7d691bf4a22c161
+branch: master
+exported_at: "2026-10-28T16:31:55Z"
+modules:
+    claude_skills:
+        dir_name: Claude Agent Skills 定义
+        title: Claude Agent Skills 定义
+        scope:
+            - .agents/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    cloudflare_workers:
+        dir_name: Clauxen Cloudflare Workers 服务集群
+        title: Clauxen Cloudflare Workers 服务集群
+        scope:
+            - workers/
+        source_files: []
+        children:
+            - cloudflare_workers/auth_workers
+            - cloudflare_workers/billing_worker
+            - cloudflare_workers/cdn_and_storage_workers
+            - cloudflare_workers/chat_workers
+            - cloudflare_workers/generations_watchdog_worker
+            - cloudflare_workers/github_agent_worker
+            - cloudflare_workers/plugin_oauth_worker
+            - cloudflare_workers/scheduled_tasks_worker
+            - cloudflare_workers/share_gate_worker
+            - cloudflare_workers/supabase_proxy_worker
+        depends_on: []
+        related_to: []
+    cloudflare_workers/auth_workers:
+        dir_name: Cloudflare Workers 认证子服务
+        title: Cloudflare Workers 认证子服务
+        scope:
+            - workers/auth-email/
+            - workers/native-auth/
+            - workers/oauth-broker/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    cloudflare_workers/billing_worker:
+        dir_name: 计费与发票 Cloudflare Worker
+        title: 计费与发票 Cloudflare Worker
+        scope:
+            - workers/billing/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    cloudflare_workers/cdn_and_storage_workers:
+        dir_name: Cloudflare Workers CDN 与 R2 网关
+        title: Cloudflare Workers CDN 与 R2 网关
+        scope:
+            - workers/cdn/
+            - workers/r2-gateway/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    cloudflare_workers/chat_workers:
+        dir_name: 聊天协调与历史 Worker（Cloudflare Workers）
+        title: 聊天协调与历史 Worker（Cloudflare Workers）
+        scope:
+            - workers/chat-coord/
+            - workers/chat-history/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    cloudflare_workers/generations_watchdog_worker:
+        dir_name: Generations Watchdog Worker（Clauxen 后台任务看门狗）
+        title: Generations Watchdog Worker（Clauxen 后台任务看门狗）
+        scope:
+            - workers/generations-watchdog/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_internal_scheduled_tasks
+              reason: watchdog Worker 通过 env.APP.fetch 探测 Vercel 托管的后端 generations-watchdog 端点以续期长轮询会话。
+    cloudflare_workers/github_agent_worker:
+        dir_name: GitHub Agent Cloudflare Worker
+        title: GitHub Agent Cloudflare Worker
+        scope:
+            - workers/github-agent/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_workspaces
+              reason: 工作区 SCIM Token 与 SSO 连接查询依赖 GitHub Agent Worker 提供的仓库同步能力。
+    cloudflare_workers/plugin_oauth_worker:
+        dir_name: 插件 OAuth 授权 Worker
+        title: 插件 OAuth 授权 Worker
+        scope:
+            - workers/plugin-oauth/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    cloudflare_workers/scheduled_tasks_worker:
+        dir_name: Clauxen 定时任务调度 Worker
+        title: Clauxen 定时任务调度 Worker
+        scope:
+            - workers/scheduled-tasks/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: tests
+              reason: tests 覆盖 scheduled-tasks Worker 运行时代码，与 cloudflare_workers/scheduled_tasks_worker 形成测试-实现对。
+    cloudflare_workers/share_gate_worker:
+        dir_name: Share Gate Cloudflare Worker
+        title: Share Gate Cloudflare Worker
+        scope:
+            - workers/share-gate/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_projects_library_research_share
+              reason: 分享功能使用 share-gate Worker 安全发布/查询/撤销分享链接，公开访问受 Turnstile 人机验证保护。
+    cloudflare_workers/supabase_proxy_worker:
+        dir_name: Supabase 代理与 OAuth Broker 路由 Worker
+        title: Supabase 代理与 OAuth Broker 路由 Worker
+        scope:
+            - workers/supabase-proxy/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/oauth_routes
+              reason: supabase-proxy Worker 在 auth.clauxen.com 上转发 /auth、/realtime、/graphql 请求到 Supabase 项目并集成 OAuth Broker。
+    docs:
+        dir_name: 项目文档与架构说明
+        title: 项目文档与架构说明
+        scope:
+            - docs/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: cloudflare_workers/plugin_oauth_worker
+              reason: docs 包含插件与 Cloudflare Workers 集成指南，记录 plugin_oauth_worker 与 auth_workers 的部署架构。
+    frontend_app:
+        dir_name: Clauxen Next.js 前端应用
+        title: Clauxen Next.js 前端应用
+        scope:
+            - src/app/
+            - src/client/
+        source_files: []
+        children:
+            - frontend_app/app_api_routes
+            - frontend_app/app_auth_flow_pages
+            - frontend_app/app_main_pages
+            - frontend_app/app_marketing_pages
+            - frontend_app/app_misc_pages
+            - frontend_app/client_agent_view
+            - frontend_app/client_app_shell_and_layout
+            - frontend_app/client_auth_components
+            - frontend_app/client_chat_ui
+            - frontend_app/client_checkout_billing
+            - frontend_app/client_composer_media
+            - frontend_app/client_contexts
+            - frontend_app/client_customization_skills
+            - frontend_app/client_gift_flows
+            - frontend_app/client_hooks
+            - frontend_app/client_plugins_marketplace
+            - frontend_app/client_projects_library_views
+            - frontend_app/client_research_features
+            - frontend_app/client_shared_components
+            - frontend_app/client_ui_primitives
+            - frontend_app/client_workflows
+        depends_on: []
+        related_to:
+            - path: shared_lib
+              reason: shared_lib 提供跨模块的 Supabase 配置、聊天状态与 MCP 插件类型定义，被 frontend_app 与 server_core 共同使用。
+    frontend_app/app_api_routes:
+        dir_name: Next.js App Router API 路由聚合层
+        title: Next.js App Router API 路由聚合层
+        scope:
+            - src/app/api/
+        source_files: []
+        children:
+            - frontend_app/app_api_routes/oauth_routes
+            - frontend_app/app_api_routes/v1_auth
+            - frontend_app/app_api_routes/v1_billing
+            - frontend_app/app_api_routes/v1_chats
+            - frontend_app/app_api_routes/v1_files_artifacts_audio
+            - frontend_app/app_api_routes/v1_internal_scheduled_tasks
+            - frontend_app/app_api_routes/v1_misc_small_domains
+            - frontend_app/app_api_routes/v1_plugins
+            - frontend_app/app_api_routes/v1_projects_library_research_share
+            - frontend_app/app_api_routes/v1_sandbox
+            - frontend_app/app_api_routes/v1_settings_profile_account
+            - frontend_app/app_api_routes/v1_workspaces
+        depends_on: []
+        related_to: []
+    frontend_app/app_api_routes/oauth_routes:
+        dir_name: OAuth_OpenID Connect API 路由层
+        title: OAuth/OpenID Connect API 路由层
+        scope:
+            - src/app/api/oauth/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: server_core/auth_identity
+              reason: OAuth/OIDC 标准端点（authorize/token/revoke/userinfo）由 server_core/auth_identity 的 PKCE 授权码流与 JWT 本地验证支撑。
+            - path: cloudflare_workers/auth_workers
+              reason: OAuth Broker Worker 处理 GitHub/GitLab 自定义品牌授权，与 supabase-proxy 共同构成 auth.clauxen.com 上的 OAuth 路由层。
+    frontend_app/app_api_routes/v1_auth:
+        dir_name: V1 认证与会话 API 路由
+        title: V1 认证与会话 API 路由
+        scope:
+            - src/app/api/v1/auth/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/client_auth_components
+              reason: 登录/注册弹窗与 OTP 验证组件调用 /api/v1/auth/login、/register、/magic/request 等端点完成认证流程。
+            - path: cloudflare_workers/auth_workers
+              reason: OTP/魔法链接认证通过 auth.clauxen.com 域名转发至 Cloudflare Workers 中的 OTP 邮件认证与原生 Auth 代理网关。
+        version_of:
+            - path: frontend_app/app_api_routes/oauth_routes
+              reason: v1 认证 API（/api/v1/auth/*）与新版 OAuth/OIDC 标准端点（/api/oauth/*）实现同一认证域的不同版本，前者为 REST v1，后者为标准 OIDC。
+    frontend_app/app_api_routes/v1_billing:
+        dir_name: 计费与订阅 API 路由
+        title: 计费与订阅 API 路由
+        scope:
+            - src/app/api/v1/billing/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/app_api_routes/v1_chats:
+        dir_name: 聊天会话 REST API (v1)
+        title: 聊天会话 REST API (v1)
+        scope:
+            - src/app/api/v1/chats/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: server_core/chat
+              reason: v1 聊天 REST 路由调用 server_core/chat 的 durable-generation 与消息持久化服务，是聊天后端的 HTTP 入口。
+            - path: frontend_app/client_chat_ui
+              reason: 聊天会话 UI 调用 /api/v1/chats 列表、消息读写与 [chatId]/generate 流式生成端点编排对话交互。
+    frontend_app/app_api_routes/v1_files_artifacts_audio:
+        dir_name: V1 API：文件上传、Artifacts 与语音听写路由
+        title: V1 API：文件上传、Artifacts 与语音听写路由
+        scope:
+            - src/app/api/v1/files/
+            - src/app/api/v1/artifacts/
+            - src/app/api/v1/audio/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: cloudflare_workers/cdn_and_storage_workers
+              reason: 文件上传预签名/直传与 Artifacts 对象下载由 R2 Gateway Worker 提供，CDN Worker 则提供插件图标静态资源。
+            - path: server_core/integrations
+              reason: 语音听写路由基于 AssemblyAI 实时转写，由 server_core/integrations 中的 AssemblyAI 客户端封装第三方 API。
+    frontend_app/app_api_routes/v1_internal_scheduled_tasks:
+        dir_name: 定时任务 API 路由层
+        title: 定时任务 API 路由层
+        scope:
+            - src/app/api/v1/internal/
+            - src/app/api/v1/scheduled-tasks/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: cloudflare_workers/scheduled_tasks_worker
+              reason: scheduled-tasks Worker 每分钟轮询 APP.fetch('/api/v1/internal/scheduled-tasks/dispatch') 认领任务，并回调 /execute 触发 Supabase 自动化。
+    frontend_app/app_api_routes/v1_misc_small_domains:
+        dir_name: V1 杂项 API 路由集合
+        title: V1 杂项 API 路由集合
+        scope:
+            - src/app/api/v1/gifts/
+            - src/app/api/v1/incognito/
+            - src/app/api/v1/customize/
+            - src/app/api/v1/integrations/
+            - src/app/api/v1/webhooks/
+            - src/app/api/v1/cookies/
+            - src/app/api/v1/public-profiles/
+            - src/app/api/v1/geo/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_misc_pages
+              reason: 结账、CLI、礼品等杂项页面调用 app_api_routes/v1_misc_small_domains 中的轻量级服务端端点。
+            - path: cloudflare_workers/github_agent_worker
+              reason: GitHub Agent Worker 通过 /api/v1/github/* 端点（manifest/start、webhook、oauth/callback 等）与前端 API 路由协作完成 GitHub App 集成。
+            - path: frontend_app/client_customization_skills
+              reason: client_customization_skills 的技能目录与自定义技能编辑对话框调用 /api/v1/customize/skills 上传与管理技能。
+    frontend_app/app_api_routes/v1_plugins:
+        dir_name: 插件连接与 OAuth 管理 API
+        title: 插件连接与 OAuth 管理 API
+        scope:
+            - src/app/api/v1/plugins/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: cloudflare_workers/plugin_oauth_worker
+              reason: 插件 OAuth 连接流程中，Web 应用将发现/客户端注册/PKCE 交换委托给 plugin-oauth Worker 完成令牌密封持久化。
+            - path: frontend_app/client_plugins_marketplace
+              reason: 插件市场 UI 调用 /api/v1/plugins/connect、/connections、/availability 等端点完成插件浏览、授权连接与权限管理。
+    frontend_app/app_api_routes/v1_projects_library_research_share:
+        dir_name: v1 API：项目、资料库与分享路由
+        title: v1 API：项目、资料库与分享路由
+        scope:
+            - src/app/api/v1/projects/
+            - src/app/api/v1/library/
+            - src/app/api/v1/share/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/app_api_routes/v1_sandbox:
+        dir_name: Sandbox REST API (v1)
+        title: Sandbox REST API (v1)
+        scope:
+            - src/app/api/v1/sandbox/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/app_api_routes/v1_settings_profile_account:
+        dir_name: 用户设置、档案与数据控制 API
+        title: 用户设置、档案与数据控制 API
+        scope:
+            - src/app/api/v1/settings/
+            - src/app/api/v1/profile/
+            - src/app/api/v1/my-clauxen/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: ui_shell_settings
+              reason: settings/profile/account API 路由被 ui_shell_settings 的设置面板与侧边栏表单组件消费。
+    frontend_app/app_api_routes/v1_workspaces:
+        dir_name: 工作区 API v1 路由
+        title: 工作区 API v1 路由
+        scope:
+            - src/app/api/v1/workspaces/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/app_auth_flow_pages:
+        dir_name: 认证流程路由与页面
+        title: 认证流程路由与页面
+        scope:
+            - src/app/auth/
+            - src/app/login/
+            - src/app/signup/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/app_main_pages:
+        dir_name: 主应用路由页面集合
+        title: 主应用路由页面集合
+        scope:
+            - src/app/(main)/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/app_marketing_pages:
+        dir_name: 营销与品牌着陆页
+        title: 营销与品牌着陆页
+        scope:
+            - src/app/(marketing)/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: ui_shell_settings
+              reason: marketing_pages 的营销着陆页与主应用共享 ui_primitives 原子组件，但面向公开访客而非已登录用户。
+    frontend_app/app_misc_pages:
+        dir_name: 杂项路由页面（结账、CLI、礼品、法律声明、分享与手机验证）
+        title: 杂项路由页面（结账、CLI、礼品、法律声明、分享与手机验证）
+        scope:
+            - src/app/checkout/
+            - src/app/cli/
+            - src/app/gift/
+            - src/app/legal/
+            - src/app/share/
+            - src/app/verify-phone/
+            - src/app/v1/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/client_agent_view:
+        dir_name: Agent 对话与追踪渲染层
+        title: Agent 对话与追踪渲染层
+        scope:
+            - src/client/components/agent/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: server_core/inference
+              reason: Agent 追踪渲染层消费推理引擎产生的 thinking/narration/tool/artifact SSE 事件，将工具调用轨迹以折叠账本形式展示。
+    frontend_app/client_app_shell_and_layout:
+        dir_name: 应用外壳与侧边栏布局
+        title: 应用外壳与侧边栏布局
+        scope:
+            - src/client/components/main-layout.tsx
+            - src/client/components/sidebar.tsx
+            - src/client/components/app-route-loading-shell.tsx
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_main_pages
+              reason: 主应用页面（聊天/项目/设置/插件）消费 client_app_shell_and_layout 提供的侧边栏与导航布局。
+    frontend_app/client_auth_components:
+        dir_name: 客户端认证与注册界面组件集
+        title: 客户端认证与注册界面组件集
+        scope:
+            - src/client/components/auth/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_auth_flow_pages
+              reason: 认证流程路由（login/signup/oauth）由 client_auth_components 提供登录/注册弹窗与 OTP 验证 UI。
+    frontend_app/client_chat_ui:
+        dir_name: 聊天会话与流式渲染层
+        title: 聊天会话与流式渲染层
+        scope:
+            - src/client/components/chat-area.tsx
+            - src/client/components/conversation-thread.tsx
+            - src/client/components/streaming-markdown.tsx
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/client_checkout_billing:
+        dir_name: 订阅与计费结账页面
+        title: 订阅与计费结账页面
+        scope:
+            - src/client/components/billing-checkout.tsx
+            - src/client/components/checkout-page-view.tsx
+            - src/client/components/subscription.tsx
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_billing
+              reason: 结账页面通过 Razorpay/UPI/Apple Pay 调用 /api/v1/billing/checkout-sessions、orders、payment-methods 完成订阅计费流程。
+    frontend_app/client_composer_media:
+        dir_name: Composer 附件预览与流式语音转写
+        title: Composer 附件预览与流式语音转写
+        scope:
+            - src/client/components/composer/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_files_artifacts_audio
+              reason: Composer 附件预览调用文件预签名上传与 Artifacts CRUD，语音转写文本展示基于 AssemblyAI 实时听写会话接口。
+    frontend_app/client_contexts:
+        dir_name: 客户端全局上下文与状态提供者
+        title: 客户端全局上下文与状态提供者
+        scope:
+            - src/client/contexts/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/client_hooks
+              reason: 全局 Context（auth/session/preference）由 client/hooks 中的 useAuth/useSession 等 Hook 读取并驱动上层业务组件。
+    frontend_app/client_customization_skills:
+        dir_name: 技能目录与自定义技能编辑对话框
+        title: 技能目录与自定义技能编辑对话框
+        scope:
+            - src/client/components/customize/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/client_gift_flows:
+        dir_name: 礼品赠送与领取流程组件
+        title: 礼品赠送与领取流程组件
+        scope:
+            - src/client/components/gift-animation.tsx
+            - src/client/components/gift-claim-dialog.tsx
+            - src/client/components/gift-payment.tsx
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_misc_small_domains
+              reason: 礼品领取弹窗与购买回退页调用 /api/v1/gifts/purchase、/redeem、/claim/[token] 完成赠送订阅的激活。
+    frontend_app/client_hooks:
+        dir_name: 客户端 React Hooks 集合
+        title: 客户端 React Hooks 集合
+        scope:
+            - src/client/hooks/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/client_plugins_marketplace:
+        dir_name: 插件市场与连接管理 UI
+        title: 插件市场与连接管理 UI
+        scope:
+            - src/client/components/plugins/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/client_projects_library_views:
+        dir_name: 项目与资料库视图（Projects & Library Views）
+        title: 项目与资料库视图（Projects & Library Views）
+        scope:
+            - src/client/components/projects/
+            - src/client/components/library-view.tsx
+            - src/client/components/my-clauxen-view.tsx
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_projects_library_research_share
+              reason: projects/library/research/share API 路由为 client_projects_library_views 的项目管理、资料库浏览与 My Clauxen 视图提供数据。
+    frontend_app/client_research_features:
+        dir_name: 深度研究卡片与实时语音听写特性
+        title: 深度研究卡片与实时语音听写特性
+        scope:
+            - src/client/components/deep-research-plan-card.tsx
+            - src/client/components/research-report-card.tsx
+            - src/client/features/dictation/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_projects_library_research_share
+              reason: 深度研究卡片触发 /api/v1/internal/research/start 及 /research/runs 接口创建与查询研究报告。
+    frontend_app/client_shared_components:
+        dir_name: 客户端共享 Markdown 渲染与图标组件
+        title: 客户端共享 Markdown 渲染与图标组件
+        scope:
+            - src/client/components/markdown-renderer.tsx
+            - src/client/components/code-block.tsx
+            - src/client/components/icons.tsx
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/client_ui_primitives:
+        dir_name: 客户端 UI 原子组件库
+        title: 客户端 UI 原子组件库
+        scope:
+            - src/client/components/ui/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app/client_workflows:
+        dir_name: 客户端工作线程与聊天状态管理
+        title: 客户端工作线程与聊天状态管理
+        scope:
+            - src/client/workers/
+            - src/client/stores/
+            - src/client/lib/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/client_chat_ui
+              reason: Zustand store 与 Web Worker 在客户端侧缓存聊天消息、会话状态与流式渲染数据，供 chat-area/conversation-thread 组件消费。
+    prompts:
+        dir_name: Clauxen Agent 提示词与个性化风格模板
+        title: Clauxen Agent 提示词与个性化风格模板
+        scope:
+            - src/prompts/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: server_core/agent_core
+              reason: prompts 模块定义的 Agent 系统提示词与个性化风格模板被 agent-core/inference 在推理时注入给模型。
+    root:
+        dir_name: Clauxen 全栈平台（Next.js + Cloudflare Workers + Supabase）
+        title: Clauxen 全栈平台（Next.js + Cloudflare Workers + Supabase）
+        scope:
+            - README.md
+            - CLAUDE.md
+            - .editorconfig
+            - .gitignore
+            - .prettierignore
+            - .vercelignore
+            - package.json
+            - package-lock.json
+            - tsconfig.json
+            - next.config.ts
+            - open-next.config.ts
+            - tailwind.config.ts
+            - postcss.config.mjs
+            - eslint.config.mjs
+            - components.json
+            - cloudflare-worker.ts
+            - cloudflare-env.d.ts
+            - apphosting.yaml
+            - docker-compose.yml
+            - vercel.json
+            - wrangler.jsonc
+            - skills-lock.json
+        source_files: []
+        children:
+            - claude_skills
+            - cloudflare_workers
+            - docs
+            - frontend_app
+            - prompts
+            - scripts
+            - server_core
+            - shared_lib
+            - supabase_migrations
+            - tests
+            - ui_shell_settings
+        depends_on: []
+        related_to: []
+    scripts:
+        dir_name: 构建、部署与运维脚本集
+        title: 构建、部署与运维脚本集
+        scope:
+            - scripts/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: cloudflare_workers
+              reason: scripts 部署脚本校验 Cloudflare Workers 构建产物并同步 Vercel 环境变量，驱动 cloudflare_workers 部署。
+    server_core:
+        dir_name: Clauxen 服务端核心（src_server）
+        title: Clauxen 服务端核心（src/server）
+        scope:
+            - src/server/
+        source_files: []
+        children:
+            - server_core/agent_core
+            - server_core/auth_identity
+            - server_core/billing
+            - server_core/chat
+            - server_core/http_framework
+            - server_core/inference
+            - server_core/infrastructure
+            - server_core/integrations
+            - server_core/observability_and_misc
+            - server_core/plugins
+            - server_core/repositories
+            - server_core/sandbox_runtime
+            - server_core/services
+        depends_on: []
+        related_to:
+            - path: shared_lib
+              reason: shared_lib 中的计费结账、MCP 插件纯函数被 server_core 的业务服务复用。
+    server_core/agent_core:
+        dir_name: Agent Core — OpenAI Responses 自治代理运行时
+        title: Agent Core — OpenAI Responses 自治代理运行时
+        scope:
+            - src/server/agent-core/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: claude_skills
+              reason: claude_skills 定义的 Agent Skills 元数据与 agent-core/inference 在推理时加载技能目录的行为相呼应。
+    server_core/auth_identity:
+        dir_name: 身份认证与 OAuth 令牌服务
+        title: 身份认证与 OAuth 令牌服务
+        scope:
+            - src/server/auth/
+            - src/server/oauth/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    server_core/billing:
+        dir_name: 订阅计费与 Razorpay 集成层
+        title: 订阅计费与 Razorpay 集成层
+        scope:
+            - src/server/billing/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_billing
+              reason: 计费 v1 路由（checkout-sessions、orders、invoices）调用 server_core/billing 的 Razorpay 集成与订阅编排。
+            - path: server_core/repositories
+              reason: server_core/billing 通过 Razorpay 网关处理支付回调，与 server_core/repositories 协作写入订单/发票数据。
+    server_core/chat:
+        dir_name: 聊天会话核心与持久化编排
+        title: 聊天会话核心与持久化编排
+        scope:
+            - src/server/chat/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: server_core/integrations
+              reason: server_core/integrations 中的 AssemblyAI/GitHub/搜索客户端被 chat/services 在深度研究与 GitHub 集成中调用。
+            - path: tests
+              reason: tests 套件覆盖 deep-research、scheduled-tasks、cloudflare-workers 运行时与服务端逻辑，与被测模块一一对应。
+            - path: server_core/repositories
+              reason: server_core/repositories 为 chat/billing/plugins/workspaces 等业务域提供 PostgreSQL 持久化封装。
+    server_core/http_framework:
+        dir_name: HTTP 请求框架与配置层
+        title: HTTP 请求框架与配置层
+        scope:
+            - src/server/http/
+            - src/server/config/
+            - src/server/cookies/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    server_core/inference:
+        dir_name: Inference Engine（推理引擎）
+        title: Inference Engine（推理引擎）
+        scope:
+            - src/server/inference/
+        source_files: []
+        children:
+            - server_core/inference/autonomous_tools
+            - server_core/inference/sandbox_tooling
+            - server_core/inference/streaming_clients
+        depends_on: []
+        related_to:
+            - path: server_core/agent_core
+              reason: server_core/inference 使用 agent-core 的 OpenAI Responses 自治代理循环串联流式推理与工具执行。
+    server_core/inference/autonomous_tools:
+        dir_name: 自主 Agent 工具集与沙箱工作区
+        title: 自主 Agent 工具集与沙箱工作区
+        scope:
+            - src/server/inference/autonomous-tools/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    server_core/inference/sandbox_tooling:
+        dir_name: 沙箱工具执行与自愈层
+        title: 沙箱工具执行与自愈层
+        scope:
+            - src/server/inference/sandbox-session.ts
+            - src/server/inference/bash-safety.ts
+            - src/server/inference/tool-healer.ts
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: server_core/inference/autonomous_tools
+              reason: server_core/inference/autonomous_tools 与 sandbox_tooling 共同构成 Agent 工具执行层，前者定义工具集后者负责沙箱安全守卫。
+    server_core/inference/streaming_clients:
+        dir_name: 推理流式传输客户端与 SSE 协议封装
+        title: 推理流式传输客户端与 SSE 协议封装
+        scope:
+            - src/server/inference/clauxen-sse-stream.ts
+            - src/server/inference/clauxen-ui-stream.ts
+            - src/server/inference/openai-responses-client.ts
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    server_core/infrastructure:
+        dir_name: 服务器基础设施：数据库、Cloudflare Worker 与 Supabase
+        title: 服务器基础设施：数据库、Cloudflare Worker 与 Supabase
+        scope:
+            - src/server/db/
+            - src/server/cloudflare/
+            - src/server/infrastructure/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    server_core/integrations:
+        dir_name: 外部服务集成层
+        title: 外部服务集成层
+        scope:
+            - src/server/search/
+            - src/server/weather/
+            - src/server/github/
+            - src/server/assemblyai/
+            - src/server/dictation/
+            - src/server/email-verifier/
+            - src/server/training/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    server_core/observability_and_misc:
+        dir_name: 可观测性、运行时缓存与 OpenAI 网关代理
+        title: 可观测性、运行时缓存与 OpenAI 网关代理
+        scope:
+            - src/server/observability/
+            - src/server/cache/
+            - src/server/telemetry/
+            - src/server/shirova-openai.ts
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: server_core/inference
+              reason: server_core/observability_and_misc 聚合结构化日志、KV 缓存与推理遥测，被 inference/services 记录生成指标。
+    server_core/plugins:
+        dir_name: 插件连接与运行时安全沙箱
+        title: 插件连接与运行时安全沙箱
+        scope:
+            - src/server/plugins/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_plugins
+              reason: /api/v1/plugins/* 路由通过 startPluginConnection 等函数驱动插件 OAuth 连接流程，由 server_core/plugins 实现。
+            - path: server_core/auth_identity
+              reason: server_core/plugins 的 OAuth 流程依赖 server_core/auth_identity 的会话解析与 JWT 验证。
+    server_core/repositories:
+        dir_name: 服务器端数据持久化仓库层
+        title: 服务器端数据持久化仓库层
+        scope:
+            - src/server/repositories/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    server_core/sandbox_runtime:
+        dir_name: 沙箱运行环境与代码网关
+        title: 沙箱运行环境与代码网关
+        scope:
+            - src/server/sandbox/
+            - src/server/code-gateway/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes/v1_sandbox
+              reason: Sandbox v1 REST 端点创建/列举/命令执行沙箱实例，由 server_core/sandbox_runtime 提供 novita-sandbox 生命周期管理。
+    server_core/services:
+        dir_name: 服务器领域服务层
+        title: 服务器领域服务层
+        scope:
+            - src/server/services/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: frontend_app/app_api_routes
+              reason: server_core/services 是 API 路由与 repository 之间的编排层，被 v1_chats/v1_billing/v1_plugins 等路由调用。
+    shared_lib:
+        dir_name: 共享库与通用工具集
+        title: 共享库与通用工具集
+        scope:
+            - src/shared/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    supabase_migrations:
+        dir_name: Supabase 数据库迁移与平台 Schema
+        title: Supabase 数据库迁移与平台 Schema
+        scope:
+            - supabase/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: server_core/repositories
+              reason: supabase_migrations 定义的聊天/消息/插件/计费表结构与 repositories 层的 SQL 查询一一对应。
+    tests:
+        dir_name: 服务端与共享逻辑测试套件
+        title: 服务端与共享逻辑测试套件
+        scope:
+            - tests/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    ui_shell_settings:
+        dir_name: 设置面板与侧边栏 UI
+        title: 设置面板与侧边栏 UI
+        scope:
+            - src/ui/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

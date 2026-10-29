@@ -1,0 +1,28 @@
+schema_version: 1
+module_path: server_core/observability_and_misc
+title: 可观测性、运行时缓存与 OpenAI 网关代理
+scope:
+    - src/server/observability/
+    - src/server/cache/
+    - src/server/telemetry/
+    - src/server/shirova-openai.ts
+source_files: []
+depends_on: []
+related_to:
+    - path: server_core/inference
+      reason: server_core/observability_and_misc 聚合结构化日志、KV 缓存与推理遥测，被 inference/services 记录生成指标。
+kk_module_id: 0efdc9e3-2c3a-4832-be24-74c465b772af
+kk_ordinal: 12
+kk_cards:
+    architecture_design:
+        id: 64ecc702-169d-4306-86d5-651c228592a7
+        title: 可观测性、运行时缓存与 OpenAI 网关代理
+    coding_conventions:
+        id: d89b140d-c458-4574-94e2-ce78009974d4
+        title: 可观测性、运行时缓存与 OpenAI 网关代理
+    overview:
+        id: 4a7a06e2-35ce-48df-8aea-5c50ece16a6e
+        title: 可观测性、运行时缓存与 OpenAI 网关代理
+    tech_stack:
+        id: 0359130b-1d0d-4f5f-a2d8-62e2b2e56e4a
+        title: 可观测性、运行时缓存与 OpenAI 网关代理

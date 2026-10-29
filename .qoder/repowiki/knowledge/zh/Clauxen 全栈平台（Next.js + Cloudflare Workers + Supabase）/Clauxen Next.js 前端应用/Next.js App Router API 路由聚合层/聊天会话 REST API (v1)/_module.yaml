@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: frontend_app/app_api_routes/v1_chats
+title: 聊天会话 REST API (v1)
+scope:
+    - src/app/api/v1/chats/
+source_files: []
+depends_on: []
+related_to:
+    - path: server_core/chat
+      reason: v1 聊天 REST 路由调用 server_core/chat 的 durable-generation 与消息持久化服务，是聊天后端的 HTTP 入口。
+    - path: frontend_app/client_chat_ui
+      reason: 聊天会话 UI 调用 /api/v1/chats 列表、消息读写与 [chatId]/generate 流式生成端点编排对话交互。
+kk_module_id: 5fd2a9da-99d9-42be-9ef6-89bc1ad22fea
+kk_ordinal: 2
+kk_cards:
+    architecture_design:
+        id: af7ffbb6-7e16-4e3b-be3c-c2dd9aad3f6a
+        title: 聊天会话 REST API (v1)
+    coding_conventions:
+        id: 820bc89e-d0cd-46f1-aa88-bdfed592c83f
+        title: 聊天会话 REST API (v1)
+    overview:
+        id: 5e8161ec-eef9-4997-a39f-13960d765f6e
+        title: 聊天会话 REST API (v1)
+    tech_stack:
+        id: 2e92c136-8dc7-4800-b4d3-1f8034a8087c
+        title: 聊天会话 REST API (v1)

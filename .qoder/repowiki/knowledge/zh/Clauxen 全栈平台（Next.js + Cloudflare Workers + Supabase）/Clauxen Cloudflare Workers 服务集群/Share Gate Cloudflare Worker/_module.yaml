@@ -1,0 +1,28 @@
+schema_version: 1
+module_path: cloudflare_workers/share_gate_worker
+title: Share Gate Cloudflare Worker
+scope:
+    - workers/share-gate/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_projects_library_research_share
+      reason: 分享功能使用 share-gate Worker 安全发布/查询/撤销分享链接，公开访问受 Turnstile 人机验证保护。
+kk_module_id: ade55255-7c63-4c92-8135-a8fd517939c3
+kk_ordinal: 8
+kk_cards:
+    architecture_design:
+        id: 417e6f97-822b-4f88-ad4e-460aa271366a
+        title: Share Gate Cloudflare Worker
+    coding_conventions:
+        id: 57067f27-e345-427e-bba2-eff4f5a954ec
+        title: Share Gate Cloudflare Worker
+    overview:
+        id: 2675e28e-c4c8-4acb-8189-bc139c9b2364
+        title: Share Gate Cloudflare Worker
+    tech_stack:
+        id: 32c58c47-1a9d-4377-b363-20ae8ec6e125
+        title: Share Gate Cloudflare Worker
+    unique_setup_and_commands:
+        id: f2cf65e5-ce24-4c36-ab43-27396dc75f6b
+        title: Share Gate Cloudflare Worker

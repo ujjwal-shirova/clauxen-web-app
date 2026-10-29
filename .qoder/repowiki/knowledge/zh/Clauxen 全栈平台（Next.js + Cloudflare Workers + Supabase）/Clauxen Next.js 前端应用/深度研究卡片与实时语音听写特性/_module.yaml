@@ -1,0 +1,30 @@
+schema_version: 1
+module_path: frontend_app/client_research_features
+title: 深度研究卡片与实时语音听写特性
+scope:
+    - src/client/components/deep-research-plan-card.tsx
+    - src/client/components/research-report-card.tsx
+    - src/client/features/dictation/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app/app_api_routes/v1_projects_library_research_share
+      reason: 深度研究卡片触发 /api/v1/internal/research/start 及 /research/runs 接口创建与查询研究报告。
+kk_module_id: 283260f6-5605-43ff-ab24-a448ee4e3df3
+kk_ordinal: 9
+kk_cards:
+    architecture_design:
+        id: 6f2a8dd7-80cf-41b1-8cb2-97ceb66b2337
+        title: 深度研究卡片与实时语音听写特性
+    coding_conventions:
+        id: 4e15d2f3-a9d6-4a13-801e-4d7c82679bfb
+        title: 深度研究卡片与实时语音听写特性
+    overview:
+        id: 9c90b123-b37c-4777-b391-c8aed3214cfb
+        title: 深度研究卡片与实时语音听写特性
+    tech_stack:
+        id: 535eeb88-c0a5-45b1-a389-bc0c58dfe43c
+        title: 深度研究卡片与实时语音听写特性
+    unique_setup_and_commands:
+        id: aecd79bc-733e-4b8f-a407-711478642fac
+        title: 深度研究卡片与实时语音听写特性
