@@ -4,14 +4,11 @@ import { useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
-  ClockHistory,
   ExternalLink,
   KeyRound,
-  ListCheck,
   Loader2,
   MoreHorizontal,
   RotateCcw,
-  ShieldLock,
   Sparkles,
   Trash2,
 } from "@/components/ui/bootstrap-icon";
@@ -60,29 +57,6 @@ const RISK_STYLE: Record<ToolRisk, string> = {
   write: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300",
   destructive: "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300",
 };
-
-const SAFETY_CARDS = [
-  {
-    icon: KeyRound,
-    title: "Your accounts, your rules",
-    body: "You approve access on the app's own sign-in page. The assistant never sees a password or token.",
-  },
-  {
-    icon: ShieldLock,
-    title: "Prompt injections get blocked",
-    body: "Instructions hidden in emails and pages are removed before the assistant reads them.",
-  },
-  {
-    icon: ListCheck,
-    title: "You choose what it can do",
-    body: "Keep a plugin read-only, or switch individual tools off. Changes always need your go-ahead.",
-  },
-  {
-    icon: ClockHistory,
-    title: "Every action is traced",
-    body: "Each tool call is logged here with its outcome, and you can revoke access at any time.",
-  },
-];
 
 function relativeTime(iso: string | null): string {
   if (!iso) return "never";
@@ -279,21 +253,6 @@ export function PluginDetailPage({
           </ul>
         </Section>
       ) : null}
-
-      <Section title="How Clauxen keeps you safe">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {SAFETY_CARDS.map((card) => (
-            <div
-              key={card.title}
-              className="rounded-2xl border border-black/[0.07] bg-white p-5 dark:border-white/[0.08] dark:bg-zinc-900"
-            >
-              <card.icon className="text-[16px] text-zinc-700 dark:text-zinc-300" />
-              <p className="mt-3 text-[14px] font-semibold">{card.title}</p>
-              <p className="mt-1 text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">{card.body}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
 
       <Section title="Information">
         <dl className="divide-y divide-black/[0.06] overflow-hidden rounded-2xl border border-black/[0.07] bg-white text-[13px] dark:divide-white/[0.06] dark:border-white/[0.08] dark:bg-zinc-900">

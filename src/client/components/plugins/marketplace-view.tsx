@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  ChevronDown,
   ChevronRight,
   Loader2,
   Search,
-  ShieldCheck,
   X,
 } from "@/components/ui/bootstrap-icon";
 import { MobilePageHeader } from "@/components/mobile-page-header";
@@ -69,7 +69,6 @@ export function MarketplaceView() {
 
   const [tab, setTab] = useState<Tab>("discover");
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -152,9 +151,6 @@ export function MarketplaceView() {
       pluginMatches(plugin, needle),
     );
   }, [query]);
-
-  const visibleSections =
-    category === "all" ? sections : sections.filter((section) => section.id === category);
 
   const installed = connections.filter((connection) => connection.status !== "revoked");
 
@@ -239,10 +235,7 @@ export function MarketplaceView() {
               </label>
             </header>
 
-            <div
-              className="mt-7 flex items-center gap-6 border-b border-black/[0.06] dark:border-white/[0.08]"
-              role="tablist"
-            >
+            <div className="mt-7 flex flex-wrap items-center gap-2" role="tablist">
               {(
                 [
                   ["discover", "Discover"],
@@ -256,10 +249,10 @@ export function MarketplaceView() {
                   aria-selected={tab === id}
                   onClick={() => setTab(id)}
                   className={cn(
-                    "-mb-px border-b-2 pb-2.5 text-[13.5px] font-medium transition-colors",
+                    "no-hover-overlay inline-flex h-9 items-center rounded-full border px-4 text-[13px] font-medium transition-colors",
                     tab === id
-                      ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
-                      : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200",
+                      ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                      : "border-black/[0.08] bg-white text-zinc-600 hover:border-black/[0.16] hover:text-zinc-900 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:text-zinc-100",
                   )}
                 >
                   {label}
@@ -279,10 +272,7 @@ export function MarketplaceView() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState
-                    title="No plugins found"
-                    body="Try a different name, or browse the categories."
-                  />
+                  <EmptyState title="No plugins found" body="Try a different name." />
                 )}
               </section>
             ) : tab === "installed" ? (
@@ -294,50 +284,42 @@ export function MarketplaceView() {
               />
             ) : (
               <>
-                <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
-                  {[{ id: "all", title: "All" }, ...sections].map((section) => (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={() => setCategory(section.id)}
-                      className={cn(
-                        "h-8 shrink-0 rounded-full border px-3.5 text-[12.5px] font-medium transition-colors",
-                        category === section.id
-                          ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                          : "border-black/[0.08] bg-white text-zinc-600 hover:border-black/[0.16] hover:text-zinc-900 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300",
-                      )}
-                    >
-                      {section.title}
-                    </button>
-                  ))}
-                </div>
-
-                <TrustStrip />
-
-                {visibleSections.map((section) => {
-                  const isOpen = category !== "all" || expanded[section.id];
+                {sections.map((section) => {
+                  const isOpen = Boolean(expanded[section.id]);
+                  const remaining = section.plugins.length - SECTION_PREVIEW;
                   const shown = isOpen ? section.plugins : section.plugins.slice(0, SECTION_PREVIEW);
                   return (
-                    <section key={section.id} className="mt-9">
-                      <div className="mb-3 flex items-baseline justify-between">
-                        <h2 className="text-[15px] font-semibold tracking-[-0.01em]">{section.title}</h2>
-                        {category === "all" && section.plugins.length > SECTION_PREVIEW ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpanded((current) => ({ ...current, [section.id]: !current[section.id] }))
-                            }
-                            className="text-[12.5px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-                          >
-                            {isOpen ? "Show less" : `Show all ${section.plugins.length}`}
-                          </button>
-                        ) : null}
-                      </div>
+                    <section key={section.id} className="mt-8">
+                      <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em]">
+                        {section.title}
+                      </h2>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {shown.map((plugin) => (
                           <PluginCard key={`${section.id}-${plugin.id}`} {...cardProps(plugin)} />
                         ))}
                       </div>
+                      {remaining > 0 ? (
+                        <div className="mt-4 flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpanded((current) => ({
+                                ...current,
+                                [section.id]: !current[section.id],
+                              }))
+                            }
+                            className="no-hover-overlay inline-flex h-9 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-4 text-[12.5px] font-medium text-zinc-600 transition-colors hover:border-black/[0.16] hover:text-zinc-900 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:text-zinc-100"
+                          >
+                            {isOpen ? "Show less" : `Show ${remaining} more`}
+                            <ChevronDown
+                              className={cn(
+                                "text-[11px] transition-transform",
+                                isOpen && "rotate-180",
+                              )}
+                            />
+                          </button>
+                        </div>
+                      ) : null}
                     </section>
                   );
                 })}
@@ -346,20 +328,6 @@ export function MarketplaceView() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function TrustStrip() {
-  return (
-    <div className="mt-6 flex items-start gap-3 rounded-2xl border border-black/[0.06] bg-[#fbfaf9] px-4 py-3.5 dark:border-white/[0.08] dark:bg-white/[0.03]">
-      <ShieldCheck className="mt-0.5 text-[16px] text-emerald-600 dark:text-emerald-400" />
-      <p className="text-[13px] leading-5 text-zinc-600 dark:text-zinc-400">
-        <span className="font-medium text-zinc-900 dark:text-zinc-100">Your accounts, your rules.</span>{" "}
-        Tokens are encrypted and used only on Clauxen&apos;s servers, instructions hidden in emails or
-        pages are filtered before the assistant reads them, and every action is logged on the
-        plugin&apos;s page.
-      </p>
     </div>
   );
 }
