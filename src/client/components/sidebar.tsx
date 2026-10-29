@@ -13,13 +13,12 @@ import {
   Settings,
   ArrowUpCircle,
   ChevronRight,
-  Gift,
+  Devices,
   HelpCircle,
   LogIn,
   LogOut,
   MoreVertical,
   Pin,
-  MessageSquare,
   Code2,
   Hand,
   Sparkles,
@@ -30,9 +29,8 @@ import {
   Puzzle,
   Search,
   Keyboard,
-} from "@/components/ui/bootstrap-icon";
+} from "@/components/icons/app-icons";
 import { SidebarToggleIcon } from "./icons";
-import { ClauxenLogo } from "./icons/clauxen-logo";
 import { cn } from "@/lib/utils";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
@@ -293,7 +291,6 @@ interface SidebarProps {
   onUpgradeClick: () => void;
   onSettingsClick: () => void;
   onPersonalizationClick?: () => void;
-  onGiftClick: () => void;
   activeView?: string;
   recentChats: RecentChat[];
   activeChatId: string | null;
@@ -329,7 +326,6 @@ export function Sidebar({
   onUpgradeClick,
   onSettingsClick,
   onPersonalizationClick,
-  onGiftClick,
   activeView,
   recentChats,
   activeChatId,
@@ -648,13 +644,24 @@ export function Sidebar({
         )}
       >
         <div className="ui-sidebar-top-bar relative flex h-14 shrink-0 items-center justify-between px-2.5">
-          <span
-            role="img"
-            aria-label="Clauxen"
-            className="cx-sidebar-logo flex size-8 shrink-0 items-center justify-center text-zinc-900 dark:text-zinc-100"
-          >
-            <ClauxenLogo size={22} />
-          </span>
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              role="img"
+              aria-label="Clauxen"
+              className="cx-sidebar-logo flex size-7 shrink-0 items-center justify-center text-zinc-900 dark:text-zinc-100"
+            >
+              <img
+                src="/assets/icons/clauxen-icon.svg"
+                alt=""
+                width={21}
+                height={21}
+                className="size-[21px] shrink-0"
+              />
+            </span>
+            {!isCollapsed || isMobileLayout || isPeekPreview ? (
+              <span className="clauxen-wordmark truncate">Clauxen</span>
+            ) : null}
+          </div>
 
           {!isMobileLayout && (!isCollapsed || isPeekPreview) ? (
             <ShortcutHint
@@ -721,7 +728,7 @@ export function Sidebar({
               )}
             >
               <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-700 group-hover:text-zinc-900 dark:text-zinc-200 dark:group-hover:text-zinc-50">
-                <MessageSquare className="size-4" />
+                <Plus className="size-[18px]" />
               </span>
               {isCollapsed && !isMobileLayout ? null : (
                 <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[14px] leading-normal">
@@ -732,6 +739,37 @@ export function Sidebar({
                 <ShortcutBadge shortcutId="openNewChat" className="ml-auto" />
               )}
             </AppHref>
+          </ShortcutHint>
+          <ShortcutHint
+            label="Search chats"
+            shortcutId="searchChats"
+            side="right"
+          >
+            <button
+              type="button"
+              data-keynav-item
+              aria-label="Search"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (!gateSidebarAction(event)) return;
+                setSidebarSearchOpen(true);
+              }}
+              className={cn(
+                "cx-nav-btn group flex h-9 w-full items-center gap-1.5 rounded-lg px-2 text-[14px] font-medium tracking-[-0.01em] text-zinc-600 transition-colors duration-150 outline-none select-none hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-400",
+                isCollapsed &&
+                  !isMobileLayout &&
+                  "size-9 justify-center rounded-lg px-0",
+              )}
+            >
+              <span className="cx-nav-icon flex size-4.5 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-800 dark:text-zinc-400 dark:group-hover:text-zinc-100">
+                <Search className="size-[18px]" />
+              </span>
+              {!isCollapsed || isMobileLayout ? (
+                <span className="cx-nav-label min-w-0 flex-1 truncate text-left text-[14px] leading-normal">
+                  Search
+                </span>
+              ) : null}
+            </button>
           </ShortcutHint>
           <ShortcutHint label="Library" chips={["G", "L"]} side="right">
             <AppHref
@@ -950,7 +988,7 @@ export function Sidebar({
                   enabled={!guestMode}
                 />
                 <SidebarSectionLabel
-                  label="Chats and tasks"
+                  label="Recents"
                   expanded={recentsExpanded}
                   onToggle={() => toggleSection("recents")}
                   trailing={
@@ -989,10 +1027,7 @@ export function Sidebar({
                   ) : chatsLoading && recentChats.length === 0 ? (
                     <div className="space-y-px" aria-hidden>
                       {[72, 58, 84, 64, 50, 76, 60].map((width, index) => (
-                        <div
-                          key={index}
-                          className="flex h-9 items-center px-2"
-                        >
+                        <div key={index} className="flex h-9 items-center px-2">
                           <Skeleton
                             variant="text"
                             className="h-2.5 bg-[var(--ui-hover-wash)]"
@@ -1058,11 +1093,7 @@ export function Sidebar({
                   )}
                 >
                   <span className="flex size-5 shrink-0 items-center justify-center text-zinc-500">
-                    <LogIn
-                      className="size-4"
-                      strokeWidth={1.75}
-                      aria-hidden
-                    />
+                    <LogIn className="size-4" strokeWidth={1.75} aria-hidden />
                   </span>
                   <div
                     className={cn(
@@ -1114,7 +1145,10 @@ export function Sidebar({
                         !(Boolean(userEmail) && (planLoading || !planLabel)) &&
                         planLabel ? (
                           <>
-                            <span className="cx-account-dot text-[11px] text-zinc-400" aria-hidden>
+                            <span
+                              className="cx-account-dot text-[11px] text-zinc-400"
+                              aria-hidden
+                            >
                               ·
                             </span>
                             <span className="cx-account-plan text-[11px] font-normal text-zinc-400 truncate">
@@ -1134,7 +1168,7 @@ export function Sidebar({
                     sideOffset={6}
                     collisionPadding={10}
                     onCloseAutoFocus={(e) => e.preventDefault()}
-                    className="z-[60] w-[min(232px,calc(100vw-2rem))] font-sans"
+                    className="cx-account-menu z-[60] w-[min(264px,calc(100vw-2rem))] font-sans"
                   >
                     <DropdownMenuLabel className="truncate px-2 pb-1 pt-1 text-[11.5px] font-normal text-[var(--ui-fg-muted)]">
                       {userEmail || "Not signed in"}
@@ -1238,6 +1272,7 @@ export function Sidebar({
                       <Keyboard className="size-[15px] text-[var(--ui-fg-muted)]" />
                       <span>Keyboard shortcuts</span>
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator className="my-1 bg-[var(--ui-border-subtle)]" />
                     <DropdownMenuItem asChild>
                       <AppHref
                         href={overlayHref({ type: "pricing" })}
@@ -1250,20 +1285,6 @@ export function Sidebar({
                       >
                         <ArrowUpCircle className="size-[15px] text-[var(--ui-fg-muted)]" />
                         <span>Upgrade plan</span>
-                      </AppHref>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <AppHref
-                        href={overlayHref({ type: "gift" })}
-                        onClick={(e) => {
-                          if (!isPlainLeftClick(e)) return;
-                          e.preventDefault();
-                          runAccountOverlayAction(onGiftClick);
-                        }}
-                        className="ui-menu-row no-hover-overlay cursor-pointer"
-                      >
-                        <Gift className="size-[15px] text-[var(--ui-fg-muted)]" />
-                        <span>Gift Clauxen</span>
                       </AppHref>
                     </DropdownMenuItem>
                     <DropdownMenuSub>
@@ -1299,23 +1320,19 @@ export function Sidebar({
 
               {!isCollapsed && !isPeekPreview ? (
                 <div className="flex shrink-0 items-center">
-                  <ShortcutHint
-                    label="Search chats"
-                    shortcutId="searchChats"
-                    side="top"
-                  >
+                  <ShortcutHint label="Get apps and extensions" side="top">
                     <button
                       type="button"
-                      aria-label="Search chats"
-                      title="Search chats"
+                      aria-label="Get apps and extensions"
+                      title="Get apps and extensions"
                       onClick={(event) => {
                         event.stopPropagation();
                         if (!gateSidebarAction(event)) return;
-                        setSidebarSearchOpen(true);
+                        router.push("/download");
                       }}
                       className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--cx-sidebar-muted)] transition-colors hover:bg-[var(--cx-sidebar-hover)] hover:text-[var(--cx-sidebar-fg)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                     >
-                        <Search className="size-4 shrink-0" />
+                      <Devices className="size-[18px] shrink-0" />
                     </button>
                   </ShortcutHint>
                 </div>

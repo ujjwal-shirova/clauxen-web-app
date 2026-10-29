@@ -21,7 +21,6 @@ function toClientProfile(
     visibility: {
       usageStatistics: row?.show_usage_statistics ?? true,
       activityGraph: row?.show_activity_graph ?? true,
-      topPlugins: row?.show_top_plugins ?? true,
       insights: row?.show_insights ?? true,
     },
   };
@@ -48,7 +47,6 @@ export const PATCH = withApiHandler(
       avatarShape?: string;
       showUsageStatistics?: boolean;
       showActivityGraph?: boolean;
-      showTopPlugins?: boolean;
       showInsights?: boolean;
     };
 
@@ -64,7 +62,6 @@ export const PATCH = withApiHandler(
     for (const field of [
       "showUsageStatistics",
       "showActivityGraph",
-      "showTopPlugins",
       "showInsights",
     ] as const) {
       if (body[field] !== undefined && typeof body[field] !== "boolean") {
@@ -81,7 +78,6 @@ export const PATCH = withApiHandler(
       avatarShape: body.avatarShape,
       showUsageStatistics: body.showUsageStatistics,
       showActivityGraph: body.showActivityGraph,
-      showTopPlugins: body.showTopPlugins,
       showInsights: body.showInsights,
     });
 

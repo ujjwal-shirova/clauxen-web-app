@@ -13,7 +13,6 @@ export type UserProfile = {
   visibility?: {
     usageStatistics: boolean;
     activityGraph: boolean;
-    topPlugins: boolean;
     insights: boolean;
   };
 };
@@ -40,7 +39,6 @@ export async function updateProfile(patch: {
   avatarShape?: string;
   showUsageStatistics?: boolean;
   showActivityGraph?: boolean;
-  showTopPlugins?: boolean;
   showInsights?: boolean;
 }) {
   const data = await apiFetch<{ profile: UserProfile }>("/api/v1/profile", {

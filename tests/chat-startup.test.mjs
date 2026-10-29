@@ -42,7 +42,6 @@ const state = {
   loads: 0,
   started: 0,
   projectStarted: false,
-  pluginsStarted: false,
 };
 globalThis.__startupTest = state;
 const stream = await load("src/app/api/chat/stream.ts", {
@@ -56,7 +55,6 @@ const stream = await load("src/app/api/chat/stream.ts", {
   "@/lib/model-catalog": `export const modelCatalogEnvFromProcess = () => ({}); export const parseChatModelId=()=> 'fixture'; export const resolveModelRuntime=()=>({modelSlug:'fixture'});`,
   "@/server/inference/system-prompt": `export const buildModelSystemPrompt=({append})=>append; export const buildTemporalContextAppend=()=>'';`,
   "@/server/services/project-context": `export function loadProjectPromptAppend() {globalThis.__startupTest.projectStarted=true; return globalThis.__startupTest.projectPromise;}`,
-  "@/server/plugins/plugin-runtime": `export function buildAgentMcpTools() {globalThis.__startupTest.pluginsStarted=true; return globalThis.__startupTest.pluginPromise;}`,
 });
 test("personalization reads its profile/settings once and preserves thinking preferences", async () => {
   const bundle = await stream.loadChatStreamPersonalization("fixture-user");
@@ -65,13 +63,10 @@ test("personalization reads its profile/settings once and preserves thinking pre
   assert.equal(bundle.extendedThinkingDefault, true);
   assert.equal(bundle.followUpsEnabled, false);
 });
-test("project context and plugin catalog overlap prompt preparation but remain required before inference", async () => {
-  let releaseProject, releasePlugins, releaseContext;
+test("project context overlaps prompt preparation but remains required before inference", async () => {
+  let releaseProject, releaseContext;
   state.projectPromise = new Promise((resolve) => {
     releaseProject = resolve;
-  });
-  state.pluginPromise = new Promise((resolve) => {
-    releasePlugins = resolve;
   });
   const context = new Promise((resolve) => {
     releaseContext = resolve;
@@ -89,7 +84,6 @@ test("project context and plugin catalog overlap prompt preparation but remain r
     },
   );
   assert.equal(state.projectStarted, true);
-  assert.equal(state.pluginsStarted, true);
   assert.equal(state.started, 0);
   const drain = new Response(body).text();
   releaseContext({
@@ -104,12 +98,8 @@ test("project context and plugin catalog overlap prompt preparation but remain r
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(state.started, 0, "project and tool context cannot be skipped");
   releaseProject({ text: "project instructions", projectOnly: true });
-  releasePlugins([
-    { name: "mcp__fixture__search", type: "function", parameters: {} },
-  ]);
   await drain;
   assert.equal(dispatched, 1);
-  assert.equal(state.agentOptions.mcpAgentTools.length, 1);
   assert.match(state.agentOptions.systemPrompt, /project instructions/);
   assert.doesNotMatch(state.agentOptions.systemPrompt, /outside memory/);
 });
@@ -141,20 +131,6 @@ test("enrichment deadline elapses while mandatory persistence is still running",
     "safe",
   );
 });
-const plugins = await load("src/server/plugins/plugin-runtime.ts", {
-  "@/server/config/env": `export const env={};`,
-  "@/server/plugins/token-crypto": `export function unsealSecret() {throw new Error('Unexpected token decryption during catalog preparation');}`,
-  "@/server/plugins/mcp-client": `export function listMcpTools() {throw new Error('Unexpected remote MCP handshake');} export function callMcpTool() {} export function mcpResultToText() {}`,
-  "@/server/repositories/plugin-connections.repository": `export async function listActiveConnectionsForUser(userId) {return [{id:userId,plugin_id:'fixture',plugin_name:'Fixture',status:'active'}];}
-    export async function listConnectionTools() {return [{tool_name:'search',description:'Search',input_schema:{type:'object'}}];}
-    export function readSealedTokens() {throw new Error('Unexpected OAuth lookup during catalog preparation');}`,
-});
-test("saved connected-plugin definitions require no OAuth refresh or remote discovery on send", async () => {
-  const tools = await plugins.buildAgentMcpTools("fixture-user");
-  assert.equal(tools.length, 1);
-  assert.equal(tools[0].name, "mcp__fixture__search");
-});
-
 const fenceState = { row: { id: "assistant-fixture" }, calls: [] };
 globalThis.__startupFenceTest = fenceState;
 const jobs = await load(

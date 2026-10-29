@@ -15,18 +15,14 @@ import {
   ChevronDown,
   Folder,
   FolderKanban,
-  Laptop,
-  LoaderCircle,
-  Mic,
   Plus,
   SlidersHorizontal,
   Square,
   Star,
   Telescope,
   X,
-} from "@/components/ui/bootstrap-icon";
+} from "@/components/icons/app-icons";
 import { cn } from "@/lib/utils";
-import { AppHref } from "@/components/app-href";
 import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
 import {
   captureDisplayScreenshot,
@@ -66,11 +62,12 @@ import { AttachmentChip } from "@/components/composer/attachment-chip";
 import { AttachmentPreviewHost } from "@/components/composer/attachment-preview-host";
 import { ComposerAttachmentStrip } from "@/components/composer/attachment-strip";
 import * as settingsApi from "@/lib/api/settings";
-import { APP_ROUTES, overlayToHash } from "@/lib/app-routes";
+import { overlayToHash } from "@/lib/app-routes";
 import {
   formatDictationRemaining,
-  useStreamingDictation,
-} from "@/features/dictation/use-streaming-dictation";
+  useDictation,
+} from "@/features/dictation/use-dictation";
+import { DictationControls } from "@/components/composer/dictation-controls";
 import type { CaretRange } from "@/features/dictation/transcript";
 import {
   Popover,
@@ -153,15 +150,6 @@ const COMPOSE_ACTION_META: Record<
   },
 };
 
-const TOOLBAR_PLUGIN_ICONS = [
-  { id: "gmail", iconUrl: "https://cdn.clauxen.com/plugins/icons/gmail.png" },
-  { id: "github", iconUrl: "https://cdn.clauxen.com/plugins/icons/github.png" },
-  {
-    id: "cloudflare",
-    iconUrl: "https://cdn.clauxen.com/plugins/icons/cloudflare.png",
-  },
-] as const;
-
 const addMenuTriggerClass =
   "menu-trigger-active no-hover-overlay prompt-control-ghost shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
 
@@ -213,7 +201,9 @@ function ProjectSelectorPopover({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId ?? null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    projectId ?? null,
+  );
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -234,7 +224,10 @@ function ProjectSelectorPopover({
       .finally(() => setLoading(false));
   }, [open]);
 
-  const handleTogglePin = async (e: React.MouseEvent, project: ProjectSummary) => {
+  const handleTogglePin = async (
+    e: React.MouseEvent,
+    project: ProjectSummary,
+  ) => {
     e.stopPropagation();
     e.preventDefault();
     const nextPinned = !project.pinned;
@@ -245,7 +238,9 @@ function ProjectSelectorPopover({
       await updateProject(project.id, { pinned: nextPinned });
     } catch {
       setProjects((prev) =>
-        prev.map((p) => (p.id === project.id ? { ...p, pinned: !nextPinned } : p)),
+        prev.map((p) =>
+          p.id === project.id ? { ...p, pinned: !nextPinned } : p,
+        ),
       );
     }
   };
@@ -330,7 +325,9 @@ function ProjectSelectorPopover({
                     </div>
                     <button
                       type="button"
-                      aria-label={proj.pinned ? "Unstar project" : "Star project"}
+                      aria-label={
+                        proj.pinned ? "Unstar project" : "Star project"
+                      }
                       onClick={(e) => void handleTogglePin(e, proj)}
                       className="p-1 rounded hover:bg-black/[0.05] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
                     >
@@ -377,16 +374,15 @@ function ProjectSelectorPopover({
   );
 }
 
-function PermissionModePopover({
-  canOpen,
-}: {
-  canOpen?: () => boolean;
-}) {
+function PermissionModePopover({ canOpen }: { canOpen?: () => boolean }) {
   const [open, setOpen] = useState(false);
-  const [permissionMode, setPermissionMode] = useState<"manual" | "auto">("manual");
+  const [permissionMode, setPermissionMode] = useState<"manual" | "auto">(
+    "manual",
+  );
 
   useEffect(() => {
-    settingsApi.getSettings()
+    settingsApi
+      .getSettings()
       .then((res) => {
         if (res?.general?.toolMode === "auto") {
           setPermissionMode("auto");
@@ -400,9 +396,11 @@ function PermissionModePopover({
   const handleSelectMode = (mode: "manual" | "auto") => {
     setPermissionMode(mode);
     setOpen(false);
-    void settingsApi.updateSettings({
-      general: { toolMode: mode },
-    }).catch(() => {});
+    void settingsApi
+      .updateSettings({
+        general: { toolMode: mode },
+      })
+      .catch(() => {});
   };
 
   return (
@@ -448,7 +446,10 @@ function PermissionModePopover({
               </div>
             </div>
             {permissionMode === "manual" ? (
-              <Check className="size-4 text-blue-500 shrink-0 mt-0.5" strokeWidth={2.5} />
+              <Check
+                className="size-4 text-blue-500 shrink-0 mt-0.5"
+                strokeWidth={2.5}
+              />
             ) : null}
           </button>
 
@@ -463,11 +464,15 @@ function PermissionModePopover({
                 Auto
               </div>
               <div className="text-[11.5px] leading-snug text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Clauxen runs on its own and pauses to ask if anything looks unsafe.
+                Clauxen runs on its own and pauses to ask if anything looks
+                unsafe.
               </div>
             </div>
             {permissionMode === "auto" ? (
-              <Check className="size-4 text-blue-500 shrink-0 mt-0.5" strokeWidth={2.5} />
+              <Check
+                className="size-4 text-blue-500 shrink-0 mt-0.5"
+                strokeWidth={2.5}
+              />
             ) : null}
           </button>
         </div>
@@ -496,7 +501,10 @@ function ReasoningEffortSelector({
           className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors outline-none cursor-pointer"
         >
           <span>{selectedEffort}</span>
-          <ChevronDown className="size-3 shrink-0 text-zinc-400" strokeWidth={1.8} />
+          <ChevronDown
+            className="size-3 shrink-0 text-zinc-400"
+            strokeWidth={1.8}
+          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -553,7 +561,7 @@ export function PromptInput({
   showModelSelector = true,
   chatModel = DEFAULT_CHAT_MODEL_ID,
   onChatModelChange,
-  placeholder = "Ask anything, or task an agent...",
+  placeholder = "Type / for skills",
   allowAttachments = true,
   composerVariant = "default",
   projectId = null,
@@ -629,7 +637,7 @@ export function PromptInput({
     },
     [],
   );
-  const dictation = useStreamingDictation({
+  const dictation = useDictation({
     readDraft: readDraftForDictation,
     readCaret: readCaretForDictation,
     onDraftChange: applyDictationDraft,
@@ -640,7 +648,7 @@ export function PromptInput({
     ? COMPOSE_ACTION_META[activeComposeAction]
     : null;
   const showDictationActions =
-    dictation.status === "listening" || dictation.status === "stopping";
+    dictation.status === "listening" || dictation.status === "processing";
   const dictationConnecting = dictation.status === "connecting";
   const hasPromptAddons =
     selectedQuickActions.length > 0 ||
@@ -1406,35 +1414,7 @@ export function PromptInput({
   );
 
   const renderMicButton = () => (
-    <HintTooltip content={dictationConnecting ? "Connecting…" : "Dictate"}>
-      <button
-        type="button"
-        onClick={() => {
-          if (dictationConnecting) return;
-          if (!requireAuthGate()) return;
-          void dictation.start();
-        }}
-        disabled={dictationConnecting}
-        aria-pressed={dictation.isActive}
-        aria-busy={dictationConnecting || undefined}
-        aria-label={dictationConnecting ? "Connecting dictation" : "Dictate"}
-        className={cn(
-          "no-hover-overlay prompt-control-ghost shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
-          dictationConnecting && "cursor-wait opacity-80",
-        )}
-        data-app-button
-      >
-        {dictationConnecting ? (
-          <LoaderCircle
-            className="icon-sm shrink-0 animate-spin"
-            strokeWidth={1.75}
-            aria-hidden
-          />
-        ) : (
-          <Mic className="icon-sm shrink-0" strokeWidth={1.75} aria-hidden />
-        )}
-      </button>
-    </HintTooltip>
+    <DictationControls dictation={dictation} canOpen={requireAuthGate} />
   );
 
   const renderDisabledSendButton = () => (
@@ -1458,6 +1438,10 @@ export function PromptInput({
     if (showDictationActions) {
       return (
         <>
+          <span className="dictation-live-status" role="status">
+            <span aria-hidden />
+            {dictation.status === "processing" ? "Transcribing…" : "Listening…"}
+          </span>
           {dictation.remainingSeconds !== null ? (
             <span
               className={cn(
@@ -1473,32 +1457,18 @@ export function PromptInput({
             <button
               type="button"
               onClick={() => void dictation.cancel()}
-              disabled={dictation.status === "stopping"}
+              disabled={dictation.status === "processing"}
               aria-label="Cancel dictation"
               className={cn(
                 "no-hover-overlay prompt-control-ghost",
-                dictation.status === "stopping" &&
+                dictation.status === "processing" &&
                   "cursor-not-allowed opacity-40",
               )}
             >
               <X className="icon-md" strokeWidth={1.75} />
             </button>
           </HintTooltip>
-          <HintTooltip content="Submit dictation">
-            <button
-              type="button"
-              onClick={() => void dictation.submit()}
-              disabled={dictation.status === "stopping"}
-              aria-label="Submit dictation"
-              className={cn(
-                promptFilledControlClass,
-                dictation.status === "stopping" && "cursor-wait opacity-70",
-              )}
-              data-app-button
-            >
-              <Check className="icon-sm" strokeWidth={2.25} />
-            </button>
-          </HintTooltip>
+          {renderMicButton()}
         </>
       );
     }
@@ -1506,7 +1476,7 @@ export function PromptInput({
     return (
       <>
         {!sendOnly && !isConversationStarted ? renderModelSelector() : null}
-        {!sendOnly ? renderMicButton() : null}
+        {renderMicButton()}
         {isGenerating ? (
           hasDraft || attachments.length > 0 ? (
             <ShortcutHint
@@ -1643,13 +1613,6 @@ export function PromptInput({
             {renderAddMenuButton()}
             <div className="min-w-0 flex-1" />
             <div className="prompt-welcome__controls">
-              {renderModelSelector()}
-              <ReasoningEffortSelector
-                effort={homerReasoningEffort}
-                onEffortChange={onHomerReasoningEffortChange}
-              />
-              <PermissionModePopover canOpen={requireAuthGate} />
-              {renderMicButton()}
               {renderTrailingActions(true)}
             </div>
           </div>
@@ -1949,30 +1912,15 @@ export function PromptInput({
                   projectId={projectId}
                   canOpen={requireAuthGate}
                 />
-                <AppHref href={APP_ROUTES.plugins} className="prompt-toolbar-link">
-                  <span className="prompt-toolbar-plugin-stack" aria-hidden>
-                    {TOOLBAR_PLUGIN_ICONS.map((plugin) => (
-                      <img
-                        key={plugin.id}
-                        src={plugin.iconUrl}
-                        alt=""
-                        width={18}
-                        height={18}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ))}
-                  </span>
-                  <span>Plugins</span>
-                </AppHref>
               </div>
-              <AppHref
-                href="/download"
-                className="prompt-toolbar-link max-sm:hidden"
-              >
-                <Laptop className="size-[15px] shrink-0" />
-                <span>Use desktop app</span>
-              </AppHref>
+              <div className="prompt-welcome-toolbar__controls">
+                {renderModelSelector()}
+                <ReasoningEffortSelector
+                  effort={homerReasoningEffort}
+                  onEffortChange={onHomerReasoningEffortChange}
+                />
+                <PermissionModePopover canOpen={requireAuthGate} />
+              </div>
             </div>
           ) : null}
         </div>

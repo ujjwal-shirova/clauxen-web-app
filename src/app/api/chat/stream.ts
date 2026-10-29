@@ -29,8 +29,6 @@ import {
   parseHomerReasoningEffort,
   type HomerReasoningEffort,
 } from "@/lib/model-effort";
-import { buildAgentMcpTools } from "@/server/plugins/plugin-runtime";
-import { PLUGIN_SAFETY_INSTRUCTIONS } from "@/server/plugins/plugin-firewall";
 import { loadProjectPromptAppend } from "@/server/services/project-context";
 import { toUserFacingChatError } from "@/lib/assistant-generation-error";
 
@@ -161,15 +159,12 @@ export async function createChatStream(
   const chatModelId = parseChatModelId(options.chatModel);
   const runtime = resolveModelRuntime(chatModelId, catalogEnv);
   const sse = new ClauxenSseStream();
-  // Begin independent reads together. Project memory restrictions and connected
-  // tools still resolve before inference; none depend on prompt preparation.
+  // Project memory restrictions resolve before inference and don't depend on
+  // prompt preparation.
   const projectPromise =
     options.userId && options.conversationId && !options.incognito
       ? loadProjectPromptAppend(options.userId, options.conversationId)
       : Promise.resolve({ text: "", projectOnly: false });
-  const pluginToolsPromise = options.userId
-    ? buildAgentMcpTools(options.userId).catch(() => [])
-    : Promise.resolve([]);
 
   // Return the ReadableStream immediately so the HTTP response can flush
   // headers while personalization / Novita warm up. Events written before
@@ -182,7 +177,7 @@ export async function createChatStream(
         new Promise<void>((resolve) => setTimeout(resolve, 0)),
       ]);
 
-      // Tell the client the turn has started before history/vision/MCP work.
+      // Tell the client the turn has started before history/vision work.
       sse.writeStart(true);
 
       if (options.signal?.aborted) {
@@ -240,10 +235,7 @@ export async function createChatStream(
           ].join("\n")
         : "";
 
-      const [project, mcpAgentTools] = await Promise.all([
-        projectPromise,
-        pluginToolsPromise,
-      ]);
+      const project = await projectPromise;
       const projectAppend = project.text;
       const projectOnly = project.projectOnly;
 
@@ -265,7 +257,6 @@ export async function createChatStream(
         incognitoInstr,
         titleInstr,
         followUpInstr,
-        mcpAgentTools.length > 0 ? PLUGIN_SAFETY_INSTRUCTIONS : "",
       ]
         .map((part) => part.trim())
         .filter(Boolean)
@@ -282,7 +273,6 @@ export async function createChatStream(
 
       const agentOptions: AgentStreamOptions = {
         messages: resolved.modelMessages,
-        mcpAgentTools,
         onProviderDispatch: options.onProviderDispatch,
         model: runtime.modelSlug,
         chatModelId,

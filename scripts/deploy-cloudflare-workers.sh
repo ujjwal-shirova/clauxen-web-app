@@ -179,12 +179,10 @@ WORKER_SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-shirova}"
 AUTH_EMAIL_URL="https://clauxen-auth-email.${WORKER_SUBDOMAIN}.workers.dev"
 CHAT_HISTORY_URL="https://clauxen-chat-history.${WORKER_SUBDOMAIN}.workers.dev"
 CHAT_COORD_URL="https://clauxen-chat-coord.${WORKER_SUBDOMAIN}.workers.dev"
-CONNECTOR_GATEWAY_URL="https://clauxen-connector-gateway.${WORKER_SUBDOMAIN}.workers.dev"
 BILLING_URL="https://clauxen-billing.${WORKER_SUBDOMAIN}.workers.dev"
 export AUTH_EMAIL_WORKER_URL="$AUTH_EMAIL_URL"
 export CHAT_HISTORY_WORKER_URL="$CHAT_HISTORY_URL"
 export CHAT_COORD_WORKER_URL="$CHAT_COORD_URL"
-export CONNECTOR_GATEWAY_URL
 export BILLING_WORKER_URL="$BILLING_URL"
 # Keep generated token available for Vercel wiring below.
 if [[ -f /tmp/clauxen-auth-email-internal-token.txt ]]; then
@@ -212,8 +210,6 @@ fi
 
 echo "  CHAT_HISTORY_WORKER_URL=$CHAT_HISTORY_URL"
 echo "  CHAT_COORD_WORKER_URL=$CHAT_COORD_URL"
-echo "  CONNECTOR_GATEWAY_URL=$CONNECTOR_GATEWAY_URL"
-echo "  CONNECTOR_GATEWAY_INTERNAL_TOKEN=<from /tmp/clauxen-connector-gateway-internal-token.txt — SAME value on Vercel>"
 echo "  BILLING_WORKER_URL=$BILLING_URL"
 echo "  BILLING_INTERNAL_TOKEN=<from /tmp/clauxen-billing-internal-token.txt — SAME value on Vercel>"
 echo "  WORKER_URL=https://clauxen-r2-gateway.${WORKER_SUBDOMAIN}.workers.dev"

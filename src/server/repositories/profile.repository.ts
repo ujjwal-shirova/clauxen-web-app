@@ -3,7 +3,7 @@ import { queryOne } from "@/server/db/pool";
 const PROFILE_COLUMNS = `id, email, display_name, preferred_name, username,
   avatar_url, avatar_file_id, avatar_storage_bucket, avatar_storage_path,
   avatar_updated_at, avatar_shape, show_usage_statistics, show_activity_graph,
-  show_top_plugins, show_insights`;
+  show_insights`;
 
 export type ProfileRow = {
   id: string;
@@ -19,7 +19,6 @@ export type ProfileRow = {
   avatar_shape: string;
   show_usage_statistics: boolean;
   show_activity_graph: boolean;
-  show_top_plugins: boolean;
   show_insights: boolean;
 };
 
@@ -42,7 +41,6 @@ export async function updateProfile(
     avatarShape?: string;
     showUsageStatistics?: boolean;
     showActivityGraph?: boolean;
-    showTopPlugins?: boolean;
     showInsights?: boolean;
   },
 ) {
@@ -55,8 +53,7 @@ export async function updateProfile(
        avatar_shape = coalesce($6::text, avatar_shape),
        show_usage_statistics = coalesce($7::boolean, show_usage_statistics),
        show_activity_graph = coalesce($8::boolean, show_activity_graph),
-       show_top_plugins = coalesce($9::boolean, show_top_plugins),
-       show_insights = coalesce($10::boolean, show_insights),
+       show_insights = coalesce($9::boolean, show_insights),
        updated_at = now()
      where id = $1
      returning ${PROFILE_COLUMNS}`,
@@ -69,7 +66,6 @@ export async function updateProfile(
       patch.avatarShape ?? null,
       patch.showUsageStatistics ?? null,
       patch.showActivityGraph ?? null,
-      patch.showTopPlugins ?? null,
       patch.showInsights ?? null,
     ],
   );

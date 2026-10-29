@@ -1,13 +1,18 @@
 "use client";
 
-import { Globe, ImageIcon, Telescope, type LucideIcon } from "@/components/ui/bootstrap-icon";
+import {
+  Globe,
+  ImageIcon,
+  Telescope,
+  type AppIcon,
+} from "@/components/icons/app-icons";
 import { cn } from "@/lib/utils";
 
 export type PromptInlineMode = "web-search" | "create-image" | "deep-research";
 
 const INLINE_MODE_META: Record<
   PromptInlineMode,
-  { label: string; icon: LucideIcon; colorClass: string }
+  { label: string; icon: AppIcon; colorClass: string }
 > = {
   "deep-research": {
     label: "Deep research",

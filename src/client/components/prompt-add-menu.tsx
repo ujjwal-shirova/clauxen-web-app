@@ -11,8 +11,8 @@ import {
   Paperclip,
   Puzzle,
   Telescope,
-  type LucideIcon,
-} from "@/components/ui/bootstrap-icon";
+  type AppIcon,
+} from "@/components/icons/app-icons";
 import { cn } from "@/lib/utils";
 
 export type PromptComposeAction = "deep-research";
@@ -31,7 +31,7 @@ type PromptAddMenuItem = {
   id: PromptAddMenuItemId;
   label: string;
   description?: string;
-  icon: LucideIcon;
+  icon: AppIcon;
   hasSubmenu?: boolean;
   onSelect?: () => void;
 };

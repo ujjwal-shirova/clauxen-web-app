@@ -45,8 +45,7 @@
     "predev": "node scripts/bundle-research-exports.mjs",
     "pretypecheck": "node scripts/bundle-research-exports.mjs",
     "cf:release": "npm run cf:build && npm run cf:deploy",
-    "test:cloudflare:build": "node --test tests/cloudflare-build.test.mjs",
-    "plugins:endpoints": "node scripts/build-connector-endpoints.mjs"
+    "test:cloudflare:build": "node --test tests/cloudflare-build.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",
@@ -109,7 +108,6 @@
     "jsonwebtoken": "^9.0.3",
     "jsqr": "^1.4.0",
     "katex": "^0.16.45",
-    "lucide-react": "^1.11.0",
     "mammoth": "^1.12.0",
     "marked": "^18.0.5",
     "next": "^16.3.8",

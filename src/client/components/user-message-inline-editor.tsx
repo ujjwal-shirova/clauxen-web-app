@@ -3,13 +3,11 @@
 import * as React from "react";
 import {
   ArrowUp,
-  Check,
   LoaderCircle,
-  Mic,
   Plus,
   SquarePen,
   X,
-} from "@/components/ui/bootstrap-icon";
+} from "@/components/icons/app-icons";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { AttachmentChip } from "@/components/composer/attachment-chip";
 import { AttachmentPreviewHost } from "@/components/composer/attachment-preview-host";
@@ -28,8 +26,9 @@ import {
 } from "@/lib/composer-upload";
 import {
   formatDictationRemaining,
-  useStreamingDictation,
-} from "@/features/dictation/use-streaming-dictation";
+  useDictation,
+} from "@/features/dictation/use-dictation";
+import { DictationControls } from "@/components/composer/dictation-controls";
 import type { CaretRange } from "@/features/dictation/transcript";
 import { cn } from "@/lib/utils";
 import { useActiveChatId } from "@/stores/chat-store";
@@ -46,10 +45,9 @@ function messageToComposerAttachments(
     name: item.name,
     mimeType: item.mimeType,
     kind: item.kind,
-    previewUrl:
-      item.fileId
-        ? durableFileContentUrl(item.fileId)
-        : item.previewUrl || "",
+    previewUrl: item.fileId
+      ? durableFileContentUrl(item.fileId)
+      : item.previewUrl || "",
     fileId: item.fileId,
     textPreview: item.textPreview,
     uploadStatus: item.fileId ? "ready" : "local",
@@ -100,9 +98,7 @@ export function UserMessageInlineEditor({
   const maxHeightPx = MAX_EDIT_LINES * EDIT_LINE_HEIGHT_PX;
   const trimmed = value.trim();
   const canSubmit =
-    (Boolean(trimmed) || attachments.length > 0) &&
-    !disabled &&
-    !isSubmitting;
+    (Boolean(trimmed) || attachments.length > 0) && !disabled && !isSubmitting;
 
   const readDraft = React.useCallback(
     () => textareaRef.current?.value ?? valueRef.current,
@@ -128,13 +124,13 @@ export function UserMessageInlineEditor({
     },
     [onValueChange],
   );
-  const dictation = useStreamingDictation({
+  const dictation = useDictation({
     readDraft,
     readCaret,
     onDraftChange: applyDictationDraft,
   });
   const showDictationActions =
-    dictation.status === "listening" || dictation.status === "stopping";
+    dictation.status === "listening" || dictation.status === "processing";
   const dictationConnecting = dictation.status === "connecting";
 
   const resizeTextarea = React.useCallback(() => {
@@ -223,8 +219,7 @@ export function UserMessageInlineEditor({
           id,
           name: file.name,
           previewUrl,
-          mimeType:
-            file.type || (kind === "video" ? "video/mp4" : "image/png"),
+          mimeType: file.type || (kind === "video" ? "video/mp4" : "image/png"),
           kind,
           file,
           uploadStatus: "uploading",
@@ -271,8 +266,7 @@ export function UserMessageInlineEditor({
     }
   }, [canSubmit, dictation, onSubmit]);
 
-  const listeningEmpty =
-    dictation.status === "listening" && !value.trim();
+  const listeningEmpty = dictation.status === "listening" && !value.trim();
 
   return (
     <div
@@ -300,20 +294,29 @@ export function UserMessageInlineEditor({
     >
       <div className="user-msg-editor__header flex w-full items-center justify-between mb-1.5 px-0.5 select-none text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
         <span className="user-msg-editor__title inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
-          <SquarePen className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" strokeWidth={1.75} aria-hidden="true" />
+          <SquarePen
+            className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
           <span>Editing message</span>
         </span>
         <span
           className={cn(
             "user-msg-editor__status inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 dark:text-zinc-500",
-            dictation.isListening && "user-msg-editor__status--live text-red-500 dark:text-red-400",
+            dictation.isListening && "user-msg-editor__status--live",
           )}
         >
           {dictationConnecting ? (
             "Connecting…"
+          ) : dictation.status === "processing" ? (
+            "Transcribing…"
           ) : dictation.isListening ? (
             <>
-              <span className="user-msg-editor__live-dot h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />
+              <span
+                className="user-msg-editor__live-dot h-1.5 w-1.5 rounded-full bg-[#3a83f7] animate-pulse"
+                aria-hidden="true"
+              />
               <span>Listening</span>
               {dictation.remainingSeconds !== null ? (
                 <span className="tabular-nums">
@@ -351,8 +354,7 @@ export function UserMessageInlineEditor({
           if (dictation.isListening && !applyingDictationRef.current) {
             dictation.rebaseToCaret({
               start:
-                event.currentTarget.selectionStart ??
-                event.target.value.length,
+                event.currentTarget.selectionStart ?? event.target.value.length,
               end:
                 event.currentTarget.selectionEnd ?? event.target.value.length,
             });
@@ -437,53 +439,22 @@ export function UserMessageInlineEditor({
           </HintTooltip>
 
           {showDictationActions ? (
-            <>
-              <HintTooltip content="Discard dictation">
-                <button
-                  type="button"
-                  onClick={() => void dictation.cancel()}
-                  disabled={dictation.status === "stopping"}
-                  aria-label="Discard dictation"
-                  className="user-msg-editor__icon-btn no-hover-overlay"
-                >
-                  <X className="h-4 w-4" strokeWidth={2} />
-                </button>
-              </HintTooltip>
-              <HintTooltip content="Keep dictated text">
-                <button
-                  type="button"
-                  onClick={() => void dictation.submit()}
-                  disabled={dictation.status === "stopping"}
-                  aria-label="Keep dictated text"
-                  className="user-msg-editor__icon-btn user-msg-editor__icon-btn--active no-hover-overlay"
-                >
-                  <Check className="h-4 w-4" strokeWidth={2.25} />
-                </button>
-              </HintTooltip>
-            </>
-          ) : (
-            <HintTooltip
-              content={dictationConnecting ? "Connecting…" : "Dictate"}
-            >
+            <HintTooltip content="Discard dictation">
               <button
                 type="button"
-                onClick={() => void dictation.start()}
-                disabled={disabled || isSubmitting || dictationConnecting}
-                aria-pressed={dictation.isActive}
-                aria-busy={dictationConnecting || undefined}
-                aria-label={
-                  dictationConnecting ? "Connecting dictation" : "Dictate"
-                }
+                onClick={() => void dictation.cancel()}
+                disabled={dictation.status === "processing"}
+                aria-label="Discard dictation"
                 className="user-msg-editor__icon-btn no-hover-overlay"
               >
-                {dictationConnecting ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Mic className="h-4 w-4" strokeWidth={1.75} />
-                )}
+                <X className="h-4 w-4" strokeWidth={2} />
               </button>
             </HintTooltip>
-          )}
+          ) : null}
+          <DictationControls
+            dictation={dictation}
+            canOpen={() => !disabled && !isSubmitting}
+          />
         </div>
 
         <div className="user-msg-editor__actions">
@@ -505,9 +476,16 @@ export function UserMessageInlineEditor({
             className="user-msg-editor__save no-hover-overlay"
           >
             {isSubmitting ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <LoaderCircle
+                className="h-4 w-4 animate-spin"
+                aria-hidden="true"
+              />
             ) : (
-              <ArrowUp className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
+              <ArrowUp
+                className="h-4 w-4"
+                strokeWidth={2.25}
+                aria-hidden="true"
+              />
             )}
             <span>Send</span>
           </button>

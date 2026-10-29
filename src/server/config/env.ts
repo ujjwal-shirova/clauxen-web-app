@@ -107,8 +107,8 @@ export const env = {
       "300000",
   ),
   defaultModel: providerModelClauxenV1,
-  /** Exa web search — EXA_API_KEY from Vercel / .env.local (server-only). */
-  exaApiKey: firstOptional("EXA_API_KEY"),
+  /** Context.dev web data API (server-only). */
+  contextDevApiKey: firstOptional("CONTEXT_DEV_API_KEY"),
   falKey: optional("FAL_KEY"),
   parallelApiKey: optional("PARALLEL_API_KEY"),
   googlePlacesApiKey: optional("GOOGLE_PLACES_API_KEY"),
@@ -116,15 +116,11 @@ export const env = {
   embeddingApiKey: firstOptional("EMBEDDING_API_KEY", "OPENAI_API_KEY"),
   /** @deprecated Prefer embeddingApiKey */
   openAiApiKeyLegacy: optional("OPENAI_API_KEY"),
-  /** AssemblyAI Streaming v3 key. `voice_api` is the Cloudflare Worker secret. */
+  /** AssemblyAI Dictation key. `voice_api` is the Cloudflare Worker secret. */
   assemblyAiApiKey: firstOptional(
     "voice_api",
     "Assembly_Provider_Key",
     "ASSEMBLYAI_API_KEY",
-  ),
-  assemblyAiStreamingHost: optional(
-    "ASSEMBLYAI_STREAMING_HOST",
-    "streaming.assemblyai.com",
   ),
   /** Reasoning preference for the OpenAI Responses API. */
   thinkingType:
@@ -334,19 +330,19 @@ export function requireProviderBaseUrl(): string {
   return url;
 }
 
-/** Server-only Exa API key (EXA_API_KEY). */
-export function requireExaApiKey(): string {
+/** Server-only Context.dev API key (CONTEXT_DEV_API_KEY). */
+export function requireContextDevApiKey(): string {
   if (typeof window !== "undefined") {
-    throw new Error("Exa credentials are server-only.");
+    throw new Error("Context.dev credentials are server-only.");
   }
-  const key = env.exaApiKey;
+  const key = env.contextDevApiKey;
   if (!key) {
-    throw new Error("EXA_API_KEY is not configured on the server.");
+    throw new Error("CONTEXT_DEV_API_KEY is not configured on the server.");
   }
   return key;
 }
 
-/** Server-only AssemblyAI credential used solely to mint single-use tokens. */
+/** Server-only AssemblyAI credential used by the dictation proxy. */
 export function requireAssemblyAiApiKey(): string {
   if (typeof window !== "undefined") {
     throw new Error("AssemblyAI credentials are server-only.");

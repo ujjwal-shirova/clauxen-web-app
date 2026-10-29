@@ -80,12 +80,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     if (isMobile || !isSidebarCollapsed || !sidebarPeekArmed) return;
     cancelSidebarPeekClose();
     setIsSidebarPeekOpen(true);
-  }, [
-    cancelSidebarPeekClose,
-    isMobile,
-    isSidebarCollapsed,
-    sidebarPeekArmed,
-  ]);
+  }, [cancelSidebarPeekClose, isMobile, isSidebarCollapsed, sidebarPeekArmed]);
 
   const closeSidebarPeekSoon = useCallback(() => {
     if (isMobile || !isSidebarCollapsed) return;
@@ -262,12 +257,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     closeMobileNav();
   }, [authGate, overlays, closeMobileNav]);
 
-  const onGiftClick = useCallback(() => {
-    if (!authGate.requireAuth()) return;
-    overlays.openGift();
-    closeMobileNav();
-  }, [authGate, overlays, closeMobileNav]);
-
   const isMobileFullBleed = isMobile && shouldMobileFullBleed(pathname);
 
   const sidebarActiveChatId = React.useMemo(() => {
@@ -327,9 +316,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
             !isMobile &&
               "relative z-40 h-full shrink-0 overflow-visible transition-[width] duration-300 ease-in-out",
             !isMobile &&
-              (isSidebarCollapsed
-                ? "w-0"
-                : "w-[var(--app-sidebar-width)]"),
+              (isSidebarCollapsed ? "w-0" : "w-[var(--app-sidebar-width)]"),
             overlayOpen && "pointer-events-none",
           )}
           onMouseLeave={!isMobile ? closeSidebarPeekSoon : undefined}
@@ -382,7 +369,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               onUpgradeClick={onUpgradeClick}
               onSettingsClick={() => onSettingsClick("General")}
               onPersonalizationClick={onPersonalizationClick}
-              onGiftClick={onGiftClick}
               activeView={computeActiveView(
                 pathname,
                 overlays.currentOverlay?.type ?? null,
@@ -435,7 +421,8 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           onClick={() => setSidebarCollapsedFromNav(false)}
           className={cn(
             "app-sidebar-peek-toggle fixed z-50 flex items-center justify-center border-0 bg-transparent text-[var(--cx-sidebar-fg,#52514e)] shadow-none transition-[background-color,color,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--cx-sidebar-hover,rgba(0,0,0,0.05))] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07] motion-reduce:transition-none",
-            (overlayOpen || isSidebarPeekOpen) && "pointer-events-none opacity-0",
+            (overlayOpen || isSidebarPeekOpen) &&
+              "pointer-events-none opacity-0",
           )}
         >
           <SidebarToggleIcon className="size-5 shrink-0" />

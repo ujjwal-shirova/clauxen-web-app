@@ -1,7 +1,7 @@
 # Cloudflare Workers setup (one time, ~5 minutes)
 
-All 7 workers (`auth-email`, `billing`, `chat-coord`, `chat-history`,
-`connector-gateway`, `r2-gateway`, `scheduled-tasks`) deploy with one script.
+All 6 workers (`auth-email`, `billing`, `chat-coord`, `chat-history`,
+`r2-gateway`, `scheduled-tasks`) deploy with one script.
 Pick **one** auth option, then run it. You never need to hand-pick
 permissions one by one.
 
@@ -9,7 +9,6 @@ permissions one by one.
 
 ```sh
 npx wrangler login
-CONNECTOR_GATEWAY_INTERNAL_TOKEN="$(openssl rand -hex 32)" \
 BILLING_INTERNAL_TOKEN="$(openssl rand -hex 32)" \
 SCHEDULED_TASKS_INTERNAL_TOKEN="$(openssl rand -hex 32)" \
 ./scripts/deploy-cloudflare-workers.sh
@@ -49,22 +48,15 @@ Wrangler calls `/memberships` and fails on account-scoped tokens.
 
 | Worker secret | Generate? | Also set on Vercel? |
 |---|---|---|
-| `CONNECTOR_ENCRYPTION_KEY` | Only for first-ever deploy: `openssl rand -base64 32`. **Never rotate casually — it bricks sealed OAuth tokens.** | No (Cloudflare only) |
-| `CONNECTOR_GATEWAY_INTERNAL_TOKEN` | Yes (`openssl rand -hex 32`) | Yes, same value |
-| `CONNECTOR_GATEWAY_ADMIN_TOKEN` | Script auto-generates | No |
 | `BILLING_INTERNAL_TOKEN` | Yes | Yes, same value |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | No — paste from Razorpay | No |
 | `*_INTERNAL_TOKEN` (other workers) | Script auto-generates | Yes, same values (script prints them) |
 
 `wrangler deploy` preserves existing secrets, so re-running the script only
-changes what you explicitly `secret put`. The script refuses to touch
-`CONNECTOR_ENCRYPTION_KEY` unless you export it deliberately.
+changes what you explicitly `secret put`.
 
 ## Verify
 
 ```sh
-npm run plugins:setup
-curl -s https://clauxen-connector-gateway.shirova.workers.dev/health
+npx wrangler deployments list --name clauxen-auth-email
 ```
-
-Expect `result: OK (full mode)` and `{"status":"ok",...}`.

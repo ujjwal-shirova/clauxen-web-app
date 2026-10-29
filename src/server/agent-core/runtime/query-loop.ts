@@ -41,12 +41,6 @@ import {
   executeAutonomousTool,
   autonomousAgentTools,
 } from "@/server/agent-core/tools";
-import {
-  buildAgentMcpTools,
-  executeMcpToolCall,
-  resolveMcpToolCall,
-} from "@/server/plugins/plugin-runtime";
-import { PLUGIN_SAFETY_INSTRUCTIONS } from "@/server/plugins/plugin-firewall";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
 import { inferLanguage } from "@/server/inference/language";
 import { parse as parsePartialJson, Allow } from "partial-json";
@@ -286,8 +280,6 @@ export type AgentStreamOptions = {
   researchPlanId?: string;
   /** Private diagnostic callback; never included in browser SSE. */
   onProviderError?: (message: string) => void;
-  /** Prepared per-user plugin catalog; avoids repeating discovery after context. */
-  mcpAgentTools?: Awaited<ReturnType<typeof buildAgentMcpTools>>;
   onProviderDispatch?: () => void;
   messages: Array<{
     role: string;
@@ -429,19 +421,7 @@ export async function runAutonomousAgent(
     sse.writeStart(true);
   }
 
-  // Connected-plugin MCP tools (mcp__<slug>__<tool>) are appended to the
-  // built-in catalog so the assistant can use every plugin the user has
-  // authorized from the marketplace.
-  const mcpAgentTools =
-    options.mcpAgentTools ??
-    (userId ? await buildAgentMcpTools(userId).catch(() => []) : []);
-
-  const systemPrompt =
-    mcpAgentTools.length > 0 &&
-    initialSystemPrompt &&
-    !initialSystemPrompt.includes("<connected_plugins>")
-      ? `${initialSystemPrompt}\n\n${PLUGIN_SAFETY_INSTRUCTIONS}`
-      : initialSystemPrompt;
+  const systemPrompt = initialSystemPrompt;
 
   const openAITools = toOpenAITools([
     ...autonomousAgentTools
@@ -459,11 +439,6 @@ export async function runAutonomousAgent(
           properties: {},
         }) as Record<string, unknown>,
       })),
-    ...mcpAgentTools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-    })),
   ]);
 
   // Responses API input is an ordered list of user/assistant messages plus
@@ -862,75 +837,62 @@ export async function runAutonomousAgent(
             durableRound,
           );
 
-          // Connected-plugin tools run through the MCP runtime rather than the
-          // built-in autonomous catalog. The name carries the plugin slug and
-          // the remote tool, e.g. mcp__gmail__search_emails.
-          const mcpTarget =
-            tc.name.startsWith("mcp__") && userId
-              ? await resolveMcpToolCall(userId, tc.name, rawArgs)
-              : null;
+          const healingTool = healingTools.get(tc.name);
 
-          if (mcpTarget && userId) {
-            const mcpOutcome = await executeMcpToolCall(userId, mcpTarget);
-            outcomeOutput = mcpOutcome.output;
+          if (healingTool) {
+            const ctx: ToolExecutionContext = {
+              userId,
+              conversationId: conversationId ?? "chat",
+              userCountryCode,
+              toolCallId: tc.id,
+              modelId: options.model,
+              researchPlanId: options.researchPlanId,
+              chatModelId: options.chatModelId,
+              onProgress: (data) => {
+                if (tc.name === "web_search") {
+                  sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
+                } else if (
+                  (tc.name === "bash_tool" || tc.name === "execute_code") &&
+                  (data.kind === "stdout" || data.kind === "stderr") &&
+                  typeof data.delta === "string"
+                ) {
+                  sse.writeToolOutputDelta(tc.id, data.kind, data.delta);
+                }
+              },
+            };
+            const healed = healToolArgs(rawArgs, healingTool.inputSchema);
+            const result = await executeToolSafely(
+              healingTool,
+              healed ?? rawArgs,
+              ctx,
+            );
+            outcomeOutput = result.output;
+            outcomePause = result.pauseForUser === true;
           } else {
-            const healingTool = healingTools.get(tc.name);
-
-            if (healingTool) {
-              const ctx: ToolExecutionContext = {
-                userId,
+            try {
+              const outcome = await executeAutonomousTool(tc.name, rawArgs, {
                 conversationId: conversationId ?? "chat",
+                userId,
                 userCountryCode,
                 toolCallId: tc.id,
                 modelId: options.model,
                 researchPlanId: options.researchPlanId,
                 chatModelId: options.chatModelId,
-                onProgress: (data) => {
+                onToolProgress: (data) => {
                   if (tc.name === "web_search") {
-                    sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
-                  } else if (
-                    (tc.name === "bash_tool" || tc.name === "execute_code") &&
-                    (data.kind === "stdout" || data.kind === "stderr") &&
-                    typeof data.delta === "string"
-                  ) {
-                    sse.writeToolOutputDelta(tc.id, data.kind, data.delta);
+                    sse.writeToolData(tc.id, {
+                      ...data,
+                      tool_call_id: tc.id,
+                    });
                   }
                 },
+              });
+              outcomeOutput = outcome.output;
+              outcomePause = outcome.pauseForUser === true;
+            } catch (error) {
+              outcomeOutput = {
+                error: error instanceof Error ? error.message : String(error),
               };
-              const healed = healToolArgs(rawArgs, healingTool.inputSchema);
-              const result = await executeToolSafely(
-                healingTool,
-                healed ?? rawArgs,
-                ctx,
-              );
-              outcomeOutput = result.output;
-              outcomePause = result.pauseForUser === true;
-            } else {
-              try {
-                const outcome = await executeAutonomousTool(tc.name, rawArgs, {
-                  conversationId: conversationId ?? "chat",
-                  userId,
-                  userCountryCode,
-                  toolCallId: tc.id,
-                  modelId: options.model,
-                  researchPlanId: options.researchPlanId,
-                  chatModelId: options.chatModelId,
-                  onToolProgress: (data) => {
-                    if (tc.name === "web_search") {
-                      sse.writeToolData(tc.id, {
-                        ...data,
-                        tool_call_id: tc.id,
-                      });
-                    }
-                  },
-                });
-                outcomeOutput = outcome.output;
-                outcomePause = outcome.pauseForUser === true;
-              } catch (error) {
-                outcomeOutput = {
-                  error: error instanceof Error ? error.message : String(error),
-                };
-              }
             }
           }
 

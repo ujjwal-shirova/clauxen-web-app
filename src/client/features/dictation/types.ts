@@ -1,36 +1,27 @@
-export type AssemblyTurnEvent = {
-  type: "Turn";
-  turn_order: number;
-  end_of_turn: boolean;
-  transcript: string;
+import type { DictationLanguageCode } from "@/shared/lib/dictation-languages";
+
+export type DictationStatus =
+  | "idle"
+  | "connecting"
+  | "listening"
+  | "processing";
+
+export type DictationFinishReason = "submitted" | "time-limit" | "track-ended";
+
+export type DictationDevice = {
+  deviceId: string;
+  label: string;
 };
 
-export type DictationStatus = "idle" | "connecting" | "listening" | "stopping";
-
-export type DictationFinishReason =
-  | "submitted"
-  | "cancelled"
-  | "page-hidden"
-  | "track-ended"
-  | "time-limit"
-  | "silence"
-  | "remote-closed"
-  | "error";
-
-export type DictationSessionResponse = {
+export type DictationResult = {
+  text: string;
+  finalText: string;
   sessionId: string;
-  token: string;
-  tokenExpiresInSeconds: number;
-  streamingHost: string;
-  sampleRate: number;
-  speechModel: "universal-3-6-pro";
-  mode: "max_accuracy";
-  voiceFocus: "near-field";
-  voiceFocusThreshold: number;
-  /** Hard per-session streaming cap enforced by the server token. */
-  maxSessionSeconds?: number;
-  /** Auto-stop after this many seconds without detected speech. */
-  inactivityTimeoutSeconds?: number;
+  audioDurationMs: number;
 };
+
+export type DictationSelection =
+  | { language: "auto" }
+  | { language: DictationLanguageCode };
 
 export type ApiEnvelope<T> = { data: T };

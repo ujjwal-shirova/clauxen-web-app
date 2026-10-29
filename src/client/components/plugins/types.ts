@@ -19,9 +19,3 @@ export type MarketplaceCatalog = {
   sections: MarketplaceSection[];
   plugins: Record<string, MarketplacePlugin>;
 };
-
-export type CustomMarketplace = {
-  id: string;
-  name: string;
-  url: string;
-};

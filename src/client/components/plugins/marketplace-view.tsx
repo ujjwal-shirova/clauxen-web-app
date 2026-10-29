@@ -1,33 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  Search,
-  X,
-} from "@/components/ui/bootstrap-icon";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Search, X } from "@/components/ui/bootstrap-icon";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppLayout } from "@/components/app-layout-context";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useToast } from "@/hooks/use-toast";
-import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
-import { cn } from "@/lib/utils";
 import { marketplaceCatalog, pluginMatches, pluginsByIds } from "./catalog";
 import { PluginMark } from "./plugin-mark";
 import { cardDescription, stripCursorText } from "./plugin-copy";
 import { PluginDetailPage } from "./plugin-detail-page";
-import {
-  usePluginConnections,
-  type ConnectEvent,
-  type PluginAvailability,
-  type PluginConnection,
-} from "./use-plugin-connections";
 import type { MarketplacePlugin } from "./types";
-
-type Tab = "discover" | "installed";
 
 const SECTION_TITLES: Record<string, string> = {
   featured: "Featured",
@@ -64,41 +46,10 @@ function writeSelectedToUrl(pluginId: string | null) {
 export function MarketplaceView() {
   const isMobile = useIsMobile();
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
-  const { toast } = useToast();
-  const authGate = useOptionalAuthGate();
 
-  const [tab, setTab] = useState<Tab>("discover");
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const onEvent = useCallback(
-    (event: ConnectEvent) => {
-      if (event.type === "connected") {
-        toast({
-          title: `${event.pluginName} connected`,
-          description: "Clauxen can now use it in your chats.",
-        });
-      } else if (event.type === "failed") {
-        toast({
-          variant: "destructive",
-          title: "Connection failed",
-          description: event.message,
-        });
-      }
-    },
-    [toast],
-  );
-
-  const {
-    connections,
-    availability,
-    loading,
-    connectingId,
-    refresh,
-    connect,
-    disconnect,
-  } = usePluginConnections({ onEvent });
 
   useEffect(() => {
     setSelectedId(readSelectedFromUrl());
@@ -107,30 +58,16 @@ export function MarketplaceView() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  const connectionByPlugin = useMemo(() => {
-    const map = new Map<string, PluginConnection>();
-    for (const connection of connections) map.set(connection.pluginId, connection);
-    return map;
-  }, [connections]);
-
-  const openPlugin = useCallback((pluginId: string) => {
+  const openPlugin = (pluginId: string) => {
     setSelectedId(pluginId);
     writeSelectedToUrl(pluginId);
     document.querySelector("[data-plugins-scroll]")?.scrollTo({ top: 0 });
-  }, []);
+  };
 
-  const closePlugin = useCallback(() => {
+  const closePlugin = () => {
     setSelectedId(null);
     writeSelectedToUrl(null);
-  }, []);
-
-  const handleConnect = useCallback(
-    (pluginId: string) => {
-      if (authGate && !authGate.requireAuth()) return;
-      connect(pluginId);
-    },
-    [authGate, connect],
-  );
+  };
 
   const sections = useMemo(
     () =>
@@ -152,17 +89,6 @@ export function MarketplaceView() {
     );
   }, [query]);
 
-  const installed = connections.filter((connection) => connection.status !== "revoked");
-
-  const cardProps = (plugin: MarketplacePlugin) => ({
-    plugin,
-    connection: connectionByPlugin.get(plugin.id) ?? null,
-    availability: availability[plugin.id] ?? null,
-    connecting: connectingId === plugin.id,
-    onOpen: () => openPlugin(plugin.id),
-    onConnect: () => handleConnect(plugin.id),
-  });
-
   return (
     <div className="plugins-page relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg,#fff)] font-sans text-zinc-900 dark:text-zinc-100">
       {isMobile ? (
@@ -179,38 +105,15 @@ export function MarketplaceView() {
         data-plugins-scroll=""
       >
         {selectedId ? (
-          <PluginDetailPage
-            pluginId={selectedId}
-            connection={connectionByPlugin.get(selectedId) ?? null}
-            availability={availability[selectedId] ?? null}
-            connecting={connectingId === selectedId}
-            onBack={closePlugin}
-            onConnect={() => handleConnect(selectedId)}
-            onDisconnect={async (connection) => {
-              try {
-                await disconnect(connection.id);
-                toast({
-                  title: `${connection.pluginName} disconnected`,
-                  description: "Clauxen's access was revoked and its tokens deleted.",
-                });
-              } catch (error) {
-                toast({
-                  variant: "destructive",
-                  title: "Couldn't disconnect",
-                  description: error instanceof Error ? error.message : "Try again.",
-                });
-              }
-            }}
-            onChanged={refresh}
-          />
+          <PluginDetailPage pluginId={selectedId} onBack={closePlugin} />
         ) : (
           <div className="mx-auto w-full max-w-[960px]">
             <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
                 <h1 className="text-[26px] font-semibold leading-8 tracking-[-0.02em]">Plugins</h1>
                 <p className="mt-1.5 max-w-[520px] text-[14px] leading-[22px] text-zinc-500 dark:text-zinc-400">
-                  Connect the apps you use so Clauxen can work with them. You sign in on each
-                  app&apos;s own page, and Clauxen never sees your password.
+                  Browse the apps and tools that extend what Clauxen can work with. Explore each
+                  plugin&apos;s capabilities, skills, and example prompts.
                 </p>
               </div>
               <label className="relative flex h-10 w-full items-center sm:w-[280px]">
@@ -235,53 +138,21 @@ export function MarketplaceView() {
               </label>
             </header>
 
-            <div className="mt-7 flex flex-wrap items-center gap-2" role="tablist">
-              {(
-                [
-                  ["discover", "Discover"],
-                  ["installed", `Installed${installed.length ? ` · ${installed.length}` : ""}`],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === id}
-                  onClick={() => setTab(id)}
-                  className={cn(
-                    "no-hover-overlay inline-flex h-9 items-center rounded-full border px-4 text-[13px] font-medium transition-colors",
-                    tab === id
-                      ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                      : "border-black/[0.08] bg-white text-zinc-600 hover:border-black/[0.16] hover:text-zinc-900 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:text-zinc-100",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
             {searchResults ? (
-              <section className="mt-6">
+              <section className="mt-7">
                 <p className="mb-3 text-[13px] text-zinc-500">
                   {searchResults.length} result{searchResults.length === 1 ? "" : "s"} for “{query.trim()}”
                 </p>
                 {searchResults.length > 0 ? (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {searchResults.map((plugin) => (
-                      <PluginCard key={plugin.id} {...cardProps(plugin)} />
+                      <PluginCard key={plugin.id} plugin={plugin} onOpen={() => openPlugin(plugin.id)} />
                     ))}
                   </div>
                 ) : (
                   <EmptyState title="No plugins found" body="Try a different name." />
                 )}
               </section>
-            ) : tab === "installed" ? (
-              <InstalledList
-                loading={loading}
-                connections={installed}
-                onOpen={openPlugin}
-                onBrowse={() => setTab("discover")}
-              />
             ) : (
               <>
                 {sections.map((section) => {
@@ -295,7 +166,11 @@ export function MarketplaceView() {
                       </h2>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {shown.map((plugin) => (
-                          <PluginCard key={`${section.id}-${plugin.id}`} {...cardProps(plugin)} />
+                          <PluginCard
+                            key={`${section.id}-${plugin.id}`}
+                            plugin={plugin}
+                            onOpen={() => openPlugin(plugin.id)}
+                          />
                         ))}
                       </div>
                       {remaining > 0 ? (
@@ -312,10 +187,7 @@ export function MarketplaceView() {
                           >
                             {isOpen ? "Show less" : `Show ${remaining} more`}
                             <ChevronDown
-                              className={cn(
-                                "text-[11px] transition-transform",
-                                isOpen && "rotate-180",
-                              )}
+                              className={`text-[11px] transition-transform ${isOpen ? "rotate-180" : ""}`}
                             />
                           </button>
                         </div>
@@ -332,70 +204,12 @@ export function MarketplaceView() {
   );
 }
 
-function StatusPill({
-  connection,
-  availability,
-  connecting,
-  onConnect,
-}: {
-  connection: PluginConnection | null;
-  availability: PluginAvailability | null;
-  connecting: boolean;
-  onConnect: () => void;
-}) {
-  if (connection?.status === "active") {
-    return (
-      <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 text-[12px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-        <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
-        Connected
-      </span>
-    );
-  }
-  if (connection?.status === "reauthorization_required") {
-    return (
-      <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 text-[12px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
-        <AlertTriangle className="text-[11px]" />
-        Reconnect
-      </span>
-    );
-  }
-  if (availability && !availability.available) {
-    return (
-      <span className="inline-flex h-7 items-center rounded-full bg-zinc-100 px-2.5 text-[12px] font-medium text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400">
-        {availability.reason === "local_only" ? "Local only" : "Coming soon"}
-      </span>
-    );
-  }
-  return (
-    <button
-      type="button"
-      onClick={(event) => {
-        event.stopPropagation();
-        onConnect();
-      }}
-      disabled={connecting}
-      className="inline-flex h-7 items-center gap-1.5 rounded-full border border-black/[0.1] bg-white px-3 text-[12px] font-medium text-zinc-800 transition-colors hover:border-black/[0.2] hover:bg-zinc-50 disabled:opacity-70 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-    >
-      {connecting ? <Loader2 className="animate-spin text-[11px]" /> : null}
-      {connecting ? "Connecting" : "Connect"}
-    </button>
-  );
-}
-
 function PluginCard({
   plugin,
-  connection,
-  availability,
-  connecting,
   onOpen,
-  onConnect,
 }: {
   plugin: MarketplacePlugin;
-  connection: PluginConnection | null;
-  availability: PluginAvailability | null;
-  connecting: boolean;
   onOpen: () => void;
-  onConnect: () => void;
 }) {
   return (
     <div
@@ -413,12 +227,9 @@ function PluginCard({
     >
       <div className="flex items-start justify-between gap-3">
         <PluginMark name={plugin.name} iconUrl={plugin.iconUrl} size={40} className="rounded-xl" />
-        <StatusPill
-          connection={connection}
-          availability={availability}
-          connecting={connecting}
-          onConnect={onConnect}
-        />
+        <span className="inline-flex h-7 max-w-[132px] items-center truncate rounded-full bg-zinc-100 px-2.5 text-[12px] font-medium text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400">
+          {plugin.category}
+        </span>
       </div>
       <div className="mt-3 min-w-0">
         <p className="truncate text-[14px] font-semibold tracking-[-0.01em]">
@@ -432,105 +243,11 @@ function PluginCard({
   );
 }
 
-function InstalledList({
-  loading,
-  connections,
-  onOpen,
-  onBrowse,
-}: {
-  loading: boolean;
-  connections: PluginConnection[];
-  onOpen: (pluginId: string) => void;
-  onBrowse: () => void;
-}) {
-  if (loading) {
-    return (
-      <div className="mt-10 flex justify-center text-zinc-400">
-        <Loader2 className="animate-spin text-[18px]" />
-      </div>
-    );
-  }
-  if (connections.length === 0) {
-    return (
-      <EmptyState
-        title="No plugins connected yet"
-        body="Connect Gmail, GitHub, Slack, Notion and more to let Clauxen work across your apps."
-        action={{ label: "Browse plugins", onClick: onBrowse }}
-      />
-    );
-  }
-  return (
-    <ul className="mt-5 divide-y divide-black/[0.06] overflow-hidden rounded-2xl border border-black/[0.07] bg-white dark:divide-white/[0.06] dark:border-white/[0.08] dark:bg-zinc-900">
-      {connections.map((connection) => {
-        const catalogEntry = marketplaceCatalog.plugins[connection.pluginId];
-        const needsReconnect = connection.status === "reauthorization_required";
-        return (
-          <li key={connection.id}>
-            <button
-              type="button"
-              onClick={() => onOpen(connection.pluginId)}
-              className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
-            >
-              <PluginMark
-                name={connection.pluginName}
-                iconUrl={connection.pluginIconUrl ?? catalogEntry?.iconUrl}
-                size={38}
-                className="rounded-xl"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-semibold">{connection.pluginName}</p>
-                <p className="truncate text-[12.5px] text-zinc-500 dark:text-zinc-400">
-                  {[
-                    connection.accountLabel,
-                    connection.toolCount != null ? `${connection.toolCount} tools` : null,
-                    connection.permissionMode === "read_only" ? "Read only" : "Read & write",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </div>
-              {needsReconnect ? (
-                <span className="inline-flex h-6 items-center gap-1 rounded-full bg-amber-50 px-2 text-[11.5px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
-                  <AlertTriangle className="text-[10px]" />
-                  Reconnect
-                </span>
-              ) : (
-                <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-emerald-50 px-2 text-[11.5px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-                  <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
-                  Active
-                </span>
-              )}
-              <ChevronRight className="text-[12px] text-zinc-400" />
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function EmptyState({
-  title,
-  body,
-  action,
-}: {
-  title: string;
-  body: string;
-  action?: { label: string; onClick: () => void };
-}) {
+function EmptyState({ title, body }: { title: string; body: string }) {
   return (
     <div className="mt-6 flex flex-col items-center rounded-2xl border border-dashed border-black/[0.1] px-6 py-14 text-center dark:border-white/10">
       <p className="text-[15px] font-semibold">{title}</p>
       <p className="mt-1.5 max-w-[360px] text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">{body}</p>
-      {action ? (
-        <button
-          type="button"
-          onClick={action.onClick}
-          className="mt-5 inline-flex h-9 items-center rounded-full bg-zinc-900 px-4 text-[13px] font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          {action.label}
-        </button>
-      ) : null}
     </div>
   );
 }

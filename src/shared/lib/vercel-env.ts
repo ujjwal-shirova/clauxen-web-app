@@ -41,7 +41,6 @@ export const CANONICAL_VERCEL_ENV_KEYS = [
   "Provider_Model_Clauxen_V1",
   "EXA_API_KEY",
   "Assembly_Provider_Key",
-  "ASSEMBLYAI_STREAMING_HOST",
   "R2_AUDIO_RECORDINGS_BUCKET",
   "FAL_KEY",
   "PARALLEL_API_KEY",

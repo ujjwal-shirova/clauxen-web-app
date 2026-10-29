@@ -89,7 +89,6 @@ export async function updateUserProfile(
     avatarShape?: string;
     showUsageStatistics?: boolean;
     showActivityGraph?: boolean;
-    showTopPlugins?: boolean;
     showInsights?: boolean;
   },
 ) {
@@ -130,7 +129,6 @@ export async function updateUserProfile(
     input.avatarShape !== undefined ||
     input.showUsageStatistics !== undefined ||
     input.showActivityGraph !== undefined ||
-    input.showTopPlugins !== undefined ||
     input.showInsights !== undefined
   ) {
     try {
@@ -146,9 +144,6 @@ export async function updateUserProfile(
           : {}),
         ...(input.showActivityGraph !== undefined
           ? { showActivityGraph: input.showActivityGraph }
-          : {}),
-        ...(input.showTopPlugins !== undefined
-          ? { showTopPlugins: input.showTopPlugins }
           : {}),
         ...(input.showInsights !== undefined
           ? { showInsights: input.showInsights }
@@ -204,7 +199,7 @@ export async function getPublicProfile(username: string) {
   const row = await profileRepo.getPublicProfileByUsername(username);
   if (!row) return null;
 
-  const [usage, longestStreak, longestTask, plugins, myClauxen] =
+  const [usage, longestStreak, longestTask, myClauxen] =
     await Promise.all([
       queryOne<{ lifetime_tokens: string; peak_tokens: string }>(
         `select
@@ -245,22 +240,6 @@ export async function getPublicProfile(username: string) {
        ) bounds`,
         [row.id],
       ),
-      query<{
-        plugin_id: string;
-        plugin_name: string;
-        plugin_icon_url: string | null;
-        last_used_at: string | null;
-      }>(
-        `select plugin_id, plugin_name, plugin_icon_url, last_used_at
-         from (
-           select distinct on (plugin_id) plugin_id, plugin_name, plugin_icon_url, last_used_at
-           from public.plugin_connections where user_id = $1 and status = 'active'
-           order by plugin_id, last_used_at desc nulls last
-         ) active_plugins
-         order by last_used_at desc nulls last, plugin_name
-         limit 5`,
-        [row.id],
-      ),
       import("@/server/services/my-clauxen.service").then((m) =>
         m.getMyClauxen(row.id),
       ),
@@ -275,7 +254,6 @@ export async function getPublicProfile(username: string) {
     visibility: {
       usageStatistics: row.show_usage_statistics,
       activityGraph: row.show_activity_graph,
-      topPlugins: row.show_top_plugins,
       insights: row.show_insights,
     },
     ...(row.show_usage_statistics
@@ -290,15 +268,6 @@ export async function getPublicProfile(username: string) {
         }
       : {}),
     ...(row.show_activity_graph ? { activity: myClauxen.heatmap } : {}),
-    ...(row.show_top_plugins
-      ? {
-          plugins: plugins.map((plugin) => ({
-            id: plugin.plugin_id,
-            name: plugin.plugin_name,
-            iconUrl: plugin.plugin_icon_url,
-          })),
-        }
-      : {}),
     ...(row.show_insights
       ? {
           insights: {

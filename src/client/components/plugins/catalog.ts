@@ -1,9 +1,5 @@
 import catalogJson from "./marketplace-catalog.json";
-import type {
-  MarketplaceCatalog,
-  MarketplacePlugin,
-  MarketplaceSection,
-} from "./types";
+import type { MarketplaceCatalog, MarketplacePlugin } from "./types";
 
 export const marketplaceCatalog = catalogJson as MarketplaceCatalog;
 
@@ -18,12 +14,6 @@ export function pluginsByIds(ids: string[]): MarketplacePlugin[] {
   });
 }
 
-export function defaultInstalledIds(): string[] {
-  return Object.values(marketplaceCatalog.plugins)
-    .filter((plugin) => plugin.installed)
-    .map((plugin) => plugin.id);
-}
-
 export function pluginMatches(plugin: MarketplacePlugin, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (!needle) return true;
@@ -33,20 +23,4 @@ export function pluginMatches(plugin: MarketplacePlugin, query: string): boolean
     plugin.author.toLowerCase().includes(needle) ||
     plugin.category.toLowerCase().includes(needle)
   );
-}
-
-export function filteredSections(
-  query: string,
-  onlyIds?: Set<string>,
-): Array<MarketplaceSection & { plugins: MarketplacePlugin[] }> {
-  return marketplaceCatalog.sections
-    .map((section) => ({
-      ...section,
-      plugins: pluginsByIds(section.pluginIds).filter(
-        (plugin) =>
-          pluginMatches(plugin, query) &&
-          (onlyIds ? onlyIds.has(plugin.id) : true),
-      ),
-    }))
-    .filter((section) => section.plugins.length > 0);
 }

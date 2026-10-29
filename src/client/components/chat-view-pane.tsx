@@ -1,12 +1,17 @@
 "use client";
 
-import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { greetingFirstName } from "@/lib/profile-names";
 import { ChatFrostedEdge } from "./ui/chat-frosted-edge";
-import { ClauxenLogo } from "./icons/clauxen-logo";
 
 interface ChatViewPaneProps {
   hasConversation: boolean;
@@ -29,7 +34,7 @@ interface ChatViewPaneProps {
   /** Optional override; defaults to preferred name from session. */
   userPreferredName?: string | null;
   onUpgradeClick?: () => void;
-};
+}
 
 const NAMED_WELCOMES = [
   (name: string) => `What are we thinking about, ${name}?`,
@@ -82,7 +87,8 @@ const CHAT_FROSTED_EDGE_EXTRA_PX = 12;
 const COMPOSER_RESERVE_EPSILON_PX = 2;
 
 function getMinComposerReservePx() {
-  if (typeof window === "undefined") return MIN_CHAT_COMPOSER_RESERVE_PX_DESKTOP;
+  if (typeof window === "undefined")
+    return MIN_CHAT_COMPOSER_RESERVE_PX_DESKTOP;
   return window.matchMedia("(min-width: 640px)").matches
     ? MIN_CHAT_COMPOSER_RESERVE_PX_DESKTOP
     : MIN_CHAT_COMPOSER_RESERVE_PX;
@@ -92,16 +98,12 @@ function getMinComposerReservePx() {
  * Composer measurement owns layout only. The chat scroll hook is the sole
  * owner of vertical position, preventing competing scrollTop writes.
  */
-function applyComposerReserveCss(
-  shell: HTMLElement,
-  reservePx: number,
-) {
+function applyComposerReserveCss(shell: HTMLElement, reservePx: number) {
   shell.style.setProperty("--chat-composer-reserve", `${reservePx}px`);
   const spacer = shell.querySelector<HTMLElement>("[data-composer-end-spacer]");
   if (spacer) {
     spacer.style.height = `${reservePx}px`;
   }
-
 }
 
 export function ChatViewPane({
@@ -222,130 +224,142 @@ export function ChatViewPane({
               className="new-chat-greeting w-full max-w-full text-center text-[var(--ui-fg)]"
               suppressHydrationWarning
             >
-              {greeting || "\u00a0"}
+              <span className="inline-flex items-center justify-center gap-3">
+                <img
+                  src="/assets/icons/clauxen-icon.svg"
+                  alt=""
+                  width={34}
+                  height={34}
+                  className="new-chat-greeting__logo size-[34px] shrink-0"
+                />
+                <span>{greeting || "\u00a0"}</span>
+              </span>
             </h2>
             <div className="w-full">{promptInput}</div>
           </div>
         </div>
       ) : (
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <ScrollArea
-          className="h-full min-h-0 min-w-0 flex-1 overflow-hidden"
-          ref={scrollAreaRef}
-        >
-          <div
-            ref={scrollContentRef}
-            className={cn(
-              "chat-scroll-content flex w-full flex-1 flex-col items-center",
-              !hasConversation && "min-h-full",
-            )}
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <ScrollArea
+            className="h-full min-h-0 min-w-0 flex-1 overflow-hidden"
+            ref={scrollAreaRef}
           >
-            {hasConversation ? (
-              <div className="chat-column w-full min-w-0">
-                {conversation}
-                {/*
+            <div
+              ref={scrollContentRef}
+              className={cn(
+                "chat-scroll-content flex w-full flex-1 flex-col items-center",
+                !hasConversation && "min-h-full",
+              )}
+            >
+              {hasConversation ? (
+                <div className="chat-column w-full min-w-0">
+                  {conversation}
+                  {/*
                   End spacer clears the absolute composer without padding the
                   whole scroll content. Height is driven by CSS var / direct DOM
                   writes so transcript React trees do not re-layout on every
                   composer resize (that was causing the upward jump).
                 */}
-                <div
-                  aria-hidden
-                  data-composer-end-spacer
-                  className="pointer-events-none w-full shrink-0"
-                  style={{
-                    height: `var(--chat-composer-reserve, ${MIN_CHAT_COMPOSER_RESERVE_PX}px)`,
-                  }}
-                />
-              </div>
-            ) : (
-              <div
-                className={cn(
-                  "relative flex w-full flex-col items-center justify-center",
-                  // Demo welcome: fill the pane and center greeting + composer.
-                  composerOnlyWelcome
-                    ? "absolute inset-0 min-h-0 px-1 py-3"
-                    : "min-h-full flex-1 px-3 py-5 sm:min-h-[calc(100dvh-9rem)] sm:px-0 sm:py-10",
-                )}
-                data-demo-welcome={composerOnlyWelcome || undefined}
-              >
+                  <div
+                    aria-hidden
+                    data-composer-end-spacer
+                    className="pointer-events-none w-full shrink-0"
+                    style={{
+                      height: `var(--chat-composer-reserve, ${MIN_CHAT_COMPOSER_RESERVE_PX}px)`,
+                    }}
+                  />
+                </div>
+              ) : (
                 <div
                   className={cn(
-                    "chat-column flex w-full min-w-0 flex-col items-center",
-                    "gap-3 sm:gap-6",
+                    "relative flex w-full flex-col items-center justify-center",
+                    // Demo welcome: fill the pane and center greeting + composer.
+                    composerOnlyWelcome
+                      ? "absolute inset-0 min-h-0 px-1 py-3"
+                      : "min-h-full flex-1 px-3 py-5 sm:min-h-[calc(100dvh-9rem)] sm:px-0 sm:py-10",
                   )}
+                  data-demo-welcome={composerOnlyWelcome || undefined}
                 >
-                  {incognitoWelcome ? (
-                    <button
-                      type="button"
-                      onClick={onUpgradeClick}
-                      className="inline-flex items-center rounded-full border border-zinc-200/90 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
-                    >
-                      Upgrade to Pro
-                    </button>
-                  ) : null}
-
-                  {composerOnlyWelcome ? (
-                    <ClauxenLogo
-                      size={40}
-                      className="text-zinc-400 dark:text-zinc-500 transition-colors"
-                    />
-                  ) : null}
-
-                  <h2
+                  <div
                     className={cn(
-                      "select-none text-center tracking-tight text-zinc-800",
-                      incognitoWelcome
-                        ? "font-handwriting text-[22px] leading-[30px] sm:text-[38px] sm:leading-[48px]"
-                        : "font-handwriting",
-                      !incognitoWelcome &&
-                        (composerOnlyWelcome
-                          ? "text-[22px] leading-[30px] sm:text-[38px] sm:leading-[46px]"
-                          : "text-[22px] leading-[1.2] max-[380px]:text-[20px] sm:text-[36px] sm:leading-[44px] lg:text-[44px] lg:leading-[52px]"),
+                      "chat-column flex w-full min-w-0 flex-col items-center",
+                      "gap-3 sm:gap-6",
                     )}
-                    suppressHydrationWarning
                   >
                     {incognitoWelcome ? (
-                      <span className="inline-flex items-center gap-2.5">
-                        <span
-                          className="inline-flex h-7 w-7 items-center justify-center text-[22px] leading-none text-[#e8a03c] sm:h-8 sm:w-8 sm:text-[26px]"
-                          aria-hidden
-                        >
-                          ✦
-                        </span>
-                        You&apos;re incognito
-                      </span>
-                    ) : composerOnlyWelcome ? (
-                      "What can I help with?"
-                    ) : greeting ? (
-                      greeting
-                    ) : (
-                      "\u00a0"
-                    )}
-                  </h2>
-
-                  <div className="w-full">{promptInput}</div>
-
-                  {incognitoWelcome ? (
-                    <div className="mt-1 flex w-full max-w-[var(--chat-column-max-width,720px)] flex-col items-center gap-1.5 px-4 text-center">
-                      <p className="text-[12.5px] leading-5 text-zinc-500">
-                        Incognito chats aren&apos;t saved, added to memory, or
-                        used to train models.
-                      </p>
-                      <a
-                        href="/legal/privacy"
-                        className="text-[12.5px] leading-5 text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition-colors hover:text-zinc-700"
+                      <button
+                        type="button"
+                        onClick={onUpgradeClick}
+                        className="inline-flex items-center rounded-full border border-zinc-200/90 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
                       >
-                        Learn more about how your data is used.
-                      </a>
-                    </div>
-                  ) : null}
+                        Upgrade to Pro
+                      </button>
+                    ) : null}
+
+                    {composerOnlyWelcome ? (
+                      <img
+                        src="/assets/icons/clauxen-icon.svg"
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="size-10 text-zinc-400 dark:text-zinc-500"
+                      />
+                    ) : null}
+
+                    <h2
+                      className={cn(
+                        "select-none text-center tracking-tight text-zinc-800",
+                        incognitoWelcome
+                          ? "font-handwriting text-[22px] leading-[30px] sm:text-[38px] sm:leading-[48px]"
+                          : "font-handwriting",
+                        !incognitoWelcome &&
+                          (composerOnlyWelcome
+                            ? "text-[22px] leading-[30px] sm:text-[38px] sm:leading-[46px]"
+                            : "text-[22px] leading-[1.2] max-[380px]:text-[20px] sm:text-[36px] sm:leading-[44px] lg:text-[44px] lg:leading-[52px]"),
+                      )}
+                      suppressHydrationWarning
+                    >
+                      {incognitoWelcome ? (
+                        <span className="inline-flex items-center gap-2.5">
+                          <span
+                            className="inline-flex h-7 w-7 items-center justify-center text-[22px] leading-none text-[#e8a03c] sm:h-8 sm:w-8 sm:text-[26px]"
+                            aria-hidden
+                          >
+                            ✦
+                          </span>
+                          You&apos;re incognito
+                        </span>
+                      ) : composerOnlyWelcome ? (
+                        "What can I help with?"
+                      ) : greeting ? (
+                        greeting
+                      ) : (
+                        "\u00a0"
+                      )}
+                    </h2>
+
+                    <div className="w-full">{promptInput}</div>
+
+                    {incognitoWelcome ? (
+                      <div className="mt-1 flex w-full max-w-[var(--chat-column-max-width,720px)] flex-col items-center gap-1.5 px-4 text-center">
+                        <p className="text-[12.5px] leading-5 text-zinc-500">
+                          Incognito chats aren&apos;t saved, added to memory, or
+                          used to train models.
+                        </p>
+                        <a
+                          href="/legal/privacy"
+                          className="text-[12.5px] leading-5 text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition-colors hover:text-zinc-700"
+                        >
+                          Learn more about how your data is used.
+                        </a>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
       )}
 
       {dockComposer ? (

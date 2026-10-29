@@ -6,8 +6,7 @@ type ServiceBinding =
   | "CHAT_HISTORY"
   | "BILLING"
   | "AUTH_EMAIL"
-  | "SHARE_GATE"
-  | "CONNECTOR_GATEWAY";
+  | "SHARE_GATE";
 
 /** Route internal JSON calls through private bindings; retain local Node fallback. */
 export async function serviceFetch(

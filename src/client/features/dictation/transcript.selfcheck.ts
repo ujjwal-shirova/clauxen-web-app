@@ -1,27 +1,19 @@
-/**
- * ponytail: caret-aware dictation splice.
- * Run: npx tsx src/client/features/dictation/transcript.selfcheck.ts
- */
-import {
-  insertTranscriptAtCaret,
-  joinDraftAndTranscript,
-  splitDraftAroundCaret,
-} from "./transcript";
+import { insertTranscriptAtCaret, splitDraftAroundCaret } from "./transcript";
 
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(`dictation transcript selfcheck: ${msg}`);
 }
 
 assert(
-  joinDraftAndTranscript("", "hello") === "hello",
+  insertTranscriptAtCaret("", "hello", "").text === "hello",
   "empty draft becomes transcript",
 );
 assert(
-  joinDraftAndTranscript("Ask me", "later") === "Ask me later",
+  insertTranscriptAtCaret("Ask me", "later", "").text === "Ask me later",
   "appends with a space",
 );
 assert(
-  joinDraftAndTranscript("Ask me ", "later") === "Ask me later",
+  insertTranscriptAtCaret("Ask me ", "later", "").text === "Ask me later",
   "does not double-space",
 );
 
@@ -35,11 +27,7 @@ const replace = splitDraftAroundCaret("paint the cat red", {
 });
 assert(replace.prefix === "paint the ", "prefix before selection");
 assert(replace.suffix === " red", "suffix after selection");
-const spliced = insertTranscriptAtCaret(
-  replace.prefix,
-  "dog",
-  replace.suffix,
-);
+const spliced = insertTranscriptAtCaret(replace.prefix, "dog", replace.suffix);
 assert(spliced.text === "paint the dog red", "selection is replaced");
 
 console.log("dictation transcript.selfcheck: ok");

@@ -1,20 +1,5 @@
 const TARGET_SAMPLE_RATE = 16_000;
 
-function preferredRecordingMimeType(): string {
-  if (typeof MediaRecorder === "undefined") return "audio/webm";
-  const candidates = [
-    "audio/webm;codecs=opus",
-    "audio/mp4;codecs=mp4a.40.2",
-    "audio/ogg;codecs=opus",
-    "audio/webm",
-  ];
-  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
-}
-
-export function getPreferredRecordingMimeType() {
-  return preferredRecordingMimeType() || "audio/webm";
-}
-
 class StreamingLinearResampler {
   private pending = new Float32Array(0);
   private position = 0;
@@ -53,10 +38,6 @@ class StreamingLinearResampler {
   }
 }
 
-/**
- * Live mic capture for AssemblyAI streaming dictation.
- * Sends 16 kHz PCM only — does not record or upload audio blobs.
- */
 export class MicrophoneCapture {
   private audioContext: AudioContext | null = null;
   private processor: ScriptProcessorNode | null = null;
@@ -65,6 +46,7 @@ export class MicrophoneCapture {
   constructor(
     private readonly stream: MediaStream,
     private readonly onPcm: (audio: ArrayBuffer) => void,
+    private readonly onLevel: (level: number) => void,
   ) {}
 
   async start() {
@@ -85,7 +67,16 @@ export class MicrophoneCapture {
     const silentGain = this.audioContext.createGain();
     silentGain.gain.value = 0;
     this.processor.onaudioprocess = (event) => {
-      const pcm = resampler.push(event.inputBuffer.getChannelData(0));
+      const samples = event.inputBuffer.getChannelData(0);
+      let squares = 0;
+      for (let index = 0; index < samples.length; index += 1) {
+        const sample = samples[index] ?? 0;
+        squares += sample * sample;
+      }
+      const rms = Math.sqrt(squares / Math.max(1, samples.length));
+      this.onLevel(Math.min(1, rms * 4.5));
+
+      const pcm = resampler.push(samples);
       if (pcm.byteLength > 0) {
         this.onPcm(
           pcm.buffer.slice(

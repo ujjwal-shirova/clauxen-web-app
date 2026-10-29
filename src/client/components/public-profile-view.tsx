@@ -17,7 +17,6 @@ type Shape = "circle" | "squircle" | "rounded" | "oval" | "scallop";
 type Visibility = {
   usageStatistics: boolean;
   activityGraph: boolean;
-  topPlugins: boolean;
   insights: boolean;
 };
 type Profile = {
@@ -34,7 +33,6 @@ type Profile = {
     currentStreakDays: number;
   };
   activity?: { date: string; count: number }[];
-  plugins?: { id: string; name: string; iconUrl: string | null }[];
   insights?: { messages: number; chats: number; skills: number };
 };
 
@@ -187,7 +185,6 @@ export function PublicProfileView({ username }: { username: string }) {
   const [draftVisibility, setDraftVisibility] = useState<Visibility>({
     usageStatistics: true,
     activityGraph: true,
-    topPlugins: true,
     insights: true,
   });
   const [isOwner, setIsOwner] = useState(false);
@@ -231,7 +228,6 @@ export function PublicProfileView({ username }: { username: string }) {
                 own.visibility ?? {
                   usageStatistics: true,
                   activityGraph: true,
-                  topPlugins: true,
                   insights: true,
                 },
               );
@@ -273,7 +269,6 @@ export function PublicProfileView({ username }: { username: string }) {
           avatarShape: draftShape,
           showUsageStatistics: draftVisibility.usageStatistics,
           showActivityGraph: draftVisibility.activityGraph,
-          showTopPlugins: draftVisibility.topPlugins,
           showInsights: draftVisibility.insights,
         }),
       });
@@ -453,38 +448,6 @@ export function PublicProfileView({ username }: { username: string }) {
             )}
 
             {section(
-              "Top plugins",
-              profile.visibility.topPlugins,
-              profile.plugins?.length ? (
-                <div className="flex flex-wrap gap-2">
-                  {profile.plugins.map((plugin) => (
-                    <div
-                      key={plugin.id}
-                      title={plugin.name}
-                      className="flex size-12 items-center justify-center overflow-hidden rounded-xl border border-[var(--ui-border)] bg-[var(--app-panel-bg,var(--app-frame-bg))]"
-                    >
-                      {plugin.iconUrl ? (
-                        <img
-                          src={plugin.iconUrl}
-                          alt={plugin.name}
-                          className="size-6 object-contain"
-                        />
-                      ) : (
-                        <span className="text-[12px] font-semibold">
-                          {plugin.name.slice(0, 2).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[12px] text-[var(--ui-fg-muted)]">
-                  No connected plugins to show.
-                </p>
-              ),
-            )}
-
-            {section(
               "Insights",
               profile.visibility.insights,
               <dl className="space-y-2 text-[12px]">
@@ -626,7 +589,6 @@ export function PublicProfileView({ username }: { username: string }) {
                     [
                       ["usageStatistics", "Show usage statistics"],
                       ["activityGraph", "Show activity graph"],
-                      ["topPlugins", "Show top plugins"],
                       ["insights", "Show insights"],
                     ] as const
                   ).map(([key, label], index) => (
