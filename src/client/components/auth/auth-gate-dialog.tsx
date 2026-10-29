@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AuthGateForm } from "@/components/auth/auth-gate-form";
+import { ClauxenWordmark } from "@/components/auth/clauxen-wordmark";
+import { Clock, FolderKanban, Sparkles } from "@/components/icons/app-icons";
 import { getSafeRedirectTo } from "@/lib/auth-redirect";
 
 interface AuthGateDialogProps {
@@ -20,9 +22,30 @@ interface AuthGateDialogProps {
   initialError?: string | null;
 }
 
+const BENEFITS = [
+  {
+    icon: Clock,
+    title: "Keep every conversation",
+    body: "Chats, files and answers stay in your history — reopen or search them anytime.",
+  },
+  {
+    icon: FolderKanban,
+    title: "Projects that remember",
+    body: "Group chats with their own instructions, context files and memory.",
+  },
+  {
+    icon: Sparkles,
+    title: "Work across devices",
+    body: "Sign in once and pick up on web, desktop and mobile.",
+  },
+] as const;
+
 /**
- * In-app sign-in container — the exact same form as `/login`, rendered as a
- * large modal over the live app preview so guests never leave the page.
+ * Guest sign-in surface.
+ *
+ * A docked card rather than a full-screen modal: a guest who has not decided
+ * to sign in should still see and use the app behind it. Desktop anchors the
+ * card to the bottom-right corner; small screens get a bottom sheet.
  */
 export function AuthGateDialog({
   open,
@@ -51,22 +74,67 @@ export function AuthGateDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
       <DialogContent
-        className="cx-auth-gate-dialog max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-[680px] overflow-y-auto rounded-2xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] px-5 py-8 sm:px-12 sm:py-10 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.35)]"
+        hideClose
         data-auth-gate-dialog
+        className="cx-auth-panel gap-0 overflow-y-auto p-0"
+        onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <DialogTitle className="sr-only">Sign in to Clauxen</DialogTitle>
         <DialogDescription className="sr-only">
-          Sign in to continue. Choose a provider or use your email — the app
-          stays open behind this dialog.
+          Sign in to keep chats, projects and files. You can keep using the app
+          preview without an account.
         </DialogDescription>
-        <AuthGateForm
-          redirectTo={target}
-          initialError={initialError}
-          onAuthenticated={handleAuthenticated}
-          variant="dialog"
-        />
+
+        <div className="flex flex-col">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--ui-border-subtle)] px-4 py-3">
+            <ClauxenWordmark height={20} className="text-[var(--ui-fg)]" />
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="inline-flex h-7 items-center rounded-full px-2.5 text-[12px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] focus-visible:outline-none"
+            >
+              Not now
+            </button>
+          </div>
+
+          <div className="px-4 pt-4">
+            <h2 className="text-[17px] font-semibold leading-snug tracking-[-0.02em] text-[var(--ui-fg)]">
+              Unlock more with Clauxen
+            </h2>
+            <p className="mt-1 text-[12.5px] leading-5 text-[var(--ui-fg-muted)]">
+              You are browsing as a guest. Sign in to keep what you make.
+            </p>
+
+            <ul className="mt-3 flex flex-col gap-2">
+              {BENEFITS.map(({ icon: Icon, title, body }) => (
+                <li key={title} className="flex gap-2.5">
+                  <span className="mt-px flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--ui-hover-wash)] text-[14px] text-[var(--ui-fg)]">
+                    <Icon />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[12.5px] font-medium leading-5 text-[var(--ui-fg)]">
+                      {title}
+                    </span>
+                    <span className="block text-[12px] leading-[18px] text-[var(--ui-fg-muted)]">
+                      {body}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-3.5 border-t border-[var(--ui-border-subtle)] px-4 pb-3.5 pt-3">
+            <AuthGateForm
+              redirectTo={target}
+              initialError={initialError}
+              onAuthenticated={handleAuthenticated}
+              variant="panel"
+            />
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

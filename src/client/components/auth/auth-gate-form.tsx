@@ -35,8 +35,24 @@ export interface AuthGateFormProps {
    * (email/password + OTP). OAuth navigates away to the provider itself.
    */
   onAuthenticated?: (target: string) => void;
-  /** Dialog renders the identical form inside a scrollable container. */
-  variant?: "page" | "dialog";
+  /**
+   * `page` — full signup page. `dialog` — centered modal. `panel` — compact
+   * docked guest card, where the shell owns the heading and benefits.
+   */
+  variant?: "page" | "dialog" | "panel";
+}
+
+/**
+ * Provider callbacks carry URL-encoded error text. A stray `%` in the message
+ * (e.g. "50% off") makes decodeURIComponent throw, which used to take the
+ * whole sign-in surface down, so decoding never gets to be fatal.
+ */
+function decodeAuthError(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 /**
@@ -62,15 +78,13 @@ export function AuthGateForm({
     null,
   );
   const [error, setError] = useState<string | null>(
-    initialError
-      ? mapSupabaseAuthError(decodeURIComponent(initialError))
-      : null,
+    initialError ? mapSupabaseAuthError(decodeAuthError(initialError)) : null,
   );
 
   // Sync incoming initialError (e.g. from OAuth redirect failure)
   useEffect(() => {
     if (initialError) {
-      setError(mapSupabaseAuthError(decodeURIComponent(initialError)));
+      setError(mapSupabaseAuthError(decodeAuthError(initialError)));
     }
   }, [initialError]);
   const [info, setInfo] = useState<string | null>(null);
@@ -223,13 +237,17 @@ export function AuthGateForm({
       setFormSubmitting(true);
       try {
         await login(email.trim(), password);
-        finishSignIn();
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Sign in failed. Try again.",
         );
         setFormSubmitting(false);
+        return;
       }
+      // Success: re-enable the form before the shell closes or navigates so a
+      // failed redirect can never leave the button stuck on "Please wait…".
+      setFormSubmitting(false);
+      finishSignIn();
       return;
     }
 
@@ -238,6 +256,7 @@ export function AuthGateForm({
         setError("Password must be at least 8 characters.");
         return;
       }
+      // eslint-disable-next-line security/detect-possible-timing-attacks -- both values are this user's own keystrokes in the same tab; no secret is compared
       if (password !== confirmPassword) {
         setError("Passwords do not match.");
         return;
@@ -291,6 +310,7 @@ export function AuthGateForm({
       });
       await login(email.trim(), password);
       setOtpOpen(false);
+      setOtpSubmitting(false);
       finishSignIn();
     } catch (err) {
       setOtpError(
@@ -323,51 +343,62 @@ export function AuthGateForm({
           ? "GitLab"
           : null;
 
+  const isPanel = variant === "panel";
+
   return (
     <div
       className={cn(
         "flex w-full flex-1 flex-col",
         variant === "dialog" && "mx-auto max-w-[480px] flex-none",
+        isPanel && "flex-none",
       )}
     >
       <div
         className={cn(
           "flex w-full flex-1 flex-col justify-center",
           variant === "dialog" ? "py-1" : "py-6",
+          isPanel && "flex-none justify-start py-0",
         )}
       >
-        <div
-          className={cn(
-            "flex items-center",
-            variant === "dialog" && "justify-center",
-          )}
-        >
-          <ClauxenWordmark
-            height={variant === "dialog" ? 32 : 24}
-            className="text-[var(--ui-fg)]"
-          />
-        </div>
-        <h1
-          className={cn(
-            "mt-5 text-[22px] font-semibold leading-tight tracking-[-0.02em] text-[var(--ui-fg)] sm:text-[24px]",
-            variant === "dialog" &&
-              "font-serif text-center text-[28px] font-medium leading-[1.2] tracking-[-0.025em] sm:text-[34px] text-balance",
-          )}
-        >
-          {step === "create"
-            ? "Create account"
-            : step === "login"
-              ? "Welcome back"
-              : step === "magic" || step === "magic-sent"
-                ? "Magic link"
-                : step === "email"
-                  ? "Email"
-                  : "Unlock more with Clauxen"}
-        </h1>
+        {isPanel ? null : (
+          <div
+            className={cn(
+              "flex items-center",
+              variant === "dialog" && "justify-center",
+            )}
+          >
+            <ClauxenWordmark
+              height={variant === "dialog" ? 32 : 24}
+              className="text-[var(--ui-fg)]"
+            />
+          </div>
+        )}
+        {isPanel && step === "chooser" ? null : (
+          <h1
+            className={cn(
+              "mt-5 text-[22px] font-semibold leading-tight tracking-[-0.02em] text-[var(--ui-fg)] sm:text-[24px]",
+              variant === "dialog" &&
+                "font-serif text-center text-[28px] font-medium leading-[1.2] tracking-[-0.025em] sm:text-[34px] text-balance",
+              isPanel &&
+                "mt-0 text-[13px] font-semibold tracking-[-0.01em] text-[var(--ui-fg-muted)]",
+            )}
+          >
+            {step === "create"
+              ? "Create account"
+              : step === "login"
+                ? "Welcome back"
+                : step === "magic" || step === "magic-sent"
+                  ? "Magic link"
+                  : step === "email"
+                    ? "Email"
+                    : "Unlock more with Clauxen"}
+          </h1>
+        )}
         <p
           className={cn(
             "mt-2 text-[13.5px] leading-relaxed text-[var(--ui-fg-muted)]",
             variant === "dialog" && "text-center",
+            isPanel && "sr-only",
           )}
         >
           {step === "chooser"
@@ -385,11 +416,12 @@ export function AuthGateForm({
 
         {step === "chooser" ? (
           <>
-            <div className="mt-6">
+            <div className={isPanel ? "mt-3" : "mt-6"}>
               <AuthOAuthButtons
                 onOAuth={handleOAuth}
                 disabled={busy}
                 pendingProvider={pendingProvider}
+                compact={isPanel}
               />
               {providerName ? (
                 <p className="sr-only" role="status">
@@ -398,7 +430,12 @@ export function AuthGateForm({
               ) : null}
             </div>
 
-            <div className="my-4 flex items-center gap-3">
+            <div
+              className={cn(
+                "flex items-center gap-3",
+                isPanel ? "my-3" : "my-4",
+              )}
+            >
               <div className="h-px flex-1 bg-[var(--ui-border)]" />
               <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--ui-fg-subtle)]">
                 or
@@ -540,7 +577,10 @@ export function AuthGateForm({
         ) : (
           <form
             onSubmit={(e) => void handleEmailContinue(e)}
-            className="mt-7 animate-in fade-in slide-in-from-bottom-2 duration-300"
+            className={cn(
+              "animate-in fade-in slide-in-from-bottom-2 duration-300",
+              isPanel ? "mt-3" : "mt-7",
+            )}
           >
             <div className="space-y-3">
               <div>
@@ -685,6 +725,7 @@ export function AuthGateForm({
           className={cn(
             "mt-5 text-[12px] leading-relaxed text-[var(--ui-fg-subtle)]",
             variant === "dialog" && "text-center",
+            isPanel && "mt-3 text-center text-[11.5px]",
           )}
         >
           By continuing, you agree to the{" "}

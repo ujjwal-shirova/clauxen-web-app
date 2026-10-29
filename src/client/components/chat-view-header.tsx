@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useIsClient } from "@/hooks/use-is-client";
+import { useAuth } from "@/hooks/use-auth";
+import { useOptionalAuthGate } from "@/contexts/auth-gate-context";
+import { Download } from "@/components/icons/app-icons";
 import { ChevronDown, Files, MoreHorizontal, Share } from "@/components/ui/bootstrap-icon";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
@@ -65,6 +69,10 @@ export function ChatViewHeader({
   headerControlsLoading = false,
 }: ChatViewHeaderProps) {
   const isClient = useIsClient();
+  const router = useRouter();
+  const auth = useAuth();
+  const authGate = useOptionalAuthGate();
+  const isGuest = isClient && !auth.loading && !auth.user;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
 
@@ -215,6 +223,27 @@ export function ChatViewHeader({
             </button>
           ) : null}
         </div>
+
+        {/* Guests get the two account CTAs instead of a plan upsell. */}
+        {isGuest ? (
+          <div className="pointer-events-auto relative z-10 ml-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => authGate?.openAuthGate()}
+              className="inline-flex h-9 items-center rounded-lg bg-[#f4f4f5] px-3.5 text-[13px] font-medium text-[#18181b] transition-colors hover:bg-[#e9e9ec] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] focus-visible:outline-none dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/download")}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#18181b] pl-3 pr-3.5 text-[13px] font-medium text-white transition-colors hover:bg-[#27272a] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] focus-visible:outline-none dark:bg-[#f4f4f5] dark:text-[#18181b] dark:hover:bg-[#e4e4e7]"
+            >
+              <Download className="shrink-0 text-[15px]" />
+              <span className="max-[520px]:hidden">Download for Desktop</span>
+            </button>
+          </div>
+        ) : null}
 
       </div>
     </header>

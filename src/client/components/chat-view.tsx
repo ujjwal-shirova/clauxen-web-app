@@ -104,13 +104,17 @@ function ChatViewBody({
     };
 
     const loadPlan = async () => {
+      // Guests have no plan at all — showing a plan upsell to someone who has
+      // not signed in reads as a bug, so the surface stays hidden.
+      if (!auth.loading && !auth.user?.id) {
+        setShowFreePlanUpgrade(false);
+        return;
+      }
+
       const cachedPlan = readCachedBillingPlan();
       if (cachedPlan) updateFromPlanId(cachedPlan.planId);
 
-      if (!auth.user?.id) {
-        if (!auth.loading) updateFromPlanId("free");
-        return;
-      }
+      if (!auth.user?.id) return;
 
       try {
         const overview = await getBillingSubscription();

@@ -13,7 +13,6 @@ import {
   Settings,
   ArrowUpCircle,
   ChevronRight,
-  Devices,
   HelpCircle,
   LogIn,
   LogOut,
@@ -29,6 +28,7 @@ import {
   Puzzle,
   Search,
   Keyboard,
+  Download,
 } from "@/components/icons/app-icons";
 import { SidebarToggleIcon } from "./icons";
 import { cn } from "@/lib/utils";
@@ -1318,13 +1318,13 @@ export function Sidebar({
                 </DropdownMenu>
               )}
 
-              {!isCollapsed && !isPeekPreview ? (
+              {!isPeekPreview ? (
                 <div className="flex shrink-0 items-center">
-                  <ShortcutHint label="Get apps and extensions" side="top">
+                  <ShortcutHint label="Download for desktop" side="top">
                     <button
                       type="button"
-                      aria-label="Get apps and extensions"
-                      title="Get apps and extensions"
+                      aria-label="Download for desktop"
+                      title="Download for desktop"
                       onClick={(event) => {
                         event.stopPropagation();
                         if (!gateSidebarAction(event)) return;
@@ -1332,7 +1332,7 @@ export function Sidebar({
                       }}
                       className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--cx-sidebar-muted)] transition-colors hover:bg-[var(--cx-sidebar-hover)] hover:text-[var(--cx-sidebar-fg)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                     >
-                      <Devices className="size-[18px] shrink-0" />
+                      <Download className="size-[17px] shrink-0" />
                     </button>
                   </ShortcutHint>
                 </div>

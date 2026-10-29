@@ -333,3 +333,17 @@ export const Upload = createIcon(
     <path d="M5 15v3.25A1.75 1.75 0 0 0 6.75 20h10.5A1.75 1.75 0 0 0 19 18.25V15" />
   </>,
 );
+export const Download = createIcon(
+  "Download",
+  <>
+    <path d="M12 4v11m-4-4 4 4 4-4" />
+    <path d="M5 15v3.25A1.75 1.75 0 0 0 6.75 20h10.5A1.75 1.75 0 0 0 19 18.25V15" />
+  </>,
+);
+export const PanelLeft = createIcon(
+  "PanelLeft",
+  <>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M9.5 4v16" />
+  </>,
+);

@@ -118,6 +118,23 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loading, isAuthenticated, hasInteracted]);
 
+  // A guest who lands on the preview without being prompted still gets one
+  // quiet introduction to what an account adds. Dismissal is per session, so
+  // closing the card is respected for the rest of the visit.
+  useEffect(() => {
+    if (loading || isAuthenticated || isOpen) return;
+    if (typeof window === "undefined") return;
+    if (window.location.pathname !== "/new") return;
+    try {
+      if (sessionStorage.getItem("clx_auth_gate_dismissed") === "1") return;
+    } catch {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setIsOpen(true), 1600);
+    return () => window.clearTimeout(timer);
+  }, [loading, isAuthenticated, isOpen]);
+
   const value = useMemo<AuthGateContextValue>(
     () => ({ isOpen, openAuthGate, closeAuthGate, requireAuth }),
     [isOpen, openAuthGate, closeAuthGate, requireAuth],

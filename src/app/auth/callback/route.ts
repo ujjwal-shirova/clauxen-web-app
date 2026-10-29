@@ -11,7 +11,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function safeNext(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/new";
+  if (!raw || !raw.startsWith("/")) return "/new";
+  // Browsers normalise `\` to `/`, so `/\host` can leave the origin just like
+  // `//host`. Reject both, plus control characters.
+  if (/^\/\/|^\/\\|[\\\u0000-\u001f\u007f]/.test(raw)) return "/new";
   return raw === "/" ? "/new" : raw;
 }
 

@@ -166,12 +166,71 @@ export function AuthOAuthButtons({
   onOAuth,
   disabled,
   pendingProvider,
+  compact = false,
 }: {
   onOAuth: (provider: OAuthProvider) => void;
   disabled?: boolean;
   pendingProvider?: OAuthProvider | null;
+  /** Single row of labelled icon buttons for the docked guest panel. */
+  compact?: boolean;
 }) {
   const pending = (id: OAuthProvider) => pendingProvider === id;
+
+  if (compact) {
+    const providers: Array<{
+      id: OAuthProvider;
+      label: string;
+      icon: React.ReactNode;
+      pendingIcon: React.ReactNode;
+    }> = [
+      {
+        id: "google",
+        label: "Google",
+        icon: <GoogleIcon className="h-4 w-4" />,
+        pendingIcon: <AuthSpinner className="text-[var(--ui-fg)]" />,
+      },
+      {
+        id: "github",
+        label: "GitHub",
+        icon: <GithubIcon className="h-4 w-4" />,
+        pendingIcon: <AuthSpinner className="text-[var(--ui-fg)]" />,
+      },
+      {
+        id: "gitlab",
+        label: "GitLab",
+        icon: (
+          <i
+            className="bi bi-gitlab text-[15px] leading-none text-[#FC6D26]"
+            aria-hidden="true"
+          />
+        ),
+        pendingIcon: <AuthSpinner className="text-[#FC6D26]" />,
+      },
+    ];
+
+    return (
+      <div className="flex items-stretch gap-2">
+        {providers.map((provider) => (
+          <button
+            key={provider.id}
+            type="button"
+            disabled={disabled}
+            aria-busy={pending(provider.id) || undefined}
+            aria-label={`Continue with ${provider.label}`}
+            onClick={() => onOAuth(provider.id)}
+            className={cn(
+              authPageStyles.iconBtn,
+              "h-10 min-w-0 gap-2 text-[13px]",
+              pending(provider.id) && "cursor-wait opacity-80",
+            )}
+          >
+            {pending(provider.id) ? provider.pendingIcon : provider.icon}
+            <span className="truncate">{provider.label}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2.5">

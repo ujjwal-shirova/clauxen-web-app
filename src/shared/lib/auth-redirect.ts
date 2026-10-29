@@ -1,5 +1,23 @@
 import { APP_ROUTES, parseOverlayHash } from "@/lib/app-routes";
 
+/**
+ * Paths browsers may treat as protocol-relative after normalisation.
+ * `/\evil.com`, `/%5Cevil.com` and control-character tricks are all handled by
+ * resolving against a fixed origin instead of pattern-matching the string.
+ */
+function isSameOriginPath(path: string): boolean {
+  if (!path.startsWith("/")) return false;
+  // Reject backslashes and control characters outright: browsers normalise
+  // `\` to `/` in URLs, so `/\host` can leave the site.
+  if (/[\\\u0000-\u001f\u007f]/.test(path)) return false;
+  try {
+    return new URL(path, "https://clauxen.invalid").origin ===
+      "https://clauxen.invalid";
+  } catch {
+    return false;
+  }
+}
+
 /** Safe post-auth redirect path (never open redirect). Preserves hash. */
 export function getSafeRedirectTo(value: string | null): string {
   if (!value) return APP_ROUTES.newChat;
@@ -12,7 +30,7 @@ export function getSafeRedirectTo(value: string | null): string {
     hash = value.slice(hashIdx);
   }
 
-  if (!path.startsWith("/") || path.startsWith("//")) {
+  if (!isSameOriginPath(path)) {
     return hash && parseOverlayHash(hash)
       ? `${APP_ROUTES.newChat}${hash}`
       : APP_ROUTES.newChat;
